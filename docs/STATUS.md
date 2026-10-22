@@ -29,7 +29,7 @@ Actieve werkitems:
 - Door gebruiker aangeleverde Schietspoel-extracties gecontroleerd: beide OCPI `evse_id` waarden matchen eerdere Athlon-waarden; beide status `AVAILABLE`; gedeelde `REGULAR` EUR-tariff met `ENERGY 0.2691`, 21% btw (~€0,33/kWh). Compacte brongebaseerde fixture en gerichte check gecommit.
 
 - Op 22 oktober opnieuw de **originele twee geüploade Schietspoel-extracties** met Python gecontroleerd: locatie met twee verwachte EVSE-identificaties en twee succesvolle tariefresoluties (PASS). Ook een lokale kopie van `check_ndw_fixture.py` uitgevoerd met een uit die extracties samengestelde fixture: `Fixture check passed` (de exacte gecommitte fixture is niet rechtstreeks als bestand uitgevoerd).
-- NDW HTTP HEAD vanaf agentcontainer geprobeerd, maar externe DNS-resolutie faalde; **geen bewijs van 304-support**. `tools/check_ndw_http_cache.py` toegevoegd om dit vanaf Windows reproduceerbaar te testen.
+- NDW HTTP HEAD vanaf agentcontainer geprobeerd, maar externe DNS-resolutie faalde. Vervolgens bevestigde de gebruiker op Windows **200 HEAD en 304 Conditional GET voor beide feeds** op 22 oktober 2026. `tools/check_ndw_http_cache.py` toegevoegd om dit vanaf Windows reproduceerbaar te testen.
 
 ## Huidige beperking
 
@@ -40,7 +40,7 @@ De gebruiker heeft het download-/analysescript met succes lokaal uitgevoerd. Dez
 
 Dit is geen NDW-authenticatieprobleem: de landelijke downloads zijn publiek en NDW documenteert `curl ... | gunzip`.
 
-Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last-Modified en lokale Schietspoel-tariefresolutie zijn bewezen via het aangeleverde rapport. De Schietspoel-bronobjecten, twee EVSE-identiteiten, energietarief en tariefrelaties zijn inmiddels gecontroleerd; compacte echte fixtures plus check zijn toegevoegd. Conditionele HTTP-responses, landelijke tariefdekking en identiteit over meerdere snapshots ontbreken nog.
+Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last-Modified en lokale Schietspoel-tariefresolutie zijn bewezen via het aangeleverde rapport. De Schietspoel-bronobjecten, twee EVSE-identiteiten, energietarief en tariefrelaties zijn inmiddels gecontroleerd; compacte echte fixtures plus check zijn toegevoegd. Landelijke tariefdekking en identiteit over meerdere snapshots ontbreken nog; conditionele HTTP GET met 304 is inmiddels aangetoond.
 
 ## Productbesluiten
 
@@ -52,7 +52,7 @@ Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last
 
 ## Eerstvolgende actie
 
-1. De Python-fixturecheck is op een lokale kopie van het script met een uit originele extracties samengestelde fixture geslaagd (`Fixture check passed`); draai voor extra zekerheid nog met de exacte repositoryfixture `python tests/check_ndw_fixture.py`. Voer daarnaast `python tools/check_ndw_http_cache.py` uit en deel de uitvoer; deze voert HEAD + conditionele GET uit zonder volledige download.
+1. De conditionele HTTP-cachecheck is geslaagd op Windows: HEAD 200 en conditional GET 304 voor beide bestanden. Eventueel exacte repositoryfixture testen met `python tests/check_ndw_fixture.py`.
 2. Landelijke tariefdekking en identiteitsstabiliteit over twee snapshots blijven **nog niet gemeten** (alleen bronextractie van Schietspoel beschikbaar).
 3. Leg HTTP-resultaat en resterende kwaliteitsrisico's vast voordat de PR naar ready-for-review gaat.
 4. **Niet mergen of deployen zonder expliciet gebruikersakkoord.**
