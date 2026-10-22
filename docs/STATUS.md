@@ -72,3 +72,7 @@ Gebruiker controleerde `pg_stat_user_tables`: tariff 163 MB, evse 71 MB, connect
 ## Bulkrollback bevestigd (22 oktober 2026)
 
 Gebruiker voerde `--bulk` met één-locatie-Schietspoel-fixture en `minLocations=2` uit. Resultaat: `Bulk rollback: Only 1 locations; expected >= 2`. `SELECT COUNT(*) FROM import_run` bleef **5**. De transactionele afwijzing van een te kleine snapshot is daarmee lokaal bevestigd. Nog open: ongewijzigde records overslaan bij upserts om vermijdbare writes te beperken; groei 214→402 MB is indicatie, geen oorzakelijk bewijs.
+
+## Ongewijzigde-upsertoptimalisatie (22 oktober 2026)
+
+Bulkmodus op dezelfde branch aangepast: Location, EVSE, Connector en Tariff werken uitsluitend bij wanneer de kolomtuple `IS DISTINCT FROM` is. ConnectorTariff wordt set-wise vergeleken met de gewenste koppelingen, zodat identieke links niet meer verwijderd/ingevoegd worden. **Nog niet gebouwd of lokaal gevalideerd.** Eerst fixture en vervolgens identieke landelijke herimport controleren op aantallen, tijd en opslag. Geen schema-update of deployment.
