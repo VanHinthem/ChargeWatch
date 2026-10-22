@@ -170,7 +170,9 @@ internal static class BulkImporter
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
                   latitude=excluded.latitude, longitude=excluded.longitude, position=excluded.position,
-                  source_last_updated=excluded.source_last_updated;
+                  source_last_updated=excluded.source_last_updated
+                WHERE (charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated)
+                    IS DISTINCT FROM (excluded.address,excluded.city,excluded.operator_name,excluded.latitude,excluded.longitude,excluded.position,excluded.source_last_updated);
                 """);
             await Exec(db, tx, """
                 INSERT INTO evse(location_id,source_uid,external_evse_id,status,source_last_updated)
@@ -183,7 +185,9 @@ internal static class BulkImporter
                 WHERE true
                 ON CONFLICT(location_id,source_uid) DO UPDATE SET
                   external_evse_id=excluded.external_evse_id, status=excluded.status,
-                  source_last_updated=excluded.source_last_updated;
+                  source_last_updated=excluded.source_last_updated
+                WHERE (evse.external_evse_id,evse.status,evse.source_last_updated)
+                    IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated);
                 """);
             await Exec(db, tx, """
                 INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power)
@@ -197,7 +201,9 @@ internal static class BulkImporter
                 WHERE true
                 ON CONFLICT(evse_id,source_id) DO UPDATE SET
                    standard=excluded.standard,power_type=excluded.power_type,
-                   max_electric_power=excluded.max_electric_power;
+                   max_electric_power=excluded.max_electric_power
+                WHERE (connector.standard,connector.power_type,connector.max_electric_power)
+                    IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power);
                 """);
             await Exec(db, tx, """
                 DELETE FROM connector_tariff ct USING connector c, evse e, charging_location l, stage_connector s
@@ -228,7 +234,9 @@ internal static class BulkImporter
                     FROM stage_tariff WHERE true
                     ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                       currency=excluded.currency,details=excluded.details,
-                      source_last_updated=excluded.source_last_updated;
+                      source_last_updated=excluded.source_last_updated
+                    WHERE (tariff.currency,tariff.details,tariff.source_last_updated)
+                        IS DISTINCT FROM (excluded.currency,excluded.details,excluded.source_last_updated);
                     """);
 
             string sha;
