@@ -24,7 +24,8 @@
 - [ ] Actuele locatie-, EVSE-, connector- en tariefdata; geen tariefhistorie.
 - [ ] Vanaf de eerste import landelijke 168-vaks EWMA-profielen **per EVSE én per locatie**, en 90-daagse EVSE-uptime-dagtotalen.
 - [ ] Compacte arrays versus tabelrijen meten, benchmarken en opslag/indexen optimaliseren.
-- [ ] REST API met uitsluitend **GET-endpoints** voor kaart, zoeken, filtering, details, status, huidige tarieven en alternatieven.
+- [ ] REST API met uitsluitend **GET-endpoints** voor kaart, zoeken, filtering, details, status, huidige tarieven, alternatieven, **EVSE-/locatiestatistieken, uptime en historische beschikbaarheidskansen**.
+- [ ] Publicatiecriteria voor statistieken: voldoende observaties/dekking, geldige bronstatus, tijdvak en actualiteit, anders 'onvoldoende gegevens'.
 - [ ] Tests, dataversheid, performance en CI.
 
 ## Fase 2 — Android-app en widget (release 1.0)
@@ -33,22 +34,25 @@
 - [ ] **Favorieten uitsluitend lokaal** opslaan (Room/DataStore), inclusief naam en volgorde.
 - [ ] Native widget: 2–5 favorieten, beschikbaarheid, dataversheid, verversen.
 - [ ] Nabije alternatieven en navigatie via bestaande kaartenapp.
+- [ ] **Statistieken in v1:** bezettingsprofiel per EVSE en per locatie, bijvoorbeeld weekdag-/uur-heatmap.
+- [ ] **Betrouwbaarheid in v1:** 90-daagse uptime per EVSE met meetdekking.
+- [ ] **Historische beschikbaarheidskans in v1:** per gekozen weekdag/uur de rechtstreeks gemeten EWMA-kans op >=1 vrije EVSE, met indicatie van datakwaliteit; geen voorspelling van het exacte vrijkom-moment.
 - [ ] Verouderde/onbekende brondata helder tonen; offline-cache is expliciet 'laatst bekend'.
 - [ ] Test op fysieke Android-telefoon en NAS-deployment.
 
-**V1 exit criteria:** Schietspoel 18 vinden, individuele statussen en actuele tariefinformatie zien, lokaal favoriet maken, widget tonen en alternatieven vinden. De API heeft geen write-endpoints of server-side persoonlijke opslag. Databasegrootte en importduur zijn daadwerkelijk gemeten.
+**V1 exit criteria:** Schietspoel 18 vinden, individuele statussen en actuele tariefinformatie zien, lokaal favoriet maken, widget tonen, EVSE-/locatiestatistieken en uptime bekijken, een weekdag/uur-kansinschatting opvragen en alternatieven vinden. Onvoldoende data wordt expliciet als zodanig getoond. De API heeft geen write-endpoints of server-side persoonlijke opslag. Databasegrootte en importduur zijn daadwerkelijk gemeten.
 
-## Fase 3 — Statistieken en beschikbaarheidsprofielen in de UI
+## Fase 3 — Statistiekverfijning na v1
 
-- [ ] Uur/weekdag-heatmaps, kans op minstens één vrij, betrouwbaarheid en datadekking tonen.
-- [ ] α/EWMA-kwaliteit en uptimeberekening kalibreren met echte metingen.
-- [ ] Praktische rangschikking van alternatieven verbeteren.
+- [ ] α/EWMA-kwaliteit, dekking en kalibratie evalueren met langere echte meetreeksen.
+- [ ] Praktische rangschikking van alternatieven verder verbeteren.
+- [ ] Uitgebreidere analyses onderzoeken zonder de opslag onbegrensd te laten groeien.
 
-## Fase 4 — Uitgebreide tarieven en voorspellingen
+## Fase 4 — Uitgebreide tarieven en geavanceerde voorspellingen
 
 - [ ] Actuele OCPI-tarieven nauwkeurig interpreteren, met prijscomponenten en contractonzekerheid.
 - [ ] Kostencalculator per laadsessie, zonder historie van tarieven.
-- [ ] Beschikbaarheidstatistiek als uitlegbare indicatie tonen en backtesten.
+- [ ] Historische beschikbaarheidskansen uit v1 backtesten en verder kalibreren.
 - [ ] Vrijkomen binnen 15/30 minuten alleen onderzoeken wanneer de data dat draagt.
 
 ## Fase 5 — Notificaties (uitgesteld)
@@ -67,7 +71,7 @@
 
 ## Besluiten en open vragen
 
-**Besloten 22 oktober 2026:** zelfstandige Android-app en widget, **landelijke database voor de app read-only**, importworker met gescheiden schrijfrechten, **favorieten alleen lokaal op Android**, **geen accounts en geen notificaties in v1**. Mogelijk later een afzonderlijke gebruikersdatabase en betaalde gebruikers. Geen Athlon-token of laadsessiebetaling.
+**Besloten 22 oktober 2026:** **statistieken en historische weekdag-/uur-beschikbaarheidskansen worden in v1 ook in de Android-app getoond**, mits voldoende metingen; geen garantie op een vrijkomende aansluiting binnen een tijdsinterval. Zelfstandige Android-app en widget, **landelijke database voor de app read-only**, importworker met gescheiden schrijfrechten, **favorieten alleen lokaal op Android**, **geen accounts en geen notificaties in v1**. Mogelijk later een afzonderlijke gebruikersdatabase en betaalde gebruikers. Geen Athlon-token of laadsessiebetaling.
 
 **Vastgelegd op 22 oktober 2026:** actuele catalogus voor heel Nederland; actuele tarieven, geen tariefhistorie; compacte landelijke EWMA-bezettingsprofielen per **EVSE én locatie** (168 weekdag/uur-slots elk, beginwaarde α=0,20); op locatieniveau rechtstreeks gemeten kans op ten minste één vrije aansluiting; per EVSE uptime via een rollend **90-daags** venster met compacte dagtotalen; geen langdurige ruwe eventhistorie. Favorieten beperken de landelijke statistiekdekking niet.
 
