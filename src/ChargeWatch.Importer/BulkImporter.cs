@@ -258,6 +258,10 @@ internal static class BulkImporter
                         IS DISTINCT FROM (excluded.currency,excluded.details,excluded.source_last_updated);
                     """);
 
+            // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
+            // back both; the additive schema migration must be applied first.
+            await ObservationCheckpoints.Capture(db, tx);
+
             string sha;
             await using (var source = File.OpenRead(locationsPath))
                 sha = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
