@@ -83,6 +83,7 @@ Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per 
 - Alleen geldige, voldoende verse metingen opnemen; tijdvakken met ontbrekende data apart tellen. Bewaar dekking, aantallen en laatste update zodat een profiel na weinig observaties niet even betrouwbaar lijkt als een lang opgebouwd profiel.
 - Een individuele status die `AVAILABLE` is, is vrij; `CHARGING` of `BLOCKED` is niet vrij maar niet zonder meer defect. Operationeel, defect en onbekend onderscheiden volgens nog te valideren OCPI-codering.
 - **Capaciteitsraming, geen meting:** rekenvoorbeeld 80.000 locaties, 196.000 EVSE's → 13,44 miljoen locatievakken en 32,93 miljoen EVSE-vakken; samen 46,37 miljoen. Bij **12 bytes per profielvak** circa 556 MB *ruwe profieldata*, exclusief PostgreSQL-indexen/overhead en dagtotalen. De eerdere 1–3,5 GB raming was vóór toevoeging van EVSE-profielen en is niet meer als totaalbudget geldig. Werkelijke databaseomvang en benodigde werkruimte in Sprint 0 meten. Compacte arrays/blobs versus individuele rijen expliciet vergelijken.
+- **V1 toont** deze compacte weekdag-/uurstatistieken in de app. Publiceer een percentage alleen bij voldoende valide observaties, met meetdekking en indicatie van modelonzekerheid; exacte minimale drempels in Sprint 0 vastleggen.
 - Tijdgewogen momentopnames zijn schattingen; latere overgang binnen het interval is onbekend. Een voorspelling van vertrek binnen 15/30 minuten is met deze aggregaties niet zonder meer onderbouwd.
 
 ## Beveiliging en operations
@@ -94,7 +95,7 @@ HTTPS, aparte PostgreSQL-rol met alleen SELECT voor de API en schrijfrechten uit
 - `GET /api/locations?bbox=...` — kaart en filtering
 - `GET /api/locations/{id}` — details, EVSE-status en bronversheid
 - `GET /api/locations/{id}/alternatives` — nabijgelegen beschikbare laadlocaties
-- `GET /api/locations/{id}/statistics` — compacte bezettings- en uptimeprofielen, eventueel pas later tonen
+- `GET /api/locations/{id}/statistics` — **v1**: bezettingsprofielen per EVSE en locatie, 90-daagse uptime, rechtstreeks gemeten kans op >=1 vrij per weekdag/uur, met meetdekking en onvoldoende-data-indicatie
 
 **Geen favorieten-, accounts-, alerts- of device-API in v1:** favorieten worden lokaal in Android beheerd.
 
