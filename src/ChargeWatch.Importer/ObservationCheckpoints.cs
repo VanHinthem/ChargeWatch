@@ -31,6 +31,15 @@ internal static class ObservationCheckpoints
               AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
             JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
 
+            -- Snapshot checkpoint freshness before writing new EVSE checkpoints.
+            CREATE TEMP TABLE stage_fresh_evse ON COMMIT DROP AS
+            SELECT s.evse_id, s.location_id
+            FROM stage_observation s
+            LEFT JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
+            WHERE s.source_updated_at IS NOT NULL
+              AND (cp.evse_id IS NULL OR cp.source_updated_at IS NULL
+                   OR s.source_updated_at > cp.source_updated_at);
+
             -- A missing source timestamp is not a fresh measurement.  Do not
             -- reinterpret a replayed timestamp or late correction as elapsed time.
             INSERT INTO evse_observation_checkpoint
@@ -74,6 +83,13 @@ internal static class ObservationCheckpoints
               AND NOT EXISTS (
                 SELECT 1 FROM stage_observation e
                 WHERE e.location_id=s.location_id AND e.source_updated_at IS NULL)
+              AND EXISTS (
+                SELECT 1 FROM stage_fresh_evse f WHERE f.location_id=s.location_id)
+              AND NOT EXISTS (
+                SELECT 1 FROM stage_observation e
+                JOIN evse_observation_checkpoint cp ON cp.evse_id=e.evse_id
+                WHERE e.location_id=s.location_id
+                  AND e.source_updated_at < cp.source_updated_at)
             ON CONFLICT (location_id) DO UPDATE SET
               evse_count=excluded.evse_count,
               available_count=excluded.available_count,
