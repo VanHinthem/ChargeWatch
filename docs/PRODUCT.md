@@ -28,12 +28,14 @@ ChargeWatch is primair een **informatie- en monitoring-app**, geen laadpas-, bet
 - **Huidige** OCPI-tarieven tonen (indien betrouwbaar koppelbaar); uitgebreide kostenvergelijking volgt later.
 - Bronstempel, versheid en duidelijke weergave van onbekende/verouderde statussen.
 - Vanaf dag één **landelijke compacte statistische accumulators** bijwerken voor EVSE én locatie, zonder langdurige opslag van ruwe statusovergangen.
+- **Statistieken zichtbaar in v1:** gemiddelde bezetting per EVSE en locatie per weekdag/uur (bijvoorbeeld heatmap) en voortschrijdende uptime/betrouwbaarheid per EVSE over 90 dagen.
+- **Eenvoudige voorspelling zichtbaar in v1:** historisch geschatte kans op ten minste één beschikbare aansluiting op een gekozen weekdag en uur, rechtstreeks uit het locatie-EWMA-profiel; toon meetdekking, leeftijd en onvoldoende-data-status. Geen gegarandeerde live-beschikbaarheid op een toekomstig moment.
 
-**Niet in versie 1:** notificaties, pushregistratie, gebruikersaccounts, cloudsync van favorieten, historische dashboards, uitgebreide tariefvergelijking, voorspellingen, betaalde abonnementen, betalingen of starten/stoppen van laadsessies.
+**Niet in versie 1:** notificaties, pushregistratie, gebruikersaccounts, cloudsync van favorieten, uitgebreide tariefvergelijking, **kortetermijnvoorspellingen van vrijkomen binnen 15/30 minuten**, betaalde abonnementen, betalingen of starten/stoppen van laadsessies.
 
 ### Acceptatievoorbeeld
 
-De gebruiker vindt **Schietspoel 18, Oss**, maakt die favoriet, ziet de beschikbaarheid in de widget, kan bij een volle locatie alternatieven zoeken. Bij niet-actuele brondata toont ChargeWatch geen misleidende 'live vrij'-status.
+De gebruiker vindt **Schietspoel 18, Oss**, maakt die favoriet, ziet de beschikbaarheid in de widget, bekijkt bezettingspatronen en betrouwbaarheid, ziet de historische kans op een vrije aansluiting voor een gekozen dag/uur en kan bij een volle locatie alternatieven zoeken. Bij niet-actuele brondata toont ChargeWatch geen misleidende 'live vrij'-status.
 
 ## UX-principes
 
