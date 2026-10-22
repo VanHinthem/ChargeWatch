@@ -1,7 +1,7 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 22 oktober 2026  
-**Status:** Sprint 0 en 1 gemerged. Sprint 2 in PR #9 geïmplementeerd en lokaal functioneel gevalideerd; wacht op expliciete inhoudelijke mergegoedkeuring. Niet gemerged of gedeployed.
+**Status:** Sprint 0, 1 en 2 gemerged; geen deployment. Sprint 2 is op 22 oktober 2026 via squashmerge `6ed5800895dee5facad925e4c5d045f612fd62ae` afgerond.
 
 ## Afgeronde sprints
 
@@ -9,11 +9,11 @@
 - Sprint 1: [PR #6](https://github.com/VanHinthem/ChargeWatch/pull/6), issue #5 gesloten; squashmerge `1c470982620c533ba3ca687df918fcda0345d469`. .NET 10 NDW-importer, PostgreSQL 18/PostGIS-schema, gescheiden import- en leesrol, transactionele COPY/staging-bulkimport, bescherming tegen ongewijzigde updates. Geen productie- of NAS-deployment.
 - Workflow/status-overdracht is vastgelegd via PR #7; mergeklare status hoort voortaan in dezelfde feature-PR.
 
-## Actief werk — Sprint 2
+## Afgerond werk — Sprint 2
 
 - Issue: [#8](https://github.com/VanHinthem/ChargeWatch/issues/8) — automatische NDW-verversing en veilige scheduler.
 - Branch: `feature/sprint2-ndw-refresh`.
-- PR: [#9](https://github.com/VanHinthem/ChargeWatch/pull/9) — **open, mergeable, niet gemerged**.
+- PR: [#9](https://github.com/VanHinthem/ChargeWatch/pull/9) — **gemerged op 22 oktober 2026**.
 - Geen GitHub Actions-workflow aanwezig; er zijn geen CI-runs/statuschecks voor deze PR.
 
 ### Geïmplementeerd
@@ -70,10 +70,10 @@ Schone benchmarkdatabase `chargewatch_benchmark`, originele ontwikkelcatalogus i
 
 V1 blijft: landelijke actuele laadstatus/tarieven, kaart/zoeken, alternatieven, lokale Android-favorieten en widget, compacte beschikbaarheidsstatistieken. .NET 10 importer → PostgreSQL 18/PostGIS → read-only GET API → Kotlin/Compose/Glance. Geen accounts, push/notificaties of betalingen in v1.
 
-Na succesvolle Sprint 2-validatie en expliciet merge-akkoord is de logische volgende feature het statistiekfundament vanaf opeenvolgende imports **of** de read-only locatie-API. Kies dat pas na merge; trek het niet in PR #9.
+Na afgeronde Sprint 2 is de logische volgende feature het statistiekfundament vanaf opeenvolgende imports **of** de read-only locatie-API. Bepaal de volgorde in een nieuw issue; Sprint 2 is afgerond.
 
 Open punten: herpublicatielicentie/attributie NDW, langdurige bronidentiteit en datakwaliteit, volledige wijzigingsscenario's/ontbrekende records, CI, statistiekopslag en toekomstige API. Geen productie-/NAS-deployment uitgevoerd.
 
 ## Overdracht / vaste werkwijze
 
-Lees `AGENTS.md`, `docs/WORKFLOW.md`, deze status, ROADMAP, PRODUCT en ARCHITECTURE. Controleer GitHub-issues, PR's, branches en CI opnieuw. PR #9 vereist eerst lokale inhoudelijke validatie door Ramon. **Niet mergen of deployen zonder expliciet akkoord.** Na akkoord actuele head/mergeability/checks opnieuw controleren, daarna pas merge; vervolgens `docs/STATUS.md` op main verifiëren.
+Lees `AGENTS.md`, `docs/WORKFLOW.md`, deze status, ROADMAP, PRODUCT en ARCHITECTURE. Controleer GitHub-issues, PR's, branches en CI opnieuw. PR #9 is na expliciete goedkeuring gemerged en de main-SHA geverifieerd. Er is geen deployment uitgevoerd. De volgende agent moet eerst nieuwe scope afbakenen in een issue en featurebranch; voor toekomstige PR's blijven expliciete merge- en deploymentgoedkeuring verplicht.
