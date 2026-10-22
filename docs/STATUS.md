@@ -1,7 +1,7 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 22 oktober 2026  
-**Status:** Sprint 0 en 1 gemerged. Sprint 2 geïmplementeerd in PR #9 en wacht op lokale inhoudelijke validatie; niet gemerged en niet gedeployed.
+**Status:** Sprint 0 en 1 gemerged. Sprint 2 in PR #9 geïmplementeerd en lokaal functioneel gevalideerd; wacht op expliciete inhoudelijke mergegoedkeuring. Niet gemerged of gedeployed.
 
 ## Afgeronde sprints
 
@@ -32,9 +32,9 @@
 - Configuratie en validatie staan in [SPRINT2_REFRESH.md](SPRINT2_REFRESH.md).
 - README is bijgewerkt naar de actuele backendstatus.
 
-### Nog te valideren vóór merge
+### Validatie en resterende review
 
-De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. **Eerste `--watch-once` bevestigd geslaagd op 22 oktober 2026:** Locations HTTP 200 (18.382.191 bytes), Tariffs HTTP 200 (4.143.448 bytes), 80.785 locaties, 203.130 EVSE's, 203.823 connectoren, 101.209 tarieven; transactionele bulkcommit in 26,218 s. Tweede `--watch-once` bevestigd: Locations HTTP 200 (18.382.637 bytes), Tariffs HTTP 304; bestaande Tariffs-cache hergebruikt, bulkcommit succesvol in 21,858 s, dezelfde catalogusaantallen. Dit bewijst het scenario met slechts één gewijzigde feed. Derde `--watch-once` bevestigd: Locations HTTP 200 (18.384.062 bytes), Tariffs HTTP 304, bulkcommit in 22,513 s, aantallen ongewijzigd. NDW Locations veranderde tijdens drie opeenvolgende runs; niet verder live herhalen voor 304/304. Gecontroleerde 304/304-test op 22 oktober geslaagd met lokale HTTP-server op 127.0.0.1:8765: beide feeds HTTP 304 en `NDW source unchanged (304); database import skipped.` De foutpadtest is ook geslaagd: Locations-URL op ongebruikte lokale poort 8766 veroorzaakte een geweigerde verbinding, melding `Refresh failed; previous cache/database retained` en exitcode `1`. Er startte geen bulkimport. Let op: database-run-aantallen en cachebestanden zijn nog niet afzonderlijk gecontroleerd. Gebruiker bevestigde dat continuous `--watch` gestart is en actief blijft. Gecontroleerd stoppen via Ctrl+C is nog niet bevestigd.
+De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. **Eerste `--watch-once` bevestigd geslaagd op 22 oktober 2026:** Locations HTTP 200 (18.382.191 bytes), Tariffs HTTP 200 (4.143.448 bytes), 80.785 locaties, 203.130 EVSE's, 203.823 connectoren, 101.209 tarieven; transactionele bulkcommit in 26,218 s. Tweede `--watch-once` bevestigd: Locations HTTP 200 (18.382.637 bytes), Tariffs HTTP 304; bestaande Tariffs-cache hergebruikt, bulkcommit succesvol in 21,858 s, dezelfde catalogusaantallen. Dit bewijst het scenario met slechts één gewijzigde feed. Derde `--watch-once` bevestigd: Locations HTTP 200 (18.384.062 bytes), Tariffs HTTP 304, bulkcommit in 22,513 s, aantallen ongewijzigd. NDW Locations veranderde tijdens drie opeenvolgende runs; niet verder live herhalen voor 304/304. Gecontroleerde 304/304-test op 22 oktober geslaagd met lokale HTTP-server op 127.0.0.1:8765: beide feeds HTTP 304 en `NDW source unchanged (304); database import skipped.` De foutpadtest is ook geslaagd: Locations-URL op ongebruikte lokale poort 8766 veroorzaakte een geweigerde verbinding, melding `Refresh failed; previous cache/database retained` en exitcode `1`. Er startte geen bulkimport. Let op: database-run-aantallen en cachebestanden zijn nog niet afzonderlijk gecontroleerd. Gebruiker bevestigde dat continuous `--watch` actief blijft en op 22 oktober 2026 correct afsluit met Ctrl+C.
 
 Build en eerste landelijke import zijn geslaagd. Voer nu de tweede `--watch-once` uit vanaf de featurebranch:
 
@@ -48,7 +48,7 @@ $env:CW_NDW_CACHE_DIR = "$PWD\.local\ndw-cache"
 dotnet run --project .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj -- --watch-once
 ```
 
-De gecontroleerde 304/304-test en het HTTP-foutpad zijn bevestigd. Continuous `--watch` blijft actief volgens de gebruiker. Bevestig nog gecontroleerd stoppen met Ctrl+C en controleer optioneel dat het aantal `import_run`-records bij een 304/304-run gelijk blijft. Gebruik een aparte test/benchmarkdatabase; bestaande lokale databases/volumes niet verwijderen.
+De gecontroleerde 304/304-test en het HTTP-foutpad zijn bevestigd. Continuous `--watch` blijft actief en sluit gecontroleerd af met Ctrl+C, beide bevestigd. Optioneel blijft een afzonderlijke controle van `import_run`-aantallen en cachebestand-hashes mogelijk; dit is niet uitgevoerd. Gebruik een aparte test/benchmarkdatabase; bestaande lokale databases/volumes niet verwijderen.
 
 ## Vastgestelde NDW-data
 
