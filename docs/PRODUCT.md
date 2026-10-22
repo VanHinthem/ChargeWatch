@@ -17,6 +17,10 @@ ChargeWatch is primair een **informatie- en monitoring-app**, geen laadpas-, bet
 5. **Laadtarieven vergelijken:** uitsluitend **actuele tarieven** bewaren, zonder tariefhistorie; OCPI-tarieven interpreteren en sessiekosten schatten, expliciet rekening houdend met energiekosten, tijd, parkeren, sessiekosten en laadpascontracten. **Openbare CPO-prijs hoeft niet overeen te komen met Athlon-facturering.** Ontbrekende kosten nooit impliciet op nul zetten.
 6. **Beschikbaarheid voorspellen:** eerst rechtstreeks gemeten historische kans op >=1 vrije EVSE per weekdag/uur met kwaliteits-/dekkingsindicatoren; voorspellingen van vrijkomen binnen 15/30 minuten zijn **geen onderdeel van dit compacte datamodel zonder aanvullend onderzoek**. Voorspellingen tonen met onzekerheid en dekking.
 
+## Compacte aanvullende statistieken (verzamelen vanaf v1)
+
+Per EVSE bouwen we compacte duurverdelingen op voor **niet-vrije/bezettingsperioden**, **vrije perioden** en **storingen**, met storingstellingen, statuswisselingen en datakwaliteitsindicatoren. Zo kunnen we later onderzoeken of een nu bezette aansluiting binnen 15/30/60 minuten vrijkomt, of een vrije aansluiting beschikbaar blijft. **Dit zijn toekomstige conditionele kansen, geen gegarandeerde vertrektijden en niet noodzakelijk v1-schermen.** Beschikbaarheids- en niet-vrije tijd zijn niet hetzelfde als echte laadsessieduur. Geen langdurige ruwe events opslaan.
+
 ## Versie 1 — Read-only app en landelijke catalogus
 
 - Kaart met zoekfunctie, geolocatie/kaartgebied, clustering en basisfilters.
