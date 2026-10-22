@@ -48,6 +48,7 @@ NDW OCPI Locations + Tariffs
 | LocationOccupancyProfile | 168 EWMA-tijdvakken per locatie; bezettingsgraad én rechtstreeks gemeten kans op >=1 vrije EVSE |
 | EvseDailyReliability | Compacte operationele/defecte/onbekende tijd per EVSE per dag, rollend 90 dagen |
 | StatisticsAccumulator | Tijdelijk werk-/checkpointmodel om geldige tijdgewogen observaties per uur en import te verwerken |
+| EvseDurationSummary | Compacte duurverdelingen en tellers voor beschikbaarheids-, niet-beschikbaarheids- en storingsperioden per EVSE; geen ruwe sessielog |
 | Tariff | Alleen huidige OCPI-tariefcomponenten en voorwaarden; geen tariefhistorie |
 | ImportRun | Status, timing, aantallen, fouten en gebruikte bronmetadata |
 
@@ -72,6 +73,7 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 - **Landelijke occupancy-statistiek:** per EVSE én per locatie 168 weekdag-/uurvakken als compacte profielblokken/arrays; uurmetingen eerst tijdgewogen samenstellen en per corresponderend weekvak één EWMA-update uitvoeren. Beginwaarde **α=0,20** als te valideren parameter.
 - **Locatiebeschikbaarheid:** EWMA van daadwerkelijk gemeten ‘minstens één EVSE AVAILABLE’; **niet** afleiden door individuele EVSE-bezettingspercentages onafhankelijk te vermenigvuldigen.
 - **Betrouwbaarheid:** per EVSE 90 dagen compacte dagtotalen met afzonderlijke operationele, defecte en onbekende tijd. Uptime = operationeel / (operationeel + defect), met voldoende datadekking; onbekend telt niet als beschikbaar of defect.
+- **Duur- en overgangsstatistiek:** houd per EVSE huidige toestandsklasse en begindetectietijd bij; registreer bij valide verandering alleen een compacte teller en een duurcategorie (bijvoorbeeld 0–15, 15–30, 30–60, 60–120 minuten, enzovoort) voor voltooide AVAILABLE-, niet-vrije of storingsperioden. Bewaar afzonderlijke tellingen van storingsincidenten, herstel en statuswisselingen. Gebruik uitsluitend perioden met betrouwbaar geobserveerde start en einde; linker-/rechtercensurering en ontbrekende data expliciet behandelen. Een niet-vrije toestand is niet noodzakelijk een actieve laadsessie.
 - **Ruwe events:** geen langdurige landelijke eventhistorie. Alleen huidige status, bron-/waarnemingstijd en noodzakelijke duurzame importtoestand opslaan. Een gemiste statuswisseling tussen imports kan niet worden gereconstrueerd.
 - **Tarieven:** alleen actuele tarieven, zonder historisering.
 
@@ -83,6 +85,9 @@ Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per 
 - Alleen geldige, voldoende verse metingen opnemen; tijdvakken met ontbrekende data apart tellen. Bewaar dekking, aantallen en laatste update zodat een profiel na weinig observaties niet even betrouwbaar lijkt als een lang opgebouwd profiel.
 - Een individuele status die `AVAILABLE` is, is vrij; `CHARGING` of `BLOCKED` is niet vrij maar niet zonder meer defect. Operationeel, defect en onbekend onderscheiden volgens nog te valideren OCPI-codering.
 - **Capaciteitsraming, geen meting:** rekenvoorbeeld 80.000 locaties, 196.000 EVSE's → 13,44 miljoen locatievakken en 32,93 miljoen EVSE-vakken; samen 46,37 miljoen. Bij **12 bytes per profielvak** circa 556 MB *ruwe profieldata*, exclusief PostgreSQL-indexen/overhead en dagtotalen. De eerdere 1–3,5 GB raming was vóór toevoeging van EVSE-profielen en is niet meer als totaalbudget geldig. Werkelijke databaseomvang en benodigde werkruimte in Sprint 0 meten. Compacte arrays/blobs versus individuele rijen expliciet vergelijken.
+- **Toekomstige kortetermijnvoorspelling:** duurverdelingen kunnen op termijn conditionele vrijkom- en beschikbaar-blijfkansen ondersteunen, maar het modelleren en kalibreren daarvan wordt **niet** voor v1 beloofd. Dag-/uur- of toestandsafhankelijke verdelingen pas toevoegen als de basisverdelingen onvoldoende voorspellend zijn.
+- **Datakwaliteit:** bewaar observatiedekking, versheid, ontbrekende updates en bruikbare aantallen per samenvatting. Meldingen van storing zijn alleen te interpreteren als de bronstatus betrouwbaar is.
+- **Opslagimpact:** naar verwachting enkele tientallen MB voor landelijke compacte duurstatistieken, exclusief overhead; valideren met echte nationale EVSE-telling en PostgreSQL-metingen.
 - **V1 toont** deze compacte weekdag-/uurstatistieken in de app. Publiceer een percentage alleen bij voldoende valide observaties, met meetdekking en indicatie van modelonzekerheid; exacte minimale drempels in Sprint 0 vastleggen.
 - Tijdgewogen momentopnames zijn schattingen; latere overgang binnen het interval is onbekend. Een voorspelling van vertrek binnen 15/30 minuten is met deze aggregaties niet zonder meer onderbouwd.
 
