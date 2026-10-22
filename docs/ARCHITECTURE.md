@@ -2,30 +2,28 @@
 
 **Status:** Voorgestelde architectuur; nog niet gebouwd.
 
-## Hoofdopzet
+## Hoofdopzet — versie 1
 
 ```text
-NDW/DOT-NL OCPI Locations + Tariffs       NDW GeoJSON API (optioneel)
-                  |                                  |
-                  +--------------+-------------------+
-                                 v
-                 .NET 10 background import worker
-                 download → decompress → validate
-                     stage → diff → publish
-                                 |
-                       PostgreSQL 18 + PostGIS
-                                 |
-               ASP.NET Core REST API (modulaire monoliet)
-                /               |                 \
-         zoek/catalogus     favorieten       alerts/historie
-                \               |                 /
-                       HTTPS / authenticatie
-                                 |
-                   Android (Kotlin, Jetpack Compose)
-                   Room-cache + Glance-widget
-                                 |
-                         Firebase Cloud Messaging
+NDW OCPI Locations + Tariffs
+             |
+   .NET 10 importworker (SCHRIJFT)
+             |
+    PostgreSQL + PostGIS
+    huidige landelijke data,
+    EWMA + uptime-statistieken
+             |
+  read-only databasegebruiker
+             |
+ ASP.NET Core GET-only REST API
+             |
+ Android-app + native widget
+   lokale favorieten (Room/DataStore)
 ```
+
+**Read-only betekent:** de **app en haar API** kunnen geen landelijke data wijzigen; de NDW-importworker moet de catalogus en statistieken wel blijven bijwerken. Gebruik aparte databasecredentials/rollen en geen publieke write-endpoints. De client krijgt geen directe databaseverbinding.
+
+**Toekomstige uitbreiding (niet v1):** aparte schrijfbare gebruikers-/abonnementendatabase, optionele accounts, favorietensynchronisatie, notificaties, FCM en eventueel betaalde accounts. Zo blijven landelijke data en gebruikersdata gescheiden.
 
 ### Stack
 
@@ -34,7 +32,7 @@ NDW/DOT-NL OCPI Locations + Tariffs       NDW GeoJSON API (optioneel)
 - Docker Compose op de **NAS**; starten met lokale ontwikkeling + testdeployment en later eventueel DEV/ACC/PROD.
 - REST/OpenAPI; API blijft onafhankelijk van Android.
 - Android-native **Kotlin + Jetpack Compose**, **Jetpack Glance**-widget; Room voor lokale gegevens en favorieten-cache; WorkManager voor periodieke widgetverversing.
-- **Firebase Cloud Messaging (FCM)** voor servergestuurde pushmeldingen. Periodieke Android-work is niet exact op tijd gegarandeerd.
+- FCM/push is **uitgesteld tot na v1**. Periodieke Android-work is niet exact op tijd gegarandeerd.
 - Voor kaartweergave kandidaat: MapLibre met een provider waarvoor gebruiksvoorwaarden en tilelimieten zijn gecontroleerd.
 
 **Ontwerpprincipe:** één modulaire backend en database, geen microservices of message broker in MVP.
@@ -51,10 +49,6 @@ NDW/DOT-NL OCPI Locations + Tariffs       NDW GeoJSON API (optioneel)
 | EvseDailyReliability | Compacte operationele/defecte/onbekende tijd per EVSE per dag, rollend 90 dagen |
 | StatisticsAccumulator | Tijdelijk werk-/checkpointmodel om geldige tijdgewogen observaties per uur en import te verwerken |
 | Tariff | Alleen huidige OCPI-tariefcomponenten en voorwaarden; geen tariefhistorie |
-| Favorite | Favoriete locatie, gebruikers-/apparaatrelatie, naam en volgorde |
-| AlertSubscription | Locatie, drempel, type, one-shot, toestand en lifecycle |
-| DeviceRegistration | Pushregistratie en apparaatidentiteit |
-| NotificationOutbox | Duurzame te verzenden gebeurtenis, retries en idempotentie |
 | ImportRun | Status, timing, aantallen, fouten en gebruikte bronmetadata |
 
 Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor identity gebruiken we bij voorkeur **country_code + party_id + OCPI location ID**, met een stabiele interne sleutel; bron-IDs kunnen wijzigen. De status is uiteindelijk per EVSE, niet per tariefconnector.
@@ -66,7 +60,7 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 3. Schema en datakwaliteit valideren: IDs, aantallen, tijdstempels, volledigheid en afnemende dekkingsgraad.
 4. Data in staging vergelijken met de laatst succesvol gepubliceerde versie.
 5. Een complete geldige import atomair publiceren; wijzigingen vastleggen.
-6. **Alleen echte, nieuwe statusveranderingen** aan de persistente alert-engine doorgeven, de compacte uuraccumulators bijwerken en zo nodig een notificatie in de outbox zetten; geen permanente landelijke eventlog nodig.
+6. Huidige EVSE-statussen vergelijken, compacte uuraccumulators bijwerken en veilig publiceren. De importer hoeft in v1 **geen** notificaties of langdurige eventhistorie bij te houden.
 
 **Nooit:** afwezige records in een mislukte of onvolledige import automatisch als defect, verdwenen of vrij markeren. Bij fouten behoudt de API de laatst bekende status met duidelijke stale-indicator.
 
@@ -78,7 +72,7 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 - **Landelijke occupancy-statistiek:** per EVSE én per locatie 168 weekdag-/uurvakken als compacte profielblokken/arrays; uurmetingen eerst tijdgewogen samenstellen en per corresponderend weekvak één EWMA-update uitvoeren. Beginwaarde **α=0,20** als te valideren parameter.
 - **Locatiebeschikbaarheid:** EWMA van daadwerkelijk gemeten ‘minstens één EVSE AVAILABLE’; **niet** afleiden door individuele EVSE-bezettingspercentages onafhankelijk te vermenigvuldigen.
 - **Betrouwbaarheid:** per EVSE 90 dagen compacte dagtotalen met afzonderlijke operationele, defecte en onbekende tijd. Uptime = operationeel / (operationeel + defect), met voldoende datadekking; onbekend telt niet als beschikbaar of defect.
-- **Ruwe events:** geen langdurige landelijke eventhistorie. Alleen huidige status, bron-/waarnemingstijd en noodzakelijke duurzame alert-/importtoestand opslaan. Een gemiste statuswisseling tussen imports kan niet worden gereconstrueerd.
+- **Ruwe events:** geen langdurige landelijke eventhistorie. Alleen huidige status, bron-/waarnemingstijd en noodzakelijke duurzame importtoestand opslaan. Een gemiste statuswisseling tussen imports kan niet worden gereconstrueerd.
 - **Tarieven:** alleen actuele tarieven, zonder historisering.
 
 Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per dag; meet HTTP caching, overweeg toekomstige delta-/pushmogelijkheden. Niet aannemen dat zulke mogelijkheden al beschikbaar zijn.
@@ -93,19 +87,19 @@ Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per 
 
 ## Beveiliging en operations
 
-HTTPS, authenticatie voor persoonlijke favorieten/notificaties, beperkte API-toegang, rate limiting, push token lifecycle, geen onnodige persoonsgegevens of Athlon bearer-tokens, monitoring van imports en staleness. Vastleggen van NDW-hergebruikvoorwaarden, attributie en kaarttegellicenties vóór distributie.
+HTTPS, aparte PostgreSQL-rol met alleen SELECT voor de API en schrijfrechten uitsluitend voor de importer, GET-only publieke endpoints, rate limiting en passende toegangsbeveiliging. In v1 geen accounts, device-/pushregistraties, persoonlijke serverdata of Athlon bearer-tokens. Monitoring van imports en staleness blijft nodig. Vastleggen van NDW-hergebruikvoorwaarden, attributie en kaarttegellicenties vóór distributie.
 
 ## Concept API
 
 - `GET /api/locations?bbox=...` — kaart en filtering
 - `GET /api/locations/{id}` — details, EVSE-status en bronversheid
 - `GET /api/locations/{id}/alternatives` — nabijgelegen beschikbare laadlocaties
-- `GET /api/favorites`, `POST /api/favorites`, `DELETE /api/favorites/{id}`
-- `POST /api/alerts`, `GET /api/alerts`, `GET /api/alerts/{id}`, `DELETE /api/alerts/{id}`
-- `POST /api/devices`, `GET /api/notifications`
+- `GET /api/locations/{id}/statistics` — compacte bezettings- en uptimeprofielen, eventueel pas later tonen
+
+**Geen favorieten-, accounts-, alerts- of device-API in v1:** favorieten worden lokaal in Android beheerd.
 
 Dit is conceptuele API-vormgeving; authenticatie, paging, responsecontracten en idempotency keys moeten nog uitgewerkt worden.
 
 ## Testing en CI
 
-Unit tests voor statusinterpretatie en alert-engine, fixture-/contracttests voor OCPI-import, integratietests voor PostgreSQL en mislukte/partiële imports, injecteerbare klok, mocked FCM, geautomatiseerde .NET- en Android-builds. Migraties versioneren en importdata nooit zonder validatie publiceren.
+Unit tests voor statusinterpretatie en compacte statistieken, fixture-/contracttests voor OCPI-import, integratietests voor PostgreSQL en mislukte/partiële imports, injecteerbare klok, mocked FCM, geautomatiseerde .NET- en Android-builds. Migraties versioneren en importdata nooit zonder validatie publiceren.
