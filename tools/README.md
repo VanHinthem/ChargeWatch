@@ -26,3 +26,11 @@ Gebruik `--output pad` voor een andere directory. Bij een onbekende JSON-envelop
 **Validatie:** controleer `report.json` en Schietspoel-bestanden. Tariff-linkresolutie gebruikt voorlopig landcode + party + tarief-ID van de locatie, en moet tegen de werkelijke feed getoetst worden. Neem alleen een paar representatieve, geverifieerde gegevens op in Git; er zijn nog geen fixtures gecommit.
 
 De tool uploadt niets en schrijft alleen naar de gekozen outputdirectory.
+
+Voor HTTP caching/304-check (zonder volledige downloads):
+
+```powershell
+python tools/check_ndw_http_cache.py
+```
+
+De check is vanuit de agentomgeving niet online uitvoerbaar door DNS-beperkingen; een lokale run is nodig.
