@@ -88,6 +88,12 @@ internal static class ObservationCheckpoints
               fault_seconds=evse_daily_reliability.fault_seconds+excluded.fault_seconds,
               unknown_seconds=evse_daily_reliability.unknown_seconds+excluded.unknown_seconds;
 
+            -- Keep a bounded 90-calendar-day window, including today, in the
+            -- same transaction. This never removes catalogue/EVSE identities.
+            DELETE FROM evse_daily_reliability
+            WHERE observation_date <
+                ((statement_timestamp() AT TIME ZONE 'Europe/Amsterdam')::date - 89);
+
             -- A missing source timestamp is not a fresh measurement.  Do not
             -- reinterpret a replayed timestamp or late correction as elapsed time.
             INSERT INTO evse_observation_checkpoint
