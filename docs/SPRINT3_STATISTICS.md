@@ -121,3 +121,10 @@ Get-Content -Raw .\db\tests\003_statistics_smoke.sql |
 ```
 
 **Niet als volledige end-to-end-test behandelen**: de bulkimport, productievolume, bronversheid, datumverdeling door `ObservationCheckpoints` en exacte replay-controle vereisen nog daadwerkelijke integratietests. Het script is geschreven maar niet uitgevoerd; de agentomgeving heeft geen `dotnet`, `psql` of `docker`.
+
+
+## Retentie en uitgebreidere SQL-test
+
+De transactionele checkpoint-verwerking houdt nu `evse_daily_reliability` beperkt tot **vandaag plus de voorafgaande 89 Nederlandse kalenderdagen**, op basis van `Europe/Amsterdam`. Oudere rijen worden bij een succesvolle bulkimport binnen dezelfde transactie verwijderd. De importworker verwijdert geen catalogus- of EVSE-records.
+
+De SQL-smoketest controleert nu de feitelijke daggrenssegmentatie (10 minuten verdeeld over twee lokale datums) plus een terugkerend wintertijd-uur. Het script is **nog niet uitgevoerd**. Het dekt de werkelijke .NET-importcode niet: voor de definitieve Sprint 3-review blijven een build, transactietest en replayscenario op een geïsoleerde gemigreerde database noodzakelijk.
