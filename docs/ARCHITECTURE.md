@@ -46,8 +46,11 @@ NDW/DOT-NL OCPI Locations + Tariffs       NDW GeoJSON API (optioneel)
 | ChargingLocation | Interne sleutel, samengestelde OCPI-identificatie, operator, adres, coördinaten |
 | Evse | Afzonderlijke EVSE, bronidentificatie, status, bronstatusmoment |
 | Connector | Type, vermogen, stroomsoort en tariefreferenties |
-| EvseStatusHistory | Statusovergangen, brontijd en ons detectietijdstip |
-| Tariff | OCPI-tariefcomponenten, voorwaarden en geldigheidsperiode |
+| EvseOccupancyProfile | 168 EWMA-tijdvakken per EVSE (weekdag × uur), bezettingsgraad en kwaliteitsindicatoren |
+| LocationOccupancyProfile | 168 EWMA-tijdvakken per locatie; bezettingsgraad én rechtstreeks gemeten kans op >=1 vrije EVSE |
+| EvseDailyReliability | Compacte operationele/defecte/onbekende tijd per EVSE per dag, rollend 90 dagen |
+| StatisticsAccumulator | Tijdelijk werk-/checkpointmodel om geldige tijdgewogen observaties per uur en import te verwerken |
+| Tariff | Alleen huidige OCPI-tariefcomponenten en voorwaarden; geen tariefhistorie |
 | Favorite | Favoriete locatie, gebruikers-/apparaatrelatie, naam en volgorde |
 | AlertSubscription | Locatie, drempel, type, one-shot, toestand en lifecycle |
 | DeviceRegistration | Pushregistratie en apparaatidentiteit |
@@ -63,7 +66,7 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 3. Schema en datakwaliteit valideren: IDs, aantallen, tijdstempels, volledigheid en afnemende dekkingsgraad.
 4. Data in staging vergelijken met de laatst succesvol gepubliceerde versie.
 5. Een complete geldige import atomair publiceren; wijzigingen vastleggen.
-6. Statusovergangen schrijven en alert-engine aanroepen; notificaties via outbox.
+6. **Alleen echte, nieuwe statusveranderingen** aan de persistente alert-engine doorgeven, de compacte uuraccumulators bijwerken en zo nodig een notificatie in de outbox zetten; geen permanente landelijke eventlog nodig.
 
 **Nooit:** afwezige records in een mislukte of onvolledige import automatisch als defect, verdwenen of vrij markeren. Bij fouten behoudt de API de laatst bekende status met duidelijke stale-indicator.
 
@@ -72,10 +75,21 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 - Locaties/EVSE: start met circa **5 minuten**, pas aan op daadwerkelijk bronverversingsritme, netwerk en CPU.
 - Tarieven: als startpunt circa **elk uur**.
 - Android-widget: periodiek rond **15 minuten** (best effort) en handmatige refresh; evt. push-triggered update.
-- Statushistorie: alleen wijzigingen vastleggen (met aparte bron- en waarnemingstijden). Als twee veranderingen tussen imports plaatsvinden, missen we die: statistiek kent dus onzekerheid.
-- Retentievoorstel: circa **90 dagen** ruwe historie, daarna langer bewaarde aggregaties; beslissen na volumemeting.
+- **Landelijke occupancy-statistiek:** per EVSE én per locatie 168 weekdag-/uurvakken als compacte profielblokken/arrays; uurmetingen eerst tijdgewogen samenstellen en per corresponderend weekvak één EWMA-update uitvoeren. Beginwaarde **α=0,20** als te valideren parameter.
+- **Locatiebeschikbaarheid:** EWMA van daadwerkelijk gemeten ‘minstens één EVSE AVAILABLE’; **niet** afleiden door individuele EVSE-bezettingspercentages onafhankelijk te vermenigvuldigen.
+- **Betrouwbaarheid:** per EVSE 90 dagen compacte dagtotalen met afzonderlijke operationele, defecte en onbekende tijd. Uptime = operationeel / (operationeel + defect), met voldoende datadekking; onbekend telt niet als beschikbaar of defect.
+- **Ruwe events:** geen langdurige landelijke eventhistorie. Alleen huidige status, bron-/waarnemingstijd en noodzakelijke duurzame alert-/importtoestand opslaan. Een gemiste statuswisseling tussen imports kan niet worden gereconstrueerd.
+- **Tarieven:** alleen actuele tarieven, zonder historisering.
 
 Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per dag; meet HTTP caching, overweeg toekomstige delta-/pushmogelijkheden. Niet aannemen dat zulke mogelijkheden al beschikbaar zijn.
+
+## Statistische semantiek en opslagbudget
+
+- EVSE-bezetting is iets anders dan locatiedrukte: beide niveaus bijhouden. Voor een locatie de kans op >=1 vrij **rechtstreeks** bepalen uit de gezamenlijke actuele status.
+- Alleen geldige, voldoende verse metingen opnemen; tijdvakken met ontbrekende data apart tellen. Bewaar dekking, aantallen en laatste update zodat een profiel na weinig observaties niet even betrouwbaar lijkt als een lang opgebouwd profiel.
+- Een individuele status die `AVAILABLE` is, is vrij; `CHARGING` of `BLOCKED` is niet vrij maar niet zonder meer defect. Operationeel, defect en onbekend onderscheiden volgens nog te valideren OCPI-codering.
+- **Capaciteitsraming, geen meting:** rekenvoorbeeld 80.000 locaties, 196.000 EVSE's → 13,44 miljoen locatievakken en 32,93 miljoen EVSE-vakken; samen 46,37 miljoen. Bij **12 bytes per profielvak** circa 556 MB *ruwe profieldata*, exclusief PostgreSQL-indexen/overhead en dagtotalen. De eerdere 1–3,5 GB raming was vóór toevoeging van EVSE-profielen en is niet meer als totaalbudget geldig. Werkelijke databaseomvang en benodigde werkruimte in Sprint 0 meten. Compacte arrays/blobs versus individuele rijen expliciet vergelijken.
+- Tijdgewogen momentopnames zijn schattingen; latere overgang binnen het interval is onbekend. Een voorspelling van vertrek binnen 15/30 minuten is met deze aggregaties niet zonder meer onderbouwd.
 
 ## Beveiliging en operations
 
