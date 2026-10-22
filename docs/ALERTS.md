@@ -1,6 +1,6 @@
 # ChargeWatch — Notificatiespecificatie CW-ALERT-001
 
-**Status:** Functioneel en technisch ontwerp afgesproken; niet geïmplementeerd of geactiveerd.
+**Status:** Functionele wens vastgelegd, maar **uitgesteld tot na versie 1**. De onderstaande servergestuurde toestandsmachine is een *eerder ontwerpvoorstel*, niet de gekozen architectuur voor v1. De keuze tussen lokaal controleren, FCM-topics en een latere afzonderlijke gebruikers-/abonnementendatabase staat nog open. Geen code geïmplementeerd en geen melding geactiveerd.
 
 ## Configuratie
 
@@ -66,4 +66,4 @@ Een EVSE telt als vrij uitsluitend wanneer de betrouwbare bronstatus expliciet `
 - [ ] FCM-fout behoudt retrybare opdracht.
 - [ ] Annulering stopt nog niet verstuurde opdrachten waar mogelijk.
 
-Deze afspraak behoort functioneel bij MVP en technisch bij backend alert-engine + Android pushregistratie.
+Deze functionele wens staat op de post-v1-roadmap. Een latere technische uitwerking moet passen bij het gekozen notificatiemechanisme; in v1 zijn geen alert-engine, pushregistratie of server-side favorieten aanwezig.
