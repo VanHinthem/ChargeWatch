@@ -24,6 +24,12 @@
 - `tools/build_sprint1_fixture.py`: maakt uit de echte ingekorte Schietspoel-fixture kleine gzip-bestanden.
 - [Uitvoerings- en validatieinstructies](SPRINT1_IMPORT.md).
 
+## Eerste lokale Docker-validatie (22 oktober 2026)
+- Windows Docker Desktop: image `postgis/postgis:18-3.6` opgehaald; PostgreSQL 18.6 initdb en alle SQL-schemaobjecten succesvol aangemaakt.
+- Container stopt daarna met exitcode 127 bij `002_roles.sh: cannot execute: required file not found`. Waarschijnlijke CRLF/shebang-incompatibiliteit van Windows-checkout; nog niet definitief bevestigd.
+- `.gitattributes` toegevoegd (`*.sh` en `*.sql` LF) en Windows-diagnose/normalisatie vastgelegd in `docs/SPRINT1_IMPORT.md`.
+- Datavolume is na gedeeltelijke initialisatie mogelijk onvolledig; uitsluitend een aantoonbaar lege ChargeWatch-ontwikkelvolume opnieuw initialiseren na bewuste bevestiging, nooit NAS/production data verwijderen.
+
 ## Nog niet uitgevoerd / bewezen
 - Deze agentomgeving heeft geen .NET SDK of Docker; geen compiler-, container-, database- of volledige ingestresultaten.
 - Ook nog geen nationale PostgreSQL opslag-/importbenchmark en geen gerealiseerde statistische accumulators.
