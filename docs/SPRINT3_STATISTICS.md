@@ -1,7 +1,7 @@
 # Sprint 3 — statistiekfundament (ontwerp ter beoordeling)
 
 **Issue:** #11 · **Branch:** `feature/sprint3-observation-foundation`  
-**Status:** schemaontwerp akkoord; additief migratiescript opgesteld, nog niet op een database toegepast. Statistiekverwerking en buildtests volgen.
+**Status:** schemaontwerp akkoord; additief migratiescript en eerste transactionele checkpoints geïmplementeerd. Nog niet op een database uitgevoerd; EWMA/uptime/duurstatistieken en buildtests volgen.
 
 ## Semantiek die vanaf dag één goed moet zijn
 
@@ -28,7 +28,7 @@
 
 De migratie kiest voorlopig 168-vaks PostgreSQL-arrays met NULL voor nog niet gemeten slots en compacte 6-vaks duurhistogrammen. Grootte en updatekosten moeten nog met de landelijke benchmark worden gemeten. Schrijfrechten blijven bij de importer; de toekomstige API krijgt alleen SELECT.
 
-## Transactionele verwerking (na schema-akkoord)
+## Transactionele verwerking (deels geïmplementeerd)
 
 1. Nieuwe Locations-bron succesvol valideren en bulk staging vullen.
 2. Binnen dezelfde PostgreSQL-transactie de vorige checkpoints vergelijken met inkomende statussen/tijdstempels.
@@ -74,3 +74,15 @@ docker compose exec -T db psql -U chargewatch_owner -d chargewatch_statistics_te
 Verwacht één migration-record en zeven nieuwe tabellen. Herhaal de migratie op dezelfde **testdatabase** en controleer dat er geen duplicaten of destructieve wijzigingen zijn. Controleer de SELECT-rol afzonderlijk met de testaccountcredentials. Geen nieuwe migratie wordt automatisch door `docker-entrypoint-initdb.d` op bestaande volumes uitgevoerd.
 
 **Nog uit te voeren:** SQL-integrationtests met echte PostgreSQL, opslagmeting, importintegratie, EWMA- en duurcalculaties, gap-/replaychecks. Geen enkele statische array is al bevolkt.
+
+
+## Implementatiestatus checkpointfase (22 oktober 2026)
+
+`ObservationCheckpoints.Capture(db, tx)` is aan `BulkImporter.Run` gekoppeld vlak vóór `import_run` en `CommitAsync`. Dezelfde transactie beschermt catalogus en checkpoint-rijen. De transactie faalt expliciet als migratie `003_statistics` niet aanwezig is; **bestaande bulkimports naar een ongemigreerde database werken met deze branch dus niet**. Gebruik voor deze branch een geïsoleerde gemigreerde proefdatabase. `main` en reeds gedeployde processen worden niet gewijzigd.
+
+- EVSE-checkpoints worden alleen aangemaakt/vernieuwd bij een aanwezige, strikt nieuwere bron-`last_updated`; eerste registratie creëert geen fictieve verblijfsduur.
+- Locatie-checkpoints worden uit de volledige geüploade EVSE-snapshot berekend. Bij minstens één `AVAILABLE` is de locatie aantoonbaar vrij; bij geen `AVAILABLE` en minstens één onbekende status blijft uitkomst `NULL`.
+- Locaties zonder complete timestamps, zonder nieuwe EVSE-timestamp of met een achterlopende EVSE-brontimestamp worden niet als nieuwe locatie-observatie gepubliceerd.
+- Checkpointvelden voor duur/continuïteit blijven bewust `NULL/false`, tot de intervalvalidatie is ingebouwd. 168-slotprofielen en duurstatistieken blijven nog leeg.
+
+**Nog niet gevalideerd:** lokale .NET-build, PostgreSQL-migratie, nationale performance, herhaalimport, crash/rollback met echte data. Er is geen automatische CI. Deze PR blijft draft.
