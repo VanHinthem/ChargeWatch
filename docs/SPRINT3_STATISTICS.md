@@ -1,7 +1,7 @@
 # Sprint 3 — statistiekfundament (ontwerp ter beoordeling)
 
 **Issue:** #11 · **Branch:** `feature/sprint3-observation-foundation`  
-**Status:** schema- en observatiecontract voorgesteld, nog geen DB-migratie of importintegratie.
+**Status:** schemaontwerp akkoord; additief migratiescript opgesteld, nog niet op een database toegepast. Statistiekverwerking en buildtests volgen.
 
 ## Semantiek die vanaf dag één goed moet zijn
 
@@ -14,7 +14,7 @@
 - Locatieprofielen moeten uit gelijktijdige statussen van alle EVSE's komen, niet uit vermenigvuldiging van afzonderlijke kansen.
 - Opslag blijft compact: 168 vakken per EVSE/locatie, een rollend 90-daags dagvenster en vaste duurbuckets, geen onbeperkte eventrijen. Correcties/backfills niet als nieuwe duur tellen.
 
-## Voorgestelde tabellen (nog niet toepassen)
+## Geïmplementeerde tabellen (nog niet op databases toegepast)
 
 | Tabel | Sleutel | Opslag |
 |---|---|---|
@@ -26,7 +26,7 @@
 | `evse_duration_summary` | `evse_id` | compacte duurbuckets per toestandsklasse, overgangstellingen |
 | `location_zero_available_summary` | `location_id` | compacte duurverdeling van 0-vrij-perioden, herstel-/kwaliteitscounters |
 
-Compacte arrays versus per-slotrijen worden pas gekozen op basis van echte databasebenchmarks. Schrijfrechten blijven bij de importer; de toekomstige API krijgt alleen SELECT.
+De migratie kiest voorlopig 168-vaks PostgreSQL-arrays met NULL voor nog niet gemeten slots en compacte 6-vaks duurhistogrammen. Grootte en updatekosten moeten nog met de landelijke benchmark worden gemeten. Schrijfrechten blijven bij de importer; de toekomstige API krijgt alleen SELECT.
 
 ## Transactionele verwerking (na schema-akkoord)
 
@@ -50,3 +50,27 @@ Compacte arrays versus per-slotrijen worden pas gekozen op basis van echte datab
 ## Scopegrens
 
 Sprint 3 is **niet** de latere geavanceerde voorspelling (15/30/60 minuten). API/Android volgen afzonderlijk. Schemawijziging en database-uitvoering pas na inhoudelijke validatie door gebruiker.
+
+
+## Migratie uitvoeren en valideren — uitsluitend geïsoleerde database
+
+**Niet uitvoeren op `chargewatch` of `chargewatch_benchmark` zonder expliciete keuze voor die database.** De migratie is additief, maar vraagt extra opslag en verandert schema/rechten.
+
+Eerst een afzonderlijke proefdatabase op basis van een bestaande veilige kopie voorbereiden. De migratie uitvoeren als eigenaar, niet als `chargewatch_import`:
+
+```powershell
+# Bijvoorbeeld bij een expliciet voorbereide chargewatch_statistics_test-database:
+Get-Content -Raw .\db\migrations\003_statistics.sql |
+    docker compose exec -T db psql -v ON_ERROR_STOP=1 -1 -U chargewatch_owner -d chargewatch_statistics_test
+```
+
+Test vervolgens in dezelfde testdatabase:
+
+```powershell
+docker compose exec -T db psql -U chargewatch_owner -d chargewatch_statistics_test -c "SELECT version FROM schema_migration WHERE version='003_statistics';"
+docker compose exec -T db psql -U chargewatch_owner -d chargewatch_statistics_test -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public' AND tablename IN ('evse_observation_checkpoint','location_observation_checkpoint','evse_occupancy_profile','location_occupancy_profile','evse_daily_reliability','evse_duration_summary','location_zero_available_summary');"
+```
+
+Verwacht één migration-record en zeven nieuwe tabellen. Herhaal de migratie op dezelfde **testdatabase** en controleer dat er geen duplicaten of destructieve wijzigingen zijn. Controleer de SELECT-rol afzonderlijk met de testaccountcredentials. Geen nieuwe migratie wordt automatisch door `docker-entrypoint-initdb.d` op bestaande volumes uitgevoerd.
+
+**Nog uit te voeren:** SQL-integrationtests met echte PostgreSQL, opslagmeting, importintegratie, EWMA- en duurcalculaties, gap-/replaychecks. Geen enkele statische array is al bevolkt.
