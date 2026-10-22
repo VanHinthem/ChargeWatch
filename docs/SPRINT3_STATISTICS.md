@@ -128,3 +128,10 @@ Get-Content -Raw .\db\tests\003_statistics_smoke.sql |
 De transactionele checkpoint-verwerking houdt nu `evse_daily_reliability` beperkt tot **vandaag plus de voorafgaande 89 Nederlandse kalenderdagen**, op basis van `Europe/Amsterdam`. Oudere rijen worden bij een succesvolle bulkimport binnen dezelfde transactie verwijderd. De importworker verwijdert geen catalogus- of EVSE-records.
 
 De SQL-smoketest controleert nu de feitelijke daggrenssegmentatie (10 minuten verdeeld over twee lokale datums) plus een terugkerend wintertijd-uur. Het script is **nog niet uitgevoerd**. Het dekt de werkelijke .NET-importcode niet: voor de definitieve Sprint 3-review blijven een build, transactietest en replayscenario op een geïsoleerde gemigreerde database noodzakelijk.
+
+
+## Controle op database-rollen
+
+Statische review op 22 oktober heeft een gemiste migratiepermissie blootgelegd: de importer leest `schema_migration` voordat statistiekcheckpoints worden gepubliceerd. Migratie `003_statistics.sql` verleent daarom nu expliciet `GRANT SELECT ON schema_migration TO chargewatch_import`. De SQL-smoketest assert ook afzonderlijk de relevante lees-/schrijfrechten.
+
+**Deze correctie is nog niet met PostgreSQL uitgevoerd.** Gebruik uitsluitend `chargewatch_statistics_test` voor migratie/smoketest; bestaande databases niet automatisch aanpassen.
