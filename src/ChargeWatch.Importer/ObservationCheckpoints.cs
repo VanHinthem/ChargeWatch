@@ -31,7 +31,7 @@ internal static class ObservationCheckpoints
               AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
             JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
 
-            -- Snapshot checkpoint freshness before writing new EVSE checkpoints.
+            -- Snapshot checkpoint freshness and stale records BEFORE writing EVSE checkpoints.
             CREATE TEMP TABLE stage_fresh_evse ON COMMIT DROP AS
             SELECT s.evse_id, s.location_id
             FROM stage_observation s
@@ -39,6 +39,39 @@ internal static class ObservationCheckpoints
             WHERE s.source_updated_at IS NOT NULL
               AND (cp.evse_id IS NULL OR cp.source_updated_at IS NULL
                    OR s.source_updated_at > cp.source_updated_at);
+
+            CREATE TEMP TABLE stage_stale_location ON COMMIT DROP AS
+            SELECT DISTINCT s.location_id
+            FROM stage_observation s
+            JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
+            WHERE s.source_updated_at < cp.source_updated_at;
+
+            -- Conservative reliability observation: only unchanged state with
+            -- two genuinely successive source updates separated by <=15 min.
+            -- Crossing a UTC date boundary is left uncounted pending daily splitting.
+            CREATE TEMP TABLE stage_reliability_interval ON COMMIT DROP AS
+            SELECT s.evse_id, s.status_class,
+                   (s.source_updated_at AT TIME ZONE 'UTC')::date AS day_utc,
+                   floor(extract(epoch FROM (s.source_updated_at - cp.source_updated_at)))::bigint AS seconds
+            FROM stage_observation s
+            JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
+            WHERE s.source_updated_at > cp.source_updated_at
+              AND s.source_updated_at <= cp.source_updated_at + interval '15 minutes'
+              AND s.status_class = cp.status_class
+              AND (s.source_updated_at AT TIME ZONE 'UTC')::date =
+                  (cp.source_updated_at AT TIME ZONE 'UTC')::date;
+
+            INSERT INTO evse_daily_reliability
+              (evse_id, observation_date, operating_seconds, fault_seconds, unknown_seconds)
+            SELECT evse_id, day_utc,
+                   CASE WHEN status_class IN ('available','occupied') THEN seconds ELSE 0 END,
+                   CASE WHEN status_class = 'fault' THEN seconds ELSE 0 END,
+                   CASE WHEN status_class = 'unknown' THEN seconds ELSE 0 END
+            FROM stage_reliability_interval
+            ON CONFLICT (evse_id, observation_date) DO UPDATE SET
+              operating_seconds=evse_daily_reliability.operating_seconds + excluded.operating_seconds,
+              fault_seconds=evse_daily_reliability.fault_seconds + excluded.fault_seconds,
+              unknown_seconds=evse_daily_reliability.unknown_seconds + excluded.unknown_seconds;
 
             -- A missing source timestamp is not a fresh measurement.  Do not
             -- reinterpret a replayed timestamp or late correction as elapsed time.
@@ -86,10 +119,8 @@ internal static class ObservationCheckpoints
               AND EXISTS (
                 SELECT 1 FROM stage_fresh_evse f WHERE f.location_id=s.location_id)
               AND NOT EXISTS (
-                SELECT 1 FROM stage_observation e
-                JOIN evse_observation_checkpoint cp ON cp.evse_id=e.evse_id
-                WHERE e.location_id=s.location_id
-                  AND e.source_updated_at < cp.source_updated_at)
+                SELECT 1 FROM stage_stale_location stale
+                WHERE stale.location_id=s.location_id)
             ON CONFLICT (location_id) DO UPDATE SET
               evse_count=excluded.evse_count,
               available_count=excluded.available_count,
