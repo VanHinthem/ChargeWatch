@@ -54,5 +54,13 @@
 
 De gebruiker heeft de oorspronkelijke landelijke NDW-gzip via de .NET 10 importer geïmporteerd met minimum 70.000 locaties. Gemeten duur: **13 min 48,496 s (828,496 s)**. Na afloop gecontroleerde databaseaantallen: **80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven, 179.241 tariefkoppelingen, 3 geslaagde import_runs** (2 fixtures + 1 landelijke). PostgreSQL meldde **214 MB** databaseomvang. Hiermee is daadwerkelijke landelijke import/commit bevestigd; deze doorlooptijd is een eerste nulmeting, geen prestatiegarantie. De importer gebruikt nog per-record SQL; bulk/staging is logische optimalisatierichting. De omvang zegt nog niets over toekomstige statistiekopslag of WAL/backupruimte.
 
+## Bulkoptimalisatie in uitvoering
+
+- De nationale baseline van 828,496 seconden en 214 MB blijft de vergelijking.
+- `BulkImporter.cs` toegevoegd, opt-in via `--bulk`: gzip naar tijdelijke jsonb-stage via PostgreSQL COPY, daarna set-based upserts en tariefkoppelingen in één transactie.
+- Bestaande rij-voor-rij CLI blijft beschikbaar; database en rollen zijn niet gewijzigd.
+- **Nog niet gecompileerd of uitgevoerd.** Eerst lokale build + Schietspoel-fixture valideren (zie [Sprint 1 instructies](SPRINT1_IMPORT.md)); daarna landelijke vergelijking.
+- Geen nieuwe PR/merge/deployment; alle wijzigingen in draft PR #6.
+
 ## Productrichting
 .NET 10 importer → PostgreSQL 18/PostGIS → GET-only read-only API → Android Compose + Glance; 168 weekdag/uur-EWMA-profielen per EVSE én locatie en 90-daagse uptime later. Geen accounts, notificaties of betalingen in v1.
