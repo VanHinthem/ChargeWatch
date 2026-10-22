@@ -1,12 +1,12 @@
 # ChargeWatch
 
-**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; statistieken, meldingen en verdere diensten volgen gefaseerd.
+**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; bezettingsstatistieken, betrouwbaarheidspercentages en historische beschikbaarheidskansen in versie 1; notificaties en accounts later.
 
 > **Status:** ontwerpfase (oktober 2026). Er is nog geen applicatiecode geschreven.
 
 ## Waarom ChargeWatch?
 
-Toon in één oogopslag hoeveel aansluitingen bij favoriete laadpalen beschikbaar zijn. Zoek alternatieven in de buurt en ontdek later, op basis van verzamelde historie, waar en wanneer je de beste kans hebt om te laden.
+Toon in één oogopslag hoeveel aansluitingen bij favoriete laadpalen beschikbaar zijn. Zoek alternatieven in de buurt en ontdek met landelijke weekdag-/uurprofielen waar en wanneer je historisch de beste kans hebt om te laden.
 
 De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot een volwaardige app, zonder zelf laadtransacties of betalingen te verwerken.
 
@@ -19,7 +19,7 @@ De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot 
 
 ## Versie 1 — Read-only laadpuntcatalogus
 
-Kaart, zoeken en filters; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. Uitgebreide statistieken, tariefvergelijking en voorspellingen volgen in latere fasen.
+Kaart, zoeken en filters; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. **Versie 1 toont ook** de EVSE- en locatiebezettingsprofielen, 90-daagse uptime en de historische kans op minstens één vrije aansluiting per weekdag/uur. Deze indicatie vereist voldoende datadekking; het is geen voorspelling van een vertrekmoment binnen 15/30 minuten. Uitgebreide tariefvergelijking en kortetermijnvoorspellingen volgen eventueel later.
 
 ## Voorlopige architectuur
 
