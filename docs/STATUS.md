@@ -1,7 +1,7 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 22 oktober 2026
-**Status:** Sprint 0 in uitvoering op `feature/ndw-data-discovery`; issue #2. Workflow-PR #1 is gemerged. Geen CI-workflows/statuschecks aanwezig.
+**Status:** Sprint 0 in uitvoering op `feature/ndw-data-discovery`; issue #2, draft PR #3. Workflow-PR #1 is gemerged. Geen CI-workflows/statuschecks aanwezig.
 
 ## Focus
 
@@ -23,6 +23,8 @@ Actieve werkitems:
 - Publicatiemetadata op 22 oktober 2026 vastgelegd: Locations circa 17 MB, Tariffs circa 4.0 MB, met updates op dezelfde dag.
 - Voorlopige ChargeWatch-veldmapping en Schietspoel-zoekankers gedocumenteerd in `docs/NDW_DATA_DISCOVERY.md`.
 - Bewust geen synthetische raw fixtures toegevoegd.
+- `tools/ndw_discover.py` toegevoegd: Python 3.10+ standaardbibliotheek, publieke gzip-downloads, bronmetadata/SHA256, EVSE-statusfrequenties, Schietspoel-selectie en voorlopige tariefresolutie. Gebruik: `python tools/ndw_discover.py` (zie `tools/README.md`). Ruwe resultaten onder `data/ndw-discovery/` worden genegeerd door Git.
+- De tool is **nog niet tegen de echte landelijke gzip-bestanden uitgevoerd**. De werkelijke JSON-envelope en tariefkoppeling blijven onbewezen; er zijn nog geen fixturebestanden.
 
 ## Huidige blokkade
 
