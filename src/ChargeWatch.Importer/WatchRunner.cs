@@ -8,7 +8,7 @@ internal static class WatchRunner
     private const string DefaultLocationsUrl = "https://opendata.ndw.nu/charging_point_locations_ocpi.json.gz";
     private const string DefaultTariffsUrl = "https://opendata.ndw.nu/charging_point_tariffs_ocpi.json.gz";
 
-    private sealed record FeedState(string? ETag = null, DateTimeOffset? LastModified = null);
+    private sealed record FeedState(string? ETag = null, DateTimeOffset? LastModified = null, DateTimeOffset? LastSuccessfulCheckUtc = null);
     private sealed record RefreshState(
         FeedState? Locations = null,
         FeedState? Tariffs = null,
@@ -185,10 +185,10 @@ internal static class WatchRunner
             {
                 Locations = locations is null
                     ? state.Locations
-                    : new FeedState(locations.ETag ?? state.Locations?.ETag, locations.LastModified ?? state.Locations?.LastModified),
+                    : new FeedState(locations.ETag ?? state.Locations?.ETag, locations.LastModified ?? state.Locations?.LastModified, DateTimeOffset.UtcNow),
                 Tariffs = tariffs is null
                     ? state.Tariffs
-                    : new FeedState(tariffs.ETag ?? state.Tariffs?.ETag, tariffs.LastModified ?? state.Tariffs?.LastModified),
+                    : new FeedState(tariffs.ETag ?? state.Tariffs?.ETag, tariffs.LastModified ?? state.Tariffs?.LastModified, DateTimeOffset.UtcNow),
                 LastSuccessfulCheckUtc = DateTimeOffset.UtcNow,
                 LastSuccessfulImportUtc = anyChanged ? DateTimeOffset.UtcNow : state.LastSuccessfulImportUtc
             };
@@ -236,7 +236,7 @@ internal static class WatchRunner
             await ValidateGzip(pendingPath, cancellationToken);
 
             var etag = response.Headers.ETag?.ToString();
-            var lastModified = response.Content.Headers.LastModified ?? response.Headers.LastModified;
+            var lastModified = response.Content.Headers.LastModified;
             Console.WriteLine($"200 {url} -> {new FileInfo(pendingPath).Length:N0} bytes pending validation/import.");
             return new DownloadResult(true, pendingPath, etag, lastModified);
         }
@@ -301,14 +301,15 @@ internal static class WatchRunner
 
     private static void ReportStaleness(RefreshState state, TimeSpan threshold)
     {
-        if (state.LastSuccessfulCheckUtc is null)
+        var lastLocationsCheck = state.Locations?.LastSuccessfulCheckUtc;
+        if (lastLocationsCheck is null)
         {
-            Console.Error.WriteLine("STALE: no successful NDW refresh check has completed yet.");
+            Console.Error.WriteLine("STALE: no successful NDW Locations refresh check has completed yet.");
             return;
         }
 
-        var age = DateTimeOffset.UtcNow - state.LastSuccessfulCheckUtc.Value;
+        var age = DateTimeOffset.UtcNow - lastLocationsCheck.Value;
         if (age > threshold)
-            Console.Error.WriteLine($"STALE: last successful NDW refresh check was {age:g} ago (threshold {threshold:g}).");
+            Console.Error.WriteLine($"STALE: last successful NDW Locations refresh check was {age:g} ago (threshold {threshold:g}).");
     }
 }
