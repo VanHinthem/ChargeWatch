@@ -1,70 +1,75 @@
 # ChargeWatch — actuele werkstand
 
-**Bijgewerkt:** 22 oktober 2026
-**Status:** Sprint 0 in uitvoering op `feature/ndw-data-discovery`; issue #2, draft PR #3. Workflow-PR #1 is gemerged. Geen CI-workflows/statuschecks aanwezig.
+**Bijgewerkt:** 22 oktober 2026  
+**Status:** Sprint 0 afgerond en gemerged; volgende stap is Sprint 1 afbakenen. Nog geen applicatiecode, database of deployment.
 
-## Focus
+## GitHub-status (gecontroleerd op 22 oktober 2026)
 
-**Sprint 0 — NDW data discovery en schema-input.**
+- `main`: Sprint-0-squashmerge `5b88c62b1e14010d4727242d9eaa3d69d0343177`.
+- [PR #3](https://github.com/VanHinthem/ChargeWatch/pull/3): **gemerged** na expliciet gebruikersakkoord.
+- [Issue #2](https://github.com/VanHinthem/ChargeWatch/issues/2): **afgesloten**.
+- Op het controlemoment geen open issues. Voor start van elk werkblok opnieuw live controleren.
+- Geen GitHub Actions-runs of commit-statuschecks aangetroffen bij Sprint-0-review; er was **geen groene CI** te claimen.
+- Deze statuscorrectie wordt aangeboden via branch `docs/status-after-sprint-0`; geen directe commit naar `main`.
 
-Doel: de echte landelijke NDW/DOT-NL OCPI Locations- en Tariffs-feeds valideren voordat database- of importercontracten worden vastgelegd.
+## Sprint 0 — afgerond: NDW data discovery
 
-Actieve werkitems:
-- Issue #2: `Sprint 0: validate NDW OCPI locations and tariffs data contract`
-- Branch: `feature/ndw-data-discovery`
-- Document: [NDW_DATA_DISCOVERY.md](NDW_DATA_DISCOVERY.md)
+Landelijke NDW OCPI Locations- en Tariffs-gzip daadwerkelijk gedownload en geanalyseerd op Windows. De JSON-root is een array voor beide bronnen.
 
-## Actueel bereikt
+| Gemeten op 22 oktober 2026 | Aantal |
+|---|---:|
+| Locaties | 80.777 |
+| EVSE's | 203.114 |
+| Connectoren | 203.807 |
+| Tariefobjecten | 101.209 |
 
-- Live GitHub gecontroleerd: geen andere open issues of PR's bij start; workflow-PR #1 is op 22 oktober 2026 gemerged naar `main`.
-- Geen GitHub Actions-runs of commit-statuschecks gevonden voor de huidige main-head.
-- NDW Open Data en laadpuntdocumentatie live gecontroleerd.
-- Bevestigd: landelijke OCPI Locations- en Tariffs-gzip, OCPI 2.2.1 aanlevercontract, NDW/AFIR-verplichte velden en expliciete waarschuwing dat laadpunt-API/specs nog kunnen wijzigen.
-- Publicatiemetadata op 22 oktober 2026 vastgelegd: Locations circa 17 MB, Tariffs circa 4.0 MB, met updates op dezelfde dag.
-- Voorlopige ChargeWatch-veldmapping en Schietspoel-zoekankers gedocumenteerd in `docs/NDW_DATA_DISCOVERY.md`.
-- Bewust geen synthetische raw fixtures toegevoegd.
-- `tools/ndw_discover.py` toegevoegd: Python 3.10+ standaardbibliotheek, publieke gzip-downloads, bronmetadata/SHA256, EVSE-statusfrequenties, Schietspoel-selectie en voorlopige tariefresolutie. Gebruik: `python tools/ndw_discover.py` (zie `tools/README.md`). Ruwe resultaten onder `data/ndw-discovery/` worden genegeerd door Git.
-- **Gebruikersrun uitgevoerd op echte NDW-gzip (22 oktober 2026):** beide root-typen zijn JSON-arrays; 80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven en 9 verschillende statuswaarden. Eén Schietspoel-locatie gevonden, twee connectoren verwijzen naar één daadwerkelijk geresolveerd tarief. Zie [snapshotrapport](NDW_SNAPSHOT_2026-10-22.md). Bronobjecten zelf zijn nog niet aangeleverd; geen raw fixtures.
+- Negen EVSE-statuswaarden aangetroffen, waaronder `AVAILABLE`, `CHARGING`, `UNKNOWN`, `REMOVED`, `PLANNED`, `INOPERATIVE` en `OUTOFORDER`.
+- Bij Schietspoel 18 in Oss twee EVSE's gevalideerd. `uid` is een UUID; `evse_id` bevat de externe `NL*NUO*...`-identifier. Beide `AVAILABLE` in onderzochte snapshot; elk Type 2 AC 11,04 kW.
+- Tarief voor beide connectoren succesvol geresolveerd: `NL/NUO/2000025394-2000011292`; `ENERGY` €0,2691 exclusief 21% btw, rekenkundig circa €0,33/kWh inclusief btw. Contractspecifieke laadpastarieven kunnen afwijken.
+- HTTP `HEAD 200` en conditionele `GET 304` voor beide datasets bevestigd op Windows. `ETag` / `Last-Modified` bruikbaar; nieuw gzip-bestand bij gewijzigde ETag nog steeds downloaden.
+- Twee landelijke snapshots vergeleken: alle 80.777 locatiekeys en 203.114 EVSE-keys gedeeld; geen gewijzigde externe `evse_id` bij gedeelde keys; geen dubbele samengestelde locatie-/EVSE-/tariefkeys.
+- 24.566 connectoren (12,05%) zonder `tariff_ids`. Van 179.241 tariefverwijzingen zijn 174.161 (97,17%) exact geresolveerd en 5.080 (2,83%) niet. **Onbekend tarief is nooit prijs nul.**
+- Brongebaseerde ingekorte fixture, Python-onderzoeks- en controlescripts en reproduceerbare instructies op `main`. Schietspoel/rapportanalyses bevestigd door gebruikersrun; niet alle tests zijn als CI uitgevoerd.
 
-- Door gebruiker aangeleverde Schietspoel-extracties gecontroleerd: beide OCPI `evse_id` waarden matchen eerdere Athlon-waarden; beide status `AVAILABLE`; gedeelde `REGULAR` EUR-tariff met `ENERGY 0.2691`, 21% btw (~€0,33/kWh). Compacte brongebaseerde fixture en gerichte check gecommit.
+Documentatie:
+- [NDW discovery](NDW_DATA_DISCOVERY.md)
+- [Nationale snapshot](NDW_SNAPSHOT_2026-10-22.md)
+- [Nationale vergelijking](NDW_COMPARISON_2026-10-22.md)
+- [Toolinstructies](../tools/README.md)
 
-- Op 22 oktober opnieuw de **originele twee geüploade Schietspoel-extracties** met Python gecontroleerd: locatie met twee verwachte EVSE-identificaties en twee succesvolle tariefresoluties (PASS). Ook een lokale kopie van `check_ndw_fixture.py` uitgevoerd met een uit die extracties samengestelde fixture: `Fixture check passed` (de exacte gecommitte fixture is niet rechtstreeks als bestand uitgevoerd).
-- NDW HTTP HEAD vanaf agentcontainer geprobeerd, maar externe DNS-resolutie faalde. Vervolgens bevestigde de gebruiker op Windows **200 HEAD en 304 Conditional GET voor beide feeds** op 22 oktober 2026. `tools/check_ndw_http_cache.py` toegevoegd om dit vanaf Windows reproduceerbaar te testen.
+## Product- en architectuurbesluiten
 
-## Huidige beperking
+- V1: landelijke laadlocaties, EVSE-status/versheid, actuele tarieven, kaart/zoeken, alternatieven, lokale Android-favorieten/widget en compacte historische beschikbaarheidsstatistieken.
+- Geen notificaties, accounts, persoonlijke serversynchronisatie of betalingen in v1.
+- .NET 10 importer (schrijft) → PostgreSQL 18/PostGIS → afzonderlijke read-only databasegebruiker en GET-only REST API → Kotlin/Compose/Glance Android.
+- Landelijke 168-vaks weekdag/uur-profielen per EVSE én locatie; 90-daagse EVSE-uptime, compacte duurprofielen. Geen onbeperkte raw event-/tariefhistorie.
+- Samengestelde locatie-/tariefbronkey: `country_code + party_id + id`; EVSE-key onder locatie + `uid`; externe `evse_id` apart bewaren.
 
-De gebruiker heeft het download-/analysescript met succes lokaal uitgevoerd. Deze agentomgeving kan de grote gzip nog steeds niet zelfstandig materialiseren:
-- webfetch weigerde het Locations-bestand wegens omvang;
-- Tariffs kon niet als tekst worden gedecodeerd;
-- de container heeft geen externe DNS/netwerktoegang.
+## Eerstvolgende stap — Sprint 1 (nog niet gestart)
 
-Dit is geen NDW-authenticatieprobleem: de landelijke downloads zijn publiek en NDW documenteert `curl ... | gunzip`.
+**Voorstel:** een beheersbaar eerste technisch werkblok voor het datamodel en importfundament, af te bakenen in een nieuw issue vóór implementatie.
 
-Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last-Modified en lokale Schietspoel-tariefresolutie zijn bewezen via het aangeleverde rapport. De Schietspoel-bronobjecten, twee EVSE-identiteiten, energietarief en tariefrelaties zijn inmiddels gecontroleerd; compacte echte fixtures plus check zijn toegevoegd. Landelijke tariefdekking en key-stabiliteit zijn nu met twee landelijke snapshots gemeten; conditionele HTTP GET met 304 is aangetoond. Zie [vergelijking](NDW_COMPARISON_2026-10-22.md).
+Inhoud om als één samenhangende scope te beoordelen:
+1. .NET 10-solution en importprojectbasis.
+2. PostgreSQL 18 + PostGIS ontwikkelomgeving via Docker Compose, gescheiden import-/API-rollen.
+3. Eerste schema voor Location, EVSE, Connector, Tariff en ImportRun met unieke bronkeys.
+4. Validatie/staging en beperkte echte proefimport inclusief datakwaliteitsmetingen en daadwerkelijke opslag-/importbenchmark.
+5. Gerichte tests voor dubbele keys, ontbrekende tarieven, incomplete snapshots en idempotentie.
 
-## Productbesluiten
+**Niet in dit werkblok:** Android, REST-API-features, complete langdurige statistiekpipeline of productie-deployment. Schema-/performancekeuzes toetsen aan de nationale dataset vóór definitieve vastlegging.
 
-- Naam: **ChargeWatch**; repository `VanHinthem/ChargeWatch`.
-- V1: Android-app en widget, kaart/zoeken, huidige EVSE-beschikbaarheid en tarieven, alternatieven, lokale favorieten, statistieken en historische weekdag/uur-beschikbaarheidskansen.
-- Geen notificaties, accounts, synchronisatie of betaalde functies in v1.
-- .NET 10 ingest → PostgreSQL 18/PostGIS → read-only GET REST API → Kotlin/Compose/Glance Android.
-- Landelijke compacte profielen: EVSE + locatie 168 EWMA-vakken; uptime 90 dagen per EVSE; compacte duurcategorieën. Geen onbeperkte raw events; actuele tarieven, geen tariefhistorie.
+## Open risico's / beslissingen
 
-## Laatste vergelijking en volgende actie
+- NDW-licentie, attributie en voorwaarden voor herpublicatie vóór publieke distributie expliciet vaststellen.
+- Twee snapshots tonen geen langetermijnstabiliteit van bronkeys; wijzigingen en bronkwaliteit bij iedere import bewaken.
+- Statusversheid en semantiek zorgvuldig behandelen: geaggregeerde aantalsverschillen vormen geen individuele tijdreeks; ontbrekende/incomplete import nooit stilzwijgend omzetten in verwijdering of storing.
+- Werkelijke databaseomvang, index-/WAL-kosten en opslagvorm van landelijke statistieken meten; eerdere ramingen zijn geen benchmark.
+- Bepalen van precieze eerste database- en importcontracten binnen Sprint 1.
 
-- Twee nationale snapshots vergeleken: alle 80.777 locatiekeys en 203.114 EVSE-keys gedeeld; nul afwijkende externe EVSE-ID's bij gedeelde keys.
-- 24.566 connectoren (12,05%) zonder tarief-ID. Van 179.241 tariefverwijzingen zijn 174.161 (97,17%) exact gekoppeld en 5.080 (2,83%) niet gekoppeld.
-- Statusverdeling veranderde tussen snapshots, maar geaggregeerde verschillen zijn geen individuele statusovergangen.
-- Zie `docs/NDW_COMPARISON_2026-10-22.md`.
-- Sprint 0 datadiscovery is inhoudelijk voldoende om de initiële bronkeys en tarief-null-semantiek voor het volgende schemawerkblok te specificeren.
-- Open randvoorwaarde: NDW-licentie en attributie voor herpublicatie controleren vóór publieke distributie; langere termijn ID-stabiliteit en statistische dekking blijven operationele kwaliteitsbewaking.
-- **PR #3 aan gebruiker voor inhoudelijke validatie aanbieden. Niet mergen of deployen zonder expliciete toestemming.**
+## Overdracht aan volgende agent
 
-## Open punten
-
-- Exacte raw exportvorm en stabiele identifiers in de huidige landelijke snapshot.
-- Volledige statusset/statussemantiek en datakwaliteit.
-- Tariff-linkdekking en concrete prijscomponenten.
-- HTTP conditional-requestgedrag en praktisch verversingsinterval.
-- Licentie/attributie voor herpublicatie.
-- Pas na Sprint 0: fysieke PostgreSQL-opslagvorm en benchmark.
+1. Lees `AGENTS.md`, deze status, `WORKFLOW.md`, `ROADMAP.md`, `PRODUCT.md`, `ARCHITECTURE.md` en de drie NDW-rapporten.
+2. Controleer live GitHub issues, branches, PR's en CI; neem deze status niet als bewijs voor later.
+3. Als statuscorrectie-PR nog open is: vraag expliciete mergegoedkeuring, geen automatische merge.
+4. Start daarna één afgebakend Sprint-1-issue en featurebranch; update dit document op die branch.
+5. **Nooit merge of deploy zonder expliciete gebruikersgoedkeuring.**
