@@ -68,3 +68,7 @@ De gebruiker heeft de oorspronkelijke landelijke NDW-gzip via de .NET 10 importe
 ## Database-opslag na landelijke bulkherimport
 
 Gebruiker controleerde `pg_stat_user_tables`: tariff 163 MB, evse 71 MB, connector 60 MB, charging_location 47 MB, connector_tariff 45 MB, spatial_ref_sys circa 7 MB; alle `n_dead_tup = 0` (statistische schatting, niet bewijs van afwezigheid van bloat). 5 geslaagde importruns. Totale databaseomvang eerder na herimport 402 MB. Nog uit te zoeken of herhaalde ongewijzigde upserts onnodige WAL/rijversies en indexgroei veroorzaken.
+
+## Bulkrollback bevestigd (22 oktober 2026)
+
+Gebruiker voerde `--bulk` met één-locatie-Schietspoel-fixture en `minLocations=2` uit. Resultaat: `Bulk rollback: Only 1 locations; expected >= 2`. `SELECT COUNT(*) FROM import_run` bleef **5**. De transactionele afwijzing van een te kleine snapshot is daarmee lokaal bevestigd. Nog open: ongewijzigde records overslaan bij upserts om vermijdbare writes te beperken; groei 214→402 MB is indicatie, geen oorzakelijk bewijs.
