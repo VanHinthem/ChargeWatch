@@ -76,3 +76,7 @@ Gebruiker voerde `--bulk` met één-locatie-Schietspoel-fixture en `minLocations
 ## Ongewijzigde-upsertoptimalisatie (22 oktober 2026)
 
 Bulkmodus op dezelfde branch aangepast: Location, EVSE, Connector en Tariff werken uitsluitend bij wanneer de kolomtuple `IS DISTINCT FROM` is. ConnectorTariff wordt set-wise vergeleken met de gewenste koppelingen, zodat identieke links niet meer verwijderd/ingevoegd worden. **Nog niet gebouwd of lokaal gevalideerd.** Eerst fixture en vervolgens identieke landelijke herimport controleren op aantallen, tijd en opslag. Geen schema-update of deployment.
+
+## Validatie gewijzigde-rijoptimalisatie (22 oktober 2026)
+
+Gebruiker heeft nieuwe `--bulk` met de Schietspoel-fixture succesvol uitgevoerd: `Bulk committed` in 0,5878821 seconde. Landelijke herimport via `Measure-Command` duurde 22,9978642 seconden tegenover 37,25033 seconden voor vorige bulkversie en 828,49582 seconden voor rij-voor-rij. **Landelijke commitstatus, aantallen en nieuwe databaseomvang nog niet geverifieerd na deze run**; `Measure-Command` onderdrukt de procesuitvoer. Geen buildlog afzonderlijk aangeleverd, fixture-run toont wel dat de actuele CLI startte.
