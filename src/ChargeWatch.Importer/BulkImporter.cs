@@ -39,7 +39,7 @@ internal static class BulkImporter
         await command.ExecuteNonQueryAsync();
     }
 
-    private static string Csv(string json) => "\\\"" + json.Replace("\\\"", "\\\"\\\"") + "\\\"";
+    private static string Csv(string json) => "\"" + json.Replace("\"", "\"\"") + "\"";
 
     public static async Task<int> Run(string[] args)
     {
