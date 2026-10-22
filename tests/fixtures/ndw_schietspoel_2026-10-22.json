@@ -1,0 +1,87 @@
+{
+  "source": "NDW OCPI national gzip exports, 2026-10-22 12:22 UTC",
+  "extracted_from": "user-supplied schietspoel_locations.json and schietspoel_tariffs.json",
+  "location": {
+    "country_code": "NL",
+    "party_id": "NUO",
+    "id": "f08bed59-be4b-42d4-8b9b-423f03f82bc6",
+    "address": "Schietspoel 18",
+    "city": "Oss",
+    "postal_code": "5348 JH",
+    "last_updated": "2026-10-22T08:57:01Z",
+    "coordinates": {
+      "latitude": "51.767547",
+      "longitude": "5.529763"
+    },
+    "operator": {
+      "name": "Vattenfall InCharge"
+    },
+    "evses": [
+      {
+        "uid": "8807cd9e-960e-4d8c-ac3d-6c29938963a2",
+        "evse_id": "NL*NUO*EALF*0005002*1",
+        "status": "AVAILABLE",
+        "last_updated": "2026-10-21T17:55:39Z",
+        "connectors": [
+          {
+            "id": "b13b9d6c-5126-458a-a897-272e219d0f9b",
+            "standard": "IEC_62196_T2",
+            "power_type": "AC_3_PHASE",
+            "max_electric_power": 11040,
+            "tariff_ids": [
+              "2000025394-2000011292"
+            ]
+          }
+        ]
+      },
+      {
+        "uid": "0722d0f7-effe-490b-af5e-ec2fa66729f3",
+        "evse_id": "NL*NUO*EALF*0005002*2",
+        "status": "AVAILABLE",
+        "last_updated": "2026-10-22T08:57:01Z",
+        "connectors": [
+          {
+            "id": "a3e7bb67-2701-49a4-bfe4-e1e90b1c5fe9",
+            "standard": "IEC_62196_T2",
+            "power_type": "AC_3_PHASE",
+            "max_electric_power": 11040,
+            "tariff_ids": [
+              "2000025394-2000011292"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "tariffs": [
+    {
+      "country_code": "NL",
+      "party_id": "NUO",
+      "id": "2000025394-2000011292",
+      "currency": "EUR",
+      "type": "REGULAR",
+      "last_updated": "2026-10-22T00:25:24Z",
+      "tariff_alt_text": [
+        {
+          "language": "nl",
+          "text": "Per kWh: 0.33 EUR"
+        }
+      ],
+      "elements": [
+        {
+          "price_components": [
+            {
+              "type": "ENERGY",
+              "price": 0.2691,
+              "vat": 21,
+              "step_size": 1
+            }
+          ],
+          "restrictions": {
+            "start_date": "2026-01-01"
+          }
+        }
+      ]
+    }
+  ]
+}
