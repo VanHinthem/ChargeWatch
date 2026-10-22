@@ -34,7 +34,7 @@
 - Gebruiker bevestigde .NET SDK 10.0.402; aanvankelijke restore blokkeerde op een globale, niet-geautoriseerde Azure DevOps-feed (NU1301 401).
 - Projectgebonden `NuGet.config` met alleen nuget.org toegevoegd; `dotnet restore ... --configfile NuGet.config` slaagde.
 - `dotnet run --no-restore --project src/ChargeWatch.Importer -- data/sprint1-fixture/locations.json.gz data/sprint1-fixture/tariffs.json.gz 1` gaf `Committed: 1 locations, 2 EVSEs, 2 connectors, 1 tariffs.`.
-- Dit bevestigt compiler/importtransactie met echte fixture; idempotentie **bevestigd**: tweede identieke import succesvol, daarna 1 locatie, 2 EVSE's, 2 connectoren, 1 tarief, 2 tariefkoppelingen, 2 import_runs. Rollback en alleen-lezen rol nog niet gecontroleerd.
+- Dit bevestigt compiler/importtransactie met echte fixture; idempotentie **bevestigd**: tweede identieke import succesvol, daarna 1 locatie, 2 EVSE's, 2 connectoren, 1 tarief, 2 tariefkoppelingen, 2 import_runs. Rollback bij minLocations=2 met één locatie geslaagd (`No changes published`); import_run blijft 2. Alleen-lezen rol nog niet gecontroleerd.
 
 ## Nog niet uitgevoerd / bewezen
 - Agentomgeving heeft geen .NET SDK of Docker; de **gebruiker heeft lokaal** PostgreSQL-init, .NET-restore/build en eerste fixture-import succesvol uitgevoerd.
