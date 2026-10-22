@@ -65,3 +65,21 @@ python -c "from pathlib import Path; p=Path('db/init/002_roles.sh'); p.write_byt
 ```
 
 Een init-script draait alleen bij de **allereerste** initialisatie van het PostgreSQL-volume. Een eerdere mislukte initialisatie laat mogelijk een half ingericht volume achter. Alleen als bevestigd is dat het uitsluitend de nieuwe, ongevulde ChargeWatch-ontwikkeldatabase betreft, mag die specifieke Compose-volume met `docker compose down -v` opnieuw gemaakt worden. **Dit verwijdert alle data in de database van deze Compose-stack**; nooit uitvoeren op een bestaande omgeving of op NAS/productie.
+
+## Optionele bulkmodus — nog niet gevalideerd
+
+De originele CLI zonder `--bulk` blijft ongewijzigd voor vergelijking. De nieuwe `--bulk`-variant streamt de gzip-bestanden naar tijdelijke PostgreSQL-stagingtabellen via `COPY` (CSV met correct ge-escapete JSON), waarna de catalogus met set-based `INSERT .. ON CONFLICT` wordt bijgewerkt. Tariefkoppelingen van aangeboden connectoren worden transactioneel vervangen. De volledige operatie blijft één transactie, zonder massale verwijdering van ontbrekende bronrecords.
+
+**Belangrijk: geen build of werkende runtime-test uitgevoerd door de agent. Test eerst op de bestaande lokale ontwikkelomgeving, nooit direct op productie.**
+
+1. `git pull`
+2. `dotnet restore src/ChargeWatch.Importer/ChargeWatch.Importer.csproj --configfile NuGet.config`
+3. `dotnet build src/ChargeWatch.Importer/ChargeWatch.Importer.csproj --no-restore`
+4. Schietspoel:
+   ```powershell
+   dotnet run --no-restore --project src/ChargeWatch.Importer -- --bulk data/sprint1-fixture/locations.json.gz data/sprint1-fixture/tariffs.json.gz 1
+   ```
+5. Verifieer dat de tabeltotalen nog steeds 80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven en 179.241 koppelingen zijn wanneer de landelijke baseline reeds aanwezig is.
+6. Doe pas bij geslaagde fixture en bevestigde idempotentie/rollback een nieuwe landelijke meting met `--bulk`. Vergelijk dan met de baseline **828,496 seconden en 214 MB vóór de tweede import**.
+
+Let op: de fixture bovenop de bestaande nationale database verandert de landelijke totalen niet; de import-run-teller neemt bij succes wel met één toe. Bewaak SQL-errors, lock-/WAL-gebruik en databasetoename. Bestaande PostgreSQL-rollen en schema blijven ongewijzigd. Bij een fout kan de bulktransactie worden teruggedraaid. `COPY`- en set-based-SQL implementatie moeten voor performance én correctness op de werkelijke dataset worden gevalideerd.
