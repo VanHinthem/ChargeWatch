@@ -1,9 +1,10 @@
-if (args.Length > 0 && args[0] == "--bulk")
-    return await BulkImporter.Run(args[1..]);
-
 using System.Security.Cryptography;
 using System.Text.Json;
 using Npgsql;
+
+if (args.Length > 0 && args[0] == "--bulk")
+    return await BulkImporter.Run(args[1..]);
+
 
 if (args.Length < 1 || args.Length > 3)
 {
