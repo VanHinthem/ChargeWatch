@@ -107,3 +107,17 @@ De betrouwbaarheid-intervalverdeling gebruikt nu PostgreSQL-`Europe/Amsterdam` l
 **Essentiële kwaliteitseis:** `last_updated` is een bronstatusmoment, geen bewijs dat de toestand iedere vijf minuten actief is geobserveerd. Daarom tellen uitsluitend intervallen met twee nieuwe, onderling consistente bronmomenten van maximaal 15 minuten. Op onveranderde statusmomenten ontstaat hiermee mogelijk weinig dekking. Dit vereist verificatie met echte NDW-reeksen vóór we uptime als representatief presenteren. `observed_at` alleen gebruiken om versheid/checkpoint te bewaken, niet om onbewezen historische duur te fabriceren.
 
 Nog te verifiëren met PostgreSQL: 23-/25-uurs DST-dagen, lokale-middernachtsplitsing, identieke replay zonder dubbeltelling, ongeldige timestamps, statusverandering en transactie-rollback. De 168 uurprofielen en definitieve publicatiedrempels volgen pas na deze controles.
+
+
+## Database-smoketest beschikbaar
+
+`db/tests/003_statistics_smoke.sql` bevat gerichte SQL-asserties voor zeven statistiektabellen, 23-/25-uursdagen rond DST, een kort lokaal middernachtinterval en idempotente fixture-inserts. Het script gebruikt `BEGIN`/`ROLLBACK` en laat bij succes geen fixturedata achter.
+
+Na toepassen van de migratie op een **afzonderlijke testdatabase**, voer uit als eigenaar:
+
+```powershell
+Get-Content -Raw .\db\tests\003_statistics_smoke.sql |
+    docker compose exec -T db psql -v ON_ERROR_STOP=1 -U chargewatch_owner -d chargewatch_statistics_test
+```
+
+**Niet als volledige end-to-end-test behandelen**: de bulkimport, productievolume, bronversheid, datumverdeling door `ObservationCheckpoints` en exacte replay-controle vereisen nog daadwerkelijke integratietests. Het script is geschreven maar niet uitgevoerd; de agentomgeving heeft geen `dotnet`, `psql` of `docker`.
