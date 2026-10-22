@@ -90,4 +90,6 @@ GRANT SELECT ON
     evse_daily_reliability, evse_duration_summary,
     location_zero_available_summary
 TO chargewatch_read;
+-- Importer checks this version before writing observations; it must be readable.
+GRANT SELECT ON schema_migration TO chargewatch_import;
 INSERT INTO schema_migration(version) VALUES ('003_statistics') ON CONFLICT DO NOTHING;
