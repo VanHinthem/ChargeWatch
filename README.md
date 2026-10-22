@@ -1,12 +1,12 @@
 # ChargeWatch
 
-**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met favorieten, een native widget, slimme meldingen en op termijn historie, tarieven en voorspellingen.
+**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; statistieken, meldingen en verdere diensten volgen gefaseerd.
 
 > **Status:** ontwerpfase (oktober 2026). Er is nog geen applicatiecode geschreven.
 
 ## Waarom ChargeWatch?
 
-Toon in één oogopslag hoeveel aansluitingen bij favoriete laadpalen beschikbaar zijn. Ontvang een eenmalige melding wanneer een favoriete locatie vrijkomt. Zoek alternatieven in de buurt en ontdek later, op basis van verzamelde historie, waar en wanneer je de beste kans hebt om te laden.
+Toon in één oogopslag hoeveel aansluitingen bij favoriete laadpalen beschikbaar zijn. Zoek alternatieven in de buurt en ontdek later, op basis van verzamelde historie, waar en wanneer je de beste kans hebt om te laden.
 
 De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot een volwaardige app, zonder zelf laadtransacties of betalingen te verwerken.
 
@@ -17,18 +17,20 @@ De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot 
 - [Notificatieregels](docs/ALERTS.md) — CW-ALERT-001, Schietspoel 18: **eenmalige melding zodra, na 0 vrije aansluitingen, minimaal 1 aansluiting vrij wordt**.
 - [Roadmap en onderzoek](docs/ROADMAP.md) — fasen 0–5, validatiechecklist en vastgelegde bronobservaties.
 
-## MVP 0.1 — Discover & Monitor
+## Versie 1 — Read-only laadpuntcatalogus
 
-Kaart, zoeken en filters; laadlocatiedetails; favorieten; widget; eenmalige notificaties; nabije alternatieven; duidelijke dataversheid. Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. Uitgebreide statistieken, tariefvergelijking en voorspellingen volgen in latere fasen.
+Kaart, zoeken en filters; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. Uitgebreide statistieken, tariefvergelijking en voorspellingen volgen in latere fasen.
 
 ## Voorlopige architectuur
 
 - **Backend:** ASP.NET Core / .NET 10, als modulaire monoliet, op NAS via Docker Compose.
-- **Opslag:** PostgreSQL 18 + PostGIS.
-- **Android:** Kotlin, Jetpack Compose, Jetpack Glance-widget, Room-cache en FCM.
+- **Opslag:** PostgreSQL 18 + PostGIS. Importworker schrijft landelijke laadpuntgegevens en compacte statistieken; de app gebruikt uitsluitend een **read-only REST API** met een aparte databasegebruiker met leesrechten.
+- **Android:** Kotlin, Jetpack Compose, Jetpack Glance-widget en lokale opslag van favorieten via Room/DataStore. Push/FCM pas later.
 - **Data:** NDW/DOT-NL GeoJSON en landelijke OCPI Locations- en Tariffs-data. De individuele OCPI-dataset moet nog in Sprint 0 inhoudelijk gevalideerd worden.
 
 **Opslagbeleid:** alleen actuele tarieven; actuele landelijke EVSE-status; 168 week-/uurvakken per EVSE en per locatie, inclusief direct gemeten kans op minimaal één vrije aansluiting op locatieniveau. Ruwe statusovergangen worden niet langdurig opgeslagen. De eerder genoemde 1–3,5 GB was een voorlopige schatting vóór EVSE-profielen; **een nieuwe raming en proefimport zijn nodig**.
+
+**Later:** notificaties, eventueel een **aparte database voor accounts, favorieten en abonnementen**, en een mogelijke betaalde gebruikerslaag; dit is nadrukkelijk niet nodig voor v1.
 
 ## Eerstvolgende stap
 
