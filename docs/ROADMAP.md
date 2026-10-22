@@ -12,6 +12,7 @@
 - [ ] NDW-licentie, attributie en documentatie/API-stabiliteit vastleggen.
 - [ ] Proefberekening en PostgreSQL-proefimport voor landelijke catalogus, **EVSE- én locatieprofielen (168 vakken per entiteit)** en 90-daagse uptime-dagtotalen; werkelijke tabel-/indexgrootte meten.
 - [ ] Statistiekvalidatie: versheid, geldige statusmapping, tijdgewogen uurmeting, ontbrekende data en rechtstreeks gemeten locatiebeschikbaarheid.
+- [ ] Onderzoek de waarneembaarheid van AVAILABLE-, niet-vrije en storingsperioden inclusief ontbrekende start/eindpunten; kies compacte duur-buckets en meet opslagoverhead.
 - [ ] Definitieve importcontracten, technisch datamodel en API-schema opstellen.
 
 **Exit criteria:** succesvolle reproduceerbare ingest, betrouwbare statusinterpretatie, inzicht in datasetlimieten en akkoord op dataschema.
@@ -23,6 +24,7 @@
 - [ ] Betrouwbare, transactionele landelijke OCPI Locations-/Tariffs-import met staging, validatie en monitoring.
 - [ ] Actuele locatie-, EVSE-, connector- en tariefdata; geen tariefhistorie.
 - [ ] Vanaf de eerste import landelijke 168-vaks EWMA-profielen **per EVSE én per locatie**, en 90-daagse EVSE-uptime-dagtotalen.
+- [ ] Per EVSE compacte duurverdelingen en tellers verzamelen voor **bezettings-/niet-vrije perioden, vrije perioden, storingsfrequentie, storingsduur en statusovergangen**, plus dekking/kwaliteit; geen permanente eventhistorie.
 - [ ] Compacte arrays versus tabelrijen meten, benchmarken en opslag/indexen optimaliseren.
 - [ ] REST API met uitsluitend **GET-endpoints** voor kaart, zoeken, filtering, details, status, huidige tarieven, alternatieven, **EVSE-/locatiestatistieken, uptime en historische beschikbaarheidskansen**.
 - [ ] Publicatiecriteria voor statistieken: voldoende observaties/dekking, geldige bronstatus, tijdvak en actualiteit, anders 'onvoldoende gegevens'.
@@ -53,7 +55,7 @@
 - [ ] Actuele OCPI-tarieven nauwkeurig interpreteren, met prijscomponenten en contractonzekerheid.
 - [ ] Kostencalculator per laadsessie, zonder historie van tarieven.
 - [ ] Historische beschikbaarheidskansen uit v1 backtesten en verder kalibreren.
-- [ ] Vrijkomen binnen 15/30 minuten alleen onderzoeken wanneer de data dat draagt.
+- [ ] Op basis van vanaf v1 opgebouwde compacte duurverdelingen onderzoeken of betrouwbare **vrijkomkansen binnen 15/30/60 minuten** en **kans dat een nu vrije EVSE vrij blijft** kunnen worden geschat; pas tonen na kalibratie en voldoende data.
 
 ## Fase 5 — Notificaties (uitgesteld)
 
