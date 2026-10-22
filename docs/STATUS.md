@@ -80,3 +80,9 @@ Bulkmodus op dezelfde branch aangepast: Location, EVSE, Connector en Tariff werk
 ## Validatie gewijzigde-rijoptimalisatie (22 oktober 2026)
 
 Gebruiker heeft nieuwe `--bulk` met de Schietspoel-fixture succesvol uitgevoerd: `Bulk committed` in 0,5878821 seconde. Landelijke herimport via `Measure-Command` duurde 22,9978642 seconden tegenover 37,25033 seconden voor vorige bulkversie en 828,49582 seconden voor rij-voor-rij. **Landelijke commitstatus, aantallen en nieuwe databaseomvang nog niet geverifieerd na deze run**; `Measure-Command` onderdrukt de procesuitvoer. Geen buildlog afzonderlijk aangeleverd, fixture-run toont wel dat de actuele CLI startte.
+
+## Afsluitende bulkvalidatie (22 oktober 2026)
+
+Gebruiker bevestigde laatste `--bulk` herimport: 22,9978642 seconden volgens `Measure-Command`; actuele `import_run` is `ndw-ocpi-bulk / completed`. Database bevat nog steeds 80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven en 179.241 tariefkoppelingen. `pg_size_pretty(pg_database_size('chargewatch'))` bleef **402 MB** voor/na deze laatste herimport (afgerond, geen exacte bytevergelijking). Ongewijzigde-record-upserts en diff van tariefkoppelingen werken daarmee op de onderzochte snapshot.
+
+**Sprint 1 gereed voor gebruikersreview, niet gemerged.** Bekende beperkingen: geen werkende scheduler/ETag in importer, geen productierijpe staging voor updategaten/deletes, geen statistics-pipeline, geen CI; test van veranderde records en tariefkoppelingen beperkt. NDW-licentie/attributie nog controleren vóór publieke distributie. Performance betreft herimport op warme bestaande dataset, geen cold-startvergelijking.
