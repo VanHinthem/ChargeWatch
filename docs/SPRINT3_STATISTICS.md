@@ -1,7 +1,7 @@
 # Sprint 3 — statistiekfundament (ontwerp ter beoordeling)
 
 **Issue:** #11 · **Branch:** `feature/sprint3-observation-foundation`  
-**Status:** schemaontwerp akkoord; additief migratiescript en eerste transactionele checkpoints geïmplementeerd. Nog niet op een database uitgevoerd; EWMA/uptime/duurstatistieken en buildtests volgen.
+**Status:** migratie, checkpoints en conservatieve uptime-dagaccumulatie in code. Niet tegen PostgreSQL getest of toegepast; 168-slot EWMA, 90-daagse retentie en duurstatistieken volgen.
 
 ## Semantiek die vanaf dag één goed moet zijn
 
@@ -86,3 +86,15 @@ Verwacht één migration-record en zeven nieuwe tabellen. Herhaal de migratie op
 - Checkpointvelden voor duur/continuïteit blijven bewust `NULL/false`, tot de intervalvalidatie is ingebouwd. 168-slotprofielen en duurstatistieken blijven nog leeg.
 
 **Nog niet gevalideerd:** lokale .NET-build, PostgreSQL-migratie, nationale performance, herhaalimport, crash/rollback met echte data. Er is geen automatische CI. Deze PR blijft draft.
+
+
+## Uptime-dagaccumulatie — implementatie onder test
+
+`ObservationCheckpoints.Capture` registreert nu ook een interval in `evse_daily_reliability` als **beide** EVSE-brontijdstempels aanwezig zijn, de tweede strikt nieuwer is, de statusklasse gelijk blijft, het verschil maximaal 15 minuten bedraagt, en beide bronmomenten binnen dezelfde **UTC-dag** liggen. Voorlopig blijven grensoverschrijdende intervallen ongebruikt in plaats van ze foutief aan één dag toe te kennen. Deze UTC-variant is een voorzichtige technische tussenstap, **nog niet** de afgesproken `Europe/Amsterdam`-dagsemantiek.
+
+- `available` en `occupied` tellen als operationele seconden; `fault` als storing; `unknown` als onbekende tijd, niet in de uptime-noemer.
+- Veranderende status, lange gaten, achterlopende of identieke bronmomenten leveren **nul extra seconden** op.
+- Verwerking vindt vóór het verversen van EVSE-checkpoints plaats, zodat oude status en bronmoment nog beschikbaar zijn. Ook de locatiecheck tegen verouderde bronmomenten wordt vóór checkpoint-writes gematerialiseerd.
+- Alle inserts/updates gebeuren in dezelfde bulkimporttransactie. Een herhaalde bronversie kan na commit geen tweede keer dezelfde intervalduur bijschrijven.
+
+**Nog niet geïmplementeerd:** kalenderdag-splitsing/DST `Europe/Amsterdam`, 90-daagse retentie, representatieve dekkingskwaliteit, EWMA-uurvakken, locatie-intervallen en duurbuckets. Daarom zijn de cijfers nog **niet geschikt voor weergave in de app**.
