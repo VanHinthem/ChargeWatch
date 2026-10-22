@@ -2,7 +2,7 @@
 
 **Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; bezettingsstatistieken, betrouwbaarheidspercentages en historische beschikbaarheidskansen in versie 1; notificaties en accounts later.
 
-> **Status:** ontwerpfase (oktober 2026). Er is nog geen applicatiecode geschreven.
+> **Status:** backend-datafundament in uitvoering (oktober 2026). Sprint 0 brononderzoek en Sprint 1 landelijke PostgreSQL-bulkimport zijn afgerond; Sprint 2 voegt periodieke NDW-verversing toe. API en Android-app zijn nog niet gebouwd.
 
 ## Waarom ChargeWatch?
 
