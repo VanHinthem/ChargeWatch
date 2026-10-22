@@ -28,6 +28,9 @@ Actieve werkitems:
 
 - Door gebruiker aangeleverde Schietspoel-extracties gecontroleerd: beide OCPI `evse_id` waarden matchen eerdere Athlon-waarden; beide status `AVAILABLE`; gedeelde `REGULAR` EUR-tariff met `ENERGY 0.2691`, 21% btw (~€0,33/kWh). Compacte brongebaseerde fixture en gerichte check gecommit.
 
+- Op 22 oktober opnieuw de **originele twee geüploade Schietspoel-extracties** met Python gecontroleerd: locatie met twee verwachte EVSE-identificaties en twee succesvolle tariefresoluties (PASS).
+- NDW HTTP HEAD vanaf agentcontainer geprobeerd, maar externe DNS-resolutie faalde; **geen bewijs van 304-support**. `tools/check_ndw_http_cache.py` toegevoegd om dit vanaf Windows reproduceerbaar te testen.
+
 ## Huidige beperking
 
 De gebruiker heeft het download-/analysescript met succes lokaal uitgevoerd. Deze agentomgeving kan de grote gzip nog steeds niet zelfstandig materialiseren:
@@ -49,9 +52,9 @@ Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last
 
 ## Eerstvolgende actie
 
-1. Voer `python tests/check_ndw_fixture.py` lokaal uit (nog niet uitgevoerd door agent).
-2. Verifieer globale tariefkoppeling, HTTP-conditional requests en identiteit over snapshots waar haalbaar.
-3. Werk resterende aannames bij en bied issue #2 daarna als afgeronde PR aan voor gebruikersvalidatie.
+1. Draai lokaal `python tests/check_ndw_fixture.py` en `python tools/check_ndw_http_cache.py` en deel de uitvoer; de tweede voert HEAD + conditionele GET uit zonder volledige download.
+2. Landelijke tariefdekking en identiteitsstabiliteit over twee snapshots blijven **nog niet gemeten** (alleen bronextractie van Schietspoel beschikbaar).
+3. Leg HTTP-resultaat en resterende kwaliteitsrisico's vast voordat de PR naar ready-for-review gaat.
 4. **Niet mergen of deployen zonder expliciet gebruikersakkoord.**
 
 ## Open punten
