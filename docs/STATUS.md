@@ -40,7 +40,7 @@ De gebruiker heeft het download-/analysescript met succes lokaal uitgevoerd. Dez
 
 Dit is geen NDW-authenticatieprobleem: de landelijke downloads zijn publiek en NDW documenteert `curl ... | gunzip`.
 
-Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last-Modified en lokale Schietspoel-tariefresolutie zijn bewezen via het aangeleverde rapport. De Schietspoel-bronobjecten, twee EVSE-identiteiten, energietarief en tariefrelaties zijn inmiddels gecontroleerd; compacte echte fixtures plus check zijn toegevoegd. Landelijke tariefdekking en identiteit over meerdere snapshots ontbreken nog; conditionele HTTP GET met 304 is inmiddels aangetoond.
+Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last-Modified en lokale Schietspoel-tariefresolutie zijn bewezen via het aangeleverde rapport. De Schietspoel-bronobjecten, twee EVSE-identiteiten, energietarief en tariefrelaties zijn inmiddels gecontroleerd; compacte echte fixtures plus check zijn toegevoegd. Landelijke tariefdekking en key-stabiliteit zijn nu met twee landelijke snapshots gemeten; conditionele HTTP GET met 304 is aangetoond. Zie [vergelijking](NDW_COMPARISON_2026-10-22.md).
 
 ## Productbesluiten
 
@@ -50,12 +50,15 @@ Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last
 - .NET 10 ingest → PostgreSQL 18/PostGIS → read-only GET REST API → Kotlin/Compose/Glance Android.
 - Landelijke compacte profielen: EVSE + locatie 168 EWMA-vakken; uptime 90 dagen per EVSE; compacte duurcategorieën. Geen onbeperkte raw events; actuele tarieven, geen tariefhistorie.
 
-## Eerstvolgende actie
+## Laatste vergelijking en volgende actie
 
-1. De conditionele HTTP-cachecheck is geslaagd op Windows: HEAD 200 en conditional GET 304 voor beide bestanden. Eventueel exacte repositoryfixture testen met `python tests/check_ndw_fixture.py`.
-2. `tools/ndw_compare.py` toegevoegd om de oorspronkelijke gzip-bestanden met een tweede afzonderlijke snapshot te vergelijken: ontbrekende/onduidelijke tarieven, dubbele sleutels en locatie-/EVSE-identiteit. Uitvoering op landelijke data staat nog open. Commando's in `tools/README.md`.
-3. Laat de tweede snapshot draaien met `python tools/ndw_discover.py --output data/ndw-compare` en vergelijk met `python tools/ndw_compare.py`; inspecteer `data/ndw-compare/compare_report.json`. Beoordeel de resultaten vóór ready-for-review.
-4. **Niet mergen of deployen zonder expliciet gebruikersakkoord.**
+- Twee nationale snapshots vergeleken: alle 80.777 locatiekeys en 203.114 EVSE-keys gedeeld; nul afwijkende externe EVSE-ID's bij gedeelde keys.
+- 24.566 connectoren (12,05%) zonder tarief-ID. Van 179.241 tariefverwijzingen zijn 174.161 (97,17%) exact gekoppeld en 5.080 (2,83%) niet gekoppeld.
+- Statusverdeling veranderde tussen snapshots, maar geaggregeerde verschillen zijn geen individuele statusovergangen.
+- Zie `docs/NDW_COMPARISON_2026-10-22.md`.
+- Sprint 0 datadiscovery is inhoudelijk voldoende om de initiële bronkeys en tarief-null-semantiek voor het volgende schemawerkblok te specificeren.
+- Open randvoorwaarde: NDW-licentie en attributie voor herpublicatie controleren vóór publieke distributie; langere termijn ID-stabiliteit en statistische dekking blijven operationele kwaliteitsbewaking.
+- **PR #3 aan gebruiker voor inhoudelijke validatie aanbieden. Niet mergen of deployen zonder expliciete toestemming.**
 
 ## Open punten
 
