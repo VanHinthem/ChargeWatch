@@ -1,6 +1,22 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 22 oktober 2026  
+**Status:** Sprint 0–2 gemerged, geen deployment. Sprint 3 gestart als ontwerp/codevoorbereiding op featurebranch; schema nog niet goedgekeurd of uitgevoerd.
+
+## Sprint 3 — actief en afgebakend
+
+- Issue [#11](https://github.com/VanHinthem/ChargeWatch/issues/11); branch `feature/sprint3-observation-foundation`.
+- Status: conservatieve EVSE-statusclassificatie toegevoegd, voorgestelde tabellen/observatiekwaliteit/transactieregels in [SPRINT3_STATISTICS.md](SPRINT3_STATISTICS.md).
+- **Nog niet gerealiseerd:** migratie, transactionele statistiek-update, 168-slot EWMA, 90-daagse uptime, duurprofielen, testen tegen PostgreSQL.
+- **Beslispunt:** schemaontwerp en migratieimpact inhoudelijk valideren vóór wijzigingen aan databases. De branch zelf bevat geen migratiescript en verandert de bestaande import niet.
+- Checks: GitHub-inhoud gecontroleerd. Lokale .NET-build niet uitgevoerd: .NET SDK ontbreekt in agentomgeving. Geen CI-workflow aanwezig.
+- Volgende stap: na schema-akkoord een idempotente versieerbare migratie voorbereiden, statistiekworker in bulktransactie integreren en gerichte tests draaien op een geïsoleerde database. Geen merge/deployment zonder apart akkoord.
+
+---
+
+# Historische overdracht — Sprint 0–2
+
+**Bijgewerkt:** 22 oktober 2026  
 **Status:** Sprint 0, 1 en 2 gemerged; geen deployment. Sprint 2 is op 22 oktober 2026 via squashmerge `6ed5800895dee5facad925e4c5d045f612fd62ae` afgerond.
 
 ## Afgeronde sprints
