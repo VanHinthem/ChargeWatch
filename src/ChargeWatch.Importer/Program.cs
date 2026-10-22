@@ -2,6 +2,10 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Npgsql;
 
+if (args.Length > 0 && args[0] == "--watch")
+    return await WatchRunner.RunContinuous();
+if (args.Length > 0 && args[0] == "--watch-once")
+    return await WatchRunner.RunOnce();
 if (args.Length > 0 && args[0] == "--bulk")
     return await BulkImporter.Run(args[1..]);
 
