@@ -49,3 +49,19 @@
 Lokale build, PostgreSQL-initialisatie, fixture-import, tweede import, rollback en read-role verifiëren. Daarna eventuele fouten op dezelfde branch herstellen en een echte beperkte landelijke proefimport/benchmark doen voordat Sprint 1 wordt afgerond.
 
 Geen merge of deployment zonder expliciet gebruikersakkoord.
+
+## Windows: PostgreSQL init-script line endings
+
+Bij eerste uitvoering op Windows kan `002_roles.sh: cannot execute: required file not found` optreden als een shellbestand CRLF heeft. De repository bevat nu `.gitattributes` met `*.sh text eol=lf`; een eerder uitgecheckt bestand kan desondanks nog CRLF hebben. Controleer lokaal:
+
+```powershell
+python -c "from pathlib import Path; p=Path('db/init/002_roles.sh'); b=p.read_bytes(); print('CRLF:', b.count(bytes([13,10])), 'LF:', b.count(bytes([10])))"
+```
+
+Als CRLF groter dan nul is, normaliseer uitsluitend dat lokale bestand:
+
+```powershell
+python -c "from pathlib import Path; p=Path('db/init/002_roles.sh'); p.write_bytes(p.read_bytes().replace(bytes([13,10]),bytes([10])))"
+```
+
+Een init-script draait alleen bij de **allereerste** initialisatie van het PostgreSQL-volume. Een eerdere mislukte initialisatie laat mogelijk een half ingericht volume achter. Alleen als bevestigd is dat het uitsluitend de nieuwe, ongevulde ChargeWatch-ontwikkeldatabase betreft, mag die specifieke Compose-volume met `docker compose down -v` opnieuw gemaakt worden. **Dit verwijdert alle data in de database van deze Compose-stack**; nooit uitvoeren op een bestaande omgeving of op NAS/productie.
