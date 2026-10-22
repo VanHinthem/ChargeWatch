@@ -15,6 +15,19 @@ BEGIN
    'evse_duration_summary','location_zero_available_summary');
   IF n<>7 THEN RAISE EXCEPTION 'Expected seven statistics tables, got %',n; END IF;
 
+  IF NOT has_table_privilege('chargewatch_import','schema_migration','SELECT') THEN
+    RAISE EXCEPTION 'Importer cannot read schema_migration';
+  END IF;
+  IF has_table_privilege('chargewatch_read','schema_migration','INSERT') THEN
+    RAISE EXCEPTION 'Read-only role can modify schema_migration';
+  END IF;
+  IF NOT has_table_privilege('chargewatch_import','evse_daily_reliability','INSERT,UPDATE,DELETE') THEN
+    RAISE EXCEPTION 'Importer missing reliability write permissions';
+  END IF;
+  IF NOT has_table_privilege('chargewatch_read','evse_daily_reliability','SELECT') THEN
+    RAISE EXCEPTION 'Read-only role missing statistics SELECT';
+  END IF;
+
   -- CEST -> CET: 2026-10-25 has 25 hours; two occurrences of 02:30
   -- must have distinct instants yet the same Dutch calendar day.
   SELECT extract(epoch FROM (
