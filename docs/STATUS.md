@@ -90,3 +90,7 @@ Gebruiker bevestigde laatste `--bulk` herimport: 22,9978642 seconden volgens `Me
 ## Schone databasebenchmark — 22 oktober 2026
 
 Afzonderlijke `chargewatch_benchmark`-database aangemaakt met hetzelfde schema en rechten, originele ontwikkelcatalogus bleef intact. Grootte vóór import **16.430.783 bytes**. Eerste nationale `--bulk` in **28,1003812 s** (`Measure-Command` zonder zichtbare exitcode), daarna **224.024.255 bytes**. Identieke tweede import: console `Staged: 80777 locations, 203114 EVSEs, 203807 connectors, 101209 tariffs` en `Bulk committed ... in 00:00:25.0663539`; PowerShell stopwatch **27,167278 s**, exitcode **0**. Database daarna **224.147.135 bytes**, toename **122.880 bytes (~0,055%)**. Eerste versus tweede import dus vergelijkbare snelheid; ongewijzigde data veroorzaakt bij deze run nauwelijks extra opslag. Exacte catalogustellingen/geslaagde runs in benchmarkdatabase desgewenst nog zelfstandig controleren. Geen merge of deployment.
+
+## Laatste benchmarkcontrole
+
+Gebruiker heeft `chargewatch_benchmark` na twee landelijke imports gecontroleerd: 80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven, 179.241 tariefkoppelingen en precies **2 voltooide importruns**. Daarmee zijn beide imports ook qua opgeslagen aantallen geverifieerd. De benchmarkdatabase staat los van de oorspronkelijke ontwikkelcatalogus. Sprint 1 is gereed voor inhoudelijke merge-review; nog niet gemerged of gedeployed.
