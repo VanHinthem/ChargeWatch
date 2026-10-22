@@ -21,7 +21,9 @@ BEGIN
   IF has_table_privilege('chargewatch_read','schema_migration','INSERT') THEN
     RAISE EXCEPTION 'Read-only role can modify schema_migration';
   END IF;
-  IF NOT has_table_privilege('chargewatch_import','evse_daily_reliability','INSERT,UPDATE,DELETE') THEN
+  IF NOT (has_table_privilege('chargewatch_import','evse_daily_reliability','INSERT')
+       AND has_table_privilege('chargewatch_import','evse_daily_reliability','UPDATE')
+       AND has_table_privilege('chargewatch_import','evse_daily_reliability','DELETE')) THEN
     RAISE EXCEPTION 'Importer missing reliability write permissions';
   END IF;
   IF NOT has_table_privilege('chargewatch_read','evse_daily_reliability','SELECT') THEN
