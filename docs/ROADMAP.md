@@ -13,6 +13,7 @@
 - [ ] Proefberekening en PostgreSQL-proefimport voor landelijke catalogus, **EVSE- én locatieprofielen (168 vakken per entiteit)** en 90-daagse uptime-dagtotalen; werkelijke tabel-/indexgrootte meten.
 - [ ] Statistiekvalidatie: versheid, geldige statusmapping, tijdgewogen uurmeting, ontbrekende data en rechtstreeks gemeten locatiebeschikbaarheid.
 - [ ] Onderzoek de waarneembaarheid van AVAILABLE-, niet-vrije en storingsperioden inclusief ontbrekende start/eindpunten; kies compacte duur-buckets en meet opslagoverhead.
+- [ ] Onderzoek **locatiebrede perioden met 0 vrije EVSE's** en herstel naar >=1 vrij, inclusief storings-/blokkadesemantiek, censurering en opslagmeting.
 - [ ] Definitieve importcontracten, technisch datamodel en API-schema opstellen.
 
 **Exit criteria:** succesvolle reproduceerbare ingest, betrouwbare statusinterpretatie, inzicht in datasetlimieten en akkoord op dataschema.
@@ -25,6 +26,7 @@
 - [ ] Actuele locatie-, EVSE-, connector- en tariefdata; geen tariefhistorie.
 - [ ] Vanaf de eerste import landelijke 168-vaks EWMA-profielen **per EVSE én per locatie**, en 90-daagse EVSE-uptime-dagtotalen.
 - [ ] Per EVSE compacte duurverdelingen en tellers verzamelen voor **bezettings-/niet-vrije perioden, vrije perioden, storingsfrequentie, storingsduur en statusovergangen**, plus dekking/kwaliteit; geen permanente eventhistorie.
+- [ ] **Per locatie** compacte verdeling van aaneengesloten perioden met **nul vrije aansluitingen**, moment van herstel naar >=1 vrij, aantallen en dekking direct uit gecombineerde statussen bijhouden; storingen niet als normale bezetting presenteren.
 - [ ] Compacte arrays versus tabelrijen meten, benchmarken en opslag/indexen optimaliseren.
 - [ ] REST API met uitsluitend **GET-endpoints** voor kaart, zoeken, filtering, details, status, huidige tarieven, alternatieven, **EVSE-/locatiestatistieken, uptime en historische beschikbaarheidskansen**.
 - [ ] Publicatiecriteria voor statistieken: voldoende observaties/dekking, geldige bronstatus, tijdvak en actualiteit, anders 'onvoldoende gegevens'.
@@ -55,7 +57,7 @@
 - [ ] Actuele OCPI-tarieven nauwkeurig interpreteren, met prijscomponenten en contractonzekerheid.
 - [ ] Kostencalculator per laadsessie, zonder historie van tarieven.
 - [ ] Historische beschikbaarheidskansen uit v1 backtesten en verder kalibreren.
-- [ ] Op basis van vanaf v1 opgebouwde compacte duurverdelingen onderzoeken of betrouwbare **vrijkomkansen binnen 15/30/60 minuten** en **kans dat een nu vrije EVSE vrij blijft** kunnen worden geschat; pas tonen na kalibratie en voldoende data.
+- [ ] Op basis van vanaf v1 opgebouwde EVSE- én locatie-duurverdelingen onderzoeken of betrouwbare **vrijkomkansen binnen 15/30/60 minuten** (per EVSE en rechtstreeks voor een volledig onbeschikbare locatie) en **kans dat een nu vrije EVSE vrij blijft** kunnen worden geschat; pas tonen na kalibratie en voldoende data.
 
 ## Fase 5 — Notificaties (uitgesteld)
 
@@ -75,7 +77,7 @@
 
 **Besloten 22 oktober 2026:** **statistieken en historische weekdag-/uur-beschikbaarheidskansen worden in v1 ook in de Android-app getoond**, mits voldoende metingen; geen garantie op een vrijkomende aansluiting binnen een tijdsinterval. Zelfstandige Android-app en widget, **landelijke database voor de app read-only**, importworker met gescheiden schrijfrechten, **favorieten alleen lokaal op Android**, **geen accounts en geen notificaties in v1**. Mogelijk later een afzonderlijke gebruikersdatabase en betaalde gebruikers. Geen Athlon-token of laadsessiebetaling.
 
-**Vastgelegd op 22 oktober 2026:** actuele catalogus voor heel Nederland; actuele tarieven, geen tariefhistorie; compacte landelijke EWMA-bezettingsprofielen per **EVSE én locatie** (168 weekdag/uur-slots elk, beginwaarde α=0,20); op locatieniveau rechtstreeks gemeten kans op ten minste één vrije aansluiting; per EVSE uptime via een rollend **90-daags** venster met compacte dagtotalen; geen langdurige ruwe eventhistorie. Favorieten beperken de landelijke statistiekdekking niet.
+**Vastgelegd op 22 oktober 2026:** actuele catalogus voor heel Nederland; actuele tarieven, geen tariefhistorie; compacte landelijke EWMA-bezettingsprofielen per **EVSE én locatie** (168 weekdag/uur-slots elk, beginwaarde α=0,20); op locatieniveau rechtstreeks gemeten kans op ten minste één vrije aansluiting; per EVSE uptime via een rollend **90-daags** venster met compacte dagtotalen; geen langdurige ruwe eventhistorie. De aanvullende compacte locatiehistogrammen voor nul-vrije-perioden worden eveneens landelijk opgebouwd. Favorieten beperken de landelijke statistiekdekking niet.
 
 **Nog te beslissen:** toekomstige multi-user/auth-strategie (niet v1); fysieke opslagvorm profielen en daadwerkelijke PostgreSQL-opslag; kaart-/tileprovider; rechten voor distributie; tariefdekking; exacte werkelijke importfrequentie; wat te doen als NDW EVSE-status ontbreekt.
 
