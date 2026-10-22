@@ -98,3 +98,12 @@ Verwacht één migration-record en zeven nieuwe tabellen. Herhaal de migratie op
 - Alle inserts/updates gebeuren in dezelfde bulkimporttransactie. Een herhaalde bronversie kan na commit geen tweede keer dezelfde intervalduur bijschrijven.
 
 **Nog niet geïmplementeerd:** kalenderdag-splitsing/DST `Europe/Amsterdam`, 90-daagse retentie, representatieve dekkingskwaliteit, EWMA-uurvakken, locatie-intervallen en duurbuckets. Daarom zijn de cijfers nog **niet geschikt voor weergave in de app**.
+
+
+## Vervolg: Nederlandse datumgrenzen en DST (22 oktober 2026)
+
+De betrouwbaarheid-intervalverdeling gebruikt nu PostgreSQL-`Europe/Amsterdam` lokale middernachten en splitst het aantal werkelijk verstreken seconden per kalenderdag. De code houdt daardoor rekening met 23- en 25-uursdagen. Eerdere documentatie over UTC-dagtotalen beschrijft een inmiddels vervangen tussenstand.
+
+**Essentiële kwaliteitseis:** `last_updated` is een bronstatusmoment, geen bewijs dat de toestand iedere vijf minuten actief is geobserveerd. Daarom tellen uitsluitend intervallen met twee nieuwe, onderling consistente bronmomenten van maximaal 15 minuten. Op onveranderde statusmomenten ontstaat hiermee mogelijk weinig dekking. Dit vereist verificatie met echte NDW-reeksen vóór we uptime als representatief presenteren. `observed_at` alleen gebruiken om versheid/checkpoint te bewaken, niet om onbewezen historische duur te fabriceren.
+
+Nog te verifiëren met PostgreSQL: 23-/25-uurs DST-dagen, lokale-middernachtsplitsing, identieke replay zonder dubbeltelling, ongeldige timestamps, statusverandering en transactie-rollback. De 168 uurprofielen en definitieve publicatiedrempels volgen pas na deze controles.
