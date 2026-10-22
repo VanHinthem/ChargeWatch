@@ -72,3 +72,21 @@ Let op: deze UUID's zijn niet dezelfde strings als de eerder in een andere bron 
 3. Beoordeel updategedrag en stabiele keys over minimaal twee snapshots.
 4. Test conditionele HTTP-requests; de header-aanwezigheid alleen bewijst nog geen 304-responses.
 5. Bewaak bronlicentie en attributie, en voeg compacte, niet-verzonnen bronfixtures toe voor een herhaalbare controle.
+
+
+## Schietspoel-bronobjecten gecontroleerd (door gebruiker aangeleverd)
+
+De twee JSON-extracties uit deze snapshot bevestigen:
+
+- Location: `NL / NUO / f08bed59-be4b-42d4-8b9b-423f03f82bc6`, Schietspoel 18, 5348 JH Oss; operator Vattenfall InCharge; coördinaten 51.767547, 5.529763; 24/7.
+- EVSE `NL*NUO*EALF*0005002*1`: UID `8807cd9e-960e-4d8c-ac3d-6c29938963a2`, `AVAILABLE`, laatst bijgewerkt `2026-10-21T17:55:39Z`.
+- EVSE `NL*NUO*EALF*0005002*2`: UID `0722d0f7-effe-490b-af5e-ec2fa66729f3`, `AVAILABLE`, laatst bijgewerkt `2026-10-22T08:57:01Z`.
+- Per EVSE één socket: `IEC_62196_T2`, `AC_3_PHASE`, 11040 watt, dezelfde tariefreferentie.
+- Voor beide connectors resolveert `NL/NUO/2000025394-2000011292` naar een tarief van het type `REGULAR`, valuta EUR, bijgewerkt `2026-10-22T00:25:24Z`.
+- Prijscomponent: `ENERGY`, `price=0.2691`, `vat=21%`, `step_size=1`; startrestrictie `2026-01-01`. Rekenkundig inclusief btw: €0,325611/kWh, afgerond **€0,33/kWh**; dit sluit aan op de Nederlandse `tariff_alt_text` (Per kWh: 0.33 EUR). Of de onderliggende contractprijs/AFIR-presentatieregels standaard exclusief btw zijn blijft relevant voor algemene tariefimplementatie.
+- **Belangrijk:** EVSE-`uid` is hier een UUID, terwijl `evse_id` de herkenbare externe `NL*NUO*...`-waarde bevat. Niet uitwisselbaar behandelen.
+- Individuele EVSE-status-actualiteit is niet hetzelfde als locatietijdstempel of downloadsnapshot; status van EVSE 1 is ouder dan die van EVSE 2.
+
+Kleine, uit **werkelijke bronobjecten geselecteerde** velden zijn opgenomen in `tests/fixtures/ndw_schietspoel_2026-10-22.json`. Dit is een bewust ingekorte fixture, **niet** een ongewijzigd volledig OCPI-record. Een gerichte contractcheck staat in `tests/check_ndw_fixture.py`.
+
+De fixture is als JSON geparsed en de twee tariefrelaties/btw-berekening zijn gecontroleerd. Het Python-checkscript is nog **niet uitgevoerd** op deze agentomgeving; dus geen groene Python-test of CI-resultaat claimen.
