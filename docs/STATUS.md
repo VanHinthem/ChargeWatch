@@ -50,5 +50,9 @@
 4. Werk PR en deze status bij; vraag inhoudelijke validatie en **expliciete mergegoedkeuring**.
 5. Geen NAS-/productiedeployment zonder apart akkoord.
 
+## Landelijke proefimport — geslaagd (22 oktober 2026)
+
+De gebruiker heeft de oorspronkelijke landelijke NDW-gzip via de .NET 10 importer geïmporteerd met minimum 70.000 locaties. Gemeten duur: **13 min 48,496 s (828,496 s)**. Na afloop gecontroleerde databaseaantallen: **80.777 locaties, 203.114 EVSE's, 203.807 connectoren, 101.209 tarieven, 179.241 tariefkoppelingen, 3 geslaagde import_runs** (2 fixtures + 1 landelijke). PostgreSQL meldde **214 MB** databaseomvang. Hiermee is daadwerkelijke landelijke import/commit bevestigd; deze doorlooptijd is een eerste nulmeting, geen prestatiegarantie. De importer gebruikt nog per-record SQL; bulk/staging is logische optimalisatierichting. De omvang zegt nog niets over toekomstige statistiekopslag of WAL/backupruimte.
+
 ## Productrichting
 .NET 10 importer → PostgreSQL 18/PostGIS → GET-only read-only API → Android Compose + Glance; 168 weekdag/uur-EWMA-profielen per EVSE én locatie en 90-daagse uptime later. Geen accounts, notificaties of betalingen in v1.
