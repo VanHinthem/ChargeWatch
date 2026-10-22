@@ -59,7 +59,7 @@ De gebruiker heeft de oorspronkelijke landelijke NDW-gzip via de .NET 10 importe
 - De nationale baseline van 828,496 seconden en 214 MB blijft de vergelijking.
 - `BulkImporter.cs` toegevoegd, opt-in via `--bulk`: gzip naar tijdelijke jsonb-stage via PostgreSQL COPY, daarna set-based upserts en tariefkoppelingen in één transactie.
 - Bestaande rij-voor-rij CLI blijft beschikbaar; database en rollen zijn niet gewijzigd.
-- **Lokale build en Schietspoel-bulkfixture geslaagd** (gebruikersrun 22 oktober 2026): `Staged: 1 locations, 2 EVSEs, 2 connectors, 1 tariffs`, `Bulk committed` in 0,6500489 seconden. Landelijke performance, idempotentie en rollback van de bulkmodus nog niet bewezen; volgende stap landelijke vergelijking.
+- **Lokale build en Schietspoel-bulkfixture geslaagd** (gebruikersrun 22 oktober 2026): `Staged: 1 locations, 2 EVSEs, 2 connectors, 1 tariffs`, `Bulk committed` in 0,6500489 seconden. Landelijke **elapsed time** bulkherimport gemeten: 37,25033 seconden via `Measure-Command`, versus 828,49582 seconden voor oorspronkelijke eerste import (~22,2x). `Measure-Command` toonde geen console-uitvoer/exitcode: commit en landelijke aantallen nog apart verifiëren. Ook bulkrollback nog niet bewezen. De vergelijking is eerste import versus herimport, dus geen gelijke cold-startbenchmark.
 - Geen nieuwe PR/merge/deployment; alle wijzigingen in draft PR #6.
 
 ## Productrichting
