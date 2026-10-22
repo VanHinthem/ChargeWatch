@@ -12,10 +12,10 @@ ChargeWatch is primair een **informatie- en monitoring-app**, geen laadpas-, bet
 
 1. **Kaart, favorieten en widget:** op kaart zoeken naar laadlocaties, filteren op beschikbaarheid, AC/DC, vermogen en connector; details per locatie/EVSE; favoriete locaties toevoegen, hernoemen en sorteren; Android-startschermwidget met meerdere favorieten en dataversheid.
 2. **Slimme notificaties:** gebruiker kan een alert aanmaken als een locatie vrijkomt, met eenmalige en later mogelijk doorlopende regels; ook storingen en herstel als toekomstige uitbreidingen. Zie [ALERTS.md](ALERTS.md).
-3. **Historie en statistieken:** statusovergangen verzamelen; beschikbaarheid naar dag en tijdstip, storingsduur, bezettingspatronen en betrouwbaarheid inzichtelijk maken.
+3. **Historie en statistieken:** voor heel Nederland compacte **EWMA-bezettingsprofielen per EVSE én per locatie** (7 dagen × 24 uur) opbouwen. Op locatieniveau de **kans op minstens één vrije EVSE rechtstreeks meten** in plaats van onafhankelijkheid tussen aansluitingen aan te nemen. Per EVSE een **voortschrijdend uptimepercentage over 90 dagen** op basis van compacte dagtotalen bijhouden. Geen onbeperkte ruwe statusgeschiedenis.
 4. **Alternatieve laadpalen:** nabijgelegen beschikbare alternatieven tonen en rangschikken op afstand, beschikbaarheid, vermogen, betrouwbaarheid en waar onderbouwd prijs.
-5. **Laadtarieven vergelijken:** OCPI-tarieven interpreteren en sessiekosten schatten, expliciet rekening houdend met energiekosten, tijd, parkeren, sessiekosten en laadpascontracten. **Openbare CPO-prijs hoeft niet overeen te komen met Athlon-facturering.** Ontbrekende kosten nooit impliciet op nul zetten.
-6. **Beschikbaarheid voorspellen:** eerst statistische waarschijnlijkheden per dagdeel/weekdag, vervolgens kansen op vrijkomen binnen een gekozen periode, pas bij voldoende kwalitatieve historie. Voorspellingen tonen met onzekerheid en dekking.
+5. **Laadtarieven vergelijken:** uitsluitend **actuele tarieven** bewaren, zonder tariefhistorie; OCPI-tarieven interpreteren en sessiekosten schatten, expliciet rekening houdend met energiekosten, tijd, parkeren, sessiekosten en laadpascontracten. **Openbare CPO-prijs hoeft niet overeen te komen met Athlon-facturering.** Ontbrekende kosten nooit impliciet op nul zetten.
+6. **Beschikbaarheid voorspellen:** eerst rechtstreeks gemeten historische kans op >=1 vrije EVSE per weekdag/uur met kwaliteits-/dekkingsindicatoren; voorspellingen van vrijkomen binnen 15/30 minuten zijn **geen onderdeel van dit compacte datamodel zonder aanvullend onderzoek**. Voorspellingen tonen met onzekerheid en dekking.
 
 ## MVP — v0.1 Discover & Monitor
 
@@ -26,7 +26,7 @@ ChargeWatch is primair een **informatie- en monitoring-app**, geen laadpas-, bet
 - Eenmalige notificatie bij overgang van nul vrije naar minimaal één vrije aansluiting.
 - Beschikbare alternatieven nabij een favoriete locatie.
 - Bronstempel, versheid en duidelijke weergave van onbekende/verouderde statussen.
-- Achter de schermen statusovergangen opslaan, ook al komen uitgebreide statistieken pas later.
+- Vanaf dag één **landelijke compacte statistische accumulators** bijwerken voor EVSE én locatie, zonder langdurige opslag van ruwe statusovergangen.
 
 **Niet in MVP:** uitgebreide historische dashboards, tariefvergelijking, voorspellingen, betalingen of starten/stoppen van laadsessies.
 
@@ -46,6 +46,7 @@ De gebruiker vindt **Schietspoel 18, Oss**, maakt die favoriet, ziet de beschikb
 
 - Privégebruik of later meerdere gebruikers / publieke distributie?
 - Definitieve kaart/tileprovider, licenties en toegangsbeheer.
-- Hoeveel landelijke historie opslaan, retentie en benodigde NAS-capaciteit?
+- Exacte opslagrepresentatie en PostgreSQL-grootte van landelijke EVSE-/locatieprofielen; met proefimport en volumemeting valideren.
+- EWMA-startinstelling voorlopig α=0,20 per corresponderend week-/uurvak; na echte metingen kalibreren.
 - Beschikbaarheid van contractspecifieke tarieven.
 - Vormgeving, exacte filterset en scherminteracties na datavalidatie.
