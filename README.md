@@ -19,7 +19,7 @@ De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot 
 
 ## MVP 0.1 — Discover & Monitor
 
-Kaart, zoeken en filters; laadlocatiedetails; favorieten; widget; eenmalige notificaties; nabije alternatieven; duidelijke dataversheid. Statushistorie wordt vanaf het begin verzameld. Uitgebreide statistieken, tariefvergelijking en voorspellingen volgen in latere fasen.
+Kaart, zoeken en filters; laadlocatiedetails; favorieten; widget; eenmalige notificaties; nabije alternatieven; duidelijke dataversheid. Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. Uitgebreide statistieken, tariefvergelijking en voorspellingen volgen in latere fasen.
 
 ## Voorlopige architectuur
 
@@ -27,6 +27,8 @@ Kaart, zoeken en filters; laadlocatiedetails; favorieten; widget; eenmalige noti
 - **Opslag:** PostgreSQL 18 + PostGIS.
 - **Android:** Kotlin, Jetpack Compose, Jetpack Glance-widget, Room-cache en FCM.
 - **Data:** NDW/DOT-NL GeoJSON en landelijke OCPI Locations- en Tariffs-data. De individuele OCPI-dataset moet nog in Sprint 0 inhoudelijk gevalideerd worden.
+
+**Opslagbeleid:** alleen actuele tarieven; actuele landelijke EVSE-status; 168 week-/uurvakken per EVSE en per locatie, inclusief direct gemeten kans op minimaal één vrije aansluiting op locatieniveau. Ruwe statusovergangen worden niet langdurig opgeslagen. De eerder genoemde 1–3,5 GB was een voorlopige schatting vóór EVSE-profielen; **een nieuwe raming en proefimport zijn nodig**.
 
 ## Eerstvolgende stap
 
