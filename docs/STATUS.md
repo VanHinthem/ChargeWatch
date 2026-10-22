@@ -34,9 +34,9 @@
 
 ### Nog te valideren vóór merge
 
-De agent heeft de GitHub-diff en mergeability gecontroleerd. Een lokale build kon in de agentcontainer niet worden uitgevoerd omdat die omgeving GitHub/DNS niet kon bereiken om de branch te klonen. Dit is **geen** buildresultaat.
+De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. De eerste `--watch-once`-run moet nog worden gevalideerd.
 
-Voer lokaal vanaf de featurebranch uit:
+Build is geslaagd. Voer nu lokaal vanaf de featurebranch uit:
 
 ```powershell
 git switch feature/sprint2-ndw-refresh
