@@ -83,3 +83,7 @@ De originele CLI zonder `--bulk` blijft ongewijzigd voor vergelijking. De nieuwe
 6. Doe pas bij geslaagde fixture en bevestigde idempotentie/rollback een nieuwe landelijke meting met `--bulk`. Vergelijk dan met de baseline **828,496 seconden en 214 MB vóór de tweede import**.
 
 Let op: de fixture bovenop de bestaande nationale database verandert de landelijke totalen niet; de import-run-teller neemt bij succes wel met één toe. Bewaak SQL-errors, lock-/WAL-gebruik en databasetoename. Bestaande PostgreSQL-rollen en schema blijven ongewijzigd. Bij een fout kan de bulktransactie worden teruggedraaid. `COPY`- en set-based-SQL implementatie moeten voor performance én correctness op de werkelijke dataset worden gevalideerd.
+
+## Geen onnodige updates op identieke snapshot
+
+In de bulkmodus voeren vier catalogus-upserts alleen een UPDATE uit bij afwijkende waarden (`IS DISTINCT FROM`). Ook connector-tariefkoppelingen worden met het gewenste stagingresultaat vergeleken: uitsluitend ontbrekende links toevoegen of vervallen links verwijderen voor aangeboden connectoren. Dit is een gerichte verbetering; de werkelijke winst moet nog lokaal bewezen worden. Na `git pull`: build, Schietspoel-bulkfixture, dan landelijke herhaalimport, vervolgens aantallen en `pg_database_size` vergelijken. Geen `VACUUM FULL` uitvoeren om de meting te manipuleren.
