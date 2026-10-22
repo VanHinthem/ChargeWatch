@@ -16,50 +16,62 @@
 
 **Exit criteria:** succesvolle reproduceerbare ingest, betrouwbare statusinterpretatie, inzicht in datasetlimieten en akkoord op dataschema.
 
-## Fase 1 — Backend & opslag
+## Fase 1 — Landelijke database en read-only API (versie 1 fundament)
 
-- [ ] ASP.NET Core .NET 10 solution en Docker Compose basis.
-- [ ] PostgreSQL + PostGIS, migraties en import staging.
-- [ ] Herhaalbare, transactionele data-import met monitoring.
-- [ ] Geoquery, locaties, details, filters, favorieten, alternatieven.
-- [ ] Landelijke compacte EWMA-accumulators per EVSE én per locatie en 90-daagse uptime-dagtotalen vanaf de eerste backendversie.
-- [ ] Alert-engine die actuele statusovergangen detecteert, met transactionele notificatie-outbox; **geen uitgebreide permanente eventhistorie**.
-- [ ] Auth/device-registratie en CI/tests.
+- [ ] ASP.NET Core .NET 10 solution, importer en Docker Compose op NAS.
+- [ ] PostgreSQL + PostGIS: aparte schrijvende importrol en **uitsluitend lezende API-rol**.
+- [ ] Betrouwbare, transactionele landelijke OCPI Locations-/Tariffs-import met staging, validatie en monitoring.
+- [ ] Actuele locatie-, EVSE-, connector- en tariefdata; geen tariefhistorie.
+- [ ] Vanaf de eerste import landelijke 168-vaks EWMA-profielen **per EVSE én per locatie**, en 90-daagse EVSE-uptime-dagtotalen.
+- [ ] Compacte arrays versus tabelrijen meten, benchmarken en opslag/indexen optimaliseren.
+- [ ] REST API met uitsluitend **GET-endpoints** voor kaart, zoeken, filtering, details, status, huidige tarieven en alternatieven.
+- [ ] Tests, dataversheid, performance en CI.
 
-## Fase 2 — Android & MVP 0.1
+## Fase 2 — Android-app en widget (release 1.0)
 
-- [ ] Kotlin + Compose Android-client met kaart en filters.
-- [ ] Favorieten en laadpuntdetails.
-- [ ] Widget met 2–5 favorieten, versheid en verversen.
-- [ ] Pushregistratie en one-shot vrijkom-alert.
-- [ ] Test op echte Android-telefoon en deployment NAS.
+- [ ] Kotlin + Jetpack Compose: kaart, zoeken, filters, detailpagina en actuele tarieven.
+- [ ] **Favorieten uitsluitend lokaal** opslaan (Room/DataStore), inclusief naam en volgorde.
+- [ ] Native widget: 2–5 favorieten, beschikbaarheid, dataversheid, verversen.
+- [ ] Nabije alternatieven en navigatie via bestaande kaartenapp.
+- [ ] Verouderde/onbekende brondata helder tonen; offline-cache is expliciet 'laatst bekend'.
+- [ ] Test op fysieke Android-telefoon en NAS-deployment.
 
-**MVP exit criteria:** Schietspoel 18 zoeken → favoriet maken → widget bekijken → melding bij later vrijkomen na waargenomen 0 vrij → alternatieven tonen; oude data duidelijk markeren.
+**V1 exit criteria:** Schietspoel 18 vinden, individuele statussen en actuele tariefinformatie zien, lokaal favoriet maken, widget tonen en alternatieven vinden. De API heeft geen write-endpoints of server-side persoonlijke opslag. Databasegrootte en importduur zijn daadwerkelijk gemeten.
 
-## Fase 3 — Historie & statistieken
+## Fase 3 — Statistieken en beschikbaarheidsprofielen in de UI
 
-- [ ] Dashboard met beschikbaarheid per dagdeel/weekdag en storingsduur.
-- [ ] EWMA-kwaliteit en datadekking evalueren, α kalibreren, 90-daagse uptime en storingsduurlogica valideren.
+- [ ] Uur/weekdag-heatmaps, kans op minstens één vrij, betrouwbaarheid en datadekking tonen.
+- [ ] α/EWMA-kwaliteit en uptimeberekening kalibreren met echte metingen.
+- [ ] Praktische rangschikking van alternatieven verbeteren.
 
-## Fase 4 — Tarieven & vergelijking
+## Fase 4 — Uitgebreide tarieven en voorspellingen
 
-- [ ] OCPI-tarieven en voorwaarden nauwkeurig verwerken.
-- [ ] Kostencalculator per geschatte laadsessie; contract-/laadpasafhankelijkheid duidelijk tonen.
-- [ ] Sortering alternatieven op onderbouwde kosten.
+- [ ] Actuele OCPI-tarieven nauwkeurig interpreteren, met prijscomponenten en contractonzekerheid.
+- [ ] Kostencalculator per laadsessie, zonder historie van tarieven.
+- [ ] Beschikbaarheidstatistiek als uitlegbare indicatie tonen en backtesten.
+- [ ] Vrijkomen binnen 15/30 minuten alleen onderzoeken wanneer de data dat draagt.
 
-## Fase 5 — Beschikbaarheid voorspellen
+## Fase 5 — Notificaties (uitgesteld)
 
-- [ ] Baseline statistisch model op dag-/tijdpatronen.
-- [ ] Kansen kalibreren, backtesten en onzekerheid tonen.
-- [ ] Alleen als additionele gegevens het onderbouwen: later model voor vrijkomen in 15/30 minuten; niet veronderstellen dat de compacte week-/uur-EWMA dit direct kan.
+- [ ] [CW-ALERT-001](ALERTS.md) implementeren: Schietspoel 18, **minstens één vrij, eenmalig na geobserveerde nulstatus**.
+- [ ] Afwegen: lokale Android-controle (beperkingen achtergrondwerk), FCM-topics, of serverabonnementen.
+- [ ] Deduplicatie, versheid, gemiste/offline gebeurtenissen en toestelherstart testen.
+- [ ] Geen keuze voor serveraccounts of pusharchitectuur vooraf afdwingen.
+
+## Fase 6 — Optionele accounts, synchronisatie en betaalde gebruikers
+
+- [ ] Productvalidatie: is multi-device sync / betaalde functionaliteit zinvol?
+- [ ] Eventueel **aparte gebruikersdatabase** voor accounts, cloudfavorieten, notificatieabonnementen en rechten.
+- [ ] Eventueel abonnementen/betaalde tiers, pas na onderzoek naar gebruikerswaarde, beveiliging, privacy en facturatie.
+- [ ] De landelijke laadpuntdatabase en v1-API blijven logisch gescheiden van persoonlijke opslag.
 
 ## Besluiten en open vragen
 
-**Voorgesteld:** zelfstandige Android-app, native widget, eigen .NET 10-backend op NAS, PostgreSQL/PostGIS, NDW als primaire dataset, geen Athlon-token of laadsessiebetaling.
+**Besloten 22 oktober 2026:** zelfstandige Android-app en widget, **landelijke database voor de app read-only**, importworker met gescheiden schrijfrechten, **favorieten alleen lokaal op Android**, **geen accounts en geen notificaties in v1**. Mogelijk later een afzonderlijke gebruikersdatabase en betaalde gebruikers. Geen Athlon-token of laadsessiebetaling.
 
 **Vastgelegd op 22 oktober 2026:** actuele catalogus voor heel Nederland; actuele tarieven, geen tariefhistorie; compacte landelijke EWMA-bezettingsprofielen per **EVSE én locatie** (168 weekdag/uur-slots elk, beginwaarde α=0,20); op locatieniveau rechtstreeks gemeten kans op ten minste één vrije aansluiting; per EVSE uptime via een rollend **90-daags** venster met compacte dagtotalen; geen langdurige ruwe eventhistorie. Favorieten beperken de landelijke statistiekdekking niet.
 
-**Nog te beslissen:** privé of multi-user; auth-strategie; fysieke opslagvorm profielen en daadwerkelijke PostgreSQL-opslag; kaart-/tileprovider; rechten voor distributie; tariefdekking; exacte werkelijke importfrequentie; wat te doen als NDW EVSE-status ontbreekt.
+**Nog te beslissen:** toekomstige multi-user/auth-strategie (niet v1); fysieke opslagvorm profielen en daadwerkelijke PostgreSQL-opslag; kaart-/tileprovider; rechten voor distributie; tariefdekking; exacte werkelijke importfrequentie; wat te doen als NDW EVSE-status ontbreekt.
 
 ### Capaciteitsindicatie (nog te toetsen)
 
