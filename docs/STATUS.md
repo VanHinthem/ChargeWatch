@@ -6,11 +6,11 @@
 ## Sprint 3 — actief en afgebakend
 
 - Issue [#11](https://github.com/VanHinthem/ChargeWatch/issues/11); branch `feature/sprint3-observation-foundation`.
-- Status: conservatieve EVSE-statusclassificatie toegevoegd, voorgestelde tabellen/observatiekwaliteit/transactieregels in [SPRINT3_STATISTICS.md](SPRINT3_STATISTICS.md).
-- **Nog niet gerealiseerd:** uitvoering/validatie van de nu aanwezige migratie, transactionele statistiek-update, 168-slot EWMA, 90-daagse uptime, duurprofielen, testen tegen PostgreSQL.
-- **Besluit:** gebruiker gaf op 22 oktober expliciet akkoord op een additieve, versioneerbare schema-uitbreiding. `db/migrations/003_statistics.sql` toegevoegd met zeven tabellen, index en rolrechten; bestaande import blijft onveranderd. Niets toegepast op gebruikersdatabases.
+- Status: conservatieve EVSE-statusclassificatie en transactionele checkpoint-capture aan bulkimport toegevoegd, voorgestelde tabellen/observatiekwaliteit/transactieregels in [SPRINT3_STATISTICS.md](SPRINT3_STATISTICS.md).
+- **Nog niet gerealiseerd:** uitvoering/validatie van de nu aanwezige migratie; volledige intervalstatistiek, 168-slot EWMA, 90-daagse uptime, duurprofielen en PostgreSQL-tests. Checkpoints slaan inmiddels uitsluitend verse source-observaties op en blijven onberekend voor duren.
+- **Besluit:** gebruiker gaf op 22 oktober expliciet akkoord op een additieve, versioneerbare schema-uitbreiding. `db/migrations/003_statistics.sql` toegevoegd met zeven tabellen, index en rolrechten; bulkimport roept nu `ObservationCheckpoints.Capture` aan binnen dezelfde transactie en vereist daarom migratie 003; import op ongemigreerde testdatabases faalt expliciet. Niets toegepast op gebruikersdatabases.
 - Checks: GitHub-inhoud gecontroleerd. Lokale .NET-build niet uitgevoerd: .NET SDK ontbreekt in agentomgeving. Geen CI-workflow aanwezig.
-- Volgende stap: migratie eerst op geïsoleerde testdatabase valideren, vervolgens statistiekworker in bulktransactie integreren en gerichte tests draaien op een geïsoleerde database. Geen merge/deployment zonder apart akkoord.
+- Volgende stap: checkpoint-implementatie lokaal builden en op geïsoleerde gemigreerde testdatabase valideren; daarna tijdgewogen statistiekberekeningen toevoegen en gerichte tests draaien op een geïsoleerde database. Geen merge/deployment zonder apart akkoord.
 
 ---
 
