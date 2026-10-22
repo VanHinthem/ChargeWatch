@@ -10,6 +10,8 @@
 - [ ] Samengestelde identificatie (OCPI country/party/location) en updategedrag testen.
 - [ ] Updatefrequentie, bestandsgrootte, geheugenverbruik en conditionele HTTP-requests meten.
 - [ ] NDW-licentie, attributie en documentatie/API-stabiliteit vastleggen.
+- [ ] Proefberekening en PostgreSQL-proefimport voor landelijke catalogus, **EVSE- én locatieprofielen (168 vakken per entiteit)** en 90-daagse uptime-dagtotalen; werkelijke tabel-/indexgrootte meten.
+- [ ] Statistiekvalidatie: versheid, geldige statusmapping, tijdgewogen uurmeting, ontbrekende data en rechtstreeks gemeten locatiebeschikbaarheid.
 - [ ] Definitieve importcontracten, technisch datamodel en API-schema opstellen.
 
 **Exit criteria:** succesvolle reproduceerbare ingest, betrouwbare statusinterpretatie, inzicht in datasetlimieten en akkoord op dataschema.
@@ -20,7 +22,8 @@
 - [ ] PostgreSQL + PostGIS, migraties en import staging.
 - [ ] Herhaalbare, transactionele data-import met monitoring.
 - [ ] Geoquery, locaties, details, filters, favorieten, alternatieven.
-- [ ] Statushistorie, alert-engine en transactionele notificatie-outbox.
+- [ ] Landelijke compacte EWMA-accumulators per EVSE én per locatie en 90-daagse uptime-dagtotalen vanaf de eerste backendversie.
+- [ ] Alert-engine die actuele statusovergangen detecteert, met transactionele notificatie-outbox; **geen uitgebreide permanente eventhistorie**.
 - [ ] Auth/device-registratie en CI/tests.
 
 ## Fase 2 — Android & MVP 0.1
@@ -36,7 +39,7 @@
 ## Fase 3 — Historie & statistieken
 
 - [ ] Dashboard met beschikbaarheid per dagdeel/weekdag en storingsduur.
-- [ ] Retentie, aggregaties, betrouwbaarheidsindicator en datadekking.
+- [ ] EWMA-kwaliteit en datadekking evalueren, α kalibreren, 90-daagse uptime en storingsduurlogica valideren.
 
 ## Fase 4 — Tarieven & vergelijking
 
@@ -48,13 +51,19 @@
 
 - [ ] Baseline statistisch model op dag-/tijdpatronen.
 - [ ] Kansen kalibreren, backtesten en onzekerheid tonen.
-- [ ] Pas later model voor vrijkomen in 15/30 minuten op basis van voldoende historie.
+- [ ] Alleen als additionele gegevens het onderbouwen: later model voor vrijkomen in 15/30 minuten; niet veronderstellen dat de compacte week-/uur-EWMA dit direct kan.
 
 ## Besluiten en open vragen
 
 **Voorgesteld:** zelfstandige Android-app, native widget, eigen .NET 10-backend op NAS, PostgreSQL/PostGIS, NDW als primaire dataset, geen Athlon-token of laadsessiebetaling.
 
-**Nog te beslissen:** privé of multi-user; auth-strategie; exacte retentie; kaart-/tileprovider; rechten voor distributie; tariefdekking; exacte werkelijke importfrequentie; wat te doen als NDW EVSE-status ontbreekt.
+**Vastgelegd op 22 oktober 2026:** actuele catalogus voor heel Nederland; actuele tarieven, geen tariefhistorie; compacte landelijke EWMA-bezettingsprofielen per **EVSE én locatie** (168 weekdag/uur-slots elk, beginwaarde α=0,20); op locatieniveau rechtstreeks gemeten kans op ten minste één vrije aansluiting; per EVSE uptime via een rollend **90-daags** venster met compacte dagtotalen; geen langdurige ruwe eventhistorie. Favorieten beperken de landelijke statistiekdekking niet.
+
+**Nog te beslissen:** privé of multi-user; auth-strategie; fysieke opslagvorm profielen en daadwerkelijke PostgreSQL-opslag; kaart-/tileprovider; rechten voor distributie; tariefdekking; exacte werkelijke importfrequentie; wat te doen als NDW EVSE-status ontbreekt.
+
+### Capaciteitsindicatie (nog te toetsen)
+
+Rekenscenario, **geen landelijke NDW-telling**: 80.000 locaties × 168 = 13,44 miljoen locatievakken; 196.000 EVSE's × 168 = 32,93 miljoen EVSE-vakken. Samen ~46,37 miljoen profielwaarden. Met 12 bytes per waarde circa **556 MB ruwe profielen**, exclusief relationele/indexoverhead, actuele catalogus, dagtotalen, back-ups, WAL en importwerkruimte. De oude raming van 1–3,5 GB voor het gehele systeem wordt **niet** als actuele raming aangehouden. Meet dit met een echte PostgreSQL-proefimport.
 
 ## Onderzoeksbewijs tot nu toe (21 oktober 2026)
 
