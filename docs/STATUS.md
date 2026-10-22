@@ -34,9 +34,9 @@
 
 ### Nog te valideren vóór merge
 
-De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. De eerste `--watch-once`-run moet nog worden gevalideerd.
+De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. **Eerste `--watch-once` bevestigd geslaagd op 22 oktober 2026:** Locations HTTP 200 (18.382.191 bytes), Tariffs HTTP 200 (4.143.448 bytes), 80.785 locaties, 203.130 EVSE's, 203.823 connectoren, 101.209 tarieven; transactionele bulkcommit in 26,218 s. Herhaaltest met conditionele GET/304 en foutpad zijn nog niet uitgevoerd.
 
-Build is geslaagd. Voer nu lokaal vanaf de featurebranch uit:
+Build en eerste landelijke import zijn geslaagd. Voer nu de tweede `--watch-once` uit vanaf de featurebranch:
 
 ```powershell
 git switch feature/sprint2-ndw-refresh
