@@ -64,3 +64,7 @@ De gebruiker heeft de oorspronkelijke landelijke NDW-gzip via de .NET 10 importe
 
 ## Productrichting
 .NET 10 importer → PostgreSQL 18/PostGIS → GET-only read-only API → Android Compose + Glance; 168 weekdag/uur-EWMA-profielen per EVSE én locatie en 90-daagse uptime later. Geen accounts, notificaties of betalingen in v1.
+
+## Database-opslag na landelijke bulkherimport
+
+Gebruiker controleerde `pg_stat_user_tables`: tariff 163 MB, evse 71 MB, connector 60 MB, charging_location 47 MB, connector_tariff 45 MB, spatial_ref_sys circa 7 MB; alle `n_dead_tup = 0` (statistische schatting, niet bewijs van afwezigheid van bloat). 5 geslaagde importruns. Totale databaseomvang eerder na herimport 402 MB. Nog uit te zoeken of herhaalde ongewijzigde upserts onnodige WAL/rijversies en indexgroei veroorzaken.
