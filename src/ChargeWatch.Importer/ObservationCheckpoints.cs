@@ -46,32 +46,47 @@ internal static class ObservationCheckpoints
             JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
             WHERE s.source_updated_at < cp.source_updated_at;
 
-            -- Conservative reliability observation: only unchanged state with
-            -- two genuinely successive source updates separated by <=15 min.
-            -- Crossing a UTC date boundary is left uncounted pending daily splitting.
+            -- Accept only unchanged states with successive source timestamps <=15 min.
+            -- Split at Dutch local midnight (also handles 23/25-hour DST days).
             CREATE TEMP TABLE stage_reliability_interval ON COMMIT DROP AS
-            SELECT s.evse_id, s.status_class,
-                   (s.source_updated_at AT TIME ZONE 'UTC')::date AS day_utc,
-                   floor(extract(epoch FROM (s.source_updated_at - cp.source_updated_at)))::bigint AS seconds
-            FROM stage_observation s
-            JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
-            WHERE s.source_updated_at > cp.source_updated_at
-              AND s.source_updated_at <= cp.source_updated_at + interval '15 minutes'
-              AND s.status_class = cp.status_class
-              AND (s.source_updated_at AT TIME ZONE 'UTC')::date =
-                  (cp.source_updated_at AT TIME ZONE 'UTC')::date;
+            WITH valid AS (
+              SELECT s.evse_id,s.status_class,cp.source_updated_at AS begins_at,
+                     s.source_updated_at AS ends_at
+              FROM stage_observation s
+              JOIN evse_observation_checkpoint cp ON cp.evse_id=s.evse_id
+              WHERE s.source_updated_at > cp.source_updated_at
+                AND s.source_updated_at <= cp.source_updated_at + interval '15 minutes'
+                AND s.status_class=cp.status_class
+            ),
+            days AS (
+              SELECT v.evse_id,v.status_class,v.begins_at,v.ends_at,
+                     d.local_day::date AS observation_date,
+                     (d.local_day AT TIME ZONE 'Europe/Amsterdam') AS day_start,
+                     ((d.local_day + interval '1 day') AT TIME ZONE 'Europe/Amsterdam') AS day_end
+              FROM valid v
+              CROSS JOIN LATERAL generate_series(
+                date_trunc('day',v.begins_at AT TIME ZONE 'Europe/Amsterdam'),
+                date_trunc('day',v.ends_at AT TIME ZONE 'Europe/Amsterdam'),
+                interval '1 day') AS d(local_day)
+            )
+            SELECT evse_id,status_class,observation_date,
+                   floor(extract(epoch FROM
+                     least(ends_at,day_end)-greatest(begins_at,day_start)))::bigint AS seconds
+            FROM days
+            WHERE least(ends_at,day_end)>greatest(begins_at,day_start);
 
             INSERT INTO evse_daily_reliability
-              (evse_id, observation_date, operating_seconds, fault_seconds, unknown_seconds)
-            SELECT evse_id, day_utc,
-                   CASE WHEN status_class IN ('available','occupied') THEN seconds ELSE 0 END,
-                   CASE WHEN status_class = 'fault' THEN seconds ELSE 0 END,
-                   CASE WHEN status_class = 'unknown' THEN seconds ELSE 0 END
+              (evse_id,observation_date,operating_seconds,fault_seconds,unknown_seconds)
+            SELECT evse_id,observation_date,
+                   sum(CASE WHEN status_class IN ('available','occupied') THEN seconds ELSE 0 END),
+                   sum(CASE WHEN status_class='fault' THEN seconds ELSE 0 END),
+                   sum(CASE WHEN status_class='unknown' THEN seconds ELSE 0 END)
             FROM stage_reliability_interval
-            ON CONFLICT (evse_id, observation_date) DO UPDATE SET
-              operating_seconds=evse_daily_reliability.operating_seconds + excluded.operating_seconds,
-              fault_seconds=evse_daily_reliability.fault_seconds + excluded.fault_seconds,
-              unknown_seconds=evse_daily_reliability.unknown_seconds + excluded.unknown_seconds;
+            GROUP BY evse_id,observation_date
+            ON CONFLICT (evse_id,observation_date) DO UPDATE SET
+              operating_seconds=evse_daily_reliability.operating_seconds+excluded.operating_seconds,
+              fault_seconds=evse_daily_reliability.fault_seconds+excluded.fault_seconds,
+              unknown_seconds=evse_daily_reliability.unknown_seconds+excluded.unknown_seconds;
 
             -- A missing source timestamp is not a fresh measurement.  Do not
             -- reinterpret a replayed timestamp or late correction as elapsed time.
