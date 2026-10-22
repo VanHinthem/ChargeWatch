@@ -39,8 +39,7 @@ internal static class BulkImporter
         await command.ExecuteNonQueryAsync();
     }
 
-    private static string Wrap(string type, string country, string party, string id, JsonElement data, string? parent = null)
-        => JsonSerializer.Serialize(new { type, country, party, id, parent, data });
+    private static string Csv(string json) => "\\\"" + json.Replace("\\\"", "\\\"\\\"") + "\\\"";
 
     public static async Task<int> Run(string[] args)
     {
@@ -81,8 +80,8 @@ internal static class BulkImporter
                 """);
 
             // Avoid buffering the entire national source: COPY one compact line at a time.
-            // Npgsql text COPY accepts one JSON value per line. JsonSerializer.Serialize escapes newlines.
-            await using (var writer = await db.BeginTextImportAsync("COPY stage_loc(payload) FROM STDIN"))
+            // CSV COPY preserves JSON backslashes and quotes; serializer escapes control characters.
+            await using (var writer = await db.BeginTextImportAsync("COPY stage_loc(payload) FROM STDIN WITH (FORMAT csv)"))
             {
                 await foreach (var loc in Read(locationsPath))
                 {
@@ -92,14 +91,14 @@ internal static class BulkImporter
                     var key = Key(country, party, id);
                     if (!seenLocations.Add(key)) throw new InvalidDataException($"Duplicate location {key}");
                     locCount++;
-                    await writer.WriteLineAsync(JsonSerializer.Serialize(new { country, party, id, data = loc }));
+                    await writer.WriteLineAsync(Csv(JsonSerializer.Serialize(new { country, party, id, data = loc })));
                 }
             }
             if (locCount < minimum)
                 throw new InvalidDataException($"Only {locCount} locations; expected >= {minimum}");
 
             // Re-read gzip to flatten EVSE/connector objects without retaining all locations in RAM.
-            await using (var ew = await db.BeginTextImportAsync("COPY stage_evse(payload) FROM STDIN"))
+            await using (var ew = await db.BeginTextImportAsync("COPY stage_evse(payload) FROM STDIN WITH (FORMAT csv)"))
             {
                 await foreach (var loc in Read(locationsPath))
                 {
@@ -113,11 +112,11 @@ internal static class BulkImporter
                             throw new InvalidDataException($"Duplicate EVSE {uid}");
                         evseCount++;
                         _ = Required(evse, "status");
-                        await ew.WriteLineAsync(JsonSerializer.Serialize(new { country, party, id, uid, data = evse }));
+                        await ew.WriteLineAsync(Csv(JsonSerializer.Serialize(new { country, party, id, uid, data = evse })));
                     }
                 }
             }
-            await using (var cw = await db.BeginTextImportAsync("COPY stage_connector(payload) FROM STDIN"))
+            await using (var cw = await db.BeginTextImportAsync("COPY stage_connector(payload) FROM STDIN WITH (FORMAT csv)"))
             {
                 await foreach (var loc in Read(locationsPath))
                 {
@@ -133,7 +132,7 @@ internal static class BulkImporter
                             if (!seenConnectors.Add(Key(country, party, id, uid, connectorId)))
                                 throw new InvalidDataException($"Duplicate connector {connectorId}");
                             connectorCount++;
-                            await cw.WriteLineAsync(JsonSerializer.Serialize(new { country, party, id, uid, connectorId, data = connector }));
+                            await cw.WriteLineAsync(Csv(JsonSerializer.Serialize(new { country, party, id, uid, connectorId, data = connector })));
                         }
                     }
                 }
@@ -141,7 +140,7 @@ internal static class BulkImporter
 
             if (tariffsPath is not null)
             {
-                await using var tw = await db.BeginTextImportAsync("COPY stage_tariff(payload) FROM STDIN");
+                await using var tw = await db.BeginTextImportAsync("COPY stage_tariff(payload) FROM STDIN WITH (FORMAT csv)");
                 await foreach (var tariff in Read(tariffsPath))
                 {
                     var country = Required(tariff, "country_code");
@@ -149,7 +148,7 @@ internal static class BulkImporter
                     var id = Required(tariff, "id");
                     if (!seenTariffs.Add(Key(country, party, id)))
                         throw new InvalidDataException($"Duplicate tariff {id}");
-                    await tw.WriteLineAsync(JsonSerializer.Serialize(new { country, party, id, data = tariff }));
+                    await tw.WriteLineAsync(Csv(JsonSerializer.Serialize(new { country, party, id, data = tariff })));
                 }
             }
 
@@ -167,7 +166,7 @@ internal static class BulkImporter
                                    (payload->'data'->'coordinates'->>'longitude')::double precision,
                                    (payload->'data'->'coordinates'->>'latitude')::double precision),4326)::geography END,
                        NULLIF(payload->'data'->>'last_updated','')::timestamptz
-                FROM stage_loc
+                FROM stage_loc WHERE true
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
                   latitude=excluded.latitude, longitude=excluded.longitude, position=excluded.position,
@@ -181,6 +180,7 @@ internal static class BulkImporter
                 FROM stage_evse s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                       AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
+                WHERE true
                 ON CONFLICT(location_id,source_uid) DO UPDATE SET
                   external_evse_id=excluded.external_evse_id, status=excluded.status,
                   source_last_updated=excluded.source_last_updated;
@@ -194,6 +194,7 @@ internal static class BulkImporter
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                    AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
                 JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid'
+                WHERE true
                 ON CONFLICT(evse_id,source_id) DO UPDATE SET
                    standard=excluded.standard,power_type=excluded.power_type,
                    max_electric_power=excluded.max_electric_power;
@@ -224,7 +225,7 @@ internal static class BulkImporter
                     SELECT payload->>'country',payload->>'party',payload->>'id',
                            payload->'data'->>'currency',payload->'data',
                            NULLIF(payload->'data'->>'last_updated','')::timestamptz
-                    FROM stage_tariff
+                    FROM stage_tariff WHERE true
                     ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                       currency=excluded.currency,details=excluded.details,
                       source_last_updated=excluded.source_last_updated;
