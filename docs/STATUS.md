@@ -53,8 +53,8 @@ Issue #2 is **nog niet gereed**. Basisstructuur, statusset, aantallen, ETag/Last
 ## Eerstvolgende actie
 
 1. De conditionele HTTP-cachecheck is geslaagd op Windows: HEAD 200 en conditional GET 304 voor beide bestanden. Eventueel exacte repositoryfixture testen met `python tests/check_ndw_fixture.py`.
-2. Landelijke tariefdekking en identiteitsstabiliteit over twee snapshots blijven **nog niet gemeten** (alleen bronextractie van Schietspoel beschikbaar).
-3. Leg HTTP-resultaat en resterende kwaliteitsrisico's vast voordat de PR naar ready-for-review gaat.
+2. `tools/ndw_compare.py` toegevoegd om de oorspronkelijke gzip-bestanden met een tweede afzonderlijke snapshot te vergelijken: ontbrekende/onduidelijke tarieven, dubbele sleutels en locatie-/EVSE-identiteit. Uitvoering op landelijke data staat nog open. Commando's in `tools/README.md`.
+3. Laat de tweede snapshot draaien met `python tools/ndw_discover.py --output data/ndw-compare` en vergelijk met `python tools/ndw_compare.py`; inspecteer `data/ndw-compare/compare_report.json`. Beoordeel de resultaten vóór ready-for-review.
 4. **Niet mergen of deployen zonder expliciet gebruikersakkoord.**
 
 ## Open punten
