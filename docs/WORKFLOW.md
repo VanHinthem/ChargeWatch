@@ -11,8 +11,9 @@ Een feature is **één betekenisvol gebruikers- of technisch resultaat**: bv. ND
 3. **Featurebranch:** `feature/<onderwerp>`, `fix/<onderwerp>`, `docs/<onderwerp>` vanaf actuele main; koppel zo mogelijk een issue.
 4. **Uitvoeren:** implementeren met passende tests en documentatie. Geen ongerelateerde refactors. Commit in betekenisvolle blokken; geen commits direct naar main.
 5. **Controleren:** run relevante builds, tests, schema-/fixturechecks. Minimum is **risicogestuurd**, niet een vaste enorme testsuite. Voor imports/stats extra tests rond foute of ontbrekende data, idempotentie en berekeningen; UI vooral werkende flow.
-6. **PR aanbieden:** beschrijf wat is gedaan, hoe geverifieerd, welke aannames openstaan en welke concrete review/handmatige validatie van gebruiker nodig is. Wacht op reactie van gebruiker.
-7. **Na review:** herstel op dezelfde branch, update PR en status; **merge alleen na expliciete gebruikersgoedkeuring** en na actuele CI-status. Na merge status op main controleren en volgende feature kiezen.
+6. **Mergeklare overdracht:** werk `docs/STATUS.md` op de featurebranch bij vóór het definitieve reviewverzoek, met behaalde resultaten, testbewijs, open punten en volgende actie. Schrijf de toestand alsof de feature na merge is afgerond, maar beweer vóór de merge niet dat GitHub de PR al heeft gemerged. De status mag op main niet meteen verouderd zijn.
+7. **PR aanbieden:** neem die mergeklare statuswijziging op in dezelfde PR; vermeld verificatie, risico's en wat de gebruiker moet beoordelen. Wacht op expliciet akkoord.
+8. **Na akkoord:** controleer actuele head, mergeability en CI; merge de goedgekeurde head. Verifieer daarna GitHub en `docs/STATUS.md` op main. Maak niet standaard een losse status-PR na iedere merge; alleen bij aantoonbaar onjuiste of ontbrekende status is een aparte correctie nodig.
 
 ## Wanneer de gebruiker moet beslissen
 - Scope/productgedrag is onduidelijk of verandert.
@@ -26,7 +27,7 @@ Niet nodig: toestemming voor ieder intern bestand, iedere test, naamgeving of kl
 - Acceptatiecriteria aantoonbaar afgedekt.
 - Passende checks uitgevoerd of beperkingen helder genoemd.
 - Geen bewust onbeheerde risico's; betekenisvolle technische keuzes gedocumenteerd.
-- Statusoverdracht bijgewerkt.
+- `docs/STATUS.md` staat mergeklaar in dezelfde feature-PR, zodat na merge geen standaard correctie-PR nodig is.
 - PR door gebruiker beoordeeld en expliciet goedgekeurd vóór merge.
 
 ## Testbeleid

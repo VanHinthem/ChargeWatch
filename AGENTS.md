@@ -28,7 +28,8 @@
 ## Afronding van elk werkblok
 - Houd [docs/STATUS.md](docs/STATUS.md) bij: huidige branch/issue/PR, concreet bereikt, checks, volgende stap, open keuzes.
 - Bij een PR: vermeld scope, belangrijkste keuzes, verificatie, beperkingen en exact wat gebruiker moet beoordelen.
-- Pas het statusdocument samen met de feature aan op de branch; pas na expliciete merge is de toestand op main definitief.
+- Zet `docs/STATUS.md` vóór het definitieve review-/mergeverzoek in dezelfde feature-PR: bereikte resultaten, daadwerkelijk uitgevoerde checks, open punten en de eerstvolgende stap. Zorg dat deze overdracht direct na merge op `main` actueel is, zonder voortijdig te claimen dat de PR al gemerged is.
+- Controleer na merge de status op `main`; maak alleen bij een echte afwijking een losse herstel-PR.
 - Stop met een duidelijke overdracht; nieuwe agents mogen niet afhankelijk zijn van verborgen chatcontext.
 
 Zie ook [docs/CHAT_START.md](docs/CHAT_START.md).
