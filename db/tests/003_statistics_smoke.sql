@@ -30,13 +30,32 @@ BEGIN
   ))::bigint INTO actual;
   IF actual<>82800 THEN RAISE EXCEPTION 'Summer DST day is % sec',actual; END IF;
 
-  -- Crossing local midnight splits a ten-minute actual interval 5m + 5m.
+  -- Exercise the actual local-midnight splitting formula, not only elapsed time.
   WITH bounds AS (
-    SELECT '2026-10-24 23:55 Europe/Amsterdam'::timestamptz AS start_at,
-           '2026-10-25 00:05 Europe/Amsterdam'::timestamptz AS end_at
+    SELECT ('2026-10-24 23:55'::timestamp AT TIME ZONE 'Europe/Amsterdam') AS begins_at,
+           ('2026-10-25 00:05'::timestamp AT TIME ZONE 'Europe/Amsterdam') AS ends_at
+  ), segments AS (
+    SELECT d.local_day::date AS local_day,
+           extract(epoch FROM least(b.ends_at,
+             ((d.local_day + interval '1 day') AT TIME ZONE 'Europe/Amsterdam'))
+             - greatest(b.begins_at,
+               (d.local_day AT TIME ZONE 'Europe/Amsterdam')))::bigint AS seconds
+    FROM bounds b CROSS JOIN LATERAL generate_series(
+       date_trunc('day',b.begins_at AT TIME ZONE 'Europe/Amsterdam'),
+       date_trunc('day',b.ends_at AT TIME ZONE 'Europe/Amsterdam'),
+       interval '1 day') AS d(local_day)
   )
-  SELECT extract(epoch FROM end_at-start_at)::bigint INTO actual FROM bounds;
-  IF actual<>600 THEN RAISE EXCEPTION 'Expected 600-second interval, got %',actual; END IF;
+  SELECT sum(seconds), count(*) INTO actual,n FROM segments;
+  IF actual<>600 OR n<>2 THEN
+    RAISE EXCEPTION 'Expected two 300-second Dutch day segments, got % seconds and % segments',actual,n;
+  END IF;
+
+  -- DST winter repetition: ten real minutes within the repeated 02:xx hour
+  -- are still ten minutes, never negative or 70 minutes.
+  SELECT extract(epoch FROM (
+    '2026-10-25T01:35:00Z'::timestamptz -
+    '2026-10-25T01:25:00Z'::timestamptz))::bigint INTO actual;
+  IF actual<>600 THEN RAISE EXCEPTION 'DST repeated hour elapsed seconds incorrect'; END IF;
 END $$;
 
 -- Fixture names are highly unlikely to conflict. Any error aborts without commits.
