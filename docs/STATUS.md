@@ -30,8 +30,14 @@
 - `.gitattributes` toegevoegd (`*.sh` en `*.sql` LF) en Windows-diagnose/normalisatie vastgelegd in `docs/SPRINT1_IMPORT.md`.
 - Datavolume is na gedeeltelijke initialisatie mogelijk onvolledig; uitsluitend een aantoonbaar lege ChargeWatch-ontwikkelvolume opnieuw initialiseren na bewuste bevestiging, nooit NAS/production data verwijderen.
 
+## Eerste succesvolle lokale fixture-import (22 oktober 2026)
+- Gebruiker bevestigde .NET SDK 10.0.402; aanvankelijke restore blokkeerde op een globale, niet-geautoriseerde Azure DevOps-feed (NU1301 401).
+- Projectgebonden `NuGet.config` met alleen nuget.org toegevoegd; `dotnet restore ... --configfile NuGet.config` slaagde.
+- `dotnet run --no-restore --project src/ChargeWatch.Importer -- data/sprint1-fixture/locations.json.gz data/sprint1-fixture/tariffs.json.gz 1` gaf `Committed: 1 locations, 2 EVSEs, 2 connectors, 1 tariffs.`.
+- Dit bevestigt compiler/importtransactie met echte fixture; idempotentie, rollback en alleen-lezen rol nog niet gecontroleerd.
+
 ## Nog niet uitgevoerd / bewezen
-- Deze agentomgeving heeft geen .NET SDK of Docker; geen compiler-, container-, database- of volledige ingestresultaten.
+- Agentomgeving heeft geen .NET SDK of Docker; de **gebruiker heeft lokaal** PostgreSQL-init, .NET-restore/build en eerste fixture-import succesvol uitgevoerd.
 - Ook nog geen nationale PostgreSQL opslag-/importbenchmark en geen gerealiseerde statistische accumulators.
 - Huidige importer gebruikt rij-voor-rij SQL; national-scale verwerking en schaalbaarheid zijn onbewezen.
 - Nog geen ETag-cache in de CLI, geen productie-ready staging/publish en geen verwijderingsreconciliatie.
