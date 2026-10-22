@@ -206,13 +206,17 @@ internal static class BulkImporter
                     IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power);
                 """);
             await Exec(db, tx, """
-                DELETE FROM connector_tariff ct USING connector c, evse e, charging_location l, stage_connector s
-                WHERE ct.connector_id=c.id AND c.evse_id=e.id AND e.location_id=l.id
-                  AND l.country_code=s.payload->>'country' AND l.party_id=s.payload->>'party'
-                  AND l.source_id=s.payload->>'id' AND e.source_uid=s.payload->>'uid'
-                  AND c.source_id=s.payload->>'connectorId';
-                INSERT INTO connector_tariff(connector_id,tariff_country_code,tariff_party_id,tariff_source_id)
-                SELECT DISTINCT c.id,s.payload->>'country',s.payload->>'party', t.tariff_id
+                CREATE TEMP TABLE stage_connector_id ON COMMIT DROP AS
+                SELECT c.id AS connector_id
+                FROM stage_connector s
+                JOIN charging_location l ON l.country_code=s.payload->>'country'
+                   AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
+                JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid'
+                JOIN connector c ON c.evse_id=e.id AND c.source_id=s.payload->>'connectorId';
+
+                CREATE TEMP TABLE stage_desired_tariff ON COMMIT DROP AS
+                SELECT DISTINCT c.id AS connector_id,s.payload->>'country' AS tariff_country_code,
+                       s.payload->>'party' AS tariff_party_id,t.tariff_id AS tariff_source_id
                 FROM stage_connector s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                    AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
@@ -222,7 +226,22 @@ internal static class BulkImporter
                    CASE WHEN jsonb_typeof(s.payload->'data'->'tariff_ids')='array'
                         THEN s.payload->'data'->'tariff_ids' ELSE '[]'::jsonb END
                 ) AS t(tariff_id)
-                WHERE length(t.tariff_id)>0
+                WHERE length(t.tariff_id)>0;
+
+                DELETE FROM connector_tariff ct
+                USING stage_connector_id ids
+                WHERE ct.connector_id=ids.connector_id
+                  AND NOT EXISTS (
+                    SELECT 1 FROM stage_desired_tariff d
+                    WHERE d.connector_id=ct.connector_id
+                      AND d.tariff_country_code=ct.tariff_country_code
+                      AND d.tariff_party_id=ct.tariff_party_id
+                      AND d.tariff_source_id=ct.tariff_source_id
+                  );
+
+                INSERT INTO connector_tariff(connector_id,tariff_country_code,tariff_party_id,tariff_source_id)
+                SELECT connector_id,tariff_country_code,tariff_party_id,tariff_source_id
+                FROM stage_desired_tariff WHERE true
                 ON CONFLICT DO NOTHING;
                 """);
             if (tariffsPath is not null)
