@@ -17,6 +17,9 @@
 
 **Statistiekdiagnostiek NAS 23 oktober:** `evse_poll_hour_coverage`: 268.646 uurregels, 134.841 unieke EVSE's, 236.451.460 kandidaatdekkingsseconden over UTC-uren 15:00 en 16:00. `location_hour_accumulator`: slechts 13 regels, 8 unieke locaties en 6.087 dekkingsseconden tussen UTC-uren 14:00–16:00. Dit verschil vereist inspectie van locatie-aggregatielogica en filters; beide tabellen zijn niet zonder meer gelijkwaardig. Geen claims over betrouwbare publieke statistieken; collector laten draaien, diagnose read-only.
 
+
+**Locatie-diagnose:** 80.884 `location_observation_checkpoint` en 203.457 `evse_observation_checkpoint`, maar slechts 13 `location_hour_accumulator`. Volgens `docs/SPRINT3_STATISTICS.md` is locatie-uurdekking bewust streng: alle EVSE's binnen een locatie moeten synchroon consistente oude/nieuwe bronmomenten (<15 min), onveranderde statusklasse en geen UNKNOWN hebben. Daardoor is zeer lage locatie-uurdekking plausibel; nog geen bewijs van een bug, evenmin voldoende dekking om publieke locatiekansen te tonen. Geen productie-ingreep.
+
 ## NAS-images / PR #15 — afgerond
 
 PR #15 is gemerged op `main` als `9dc9964cc4339003bfd1f33bd39864c17615bc54`. GHCR-images zijn aantoonbaar door de NAS gedownload en gestart (volgens operatorlogs). Eerdere PR-only buildvalidatie: GitHub Actions `NAS Images` run 39975985714, drie jobs succesvol; die PR-run publiceerde zelf geen images. Runbook vereist geen Git-checkout of imagebuild op NAS.
