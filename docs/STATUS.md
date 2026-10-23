@@ -3,6 +3,10 @@
 **Bijgewerkt:** 23 oktober 2026  
 **Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
 
+## NAS-image-deployment voorbereiding (featurebranch)
+
+**Besluit gebruiker 23 oktober 2026:** geen `git clone` en geen builds op de NAS. Deploy uitsluitend vooraf door GitHub Actions gebouwde images via GHCR. Featurebranch `feature/nas-ghcr-image-deploy` voorziet drie linux/amd64-images (`chargewatch-db` inclusief init SQL, `chargewatch-maintenance` inclusief migratiescripts, `chargewatch-collector`) met dezelfde `sha-<main-commit>` tag. NAS heeft alleen lokale `compose.yaml` + geheime `.env` nodig. Geen volumes/data verwijderen, geen NAS-deployment. **Workflow/images zijn nog niet op main gepubliceerd en niet met `docker pull` getest; PR-review en expliciet merge-/deploy-akkoord afzonderlijk nodig.** De eerder gemergede Sprint 4-runbook instructie om te clonen is vervangen op deze branch.
+
 ## Actuele Sprint 4-overdracht
 
 **Opgeleverd:** gescheiden NAS Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
