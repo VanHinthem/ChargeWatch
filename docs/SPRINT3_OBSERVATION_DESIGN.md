@@ -18,12 +18,12 @@ De landelijke audit toont dat slechts 23,7% van de locaties exact gelijke EVSE-b
 - Locatieaggregatie vereist volledige gezamenlijke EVSE-status op elk van beide snapshots, **niet** gelijke `last_updated` per EVSE. Als een EVSE ontbreekt of de identiteitenset verandert, geen locatieinterval; bij UNKNOWN zonder vrije EVSE onbepaald. Interval alleen bij dezelfde bekende gezamenlijke boolean met geen tussenliggende bronstatuswijziging en voldoende versheid.
 
 ## Schema en rollout
-`db/migrations/006_snapshot_provenance.sql` legt een singletoncheckpoint per feed plus een EVSE-pollcheckpoint vast. Dit schema is alleen voorbereid: **niet toegepast op een database, importer niet omgeschakeld**.
+`db/migrations/006_snapshot_provenance.sql` legt een singletoncheckpoint per feed plus een EVSE-pollcheckpoint vast. Dit schema is voorbereid en **niet toegepast op een database**. De WatchRunner en BulkImporter zijn nu gekoppeld voor uitsluitend de *provenance-checkpointopslag*: bij HTTP 200 Locations download na succesvolle validatie wordt `fetched_at` doorgegeven en SHA/fetchmoment in dezelfde importtransactie opgeslagen. Bij tarief-only, 304 en handmatige `--bulk` blijft deze write achterwege. De bestaande EVSE/locatie-statistiek berekent nog op bron-`last_updated`, **niet** op ophaaltijd.
 
 Veilige volgorde voor de volgende codefase:
-1. Fetcher-integratie: geef immutable Locations-bestand, betrouwbare `fetched_at`, SHA256 en 200/304-onderscheid door.
-2. Importer: accepteer expliciete nieuwe provenancegegevens, valideer hash/tijd/grootte en ontbrekende EVSE's; historische `--bulk` fixtures mogen niet automatisch poll-coverage schrijven.
-3. Poll-coverage en locatiejoint-status vóór checkpoint-upsert in één transactie; pas na replay-, gap-, statuswissel-, partial-set- en rollbacktests eventueel bestaande EWMA van bronklok naar snapshotklok omschakelen.
+1. Fetcher-integratie: **in code toegevoegd, nog niet lokaal gevalideerd**. HTTP 200 Locations koppelt downloadmoment aan succesvol gecommit hash; 304/tarief-only en handmatige bulk genereren geen provenance.
+2. Importer: **alleen provenance-write toegevoegd, nog niet lokaal gevalideerd**. Gzip SHA wordt ter controle tijdens commit berekend; bestaande minLocations/parse checks blijven gelden. Historical `--bulk` fixtures schrijven geen provenance. Bij daadwerkelijke watcher-HTTP200 is migratie 006 vereist, anders rolt de hele transactie terug.
+3. **Nog open:** poll-coverage en locatiejoint-status vóór checkpoint-upsert in één transactie; pas na replay-, gap-, statuswissel-, partial-set- en rollbacktests eventueel bestaande EWMA van bronklok naar snapshotklok omschakelen.
 4. Controle op echte twee opeenvolgende landelijke imports; performance en hoeveel van de 80k locaties daadwerkelijk voldoende dekking halen.
 
 ## Grenzen
