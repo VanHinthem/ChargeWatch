@@ -18,12 +18,14 @@ for dir in "$APP_DIR" "$SSD_DIR" "$HDD_DIR"; do
   [ -d "$dir" ] || { echo "Missing directory: $dir" >&2; exit 1; }
 done
 [ -f "$APP_DIR/.env" ] || { echo "Missing .env in $APP_DIR" >&2; exit 1; }
-if [ -f "$APP_DIR/docker-compose.yml" ]; then
+if [ -f "$APP_DIR/docker-compose.yaml" ]; then
+  COMPOSE_FILE="$APP_DIR/docker-compose.yaml"
+elif [ -f "$APP_DIR/docker-compose.yml" ]; then
   COMPOSE_FILE="$APP_DIR/docker-compose.yml"
 elif [ -f "$APP_DIR/compose.yaml" ]; then
   COMPOSE_FILE="$APP_DIR/compose.yaml"
 else
-  echo "Missing docker-compose.yml or compose.yaml in $APP_DIR" >&2
+  echo "Missing docker-compose.yaml, docker-compose.yml or compose.yaml in $APP_DIR" >&2
   exit 1
 fi
 [ -w "$SSD_DIR" ] && [ -w "$HDD_DIR" ] || { echo "Backup path is not writable" >&2; exit 1; }
