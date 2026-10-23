@@ -135,3 +135,19 @@ De SQL-smoketest controleert nu de feitelijke daggrenssegmentatie (10 minuten ve
 Statische review op 22 oktober heeft een gemiste migratiepermissie blootgelegd: de importer leest `schema_migration` voordat statistiekcheckpoints worden gepubliceerd. Migratie `003_statistics.sql` verleent daarom nu expliciet `GRANT SELECT ON schema_migration TO chargewatch_import`. De SQL-smoketest assert ook afzonderlijk de relevante lees-/schrijfrechten.
 
 **Deze correctie is nog niet met PostgreSQL uitgevoerd.** Gebruik uitsluitend `chargewatch_statistics_test` voor migratie/smoketest; bestaande databases niet automatisch aanpassen.
+
+
+## Nieuw: 168-vaks tijdsplitter (23 oktober 2026)
+
+`src/ChargeWatch.Importer/StatisticsHourSplitter.cs` splitst maximaal 15 minuten lange UTC-intervallen op Nederlandse lokale weekdag-/uurgrenzen. ISO-maandag 00:00 is slot 0; zondag 23:00 is slot 167. De code onderscheidt de twee echte wintertijdintervallen ondanks dezelfde lokale 02:xx-kloktijd. Niet-bestaande zomertijduren worden niet ingevuld. Een zelftest controleert normale uren, middernacht, zomer- en wintertijd.
+
+**Nog geen database writes van deze splitter.** De code levert seconden per tijdvak; een latere accumulator moet binnen ieder uur wegen op de waargenomen tijd, voldoende dekking vaststellen en eenmaal per voltooid uur de EWMA bijwerken. De huidige tabellen `evse_occupancy_profile` en `location_occupancy_profile` blijven leeg. Bewust geen onvolledig gevuld EWMA-profiel publiceren.
+
+Lokaal controleren:
+
+```powershell
+dotnet build .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj
+dotnet run --project .\src\ChargeWatch.Importer -- --statistics-selftest
+```
+
+Resultaten moeten lokaal bevestigd worden; in de agentomgeving is de .NET SDK niet aanwezig.
