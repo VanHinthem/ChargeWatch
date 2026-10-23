@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Restore bevestigd 23 oktober:** na maintenance entrypoint-fix gaf `pg_restore --exit-on-error --no-owner --no-acl` naar apart `chargewatch_restore_test` zonder fouten; controle telde **20 tabellen en 5 schema_migration-regels**. Databasebackup en schema-/migratierestore op lege testdatabase gevalideerd; nog GEEN herstel van echte landelijke datarijen en nog geen NAS-deployment. Volgende: collector-smoke en persistentie/herstart.
+
+
 **Restore-fix 23 oktober:** gebruiker maakte `chargewatch_restore_test` aan, maar `maintenance -c pg_restore ...` startte onbedoeld de standaard `postgres:18` server-entrypoint, met fout `Database is uninitialized and superuser password is not specified`. Er is geen restore uitgevoerd; fout `schema_migration does not exist` volgde logisch. `maintenance.entrypoint` nu expliciet `/bin/sh` en NAS-runbook-commando's aangepast. **Opnieuw restore testen na git pull; herstel nog NIET bevestigd.** Bestaande primaire test-DB niet gewijzigd.
 
 
