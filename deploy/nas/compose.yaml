@@ -55,6 +55,7 @@ services:
       - ../../db/migrations:/migrations:ro
       - ./scripts:/scripts:ro
       - ${CW_NAS_BACKUP_DIR:?Set absolute NAS backup directory}:/backups
+    entrypoint: ["/bin/sh"]
 
 volumes:
   pgdata:
