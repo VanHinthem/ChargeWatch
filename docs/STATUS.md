@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Finalisatiecorrectie (23 oktober):** af te sluiten uur vereist nu een bronwaarneming die de uurgrens heeft bereikt, niet alleen huidige kloktijd. `tools/build_sprint3_finalize_fixture.py` toegevoegd: historische low (300 seconden dekking, géén EWMA) en full (3600 seconden, één EWMA-sample). Nieuwe code en deze fixtures **nog niet lokaal getest**. Eerst build + beide reeksen in geïsoleerde `chargewatch_statistics_test` uitvoeren.
+
+
 **EVSE-uurfinalisatie (23 oktober):** `EvseHourFinalizer.Run` toegevoegd aan dezelfde bulktransactie, sluit verstreken uren precies eenmaal, publiceert bij >=2700 sec dekking 1 sample naar EVSE 168-slot EWMA (α=0,20). Ook onvoldoende uren worden gemarkeerd als finalized. **Finalizer-integratie op 23 oktober lokaal met PostgreSQL bevestigd:** gebruiker voerde identieke locations-3 fixture uit; bulkcommit in 0,4616283 s, finalized_hours=0 en evse_occupancy_profile=0. Deze timestamps (10:55–11:10 UTC) lagen toen in de toekomst; hierdoor is alleen geen voortijdige finalisatie aangetoond. Een expliciete build-uitvoer en positieve test van afgesloten uur/EWMA ontbreken nog. Positieve synthetische 45-minutentest en locatieprofielen/duurprofielen blijven open.
 
 
