@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Back-up gevalideerd 23 oktober:** `maintenance /bin/sh /scripts/backup.sh` op `chargewatch-s4test` leverde `/backups/chargewatch-20261023T142735Z.dump` op, `pg_restore --list` PASS. Werkelijke restore naar aparte database nog niet getest. Geen NAS-deployment.
+
+
 **Tabelrechten bevestigd 23 oktober:** gebruiker controleerde 20 `public` tabellen in `chargewatch-s4test`: importer INSERT op alle applicatietabellen, reader SELECT op applicatietabellen en géén INSERT voor reader. `schema_migration`: importer INSERT=false, reader SELECT=false (verwacht; importer heeft SELECT via migratie 003). `spatial_ref_sys` is PostGIS-extensietabel. Nog te verifiëren: afzonderlijke PostgreSQL backup + volledige restore naar geïsoleerde database, collector smoke, herstart/persistentie. Geen NAS-deployment.
 
 
