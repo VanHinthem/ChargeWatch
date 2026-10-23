@@ -5,7 +5,7 @@
 
 ## Sprint 3 — actief en afgebakend
 
-**Lokale integratietest 23 oktober 2026:** gebruiker importeerde Schietspoel-fixture via `--bulk` in afzonderlijke `chargewatch_statistics_test`: 1 locatie, 2 EVSE's, 2 connectors, 1 tarief; transactie succesvol in 0,5285168 s. SQL-controle: 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days (correct voor initiële waarneming), 1 completed import. Tweede identieke import/replay en foutpad zijn nog niet getest.
+**Lokale integratietest 23 oktober 2026:** gebruiker importeerde Schietspoel-fixture via `--bulk` in afzonderlijke `chargewatch_statistics_test`: 1 locatie, 2 EVSE's, 2 connectors, 1 tarief; transactie succesvol in 0,5285168 s. SQL-controle: 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days (correct voor initiële waarneming), 1 completed import. Tweede identieke import/replay is bevestigd op 23 oktober 2026: bulkcommit 0,5363241 s; 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days en 2 completed imports. Foutpad/rollback nog niet getest.
 
 
 - Issue [#11](https://github.com/VanHinthem/ChargeWatch/issues/11); branch `feature/sprint3-observation-foundation`.
