@@ -4,7 +4,7 @@
 set -eu
 umask 077
 
-APP_DIR=${CW_APP_DIR:-/volume2/docker/chargewatch/app}
+APP_DIR=${CW_APP_DIR:-/volume2/docker/chargewatch}
 SSD_DIR=${CW_SSD_BACKUP_DIR:-/volume2/docker/chargewatch/backups}
 HDD_DIR=${CW_HDD_BACKUP_DIR:-/volume1/chargewatch/backups}
 KEEP=${CW_BACKUP_KEEP:-3}
@@ -17,7 +17,15 @@ case "$KEEP" in *[!0-9]*|'') echo "CW_BACKUP_KEEP must be an integer >= 2" >&2; 
 for dir in "$APP_DIR" "$SSD_DIR" "$HDD_DIR"; do
   [ -d "$dir" ] || { echo "Missing directory: $dir" >&2; exit 1; }
 done
-[ -f "$APP_DIR/compose.yaml" ] && [ -f "$APP_DIR/.env" ] || { echo "Missing compose.yaml or .env" >&2; exit 1; }
+[ -f "$APP_DIR/.env" ] || { echo "Missing .env in $APP_DIR" >&2; exit 1; }
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+elif [ -f "$APP_DIR/compose.yaml" ]; then
+  COMPOSE_FILE="$APP_DIR/compose.yaml"
+else
+  echo "Missing docker-compose.yml or compose.yaml in $APP_DIR" >&2
+  exit 1
+fi
 [ -w "$SSD_DIR" ] && [ -w "$HDD_DIR" ] || { echo "Backup path is not writable" >&2; exit 1; }
 command -v "$DOCKER" >/dev/null || { echo "Docker CLI unavailable: $DOCKER" >&2; exit 1; }
 command -v sha256sum >/dev/null && command -v cmp >/dev/null || { echo "Required checksum tools unavailable" >&2; exit 1; }
@@ -39,7 +47,7 @@ trap 'exit 143' TERM
 cd "$APP_DIR"
 echo "Running one PostgreSQL backup in $SSD_DIR"
 # Capture backup.sh output; preserve failure exit status before parsing file name.
-log=$("$DOCKER" compose run --rm -T maintenance /scripts/backup.sh) || {
+log=$("$DOCKER" compose --env-file "$APP_DIR/.env" -f "$COMPOSE_FILE" run --rm -T maintenance /scripts/backup.sh) || {
   echo "PostgreSQL dump/validation failed; mirror and retention skipped" >&2
   exit 1
 }
