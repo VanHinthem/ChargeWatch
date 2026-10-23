@@ -60,9 +60,14 @@ internal static class SnapshotPollCoverage
             source_updated_at=excluded.source_updated_at,snapshot_sha256=excluded.snapshot_sha256
           WHERE evse_poll_checkpoint.observed_at<excluded.observed_at;
           """;
-        await using var command = new NpgsqlCommand(sql, db, tx) { CommandTimeout = 600 };
-        command.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
-        command.Parameters.AddWithValue(sha);
-        await command.ExecuteNonQueryAsync();
+        // PostgreSQL does not allow multi-statement prepared commands.
+        // Execute each statement separately while sharing transaction-scoped temp tables.
+        foreach (var statement in sql.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            await using var command = new NpgsqlCommand(statement, db, tx) { CommandTimeout = 600 };
+            command.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
+            command.Parameters.AddWithValue(sha);
+            await command.ExecuteNonQueryAsync();
+        }
     }
 }
