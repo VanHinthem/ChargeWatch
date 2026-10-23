@@ -178,6 +178,16 @@ def main():
             assert after_reappear == before_missing, "Reappearing EVSE bridged missing snapshot"
             print("PASS reappeared EVSE: no bridged coverage")
 
+            # Both endpoints must have reasonably fresh NDW source timestamps.
+            # The older fixture timestamps (year 2000) must never earn coverage,
+            # even when status and source timestamps remain unchanged.
+            age_checkpoint(5)
+            stale_baseline = coverage()
+            publish("stale-unchanged")
+            assert coverage() == stale_baseline, "Stale unchanged status fabricated coverage"
+            print("PASS stale unchanged source timestamps: no coverage")
+
+
 
         finally:
             server.shutdown(); server.server_close()
