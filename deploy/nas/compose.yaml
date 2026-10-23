@@ -3,7 +3,7 @@
 name: chargewatch
 services:
   db:
-    image: postgis/postgis:18-3.6
+    image: ghcr.io/vanhinthem/chargewatch-db:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     restart: unless-stopped
     environment:
       POSTGRES_DB: chargewatch
@@ -13,7 +13,6 @@ services:
       CW_READ_PASSWORD: ${CW_READ_PASSWORD:?Set CW_READ_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql
-      - ../../db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chargewatch_owner -d chargewatch"]
       interval: 10s
@@ -21,9 +20,7 @@ services:
       retries: 12
 
   collector:
-    build:
-      context: ../..
-      dockerfile: deploy/nas/Dockerfile
+    image: ghcr.io/vanhinthem/chargewatch-collector:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       db:
@@ -40,7 +37,7 @@ services:
       - ndw-cache:/data/cache
 
   maintenance:
-    image: postgres:18
+    image: ghcr.io/vanhinthem/chargewatch-maintenance:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     profiles: ["maintenance"]
     depends_on:
       db:
@@ -52,8 +49,6 @@ services:
       PGUSER: chargewatch_owner
       PGPASSWORD: ${CW_DB_OWNER_PASSWORD:?Set CW_DB_OWNER_PASSWORD}
     volumes:
-      - ../../db/migrations:/migrations:ro
-      - ./scripts:/scripts:ro
       - ${CW_NAS_BACKUP_DIR:?Set absolute NAS backup directory}:/backups
     entrypoint: ["/bin/sh"]
 
