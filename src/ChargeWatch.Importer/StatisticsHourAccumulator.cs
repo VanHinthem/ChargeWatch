@@ -6,6 +6,7 @@ internal sealed class StatisticsHourAccumulator
     private readonly long _minimumSeconds;
     private long _coveredSeconds;
     private long _positiveSeconds;
+    private DateTimeOffset? _lastEnd;
 
     public StatisticsHourAccumulator(DateTimeOffset hourStartUtc, long minimumSeconds = 2700)
     {
@@ -26,10 +27,13 @@ internal sealed class StatisticsHourAccumulator
             startUtc < _hourStart || endUtc > _hourStart.AddHours(1) || endUtc <= startUtc)
             throw new ArgumentOutOfRangeException(nameof(startUtc), "Interval must be inside the UTC hour.");
 
+        if (_lastEnd is not null && startUtc < _lastEnd.Value)
+            throw new InvalidOperationException("Overlapping intervals are not allowed.");
         var seconds = (long)(endUtc - startUtc).TotalSeconds;
         if (seconds <= 0 || _coveredSeconds + seconds > 3600)
             throw new InvalidOperationException("Invalid or excessive interval coverage.");
         _coveredSeconds += seconds;
+        _lastEnd = endUtc;
         if (positive) _positiveSeconds += seconds;
     }
 
