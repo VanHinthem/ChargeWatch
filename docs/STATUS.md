@@ -3,6 +3,10 @@
 **Bijgewerkt:** 23 oktober 2026
 **Status:** Sprint 0–3 gemerged naar `main`; Sprint 3 via [PR #12](https://github.com/VanHinthem/ChargeWatch/pull/12) (squash merge `065672a8e2ac33254f47e206039b5914a44b773a`). **Geen deployment op NAS of productie uitgevoerd.** Volgende prioriteit: **Sprint 4 — NAS Data Collector**.
 
+## Sprint 4 — NAS Data Collector (actief, featurebranch)
+
+**Branch:** `feature/sprint4-nas-data-collector`. **Nog geen merge of NAS-deployment.** Eerste werkblok: `deploy/nas/Dockerfile`, `deploy/nas/compose.yaml`, `.env.example` en `deploy/nas/README.md` toegevoegd. Aparte PostGIS 18 database en persistente `pgdata` / `ndw-cache` volumes, geen hostpoorten; bestaande .NET 10 `--watch`-importer met 5-minuten Locations en 60-minuten Tariffs. Dit is voorbereid in GitHub; imagebuild, Compose-configcheck, migratiebootstrap, back-up/herstel en NAS-resources **nog niet getest**. Volgende actie: gecontroleerde schema-initialisatie en DB-back-up/restore uitvoerbaar maken, lokale Compose/Docker build valideren, daarna expliciet NAS-deploymentakkoord vragen. Bestaande Windows DEV blijft ongemoeid. Geen API, Android of publieke statistieken in deze sprint.
+
 ## Actuele overdracht
 
 **Sprint 3 afgerond op 23 oktober 2026.** De statistiekfundering, migraties 003–007, watcher-provenance, kandidaat-snapshotdekking en kwaliteitsregels staan op `main`. De migraties zijn uitsluitend toegepast op de lokale geïsoleerde `chargewatch_statistics_test`; op NAS is nog geen database of importer ingericht. Zie `docs/SPRINT3_REVIEW.md` en `docs/SPRINT3_PUBLICATION_POLICY.md`.
