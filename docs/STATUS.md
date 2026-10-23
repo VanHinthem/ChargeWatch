@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Lokale acceptatietests afgerond (23 oktober):** doorlopende `collector` log toont 304/no-op (`NDW source unchanged (304); database import skipped`), gevolgd door nieuwe Locations 200 (18.503.434 bytes) en `Bulk committed` na 31,706 s. Hiermee zijn automatische vervolgcheck, skip bij ongewijzigde data, en succesvolle volgende landelijke import bevestigd. Samen met geïsoleerde clean bootstrap + migraties, herhaling/idempotentie, rechtenaudit, databasebackup/schema-restore, Docker-build, twee one-shot imports en DB-herstart/persistentie is lokaal functioneel gevalideerd. **NAS CPU/architectuur, volume-/backup-pad, feitelijke restore van landelijke data, retention en beschikbaarheid na NAS-herstart niet getest. Geen NAS-deployment; PR #14 niet gemerged.**
+
+
 **Continu collector-import bevestigd 23 oktober:** gebruiker stuurde vervolglog: `Staged: 80836 locations, 203362 EVSEs, 204065 connectors, 101368 tariffs` gevolgd door `Bulk committed ... in 00:00:39.8587096` in `chargewatch-s4test-collector-1`. Continue worker start/execute/commit gevalideerd; **een volgende 5-minuten-HTTP poll is nog niet zichtbaar/bevestigd**. NAS nog niet gedeployed.
 
 
