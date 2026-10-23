@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Validatie 23 oktober:** gebruiker bevestigde `docker compose ... config --quiet` PASS. Eerste `build collector` faalde tijdens `dotnet publish --no-restore` door een Windows-only NuGet fallback package folder in meegkopieerde `obj/project.assets.json`. `.dockerignore` toegevoegd om `**/obj/` en `**/bin/` uit Linux-buildcontext te weren. **Herbouw na fix nog niet bevestigd**; geen database/collector gestart.
+
+
 **Branch:** `feature/sprint4-nas-data-collector`. **Nog geen merge of NAS-deployment.** Eerste werkblok: `deploy/nas/Dockerfile`, `deploy/nas/compose.yaml`, `.env.example` en `deploy/nas/README.md` toegevoegd. Daarnaast on-demand `maintenance` service en `deploy/nas/scripts/migrate.sh` (schema_migration-guard + versie-skip + transactie per migratie), `backup.sh` (pg_dump custom archive, TOC-validatie) toegevoegd. Aparte PostGIS 18 database en persistente `pgdata` / `ndw-cache` volumes, geen hostpoorten; bestaande .NET 10 `--watch`-importer met 5-minuten Locations en 60-minuten Tariffs. Dit is voorbereid in GitHub; imagebuild, Compose-configcheck, migraties/roles op een lege Postgres-volume, back-up en daadwerkelijk herstel en NAS-resources **nog niet getest**. Volgende actie: op Windows geïsoleerd Compose-config + imagebuild verifiëren, migratie-init en databaserechten inspecteren, back-up/restore proefdraaien en daarna pas expliciet NAS-deploymentakkoord vragen. PR #14 blijft draft. Bestaande Windows DEV blijft ongemoeid. Geen API, Android of publieke statistieken in deze sprint.
 
 ## Actuele overdracht
