@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**EVSE-uurfinalisatie (23 oktober):** `EvseHourFinalizer.Run` toegevoegd aan dezelfde bulktransactie, sluit verstreken uren precies eenmaal, publiceert bij >=2700 sec dekking 1 sample naar EVSE 168-slot EWMA (α=0,20). Ook onvoldoende uren worden gemarkeerd als finalized. **Nieuwe code nog niet gebouwd of tegen PostgreSQL gevalideerd.** Positieve synthetische 45-minutentest en locatieprofielen/duurprofielen blijven open.
+
+
 **Nieuwe gerichte integratietest:** `tools/build_sprint3_hour_fixture.py` toegevoegd met drie synthetische snapshots (10:55/11:05/11:10 UTC, twee AVAILABLE-EVSE's). Testpoging 23 oktober 2026 mislukte veilig wegens fout testcommando: `--bulk locations.json.gz 1` behandelde `1` als tariefbestand en gaf viermaal `Bulk rollback: Could not find file '...\\1'`; nul uurrecords. Herstel: tariefbestand expliciet als tweede argument meegeven en `1` als derde. Correcte synthetische statusreeks bevestigd op 23 oktober 2026: vier succesvolle imports (10:55Z, 11:05Z, replay 11:05Z, 11:10Z), ieder 1 locatie/2 EVSEs/2 connectors/1 tarief, in circa 0,46–0,53 s. Eindquery: per EVSE UTC 10:00 300/300 covered/available, UTC 11:00 600/600, totaal vier records en 1800 seconden. Eindstand correspondeert met geen dubbeltelling bij replay; geen aparte tussenmeting voor/na replay uitgevoerd. Nog geen EWMA-publicatie wegens <2700 seconden dekking per uur. Alleen `chargewatch_statistics_test` gebruiken; verwachte resultaten zijn gedocumenteerd in SPRINT3_STATISTICS.md.
 
 
