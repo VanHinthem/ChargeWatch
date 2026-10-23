@@ -7,6 +7,10 @@ RUN dotnet publish src/ChargeWatch.Importer/ChargeWatch.Importer.csproj \
     -c Release -o /out --no-restore /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0
+# Npgsql/GSSAPI attempts require the Kerberos runtime library on Debian-based images.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /out/ ./
 RUN mkdir -p /data/cache && chown -R $APP_UID:$APP_UID /data
