@@ -26,7 +26,13 @@ internal static class SnapshotPollCoverage
             AND s.status_class IN ('available','occupied','fault')
             AND s.source_updated_at IS NOT NULL
             AND old.source_updated_at IS NOT NULL
-            AND s.source_updated_at>=old.source_updated_at;
+            AND s.source_updated_at>=old.source_updated_at
+            -- Both samples must be recent relative to their own fetch moment.
+            -- A stale unchanged status is not fresh evidence of availability.
+            AND old.source_updated_at >= p.fetched_at - interval '24 hours'
+            AND old.source_updated_at <= p.fetched_at + interval '5 minutes'
+            AND s.source_updated_at >= $1::timestamptz - interval '24 hours'
+            AND s.source_updated_at <= $1::timestamptz + interval '5 minutes';
 
           INSERT INTO evse_poll_hour_coverage(evse_id,hour_start_utc,covered_seconds,available_seconds)
           SELECT evse_id,hour_start_utc,sum(seconds)::integer,
