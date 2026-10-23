@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Uuraccumulatie (23 oktober):** nieuwe pure `StatisticsHourAccumulator` met minstens 2700 seconden geldige dekking per UTC-uur, gewogen sample, alpha 0,20, overlapbescherming. Opgenomen in `--statistics-selftest`, nieuwe test nog niet uitgevoerd. Er zijn nog geen profielwrites: duurzame uuraccumulator/checkpoints en betrouwbare meetdekking tussen imports ontbreken. Zie `docs/SPRINT3_STATISTICS.md`.
+
+
 **168-vaks profielvoorbereiding (23 oktober):** zuivere `StatisticsHourSplitter` toegevoegd, CLI `--statistics-selftest` (middernacht/DST/gewone uren). Dit berekent echte seconden per lokaal uur, maar schrijft bewust nog géén EWMA-profiel omdat een volledige uuraccumulator en dekkingsdrempel ontbreken. Gebruiker bevestigde 23 oktober 2026 succesvolle uitvoering van `dotnet run --project .\\src\\ChargeWatch.Importer -- --statistics-selftest`: `PASS: 168-slot splitter midnight, summer DST, winter DST and normal hour.` Een afzonderlijke expliciete build-uitvoer voor deze laatste codeversie is niet verstrekt (dotnet run compileert zo nodig wel).
 
 
