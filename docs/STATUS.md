@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Locatie-nul-vrij-duur (23 oktober; nieuwe code nog NIET getest):** checkpoints bewaren bij aaneengesloten bekende 0-AVAILABLE toestanden een brongebonden startmoment; `location_zero_available_summary` telt herstelmomenten (0→>=1 vrij) en gecensureerde onderbrekingen apart. Duurbuckets blijven leeg omdat NDW exacte omslagmomenten niet garandeert. `tools/build_sprint3_zero_free_fixture.py` levert 6 synthetische snapshots: 0-vrij, aaneengesloten 0-vrij, herstel, opnieuw 0-vrij, aaneengesloten 0-vrij, gap. Verwacht: 1 recovery, 2 censored, alle histogramvakken 0. Eerst lokaal builden en tegen chargewatch_statistics_test testen; daarna replay om idempotentie te bevestigen.
+
+
 **Duurwaarnemingen (23 oktober; nog NIET lokaal getest):** `DurationObservations.Capture` registreert nieuwe statusklasse-overgangen en aantoonbaar onderbroken valide meetreeksen als `censored_periods` in `evse_duration_summary`; EVSE-checkpoint houdt `state_started_at` en `continuity_valid` bij. Geen fictieve duurhistogrambuckets: exact overgangsmoment onbekend. Synthetische transition+gap-fixture toegevoegd (`tools/build_sprint3_duration_fixture.py`), bestaande migratie 003 volstaat. Gebruiker bevestigde 23 oktober 2026 vijf succesvolle imports van status-01..05 in chargewatch_statistics_test: per synthetische EVSE transitions=1, censored_periods=2, available_buckets en occupied_buckets beide {0,0,0,0,0,0}. PostgreSQL-integratietest geslaagd; aparte replay na afloop en expliciete build-uitvoer nog niet geleverd. Locatie-zero-available duurstatistieken en definitieve histogrammen nog open.
 
 
