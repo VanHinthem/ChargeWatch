@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Nieuwe gerichte integratietest:** `tools/build_sprint3_hour_fixture.py` toegevoegd met drie synthetische snapshots (10:55/11:05/11:10 UTC, twee AVAILABLE-EVSE's). Test van opbouw over uurgrens en replay is voorbereid, maar nog niet uitgevoerd. Alleen `chargewatch_statistics_test` gebruiken; verwachte resultaten zijn gedocumenteerd in SPRINT3_STATISTICS.md.
+
+
 **Persistente uurdekking (23 oktober):** migratie `004_hour_accumulator.sql`, de transactionele EVSE-uuraccumulatie en `db/tests/004_hour_accumulator_smoke.sql` toegevoegd. Gebruiker bevestigde op 23 oktober 2026: migratie 004 geslaagd op geïsoleerde chargewatch_statistics_test (CREATE TABLE/INDEX, GRANT, INSERT 0 1), 004 SQL-smoketest geslaagd (BEGIN/DO/ROLLBACK), en .NET 10-build geslaagd in 1,8 seconden. Gebruiker bevestigde op 23 oktober 2026 de identieke herimport na migratie 004: succesvolle bulkcommit in 0,4594650 s; evse_hour_accumulator 0 records, 0 covered_seconds, 2 EVSE-checkpoints en 3 completed import_runs. Replay zonder fictieve uurdekking geslaagd. Test met nieuwe bronmomenten volgt. Migratie 003 is eerder wel uitgevoerd op `chargewatch_statistics_test`; eerst 004 op uitsluitend die geïsoleerde testdatabase uitvoeren vóór nieuwe bulkimports. Alleen EVSE-uurdekking, geen locatie-uurdekking, geen finalize-once en nog geen profielwrites.
 
 
