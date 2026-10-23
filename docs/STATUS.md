@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Tabelrechten bevestigd 23 oktober:** gebruiker controleerde 20 `public` tabellen in `chargewatch-s4test`: importer INSERT op alle applicatietabellen, reader SELECT op applicatietabellen en géén INSERT voor reader. `schema_migration`: importer INSERT=false, reader SELECT=false (verwacht; importer heeft SELECT via migratie 003). `spatial_ref_sys` is PostGIS-extensietabel. Nog te verifiëren: afzonderlijke PostgreSQL backup + volledige restore naar geïsoleerde database, collector smoke, herstart/persistentie. Geen NAS-deployment.
+
+
 **Rollen gecontroleerd 23 oktober:** geïsoleerde `chargewatch-s4test` DB heeft `chargewatch_owner` (login, superuser, createdb), `chargewatch_import` en `chargewatch_read` (login, geen superuser/createdb). Tabelrechten nog niet getest. Volgende actie: SELECT-/INSERT-rechten functioneel toetsen, backup/restore op afzonderlijke DB. Geen NAS-deployment.
 
 
