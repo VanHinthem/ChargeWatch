@@ -37,7 +37,7 @@ Voor locaties: bepaal de gezamenlijke snapshotklasse uit alle actuele EVSE's die
 | UNKNOWN | UNKNOWN +1 | onzeker, tenzij een andere EVSE ondubbelzinnig AVAILABLE is | statusdekking onbekend |
 | PLANNED/REMOVED | eigen lifecycle-categorie +1, niet in noemer actieve-capaciteit | geen actieve capaciteit onderscheiden | wel geteld, niet als bezet |
 | Status/brontimestamp onveranderd bij **nieuwe onafhankelijke feed-fetch** | categorie opnieuw tellen | overeenkomstig | geen verplichte bron-timestampwijziging |
-| HTTP 304, identieke bytes/ETag of lokaal cachebestand zonder aantoonbaar nieuwe publicatie | geen nieuwe onafhankelijke waarneming; eventuele fetchcheck/heartbeat apart | geen nieuwe steekproef | nooit stilzwijgend duplicaat als bewijs |
+| HTTP 304 of identieke inhoud bij een nieuwe geslaagde netwerkcontrole | telt als nieuwe waarneming van de NDW-gepubliceerde status; apart label `unchanged_feed` | idem | geen bewijs van een nieuwe fysieke statusmelding |
 | Download, validatie of import mislukt / rollback | geen update | geen update | fout afzonderlijk registreren |
 | Onvolledige locations-dataset of ontbrekende EVSE | geen status verzinnen; markeer missing/coverage | onzeker als volledige locatie niet betrouwbaar vaststaat | geen massadeactivatie |
 | Lange fetch-gap | geen interval overbruggen; eerstvolgende geldige snapshot als nieuwe puntwaarneming | idem | gap-teller vastleggen |
@@ -45,7 +45,7 @@ Voor locaties: bepaal de gezamenlijke snapshotklasse uit alle actuele EVSE's die
 | Tarief-only verandering | geen beschikbaarheidsobservatie | geen | categorie onafhankelijk van tarieven |
 | Herstel, replay, handmatige retry van dezelfde snapshot | idempotent, geen dubbel gewicht | idem | expliciete snapshot-identiteit |
 
-**Nuance:** twee succesvolle HTTP-200 responses met identieke feed-inhoud bewijzen niet automatisch twee onafhankelijke statuspublicaties. Stel een concrete, uitlegbare onafhankelijkheidsregel vast in de feature: bijvoorbeeld feedidentiteit en publicatiemetadata, plus gedocumenteerde onzekerheid bij onveranderde feeds. Alleen een nieuwe download is niet voldoende om fysieke statusversheid te garanderen.
+**Nuance:** twee succesvolle HTTP-200 responses met identieke feed-inhoud bewijzen niet automatisch twee onafhankelijke statuspublicaties. Een succesvolle afzonderlijke netwerkcontrole (ook HTTP 304) mag meetellen voor de gepubliceerde-statusstatistiek; lokale cache-replays, retries van dezelfde poll, tarief-only imports en rollbacks niet. Dit is geen bewijs van fysieke statusversheid.
 
 ## Lifecycleregels voor verwijdering uit NDW
 
@@ -56,7 +56,7 @@ Een ontbrekende EVSE of locatie is niet per definitie `REMOVED`. Bewaar `last_se
 
 Een landelijke NDW-feed kan ook zonder nieuwe statuswisselingen geldig bereikbaar zijn, bijvoorbeeld in rustige perioden. **Geen hashwijziging is geen bewijs van feedstoring.** Daarom geldt voorlopig:
 
-- Nieuwe, volledige succesvolle netwerk-fetch met identieke feed-inhoud: **wel als afzonderlijk ophaalmoment registreren**, met classificatie `unchanged_feed`, maar **niet als onafhankelijk bevestigde bronpublicatie aanmerken**. De bijdrage aan compacte gepubliceerde-statusstatistieken is een expliciet te toetsen ontwerpkeuze; houd een aparte tellermethode voor herhaalde feeds bij om oververtekening te kunnen detecteren. Niet stilzwijgend duur/uptime bijschrijven.
+- Nieuwe, succesvolle netwerk-fetch of HTTP 304 met ongewijzigde NDW-locatiesinhoud: **wel meetellen** als nieuwe observatie van de laatst gepubliceerde NDW-status, met afzonderlijke kwaliteitscategorie `unchanged_feed`; niet behandelen als een nieuwe fysieke statusmelding. Houd afzonderlijk bij hoeveel observaties uit ongewijzigde feeds komen. Geen onbewezen werkelijke uptime of exacte duur claimen.
 - Nieuwe volledige gewijzigde locatiesfeed: geldige observatie, ook voor EVSE's met ongewijzigde status en bron-timestamp.
 - Cache-replay, retry van eerder gedownloade bytes zonder nieuwe netwerk-fetch, rollback en tarief-only update: geen nieuwe locatiesobservatie.
 - NDW onbereikbaar: meetgat, geen statistische observatie.
@@ -90,3 +90,7 @@ Geen ruwe EVSE-per-poll historie. Alleen laatste waarneming/checkpoint, per-slot
 3. Implementeer afzonderlijke categoriegewichten, locatie-aggregatie en idempotentie op feature branch.
 4. Test echte feedvoorbeelden, hiaten, duplicaten, terugkeer, DST en nationale benchmark in geïsoleerde database.
 5. Werk `docs/STATUS.md` bij **in dezelfde feature-PR**, met correcte toestand na merge. Geen merge zonder gebruikersakkoord; geen NAS-deployment zonder apart akkoord.
+
+## Vastgelegd gebruikersbesluit — 23 oktober 2026
+
+**Alle succesvolle nieuwe locaties-pollmomenten tellen voor de NDW-gepubliceerde-statusstatistiek**, ook wanneer de hele landelijke feed identiek blijft. Pollmoment/idempotentiesleutel voorkomt dubbeltelling van retries; lokaal herverwerken zonder nieuwe netwerkcontrole telt niet. Een HTTP 304 bevestigt dat de server geen andere versie aanbiedt en telt als afzonderlijk pollmoment; het is geen bewijs van een nieuwe bronpublicatie. Bij storing geen imputatie over gemiste polls. Categorie en kwaliteit (`changed_feed`/`unchanged_feed`, bronouderdom) apart compact accumuleren om interpretaties later te kunnen wijzigen. Geen claim van fysiek bewezen uptime.
