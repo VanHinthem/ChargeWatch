@@ -194,3 +194,12 @@ Daarna kan dezelfde Sprint 1-fixture in die testdatabase opnieuw worden geïmpor
 Voer elke snapshot met `--bulk <locations-N.json.gz> data/sprint1-fixture/tariffs.json.gz 1` uit tegen uitsluitend `chargewatch_statistics_test`. De importer interpreteert argument twee anders als tariefbestand, niet als minimumaantal locaties. Verwachte uurrecords voor de *synthetische* twee EVSE's: na eerste import 0, na tweede 4 records met totaal 1200 gedekte seconden, na identieke replay geen verandering, na derde import 4 records met totaal 1800 seconden. Die seconden zijn **niet** voldoende voor profielpublicatie (75%-grens). Deze verwachting geldt bij een schone synthetische sleutel. Gebruik voor deze reeks eenmalig unieke IDs of controleer vooraf dat deze sleutel nog niet bestaat als de test herhaald wordt.
 
 De test is toegevoegd maar **nog niet door de gebruiker uitgevoerd**. De normale Schietspoel-fixture en andere databases blijven onaangetast.
+
+
+## EVSE-uurfinalisatie (23 oktober 2026)
+
+`EvseHourFinalizer.Run` sluit binnen dezelfde bulkimporttransactie alle verstreken UTC-uren met een nog lege `finalized_at` af. Een uur met minstens 2.700 geldige meetseconden levert **één** gewogen sample voor het corresponderende Nederlandse ISO-weekdag/uurslot op; beginwaarde is het eerste sample, vervolgwaarde heeft EWMA α=0,20. Omdat uurrecords hun eigen echte UTC-startmoment hebben, tellen beide wintertijduren als afzonderlijke uren in hetzelfde lokale weekuurslot. De arrays gebruiken PostgreSQL-index 1–168; C#-splitter gebruikt 0–167. `sample_count` en `covered_seconds` worden bijgewerkt. Minder gedekte uren worden zonder publicatie afgesloten, ook om late dubbeltellingen te blokkeren.
+
+**Nog niet uitgevoerd:** lokale build van de nieuwe finalizer of daadwerkelijke PostgreSQL-EWMA-/finalisatietest. Test eerst `dotnet build`; voer een bulkimport uit in `chargewatch_statistics_test` en controleer `evse_hour_accumulator.finalized_at` plus eventuele profielen. De bestaande synthetische test bevat slechts 300 en 600 seconden per uur, dus daarmee wordt geen EWMA gepubliceerd. Die snapshots bevatten bovendien brontijdstempels later dan het huidige testmoment; toekomstige uren worden terecht nog niet afgesloten. Een separate 45+-minutentest met historische synthetische tijdstempels is nodig voor positieve profielvalidatie.
+
+**Scope:** EVSE-profielen, niet locatieprofielen; geen duurhistogrammen. Nog geen merge of deployment.
