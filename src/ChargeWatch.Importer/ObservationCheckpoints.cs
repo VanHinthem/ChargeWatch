@@ -134,8 +134,28 @@ internal static class ObservationCheckpoints
               (location_id, evse_count, available_count, fault_count, unknown_count,
                any_available, observed_at, zero_available_started_at, continuity_valid)
             SELECT s.location_id, s.evse_count, s.available_count, s.fault_count,
-                   s.unknown_count, s.any_available, statement_timestamp(), NULL, false
-            FROM stage_location_observation s
+                   s.unknown_count, s.any_available, statement_timestamp(),
+                   CASE WHEN s.any_available=false AND old.any_available=false
+                              AND old.continuity_valid AND s.valid_continuation
+                        THEN old.zero_available_started_at
+                        WHEN s.any_available=false AND old.any_available=false
+                              AND s.valid_continuation THEN old.observed_at
+                        ELSE NULL END,
+                   (s.any_available=false AND old.any_available=false AND s.valid_continuation)
+            FROM (
+                SELECT obs.*,
+                  NOT EXISTS (
+                    SELECT 1 FROM stage_observation n
+                    LEFT JOIN evse_observation_checkpoint prev ON prev.evse_id=n.evse_id
+                    WHERE n.location_id=obs.location_id
+                      AND (prev.evse_id IS NULL OR prev.status_class<>n.status_class
+                           OR n.source_updated_at IS NULL OR prev.source_updated_at IS NULL
+                           OR n.source_updated_at<=prev.source_updated_at
+                           OR n.source_updated_at>prev.source_updated_at+interval '15 minutes')
+                  ) AS valid_continuation
+                FROM stage_location_observation obs
+            ) s
+            LEFT JOIN location_observation_checkpoint old ON old.location_id=s.location_id
             WHERE s.oldest_source_updated_at IS NOT NULL
               AND NOT EXISTS (
                 SELECT 1 FROM stage_observation e
@@ -152,8 +172,8 @@ internal static class ObservationCheckpoints
               unknown_count=excluded.unknown_count,
               any_available=excluded.any_available,
               observed_at=excluded.observed_at,
-              zero_available_started_at=NULL,
-              continuity_valid=false
+              zero_available_started_at=excluded.zero_available_started_at,
+              continuity_valid=excluded.continuity_valid
             WHERE (location_observation_checkpoint.evse_count,
                    location_observation_checkpoint.available_count,
                    location_observation_checkpoint.fault_count,
@@ -161,7 +181,9 @@ internal static class ObservationCheckpoints
                    location_observation_checkpoint.any_available)
               IS DISTINCT FROM
                   (excluded.evse_count, excluded.available_count,
-                   excluded.fault_count, excluded.unknown_count, excluded.any_available);
+                   excluded.fault_count, excluded.unknown_count, excluded.any_available)
+              OR (location_observation_checkpoint.continuity_valid,location_observation_checkpoint.zero_available_started_at)
+                 IS DISTINCT FROM (excluded.continuity_valid,excluded.zero_available_started_at);
             """;
         const string boundary = "-- A missing source timestamp is not a fresh measurement.";
         var split = sql.IndexOf(boundary, StringComparison.Ordinal);
