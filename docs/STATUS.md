@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Laatste code-reviewcorrecties 23 oktober (nog NIET lokaal getest):** `SnapshotPollCoverage` slaat overlappende intervallen met >3600s nu niet langer stilzwijgend over: schema-CHECK veroorzaakt fout en transactionele rollback. `ObservationCheckpoints` valideert nu dat de SQL-splitmarker exact eenmaal voorkomt en de checkpoint-upsert uitsluitend in fase 2 ligt. `db/tests/007_poll_overflow_guard.sql` toegevoegd: rollback-only SQL-controle op `check_violation`. Eerst importer build + SQL guard + bestaande watcher/poll-regressies draaien op `chargewatch_statistics_test`. Geen migratie, geen merge/deployment. Voordat PR #12 mergeklaar is: expliciete review van huidige historische methode als uitsluitend intern statistiekfundament, geen publieke voorspelling.
+
+
 **Publicatiebeleid vastgesteld 23 oktober:** `docs/SPRINT3_PUBLICATION_POLICY.md` bepaalt dat Sprint 3 alleen intern statistiekfundament oplevert. Geen historische vrij-kans, 90-daagse uptime, exacte duurhistogrammen of vrijkomen-voorspelling tonen totdat echte tijdgespreide NDW-dekking, methodeconsistentie en kwaliteitsdrempels zijn gekalibreerd. Actuele catalogus/status/bronversheid blijft de v1-basis. Geen willekeurige numerieke publicatiedrempels vastgezet. Open voor merge: gedocumenteerde behandeling van >3600s overlap (nu silently skipped), fasecontract-/code-review en regressie op laatste code; daarna expliciete gebruikersreview. Publicatiebesluit is documentair; **geen API/UI/schema aangepast en niets uitgerold**.
 
 
