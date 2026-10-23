@@ -51,6 +51,15 @@ Voor locaties: bepaal de gezamenlijke snapshotklasse uit alle actuele EVSE's die
 
 Een ontbrekende EVSE of locatie is niet per definitie `REMOVED`. Bewaar `last_seen_at`, `first_missing_at`, aantal *opeenvolgende gevalideerde volledige snapshots* waarin het object ontbreekt en een zichtbaarheidstoestand. Pas een object na meerdere onafhankelijke, complete snapshots en afgesproken verificatietermijn als inactief aan; nooit na een gedeeltelijke of onbetrouwbare import. Bij terugkeer heractiveren en behoud categorische aggregaten. Actuele catalogus en historische statistiekstatus logisch scheiden; geen fysieke catalogus-delete als standaard. Inactieve objecten tellen niet mee in actuele beschikbaarheid.
 
+
+## Feedstilstand versus onveranderde laadpaalstatus — ontwerpbesluit
+
+Een EVSE kan dagenlang terecht dezelfde status houden. **Een volledig onveranderde landelijke NDW-locatiesfeed** is iets anders: bij ongewijzigde inhoud/ETag of HTTP 304 is geen aantoonbaar nieuwe *gepubliceerde* snapshot binnengekomen. Bij 304 (en bytes-identieke 200) mag de collector de vorige momentopname beschikbaar houden als laatst bekend, maar **geen nieuwe statistische waarneming of extra meetduur toevoegen**. Een nieuwe locatiefeed met gewijzigde inhoud telt als een nieuwe publicatie en verwerkt ook EVSE's met ongewijzigde status en bron-\`last_updated\` (mits dataset volledig en valide). Tariefwijzigingen leveren geen statuswaarneming op.
+
+Bewaar compact: \`last_successful_fetch_at\`, \`last_new_locations_publication_at\`, laatste locations-hash/ETag, opeenvolgende identieke polls, pollfouten en gap-/onbekend-tellers. Maak feedstilstand na **voorlopig 15 minuten zonder aantoonbaar nieuwe locatiespublicatie** zichtbaar als operationele waarschuwing (instelbaar, te kalibreren tegen NDW-publicatieritme; geen harde provider-SLA). Gedurende identieke polling geen extra dekking of EWMA; na nieuwe publicatie niet achteraf de hele stilstand als bewezen tijd meetellen. Laatste status blijft beschikbaar maar wordt zichtbaar gelabeld met zijn leeftijd. Onafhankelijke HTTP-respons ≠ onafhankelijke bronpublicatie.
+
+Deze regels beschermen tegen kunstmatige beschikbaarheidsstatistiek wanneer een bestand vastloopt. Nadeel: als de hele landelijke statusfeed terecht niet verandert, verliezen we tijdelijke statistische dekking — deze onzekerheid liever expliciet dan stilzwijgend vals bewijs. Onderzoek vóór implementatie werkelijke NDW-hash-/Last-Modified-cadans. Geen impact op draaiende NAS-collector vóór expliciete review en implementatietest.
+
 ## Opslag- en schaalbaarheidskaders
 
 Geen ruwe EVSE-per-poll historie. Alleen laatste waarneming/checkpoint, per-slot compacte categorietellers / gewichten (en optionele EWMA), compacte kwaliteits-/lifecycle-tellers, schema-/algoritmeversie. Gebruik in de uitvoering een **delta- of batchbenadering** zonder 200k x 168 brede rijupdates iedere vijf minuten. Schat storage, WAL, schrijfduur en indeximpact met werkelijke ~203k EVSE's en ~80k locaties op geïsoleerde testdatabase. Meet tevens impact van de bestaande 5-minuten collector. Back-ups en onderhoud blijven beheersbaar.
