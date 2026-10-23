@@ -6,7 +6,7 @@ internal static class ObservationCheckpoints
 {
     public static async Task Capture(NpgsqlConnection db, NpgsqlTransaction tx)
     {
-        await using var command = new NpgsqlCommand("""
+        var sql = """
             DO $$
             BEGIN
               IF NOT EXISTS (SELECT 1 FROM schema_migration WHERE version = '003_statistics') THEN
@@ -159,7 +159,20 @@ internal static class ObservationCheckpoints
               IS DISTINCT FROM
                   (excluded.evse_count, excluded.available_count,
                    excluded.fault_count, excluded.unknown_count, excluded.any_available);
-            """, db, tx) { CommandTimeout = 600 };
-        await command.ExecuteNonQueryAsync();
+            """;
+        const string boundary = "-- A missing source timestamp is not a fresh measurement.";
+        var split = sql.IndexOf(boundary, StringComparison.Ordinal);
+        if (split < 0) throw new InvalidOperationException("Observation SQL phase boundary is missing.");
+
+        // Phase 1 materializes old/new observations and uptime before checkpoint writes.
+        await using (var first = new NpgsqlCommand(sql[..split], db, tx) { CommandTimeout = 600 })
+            await first.ExecuteNonQueryAsync();
+
+        // Must use old checkpoints: identical replays add zero seconds.
+        await EvseHourPersistence.Capture(db, tx);
+
+        // Phase 2 advances durable checkpoints and location observations.
+        await using var second = new NpgsqlCommand(sql[split..], db, tx) { CommandTimeout = 600 };
+        await second.ExecuteNonQueryAsync();
     }
 }
