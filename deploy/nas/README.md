@@ -21,9 +21,9 @@ docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml build colle
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml up -d db
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml ps
 # Inspect db/migrations/*.sql, ensure fresh schema/init success, then apply with the owner:
-docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /bin/sh /scripts/migrate.sh
+docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /scripts/migrate.sh
 # Use an EXISTING private backup directory in CW_NAS_BACKUP_DIR, outside Docker volumes:
-docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /bin/sh /scripts/backup.sh
+docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /scripts/backup.sh
 # Start collection ONLY after schema, DB roles, backup and restore rehearsal are confirmed:
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml up -d collector
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml logs --tail=100 collector
@@ -37,4 +37,4 @@ docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml logs --tail
 - Inspect actual disk growth and data-source freshness for several days before calling collection reliable. Candidate poll-hour coverage is NOT a publishable historical availability probability.
 
 ## Boundaries and outstanding checks
-The maintenance service is only active when explicitly invoked via `docker compose run --rm maintenance ...`, not as a permanent container. The `CW_NAS_BACKUP_DIR` must point to an existing, writable host directory, and its permissions/retention are the operator's responsibility. This PR contains infrastructure preparation only. **No NAS commands have been run and no production credentials or data have been accessed.** Before deployment we still need user approval, migration/restore rehearsal, image build, NAS resource sizing, and chosen volume/backup locations. Never deploy solely because a PR was merged.
+The maintenance image overrides the PostgreSQL server entrypoint with `/bin/sh`, so `run maintenance /scripts/migrate.sh` executes a shell script and `run maintenance -c 'pg_restore ...'` runs a shell command without attempting to initialize another PostgreSQL server. The maintenance service is only active when explicitly invoked via `docker compose run --rm maintenance ...`, not as a permanent container. The `CW_NAS_BACKUP_DIR` must point to an existing, writable host directory, and its permissions/retention are the operator's responsibility. This PR contains infrastructure preparation only. **No NAS commands have been run and no production credentials or data have been accessed.** Before deployment we still need user approval, migration/restore rehearsal, image build, NAS resource sizing, and chosen volume/backup locations. Never deploy solely because a PR was merged.
