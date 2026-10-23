@@ -14,6 +14,9 @@
 
 **HDD-hersteltest 23 oktober 2026:** de gespiegelde `chargewatch-20261023T160338Z.dump` vanaf volume 1 als tijdelijke kopie teruggezet naar geïsoleerde `chargewatch_hdd_restore_check`. `pg_restore --exit-on-error` gaf geen fouten; gecontroleerd: **80.839 locaties, 203.368 EVSE's, 6 voltooide imports en 5 migraties**. Deze latere counts zijn verenigbaar met doorlopende import. Opruimen van testdatabase en tijdelijke kopie nog niet bevestigd; dagelijkse NAS-planning en retentie nog niet actief.
 
+
+**Statistiekdiagnostiek NAS 23 oktober:** `evse_poll_hour_coverage`: 268.646 uurregels, 134.841 unieke EVSE's, 236.451.460 kandidaatdekkingsseconden over UTC-uren 15:00 en 16:00. `location_hour_accumulator`: slechts 13 regels, 8 unieke locaties en 6.087 dekkingsseconden tussen UTC-uren 14:00–16:00. Dit verschil vereist inspectie van locatie-aggregatielogica en filters; beide tabellen zijn niet zonder meer gelijkwaardig. Geen claims over betrouwbare publieke statistieken; collector laten draaien, diagnose read-only.
+
 ## NAS-images / PR #15 — afgerond
 
 PR #15 is gemerged op `main` als `9dc9964cc4339003bfd1f33bd39864c17615bc54`. GHCR-images zijn aantoonbaar door de NAS gedownload en gestart (volgens operatorlogs). Eerdere PR-only buildvalidatie: GitHub Actions `NAS Images` run 39975985714, drie jobs succesvol; die PR-run publiceerde zelf geen images. Runbook vereist geen Git-checkout of imagebuild op NAS.
