@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Continu collector-import bevestigd 23 oktober:** gebruiker stuurde vervolglog: `Staged: 80836 locations, 203362 EVSEs, 204065 connectors, 101368 tariffs` gevolgd door `Bulk committed ... in 00:00:39.8587096` in `chargewatch-s4test-collector-1`. Continue worker start/execute/commit gevalideerd; **een volgende 5-minuten-HTTP poll is nog niet zichtbaar/bevestigd**. NAS nog niet gedeployed.
+
+
 **Continue watcher smoke 23 oktober:** `docker compose -p chargewatch-s4test ... up -d collector` startte collector (`Up`) naast `db` (`healthy`). Log: Locations HTTP200 18.502.405 bytes, Tariffs HTTP304, `NDW source changed; running transactional bulk import`. **De commit van deze lopende import en tweede 5-minuten-poll nog niet bevestigd**; die moeten nog worden geverifieerd. Geen NAS-deployment.
 
 
