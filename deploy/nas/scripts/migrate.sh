@@ -11,7 +11,7 @@ for file in /migrations/[0-9][0-9][0-9]_*.sql; do
   found=1
   version=${file##*/}
   version=${version%.sql}
-  applied=$(psql -X -At -v version="$version" -c "SELECT EXISTS(SELECT 1 FROM schema_migration WHERE version=:'version')")
+  applied=$(printf "SELECT EXISTS(SELECT 1 FROM schema_migration WHERE version=:'version');\\n" | psql -X -At -v version="$version")
   if [ "$applied" = t ]; then
     echo "SKIP $version (already applied)"
     continue
@@ -19,7 +19,7 @@ for file in /migrations/[0-9][0-9][0-9]_*.sql; do
   echo "APPLY $version"
   # Single transaction for each SQL file; SQL errors abort the entire migration.
   psql -X -v ON_ERROR_STOP=1 -1 -f "$file"
-  applied=$(psql -X -At -v version="$version" -c "SELECT EXISTS(SELECT 1 FROM schema_migration WHERE version=:'version')")
+  applied=$(printf "SELECT EXISTS(SELECT 1 FROM schema_migration WHERE version=:'version');\\n" | psql -X -At -v version="$version")
   [ "$applied" = t ] || { echo "Migration $version did not record its version; stop" >&2; exit 1; }
 done
 [ "$found" = 1 ] || { echo "No migrations found" >&2; exit 1; }
