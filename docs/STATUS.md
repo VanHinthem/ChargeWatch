@@ -12,6 +12,8 @@
 
 **Handmatige NAS-test 23 oktober 2026:** dual-volume back-upscript geslaagd: chargewatch-20261023T160338Z.dump aangemaakt op SSD, gespiegeld naar HDD en identieke SHA-256 bevestigd (2f53b05a2b738cb5dfe6cff347e24fb0c6154fc72bdf9255fc117179b413065b). Retentie blijft uit. HDD-hersteltest en Taakplanner nog open.
 
+**HDD-hersteltest 23 oktober 2026:** de gespiegelde `chargewatch-20261023T160338Z.dump` vanaf volume 1 als tijdelijke kopie teruggezet naar geïsoleerde `chargewatch_hdd_restore_check`. `pg_restore --exit-on-error` gaf geen fouten; gecontroleerd: **80.839 locaties, 203.368 EVSE's, 6 voltooide imports en 5 migraties**. Deze latere counts zijn verenigbaar met doorlopende import. Opruimen van testdatabase en tijdelijke kopie nog niet bevestigd; dagelijkse NAS-planning en retentie nog niet actief.
+
 ## NAS-images / PR #15 — afgerond
 
 PR #15 is gemerged op `main` als `9dc9964cc4339003bfd1f33bd39864c17615bc54`. GHCR-images zijn aantoonbaar door de NAS gedownload en gestart (volgens operatorlogs). Eerdere PR-only buildvalidatie: GitHub Actions `NAS Images` run 39975985714, drie jobs succesvol; die PR-run publiceerde zelf geen images. Runbook vereist geen Git-checkout of imagebuild op NAS.
