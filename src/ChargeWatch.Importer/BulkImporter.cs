@@ -261,6 +261,7 @@ internal static class BulkImporter
             // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
             // back both; the additive schema migration must be applied first.
             await ObservationCheckpoints.Capture(db, tx);
+            await EvseHourFinalizer.Run(db, tx);
 
             string sha;
             await using (var source = File.OpenRead(locationsPath))
