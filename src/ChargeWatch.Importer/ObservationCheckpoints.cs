@@ -225,7 +225,7 @@ internal static class ObservationCheckpoints
                OR evse_observation_checkpoint.source_updated_at IS NULL;
 
             """;
-        const string boundary = "-- A missing source timestamp is not a fresh measurement.";
+        const string boundary = "-- Location availability is determined";
         var split = sql.IndexOf(boundary, StringComparison.Ordinal);
         if (split < 0) throw new InvalidOperationException("Observation SQL phase boundary is missing.");
 
@@ -238,7 +238,8 @@ internal static class ObservationCheckpoints
         await LocationHourPersistence.Capture(db, tx);
         await DurationObservations.Capture(db, tx);
 
-        // Phase 2 advances durable checkpoints and location observations.
+        // Phase 2 evaluates location transitions against the old EVSE checkpoints,
+        // then advances both location and EVSE checkpoints atomically.
         await using var second = new NpgsqlCommand(sql[split..], db, tx) { CommandTimeout = 600 };
         await second.ExecuteNonQueryAsync();
     }
