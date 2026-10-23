@@ -61,8 +61,10 @@ internal static class SnapshotPollCoverage
           GROUP BY evse_id,hour_start_utc
           ON CONFLICT(evse_id,hour_start_utc) DO UPDATE SET
             covered_seconds=evse_poll_hour_coverage.covered_seconds+excluded.covered_seconds,
-            available_seconds=evse_poll_hour_coverage.available_seconds+excluded.available_seconds
-          WHERE evse_poll_hour_coverage.covered_seconds+excluded.covered_seconds<=3600;
+            available_seconds=evse_poll_hour_coverage.available_seconds+excluded.available_seconds;
+          -- evse_poll_hour_coverage CHECK (covered_seconds BETWEEN 0 AND 3600)
+          -- now raises 23514 on overflow instead of silently skipping the interval.
+          -- The import transaction rolls back, including provenance/checkpoints.
 
           INSERT INTO evse_poll_checkpoint
             (evse_id,observed_at,status_class,source_updated_at,snapshot_sha256)
