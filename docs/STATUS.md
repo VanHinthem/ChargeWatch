@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Locatieprofielen (23 oktober, nog niet getest):** migratie 005 voor location_hour_accumulator toegevoegd; transactionele locatie-uuraccumulatie/finalisatie en synthetische available/unknown-fixtures toegevoegd. Conservatief: alle EVSE's moeten bronmomenten delen, geen statuswisseling/UNKNOWN, anders geen coverage. Rechtstreeks >=1 vrij, niet EVSE-kansen vermenigvuldigen; bij >=2700 s afsluiten naar location_occupancy_profile (α=0,20). Nog geen lokale .NET-build, migratie of PostgreSQL-test voor deze toevoeging. Eerst valideren op chargewatch_statistics_test.
+
+
 **Finalisatiecorrectie (23 oktober):** af te sluiten uur vereist nu een bronwaarneming die de uurgrens heeft bereikt, niet alleen huidige kloktijd. `tools/build_sprint3_finalize_fixture.py` toegevoegd: historische low (300 seconden dekking, géén EWMA) en full (3600 seconden, één EWMA-sample). Gebruiker bevestigde op 23 oktober 2026 beide historische fixtures op geïsoleerde testdatabase: 16 succesvolle bulkimports. LOW: 300 seconden voor uur 08:00 UTC per EVSE, finalized=true, geen profiel. FULL: 3600 seconden voor uur 08:00 UTC per EVSE, finalized=true, en precies één sample op PostgreSQL slot 35 met EWMA=1 en covered_seconds=3600. Uur 09:00 UTC bij beide scenario's nog open met 300 seconden. Positieve en negatieve EVSE-uurfinalisatie zijn hiermee getest. Replay na finalisatie, echte NDW-dekking en locatieprofielen nog niet getest. Eerst build + beide reeksen in geïsoleerde `chargewatch_statistics_test` uitvoeren.
 
 
