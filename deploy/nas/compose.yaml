@@ -39,6 +39,24 @@ services:
     volumes:
       - ndw-cache:/data/cache
 
+  maintenance:
+    image: postgres:18
+    profiles: ["maintenance"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: chargewatch
+      PGUSER: chargewatch_owner
+      PGPASSWORD: ${CW_DB_OWNER_PASSWORD:?Set CW_DB_OWNER_PASSWORD}
+    volumes:
+      - ../../db/migrations:/migrations:ro
+      - ./scripts:/scripts:ro
+      - ${CW_NAS_BACKUP_DIR:?Set absolute NAS backup directory}:/backups
+    entrypoint: ["/bin/sh"]
+
 volumes:
   pgdata:
   ndw-cache:
