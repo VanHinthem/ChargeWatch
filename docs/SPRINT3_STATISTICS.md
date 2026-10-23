@@ -185,3 +185,12 @@ dotnet build .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj
 ```
 
 Daarna kan dezelfde Sprint 1-fixture in die testdatabase opnieuw worden geïmporteerd; zonder nieuwe bronmomenten behoren er **0 uuraccumulatierijen** te ontstaan. Op een database zonder migratie 004 faalt de featurebranch-import expliciet en rolt de transactie terug. De migratie is hier nog niet uitgevoerd en de nieuwe code is nog niet lokaal gebouwd.
+
+
+## Synthetische testreeks voor uuraccumulatie (23 oktober)
+
+`python tools/build_sprint3_hour_fixture.py` maakt drie **nieuwe** Locations-gzipbestanden onder `data/sprint3-hour-fixture` met testidentiteit `ZZ/CW/sprint3-hour-synthetic`. De twee EVSE's blijven AVAILABLE, met bronmomenten op respectievelijk 10:55, 11:05 en 11:10 UTC op 23 oktober 2026. Daardoor test de reeks een vijf-minutenstuk vóór en na de UTC-uurgrens, daarna nog vijf minuten in het tweede uur. De bestanden raken geen echte NDW-identiteiten.
+
+Voer elke snapshot met `--bulk <locations-N.json.gz> 1` uit tegen uitsluitend `chargewatch_statistics_test`. Verwachte uurrecords voor de *synthetische* twee EVSE's: na eerste import 0, na tweede 4 records met totaal 1200 gedekte seconden, na identieke replay geen verandering, na derde import 4 records met totaal 1800 seconden. Die seconden zijn **niet** voldoende voor profielpublicatie (75%-grens). Deze verwachting geldt bij een schone synthetische sleutel. Gebruik voor deze reeks eenmalig unieke IDs of controleer vooraf dat deze sleutel nog niet bestaat als de test herhaald wordt.
+
+De test is toegevoegd maar **nog niet door de gebruiker uitgevoerd**. De normale Schietspoel-fixture en andere databases blijven onaangetast.
