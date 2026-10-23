@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Resterende gerichte tests toegevoegd (23 oktober, nog niet uitgevoerd):** `tools/test_sprint3_poll_coverage.py` toetst nu ook verdwijnende EVSE (geen coverage) en terugkerende EVSE (geen overbrugging). `db/tests/007_poll_utc_hour_split.sql` toetst deterministisch UTC-uurgrens 10:58→11:03: precies 120 seconden in 10:00-uur en 180 in 11:00-uur. Dit laatste is een SQL-segmentatiecontracttest en **nog geen volledige end-to-end uurgrens-importtest**. Eerst regressies draaien op chargewatch_statistics_test; daarna landelijke performance/review. Geen migratie, merge of deployment.
+
+
 **Aanvullende poll-regressies uitgevoerd 23 oktober, alle zes geslaagd:** `tools/test_sprint3_poll_coverage.py` valideert nu ook een fetchgap van 20 minuten (geen coverage), wijzigingen van alle fixture-EVSE-statussen (geen coverage), en teruglopende bron-`last_updated` (geen coverage). Na elk scenario worden checkpointtijden uitsluitend in `chargewatch_statistics_test` aangepast voor snelle reproduceerbaarheid. Bestaande eerste snapshot/positieve dekking/304-replay blijven. **Gebruiker bevestigde uitvoer:** PASS eerste checkpoint, PASS tweede ongewijzigde snapshot (+608 kandidaat EVSE-seconden), PASS HTTP304 replay, PASS >15-minuten-gap, PASS statuswijziging, PASS teruglopende brontimestamps. Exacte UTC-uurgrenzen, verdwenen EVSE's, meerdere achtereenvolgende snapshots op landelijke schaal en publicatiecriteria blijven nog open.
 
 
