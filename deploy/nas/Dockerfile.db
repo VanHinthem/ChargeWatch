@@ -1,0 +1,2 @@
+FROM postgis/postgis:18-3.6
+COPY db/init/ /docker-entrypoint-initdb.d/

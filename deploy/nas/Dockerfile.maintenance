@@ -1,0 +1,3 @@
+FROM postgres:18
+COPY db/migrations/ /migrations/
+COPY deploy/nas/scripts/ /scripts/
