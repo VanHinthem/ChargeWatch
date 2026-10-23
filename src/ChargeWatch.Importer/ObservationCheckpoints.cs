@@ -170,6 +170,7 @@ internal static class ObservationCheckpoints
 
         // Must use old checkpoints: identical replays add zero seconds.
         await EvseHourPersistence.Capture(db, tx);
+        await LocationHourPersistence.Capture(db, tx);
 
         // Phase 2 advances durable checkpoints and location observations.
         await using var second = new NpgsqlCommand(sql[split..], db, tx) { CommandTimeout = 600 };
