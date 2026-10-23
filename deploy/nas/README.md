@@ -12,7 +12,7 @@ Goal: collect real NDW history continuously on the NAS, independent from Windows
 1. Use a dedicated checkout of `main` after this PR is approved and merged. Confirm NAS CPU supports the chosen .NET/PostGIS images, available disk and Docker Compose v2.
 2. Copy `deploy/nas/.env.example` to `deploy/nas/.env`; replace all three `CHANGE_ME` values with distinct strong credentials. Restrict the file's permissions. **Never add credentials to GitHub.**
 3. Review the PostgreSQL volume path and backup destination. Named volumes persist container replacement, but are **not a backup**.
-4. Check the planned migration/bootstrap order against the live database before starting the collector. The initial `db/init` scripts run only when the data volume is empty. Use the included owner-only `maintenance` service to apply SQL files in filename order, skipping versions already in `schema_migration`. If the initial database does not contain `schema_migration`, the script stops rather than guessing. Never point these commands at an unrelated database. **Rehearse restore into an isolated database before NAS deployment.**
+4. Check the planned migration/bootstrap order against the live database before starting the collector. The initial `db/init` scripts run only when the data volume is empty. Use the included owner-only `maintenance` service to apply SQL files in filename order, skipping versions already in `schema_migration`. On a fresh base schema, `003_statistics.sql` creates `schema_migration` before the remaining migrations. The script stops if even the base `evse` table is missing. Never point these commands at an unrelated database. **Rehearse restore into an isolated database before NAS deployment.**
 
 Commands (from repository root; inspect output before applying):
 ```bash
@@ -21,9 +21,9 @@ docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml build colle
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml up -d db
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml ps
 # Inspect db/migrations/*.sql, ensure fresh schema/init success, then apply with the owner:
-docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /scripts/migrate.sh
+docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /bin/sh /scripts/migrate.sh
 # Use an EXISTING private backup directory in CW_NAS_BACKUP_DIR, outside Docker volumes:
-docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /scripts/backup.sh
+docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml run --rm maintenance /bin/sh /scripts/backup.sh
 # Start collection ONLY after schema, DB roles, backup and restore rehearsal are confirmed:
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml up -d collector
 docker compose --env-file deploy/nas/.env -f deploy/nas/compose.yaml logs --tail=100 collector
