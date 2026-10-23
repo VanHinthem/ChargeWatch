@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**NDW read-only kwaliteitsrapport toegevoegd 23 oktober:** `db/tests/sprint3_ndw_source_quality_readonly.sql` bevat uitsluitend SELECT-query's binnen `BEGIN TRANSACTION READ ONLY` en analyseert de landelijke benchmark-snapshot op statusclassificatie, versheid, ontbrekende timestamps, gelijke EVSE-bronmomenten per locatie, onbekende statussen en importversheid. **Nog niet uitgevoerd.** Een momentopname kan geen polling-cadans of werkelijke nieuwe statuswaarnemingen bewijzen. Volgende stap: uitvoeren op `chargewatch_benchmark`, resultaten interpreteren en merge-gate beoordelen.
+
+
 **Eindreview 23 oktober:** de afzonderlijke EVSE-, locatie-, uur-, duur-, censored- en replaytests zijn geslaagd voor gerichte synthetische scenario's. NDW-brontimestamps, asynchrone EVSE-uren, ontbrekende EVSE's en nationale importperformance zijn nog niet voldoende gevalideerd. **Niet mergeklaar; nog geen productiegeschikte beschikbaarheidsstatistiek.** Lees `docs/SPRINT3_REVIEW.md` voor gespecificeerde risico's en volgende gate.
 
 
