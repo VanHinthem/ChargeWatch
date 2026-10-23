@@ -151,6 +151,34 @@ def main():
             assert coverage() == baseline, "Backward source time fabricated coverage"
             print("PASS backward source timestamps: no extra seconds")
 
+            # One EVSE disappears: it must not accumulate time while absent.
+            # Keep at least one EVSE to preserve a valid Locations fixture.
+            age_checkpoint(5)
+            baseline = coverage()
+            removed = source[0]["evses"].pop()
+            removed_uid = removed["uid"]
+            missing_id = sql("SELECT e.id FROM evse e JOIN charging_location l ON l.id=e.location_id "
+                             "WHERE e.source_uid='" + removed_uid.replace("'", "''") + "' "
+                             "ORDER BY e.id DESC LIMIT 1")
+            assert missing_id, "Missing target EVSE for disappearance check"
+            before_missing = int(sql("SELECT coalesce(sum(covered_seconds),0) "
+                                     "FROM evse_poll_hour_coverage WHERE evse_id=" + missing_id))
+            publish("missing-evse")
+            after_missing = int(sql("SELECT coalesce(sum(covered_seconds),0) "
+                                    "FROM evse_poll_hour_coverage WHERE evse_id=" + missing_id))
+            assert after_missing == before_missing, "Missing EVSE gained coverage"
+            print("PASS missing EVSE: no coverage while absent")
+
+            # Reappearance after a missing snapshot must not bridge that gap.
+            age_checkpoint(5)
+            source[0]["evses"].append(removed)
+            publish("reappeared-evse")
+            after_reappear = int(sql("SELECT coalesce(sum(covered_seconds),0) "
+                                     "FROM evse_poll_hour_coverage WHERE evse_id=" + missing_id))
+            assert after_reappear == before_missing, "Reappearing EVSE bridged missing snapshot"
+            print("PASS reappeared EVSE: no bridged coverage")
+
+
         finally:
             server.shutdown(); server.server_close()
 
