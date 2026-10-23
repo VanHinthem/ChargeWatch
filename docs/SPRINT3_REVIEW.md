@@ -36,3 +36,12 @@ Slechts **19.139/80.787 locaties (23,69%)** hebben één gelijke EVSE-brontimest
 EVSE timestampleeftijd t.o.v. de audit: 0 binnen 1 uur, 52.946 binnen 24 uur (26,06%), 177.810 binnen 7 dagen, mediane leeftijd 27,90 uur, P90 244,76 uur, P99 8.318,28 uur. Laatste geslaagde benchmarkimport: **2026-10-22 14:31:54 UTC**, 5 completed imports. **Let op:** leeftijd t.o.v. audit is niet leeftijd t.o.v. het importmoment; dataset is gisteren geïmporteerd, dus dit is geen meting van NDW-feed-latency of pollingfrequentie.
 
 **Besluit:** exact gelijke EVSE-brontimestamps is geen bruikbare algemene toelatingsregel voor locatieprofiledekking. Herzie observatiestrategie voordat statistieken als beschikbaarheidskans worden gepubliceerd. Eén snapshot bewijst niet dat `last_updated` uitsluitend op statusverandering wijzigt; dit moet met ten minste twee opeenvolgende bronversies worden gecontroleerd. Sprint 3 blijft draft, geen merge of deployment.
+
+
+## Twee echte NDW-snapshots — vergelijking 23 oktober 2026
+
+Gebruiker voerde `tools/ndw_observation_diff.py` uit op `data/ndw-discovery/locations.json.gz` (203.114 EVSE's) en `data/ndw-current/locations.json.gz` (203.328). Bestands-SHA256 verschillend. 201.117 gedeelde EVSE-identiteiten; 1.997 alleen baseline, 2.211 alleen nieuw. Gedeelde records: **86.206 (42,86%) status gelijk maar timestamp gewijzigd**, **52.932 (26,32%) status en timestamp gewijzigd**, **61.458 (30,56%) beide ongewijzigd**, **521 (0,26%) status gewijzigd maar timestamp gelijk**. 80.346 locaties met gedeelde EVSE's; slechts 12.956 locaties waar alle gedeelde EVSE's ongewijzigd zijn.
+
+Veelgestelde statusovergangen: AVAILABLE→CHARGING 25.699, CHARGING→AVAILABLE 25.061. De vijf getoonde timestamp-only-voorbeelden hebben afstanden van vele uren. Dit bewijst dat `last_updated` niet alleen bij statuswijzigingen verandert, maar **niet** dat iedere vijf minuten een bronbevestiging plaatsvindt. De 15-minutenregel kan bij deze snapshots nog steeds vrijwel alle lange gaten afwijzen. 521 status-only-wijzigingen bij gelijke timestamp wijzen op broncorrecties of afwijkend bronupdategedrag; nooit een betrouwbare duur aannemen op uitsluitend statustekst.
+
+**Next gate:** controle op werkelijk korte intervallen, liefst twee downloads met 5–15 minuten ertussen, en twee- of meer-EVSE locatie-observaties. Geen publicatie van nationale historiek totdat de dekking daadwerkelijk is gekwantificeerd. PR draft; niet mergen of deployen.
