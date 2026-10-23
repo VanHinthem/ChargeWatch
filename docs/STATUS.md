@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Publicatiebeleid vastgesteld 23 oktober:** `docs/SPRINT3_PUBLICATION_POLICY.md` bepaalt dat Sprint 3 alleen intern statistiekfundament oplevert. Geen historische vrij-kans, 90-daagse uptime, exacte duurhistogrammen of vrijkomen-voorspelling tonen totdat echte tijdgespreide NDW-dekking, methodeconsistentie en kwaliteitsdrempels zijn gekalibreerd. Actuele catalogus/status/bronversheid blijft de v1-basis. Geen willekeurige numerieke publicatiedrempels vastgezet. Open voor merge: gedocumenteerde behandeling van >3600s overlap (nu silently skipped), fasecontract-/code-review en regressie op laatste code; daarna expliciete gebruikersreview. Publicatiebesluit is documentair; **geen API/UI/schema aangepast en niets uitgerold**.
+
+
 **Reviewcorrectie 23 oktober (lokaal gevalideerd; tien PASS):** `SnapshotPollCoverage` vereist nu bij een nieuwe dataset-SHA ten minste één echte EVSE-bronstatus- of `last_updated`-wijziging (of nieuwe EVSE) op feedniveau; uitsluitend nieuwe gzip-header of locatiemetadata kan geen kandidaatdekking meer creëren. De integratietest is aangepast: tweede snapshot vernieuwt één EVSE-brontimestamp; extra metadata-only negatief scenario. Deze controle is **geen** onafhankelijk bronbewijs per onveranderde EVSE. Gebruiker bevestigde `python tools/test_sprint3_poll_coverage.py` met tien PASS, inclusief +610 kandidaat EVSE-seconden op tweede snapshot, metadata-only geen coverage, HTTP304 replay, >15min-gap, statuswissel, teruglopende source time, ontbrekende/terugkerende EVSE en stale unchanged status. De build is niet apart gerapporteerd in dit bericht. Testbenchmark met alleen andere gzip-header moet nu nul nieuwe kandidaatdekking opbouwen (na separate delta-meting). Draft PR #12; niet mergen of deployen.
 
 
