@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Read-only kandidaatdekkingsaudit uitgevoerd 23 oktober:** gebruiker rapporteerde `evse_poll_hour_coverage`: 187.901 EVSE-uurregels / EVSE's, 62.386.732 cumulatief gedekte seconden, 45.722.564 beschikbaarheidsseconden, **0 onmogelijke rijen**, **0 volledig gedekte uren**, alle rijen in UTC-uur 2026-10-23 12:00. 187.899 regels <15min, één 15–30min, één 30–45min. Poll-checkpoints 203.328; 15.427 onbekende status, 0 missende timestamps, 0 future, 64.486 brontimestamp ouder dan 24h, 24.154 ouder dan 7d, 13.091 ouder dan 30d. De gegevens weerspiegelen synthetische imports; dit is geen historisch uptimebewijs. Nog open: freshness policy en semantiek van dataset-snapshot versus individuele bronverversing. Geen merge/publicatie.
+
+
 **Review na nationale benchmark (23 oktober):** 31,8s en 29,4s doorvoer voor 80.825 locaties/203.328 EVSE's is bevestigd. Nieuw: read-only audit `db/tests/007_poll_coverage_quality_readonly.sql` (nog niet gedraaid), plus kwaliteitsbevindingen in `docs/SPRINT3_REVIEW.md`: verschillende gzip-SHA's bewijzen geen nieuwe bronobservatie (benchmark varieerde alleen header), oude NDW-brontimestamps kunnen nog kandidaatdekking genereren, cumulatieve uurdekking kan bij >3600s stilzwijgend een segment overslaan, en EWMA blijft op bestaande bronklok. **Sprint 3 nog niet mergeklaar: eerst audit uitvoeren en versheidsbeleid/coverage-correctheid vaststellen.**
 
 
