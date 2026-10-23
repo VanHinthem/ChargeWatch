@@ -105,6 +105,52 @@ def main():
                          f"WHERE evse_id IN ({ids})")
             assert int(replay) == int(after), "304 replay duplicated candidate coverage"
             print("PASS HTTP304 replay: no extra seconds")
+
+            def age_checkpoint(minutes):
+                current_hash = hashlib.sha256(state["locations"]).hexdigest()
+                sql("BEGIN; "
+                    "UPDATE ndw_snapshot_checkpoint SET fetched_at=fetched_at-interval '" + str(minutes) + " minutes' "
+                    "WHERE source_name='ndw-locations' "
+                    "AND source_sha256='" + current_hash + "'; "
+                    "UPDATE evse_poll_checkpoint SET observed_at=observed_at-interval '" + str(minutes) + " minutes' "
+                    "WHERE snapshot_sha256='" + current_hash + "'; COMMIT;")
+
+            def coverage():
+                return int(sql("SELECT coalesce(sum(covered_seconds),0) "
+                               "FROM evse_poll_hour_coverage WHERE evse_id IN (" + ids + ")"))
+
+            def publish(label):
+                source[0]["address"] += "-" + label
+                state["locations"] = gzip_json(source)
+                state["loc_etag"] = '"snap-' + label + '-' + nonce + '"'
+                command(run, env)
+
+            # A gap longer than 15 min must not be extrapolated.
+            age_checkpoint(20)
+            baseline = coverage()
+            publish("gap")
+            assert coverage() == baseline, "Long gap fabricated candidate coverage"
+            print("PASS >15-minute gap: no extra seconds")
+
+            # Switch every EVSE to an unlike class; do not assign a transition time.
+            age_checkpoint(5)
+            baseline = coverage()
+            for evse in source[0]["evses"]:
+                old = evse["status"]
+                evse["status"] = "CHARGING" if old == "AVAILABLE" else "AVAILABLE"
+            publish("changed-status")
+            assert coverage() == baseline, "Status transition fabricated coverage"
+            print("PASS changed EVSE states: no extra seconds")
+
+            # Unchanged class but a regressing last_updated is not a valid interval.
+            age_checkpoint(5)
+            baseline = coverage()
+            for evse in source[0]["evses"]:
+                evse["last_updated"] = "2000-01-01T00:00:00Z"
+            publish("backward-source-time")
+            assert coverage() == baseline, "Backward source time fabricated coverage"
+            print("PASS backward source timestamps: no extra seconds")
+
         finally:
             server.shutdown(); server.server_close()
 
