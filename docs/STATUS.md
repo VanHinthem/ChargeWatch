@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Rollen gecontroleerd 23 oktober:** geïsoleerde `chargewatch-s4test` DB heeft `chargewatch_owner` (login, superuser, createdb), `chargewatch_import` en `chargewatch_read` (login, geen superuser/createdb). Tabelrechten nog niet getest. Volgende actie: SELECT-/INSERT-rechten functioneel toetsen, backup/restore op afzonderlijke DB. Geen NAS-deployment.
+
+
 **Idempotentie bevestigd 23 oktober:** gebruiker draaide `/bin/sh /scripts/migrate.sh` opnieuw op geïsoleerde `chargewatch-s4test` PostgreSQL 18; alle migraties 003–007 rapporteerden `SKIP (already applied)`, eindresultaat `Migration pass completed.` Geen NAS-actie. Vervolg: DB-rollen, backup en daadwerkelijke restore-test.
 
 
