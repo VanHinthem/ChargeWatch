@@ -26,5 +26,8 @@ Veilige volgorde voor de volgende codefase:
 3. **Nog open:** poll-coverage en locatiejoint-status vóór checkpoint-upsert in één transactie; pas na replay-, gap-, statuswissel-, partial-set- en rollbacktests eventueel bestaande EWMA van bronklok naar snapshotklok omschakelen.
 4. Controle op echte twee opeenvolgende landelijke imports; performance en hoeveel van de 80k locaties daadwerkelijk voldoende dekking halen.
 
+## Aanvullende feedkwaliteit (23 oktober)
+Vanaf deze wijziging bouwen twee snapshots uitsluitend nieuwe kandidaatdekking op als minstens één EVSE een gewijzigde bronstatus of `last_updated` heeft (of nieuw in de dataset is). Een nieuw gzipbestand met alleen andere transportheader of locatiemetadata geeft **geen kandidaatdekking**, ook niet als de SHA verschilt. Dit is een **feedbrede** controle: andere EVSE's kunnen bij een verandering elders nog kandidaatdekking krijgen indien zij zelf voldoen aan de 24-uurs-bronversheid en overige gates. Een onafhankelijke verificatie per EVSE wordt daarmee niet aangetoond. EVSE-checkpoints mogen nog steeds de nieuwe snapshot registreren zodat volgende intervallen geen gat overbruggen. Testcode is aangepast: tweede snapshot bevat een werkelijk nieuwe EVSE-brontimestamp, met apart metadata-only negatief scenario. **Nog niet lokaal getest; negen eerdere passes gelden voor vorige versie.**
+
 ## Grenzen
 Geen histogrammen van exacte sessieduur afleiden uit snapshots. Geen achteraf invullen van dagen uit lange gaps, geen fake uptime, geen publieke voorspelling zonder bewijs van voldoende dekking. PR #12 draft, expliciete mergegoedkeuring vereist.
