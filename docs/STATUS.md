@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Idempotentie bevestigd 23 oktober:** gebruiker draaide `/bin/sh /scripts/migrate.sh` opnieuw op geïsoleerde `chargewatch-s4test` PostgreSQL 18; alle migraties 003–007 rapporteerden `SKIP (already applied)`, eindresultaat `Migration pass completed.` Geen NAS-actie. Vervolg: DB-rollen, backup en daadwerkelijke restore-test.
+
+
 **Gevalideerd op Windows Docker (23 oktober):** geïsoleerd Compose-project `chargewatch-s4test` heeft verse PostGIS 18 database als `healthy` gestart. Maintenance migration runner bootstrapte `003_statistics` inclusief `schema_migration`, sloeg 003 bij vervolgcontrole over en paste 004–007 foutloos toe; eindmelding `Migration pass completed.` Eerder `compose config --quiet` PASS en collector-image build PASS (6,1s). Open: herhaalde migratierun/idempotentie, DB-rollen, echte pg_dump/pg_restore naar aparte testdatabase en collector-smoke. **Geen NAS-deployment.**
 
 
