@@ -98,15 +98,18 @@ internal static class ObservationCheckpoints
             -- reinterpret a replayed timestamp or late correction as elapsed time.
             INSERT INTO evse_observation_checkpoint
               (evse_id, status_class, source_updated_at, observed_at, state_started_at, continuity_valid)
-            SELECT s.evse_id, s.status_class, s.source_updated_at, statement_timestamp(), NULL, false
+            SELECT s.evse_id, s.status_class, s.source_updated_at, statement_timestamp(),
+                   CASE WHEN d.continues THEN coalesce(d.previous_start,d.previous_at) ELSE NULL END,
+                   coalesce(d.continues,false)
             FROM stage_observation s
+            LEFT JOIN stage_duration_transition d ON d.evse_id=s.evse_id
             WHERE s.source_updated_at IS NOT NULL
             ON CONFLICT (evse_id) DO UPDATE SET
               status_class=excluded.status_class,
               source_updated_at=excluded.source_updated_at,
               observed_at=excluded.observed_at,
-              state_started_at=NULL,
-              continuity_valid=false
+              state_started_at=excluded.state_started_at,
+              continuity_valid=excluded.continuity_valid
             WHERE excluded.source_updated_at > evse_observation_checkpoint.source_updated_at
                OR evse_observation_checkpoint.source_updated_at IS NULL;
 
@@ -171,6 +174,7 @@ internal static class ObservationCheckpoints
         // Must use old checkpoints: identical replays add zero seconds.
         await EvseHourPersistence.Capture(db, tx);
         await LocationHourPersistence.Capture(db, tx);
+        await DurationObservations.Capture(db, tx);
 
         // Phase 2 advances durable checkpoints and location observations.
         await using var second = new NpgsqlCommand(sql[split..], db, tx) { CommandTimeout = 600 };
