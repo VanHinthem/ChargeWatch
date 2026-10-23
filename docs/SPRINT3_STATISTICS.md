@@ -151,3 +151,16 @@ dotnet run --project .\src\ChargeWatch.Importer -- --statistics-selftest
 ```
 
 Resultaten moeten lokaal bevestigd worden; in de agentomgeving is de .NET SDK niet aanwezig.
+
+
+## Uuraccumulator en publicatiegrens (23 oktober 2026)
+
+`StatisticsHourAccumulator` is toegevoegd als **zuivere berekening**, zonder DB-writes. De accumulator accepteert niet-overlappende observatie-intervallen binnen één echt UTC-uur, verzamelt positieve en totale meetseconden, en levert alleen een sample als ten minste 2700 van 3600 seconden (75%) betrouwbaar zijn gedekt. Onbekende status hoort buiten de geldige EVSE-/locatiesamples, niet als bezet. Start-EWMA = eerste sample; daarna `0.20 * sample + 0.80 * vorige_waarde`. De CLI-`--statistics-selftest` voert nu zowel de eerdere tijdsplittertest als deze accumulator-test uit.
+
+**Belangrijk:** bij afzonderlijke NDW-bronstatusmomenten is 75% dekking nog niet aangetoond. We publiceren daarom geen onvolledige profielen en koppelen de accumulator nog niet aan de database. Om de volledige 168-vaks statistiek verantwoord te bouwen, is een duurzaam checkpoint van reeds geverifieerde *uurdekking* nodig, plus een expliciete keuze hoe gelijkblijvende maar herhaald opgehaalde brondata als waarneming gelden. De huidige `evse_occupancy_profile`/`location_occupancy_profile` tabellen blijven leeg.
+
+De nieuwe zelftest is nog niet uitgevoerd op de ontwikkelmachine. Lokale opdracht:
+
+```powershell
+dotnet run --project .\src\ChargeWatch.Importer -- --statistics-selftest
+```
