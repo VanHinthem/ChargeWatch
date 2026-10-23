@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Lokale integratietest 23 oktober 2026:** gebruiker importeerde Schietspoel-fixture via `--bulk` in afzonderlijke `chargewatch_statistics_test`: 1 locatie, 2 EVSE's, 2 connectors, 1 tarief; transactie succesvol in 0,5285168 s. SQL-controle: 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days (correct voor initiële waarneming), 1 completed import. Tweede identieke import/replay en foutpad zijn nog niet getest.
+
+
 - Issue [#11](https://github.com/VanHinthem/ChargeWatch/issues/11); branch `feature/sprint3-observation-foundation`.
 - Status: conservatieve EVSE-statusclassificatie en transactionele checkpoint-capture en conservatieve uptime-dagaccumulatie aan bulkimport toegevoegd, voorgestelde tabellen/observatiekwaliteit/transactieregels in [SPRINT3_STATISTICS.md](SPRINT3_STATISTICS.md).
 - **Nog niet gerealiseerd:** uitvoering/validatie van de nu aanwezige migratie; PostgreSQL-validatie van lokale-dag-intervalstatistiek, 168-slot EWMA, duurprofielen en PostgreSQL-tests. Uptime-dagtotalen splitsen nu korte, ongewijzigde-statusintervallen over Europe/Amsterdam-kalenderdagen, inclusief DST; niet getest en bronmomentdekking kan onvoldoende zijn. Checkpoints slaan inmiddels uitsluitend verse source-observaties op en blijven onberekend voor duren.
