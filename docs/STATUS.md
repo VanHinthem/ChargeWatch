@@ -1,7 +1,7 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 23 oktober 2026  
-**Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
+**Status:** Sprints 0–4 afgerond, NAS collector draait op HINNAS sinds 23 oktober; nieuwe statistiekfunctionaliteit is uitsluitend ontwerp in draft PR #17. Back-upbeheer staat apart in draft PR #16.
 
 ## Compacte snapshotstatistieken — ontwerp-PR (23 oktober 2026)
 
@@ -9,14 +9,13 @@
 
 ## NAS-image-deployment voorbereiding (PR #15)
 
-**PR-build bevestigd 23 oktober:** GitHub Actions `NAS Images` run 39975985714 completed/success. Matrixjobs collector, maintenance en db afzonderlijk `success` op PR-head `eb70c7e0e826a98b7cc2578bbf5efc5ceaaa5370`. Dit valideert Linux/amd64-imagebuilds, **zonder publicatie** (PR-event). Pas een succesvolle workflow na merge op `main` levert deploybare GHCR-tags op. Nog geen NAS-deployment.
+**PR-build be## Operationele status en open werk
 
+**Werkelijke NAS-situatie bevestigd op 23 oktober 2026:** PR #15 gemerged; drie images via GHCR gedownload en NAS PostgreSQL + collector draaien op HINNAS. Schema 003–007 actief; landelijke NDW-import afgerond. SSD-back-up en een bitidentieke HDD-kopie getest, met geslaagde afzonderlijke herstelproeven. Uitvoerig beheerbewijs staat in open draft PR #16 (nog niet gemerged). Dagelijkse Taakplanner en retentie nog niet geactiveerd. Geen productie-upgrade voor PR #17.
 
-**Besluit gebruiker 23 oktober 2026:** geen `git clone` en geen builds op de NAS. Deploy uitsluitend vooraf door GitHub Actions gebouwde images via GHCR. De deploymentconfiguratie voorziet drie linux/amd64-images (`chargewatch-db` inclusief init SQL, `chargewatch-maintenance` inclusief migratiescripts, `chargewatch-collector`) met dezelfde `sha-<main-commit>` tag. NAS heeft alleen lokale `compose.yaml` + geheime `.env` nodig. Geen volumes/data verwijderen, geen NAS-deployment. **Imagepublicatie en `docker pull` zijn nog niet bevestigd; nooit uitgaan van een gepubliceerd image zonder succesvolle Actions-run.** De workflow voert een linux/amd64 buildmatrix voor collector/db/maintenance uit op `pull_request`, **zonder GHCR-publicatie**; bij pushes op main publiceert dezelfde workflow met commitgebonden tags. Controleer GitHub Actions-resultaten vóór merge; GHCR-toegang en NAS-pull pas ná succesvolle publicatie controleren. PR-review en expliciet merge-/deploy-akkoord afzonderlijk nodig. Het eerdere Sprint 4-runbook met een NAS-checkout is vervangen door een GHCR-only installatiehandleiding.
+**Statistiekkeuze:** iedere afzonderlijke succesvolle locaties-poll telt als observatie van de door NDW gepubliceerde status, ook bij HTTP 304/identieke feed; lokale replays of mislukte polls niet. Per statuscategorie compacte EWMA met afnemend gewicht rond drie maanden, geen historische meetregels en geen exact 90-dagenvenster. Onbekende/geplande/verwijderde status apart. Ontwerp in `docs/COMPACT_SNAPSHOT_STATISTICS.md`; implementatie nog open.
 
-## Actuele Sprint 4-overdracht
-
-**Opgeleverd:** gescheiden NAS Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
+S Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
 
 **Lokaal gevalideerd op `chargewatch-s4test`:** Compose-config en Docker-build PASS; schone databasebootstrap en migraties 003–007 PASS, herhaling SKIP; databasegebruikers en tabelrechten correct; custom-format backup en herstel op een aparte lege database (20 tabellen, 5 migraties); landelijke import van 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven; databasegegevens behouden na containerherstart; automatische watcher herhaaldelijk succesvol met HTTP304 skip én HTTP200 bulkcommit (laatste 31,7s). Geen NAS-test uitgevoerd.
 
