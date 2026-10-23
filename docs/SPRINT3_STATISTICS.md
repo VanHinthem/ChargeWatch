@@ -203,3 +203,14 @@ De test is toegevoegd maar **nog niet door de gebruiker uitgevoerd**. De normale
 **Nog niet uitgevoerd:** lokale build van de nieuwe finalizer of daadwerkelijke PostgreSQL-EWMA-/finalisatietest. Test eerst `dotnet build`; voer een bulkimport uit in `chargewatch_statistics_test` en controleer `evse_hour_accumulator.finalized_at` plus eventuele profielen. De bestaande synthetische test bevat slechts 300 en 600 seconden per uur, dus daarmee wordt geen EWMA gepubliceerd. Die snapshots bevatten bovendien brontijdstempels later dan het huidige testmoment; toekomstige uren worden terecht nog niet afgesloten. Een separate 45+-minutentest met historische synthetische tijdstempels is nodig voor positieve profielvalidatie.
 
 **Scope:** EVSE-profielen, niet locatieprofielen; geen duurhistogrammen. Nog geen merge of deployment.
+
+
+## Historische uurfinalisatie-fixtures
+
+Correctie: uurfinalisatie vereist nu **zowel** een verstreken UTC-uur **als** een bronwaarneming voor dezelfde EVSE op/na het einde van dat uur. De oude kloktijd alleen is niet voldoende. Zo worden historische reeksen niet al bij hun eerste snapshot afgesloten.
+
+`tools/build_sprint3_finalize_fixture.py` genereert in `data/sprint3-finalize-fixture` twee onafhankelijke synthetische reeksen met aparte ZZ/CW-identiteiten:
+- `low-01..02`: 20 oktober 2026 om 08:55 en 09:05 UTC. Verwacht 08:00-uur 300 seconden dekking per EVSE, afgesloten zonder profiel.
+- `full-01..14`: 20 oktober 2026 van 08:00 tot 09:05 UTC iedere 5 minuten. Verwacht 08:00-uur 3600 seconden dekking per EVSE, afgesloten met één sample (beschikbaarheid 1.0) in het Nederlandse dinsdag-10:00-slot (PostgreSQL-index 35).
+
+Alleen uitvoeren tegen `chargewatch_statistics_test`, na een lokale `git pull` en succesvolle build. Houd de bestaande unieke fixtures intact. De nieuwe finalizercorrectie is nog niet gebouwd of getest.
