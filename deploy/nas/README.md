@@ -73,7 +73,7 @@ Verify Docker binary location first with `command -v docker`; replace `/usr/loca
 
 ### Dual-volume backup policy (proposed; not yet configured)
 
-Operator chooses **one daily database export** on SSD `/volume2/docker/chargewatch/backups`, then a verified copy of that exact dump to HDD `/volume1/docker/chargewatch/backups`. Keep three daily archives on **each** volume once the end-to-end task and restore are verified. Avoid two independent `pg_dump` calls (different snapshots). Existing Compose `CW_NAS_BACKUP_DIR` remains on volume 2; no DB/collector restart is necessary.
+Operator chooses **one daily database export** on SSD `/volume2/docker/chargewatch/backups`, then a verified copy of that exact dump to HDD `/volume1/chargewatch/backups`. Keep three daily archives on **each** volume once the end-to-end task and restore are verified. Avoid two independent `pg_dump` calls (different snapshots). Existing Compose `CW_NAS_BACKUP_DIR` remains on volume 2; no DB/collector restart is necessary.
 
 On the NAS, create the volume 1 directory with appropriate restricted permissions, then test copying an existing *post-import* dump using `cp -p` and check equality with `sha256sum` on both files. Do not erase either copy. For automation, run the existing backup script once, identify its newly created file **from that run**, copy to HDD with a temporary filename, verify checksum, then atomically rename into place. Treat checksum mismatch, failed copy or insufficient free space as **task failure**, not success. Do not use a naive wildcard that could silently choose an older backup.
 
