@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**NDW twee-snapshotanalyse uitgevoerd (23 oktober):** 201.117 gedeelde EVSE's; 86.206 timestamp-only-wijzigingen, 52.932 status+timestamp, 61.458 ongewijzigd, 521 status-only; 1.997 verdwenen/2.211 nieuwe identiteiten. Brontimestamps kunnen bij onveranderde status vernieuwen, maar de snapshots zijn te ver uiteen om dekking binnen maximaal 15 minuten te bewijzen. Volgende validatie: twee bronsnapshots op 5–15 minuten afstand; locatie-timestamp-alignmenteis herzien. Zie `docs/SPRINT3_REVIEW.md`.
+
+
 **Twee-snapshot bronanalyse voorbereid (23 oktober; nog niet uitgevoerd):** `tools/ndw_observation_diff.py` vergelijkt twee echte Locations-gzipbestanden op samengestelde OCPI-EVSE-identiteit, statuswijziging, bron-timestampwijziging, verdwenen/toegevoegde EVSE's en statusovergangen; slaat alleen samenvatting+max vijf voorbeelden in `data/` op. Geen DB-mutatie. Echte snapshots moeten lokaal worden aangeleverd. Alleen wijzigingen tussen twee versies meetbaar, geen bewijs van volledige tussentijdse waarneming.
 
 
