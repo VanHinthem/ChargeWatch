@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Gevalideerd op Windows Docker (23 oktober):** geïsoleerd Compose-project `chargewatch-s4test` heeft verse PostGIS 18 database als `healthy` gestart. Maintenance migration runner bootstrapte `003_statistics` inclusief `schema_migration`, sloeg 003 bij vervolgcontrole over en paste 004–007 foutloos toe; eindmelding `Migration pass completed.` Eerder `compose config --quiet` PASS en collector-image build PASS (6,1s). Open: herhaalde migratierun/idempotentie, DB-rollen, echte pg_dump/pg_restore naar aparte testdatabase en collector-smoke. **Geen NAS-deployment.**
+
+
 **Bootstrapreview 23 oktober:** `db/init/001_schema.sql` maakt basistabellen, `db/init/002_roles.sh` DB-rollen. `schema_migration` wordt pas gemaakt in `db/migrations/003_statistics.sql`; daarom NAS-migratierunner gecorrigeerd om op een verse database eerst 003 transactioneel te draaien. SQL-parameters voor versiechecks op veilige stdin-route gezet; shellscripts expliciet via `/bin/sh`. **Nog geen runtime-test op een verse geïsoleerde Docker-database.** Voor test eigen Compose-projectnaam gebruiken zodat bestaande Docker-/benchmarkvolumes onaangeraakt blijven.
 
 
