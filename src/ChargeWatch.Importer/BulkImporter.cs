@@ -260,6 +260,7 @@ internal static class BulkImporter
 
             // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
             // back both; the additive schema migration must be applied first.
+            await ObservationCheckpoints.Capture(db, tx);
             // Provenance is only supplied by WatchRunner after a successful HTTP 200
             // Locations download. Manual --bulk, 304 and tariff-only imports never
             // manufacture new observed fetch times.
@@ -285,11 +286,11 @@ internal static class BulkImporter
                 provenance.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
                 provenance.Parameters.AddWithValue(locCount);
                 provenance.Parameters.AddWithValue(evseCount);
+                await SnapshotPollCoverage.Capture(db, tx, fetchedAt, locationsHash);
                 await provenance.ExecuteNonQueryAsync();
             }
 
-            await ObservationCheckpoints.Capture(db, tx);
-            // Poll candidate capture will be wired after validation.
+
             await EvseHourFinalizer.Run(db, tx);
             await LocationHourFinalizer.Run(db, tx);
 
