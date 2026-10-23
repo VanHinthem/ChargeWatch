@@ -1,0 +1,44 @@
+# Run from repository root: docker compose -f deploy/nas/compose.yaml --env-file deploy/nas/.env up -d
+# No host ports: database is intentionally private to the Compose network.
+name: chargewatch
+services:
+  db:
+    image: postgis/postgis:18-3.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: chargewatch
+      POSTGRES_USER: chargewatch_owner
+      POSTGRES_PASSWORD: ${CW_DB_OWNER_PASSWORD:?Set CW_DB_OWNER_PASSWORD}
+      CW_IMPORT_PASSWORD: ${CW_IMPORT_PASSWORD:?Set CW_IMPORT_PASSWORD}
+      CW_READ_PASSWORD: ${CW_READ_PASSWORD:?Set CW_READ_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../../db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chargewatch_owner -d chargewatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  collector:
+    build:
+      context: ../..
+      dockerfile: deploy/nas/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      CW_IMPORT_CONNECTION: "Host=db;Port=5432;Database=chargewatch;Username=chargewatch_import;Password=${CW_IMPORT_PASSWORD:?Set CW_IMPORT_PASSWORD};Pooling=true;Timeout=30;Command Timeout=600"
+      CW_NDW_CACHE_DIR: /data/cache
+      CW_NDW_LOCATIONS_INTERVAL_MINUTES: ${CW_NDW_LOCATIONS_INTERVAL_MINUTES:-5}
+      CW_NDW_TARIFFS_INTERVAL_MINUTES: ${CW_NDW_TARIFFS_INTERVAL_MINUTES:-60}
+      CW_NDW_STALE_AFTER_MINUTES: ${CW_NDW_STALE_AFTER_MINUTES:-15}
+      CW_NDW_MIN_LOCATIONS: ${CW_NDW_MIN_LOCATIONS:-50000}
+    command: ["--watch"]
+    volumes:
+      - ndw-cache:/data/cache
+
+volumes:
+  pgdata:
+  ndw-cache:
