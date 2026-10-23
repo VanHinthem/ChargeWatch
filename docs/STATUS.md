@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Continue watcher smoke 23 oktober:** `docker compose -p chargewatch-s4test ... up -d collector` startte collector (`Up`) naast `db` (`healthy`). Log: Locations HTTP200 18.502.405 bytes, Tariffs HTTP304, `NDW source changed; running transactional bulk import`. **De commit van deze lopende import en tweede 5-minuten-poll nog niet bevestigd**; die moeten nog worden geverifieerd. Geen NAS-deployment.
+
+
 **DB-persistentie bevestigd 23 oktober:** geïsoleerde `chargewatch-s4test` PostgreSQL-container herstartte en werd weer `healthy`; tellingen bleven identiek vóór/na restart: 80.836 locaties, 203.362 EVSE's, 101.368 tarieven, 5 migraties. Nog open: doorlopende watcher-runtime kort observeren en NAS-deploymentafspraken/backup-retentie; geen NAS-installatie.
 
 
