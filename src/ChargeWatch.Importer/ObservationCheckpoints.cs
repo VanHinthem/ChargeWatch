@@ -128,6 +128,43 @@ internal static class ObservationCheckpoints
             FROM stage_observation
             GROUP BY location_id;
 
+            -- A confirmed zero-free state may later recover or become censored.
+            -- These are event counters, never fabricated duration buckets.
+            CREATE TEMP TABLE stage_location_duration_events ON COMMIT DROP AS
+            SELECT s.location_id,
+                   CASE WHEN cp.any_available=false AND s.any_available=true
+                             AND s.unknown_count=0 THEN 1 ELSE 0 END AS recovered,
+                   CASE WHEN cp.any_available=false AND cp.continuity_valid
+                             AND (s.any_available IS DISTINCT FROM false
+                                  OR NOT EXISTS (
+                                    SELECT 1 FROM stage_location_valid_interval v
+                                    WHERE v.location_id=s.location_id))
+                        THEN 1 ELSE 0 END AS censored
+            FROM stage_location_observation s
+            JOIN location_observation_checkpoint cp ON cp.location_id=s.location_id
+            WHERE s.oldest_source_updated_at IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM stage_observation n
+                              WHERE n.location_id=s.location_id AND n.source_updated_at IS NULL)
+              AND NOT EXISTS (SELECT 1 FROM stage_stale_location z WHERE z.location_id=s.location_id)
+              AND NOT EXISTS (
+                SELECT 1 FROM stage_observation n
+                LEFT JOIN evse_observation_checkpoint prior ON prior.evse_id=n.evse_id
+                WHERE n.location_id=s.location_id
+                  AND (prior.evse_id IS NULL OR prior.source_updated_at IS NULL
+                       OR n.source_updated_at<=prior.source_updated_at)
+              )
+              AND (s.any_available IS DISTINCT FROM cp.any_available
+                   OR cp.continuity_valid);
+
+            INSERT INTO location_zero_available_summary
+              (location_id,recovered_periods,censored_periods)
+            SELECT location_id,recovered,censored
+            FROM stage_location_duration_events
+            WHERE recovered>0 OR censored>0
+            ON CONFLICT(location_id) DO UPDATE SET
+              recovered_periods=location_zero_available_summary.recovered_periods+excluded.recovered_periods,
+              censored_periods=location_zero_available_summary.censored_periods+excluded.censored_periods;
+
             -- Only complete known-source snapshots are recorded. A repeated
             -- collection of unchanged EVSE timestamps is not a new observation.
             INSERT INTO location_observation_checkpoint
