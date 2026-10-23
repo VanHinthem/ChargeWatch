@@ -1,9 +1,12 @@
 # ChargeWatch — actuele werkstand
 
-**Bijgewerkt:** 22 oktober 2026  
-**Status:** Sprint 0–2 gemerged, geen deployment. Sprint 3 gestart als ontwerp/codevoorbereiding op featurebranch; schema-uitbreiding expliciet goedgekeurd; migratie toegevoegd maar niet uitgevoerd.
+**Bijgewerkt:** 23 oktober 2026  
+**Status:** Sprint 0–2 gemerged, geen deployment. Sprint 3 in draft PR #12 op featurebranch; migraties 003–005 toegepast en synthetische integraties gevalideerd op uitsluitend `chargewatch_statistics_test`; geen merge/deployment. **Zie `docs/SPRINT3_REVIEW.md` voor actuele kwaliteitsbeperkingen en merge-gates.**
 
 ## Sprint 3 — actief en afgebakend
+
+**Eindreview 23 oktober:** de afzonderlijke EVSE-, locatie-, uur-, duur-, censored- en replaytests zijn geslaagd voor gerichte synthetische scenario's. NDW-brontimestamps, asynchrone EVSE-uren, ontbrekende EVSE's en nationale importperformance zijn nog niet voldoende gevalideerd. **Niet mergeklaar; nog geen productiegeschikte beschikbaarheidsstatistiek.** Lees `docs/SPRINT3_REVIEW.md` voor gespecificeerde risico's en volgende gate.
+
 
 **Locatie-nul-vrij-duur (23 oktober; nieuwe code nog NIET getest):** checkpoints bewaren bij aaneengesloten bekende 0-AVAILABLE toestanden een brongebonden startmoment; `location_zero_available_summary` telt herstelmomenten (0→>=1 vrij) en gecensureerde onderbrekingen apart. Duurbuckets blijven leeg omdat NDW exacte omslagmomenten niet garandeert. `tools/build_sprint3_zero_free_fixture.py` levert 6 synthetische snapshots: 0-vrij, aaneengesloten 0-vrij, herstel, opnieuw 0-vrij, aaneengesloten 0-vrij, gap. Verwacht: 1 recovery, 2 censored, alle histogramvakken 0. Eerste lokale test: zes imports succesvol, maar nul `location_zero_available_summary`-rijen (mislukt). Root cause: EVSE-checkpoints werden vóór locatie-duurevents overschreven, waardoor de vergelijking met oude brontimestamps geen fresh input zag. SQL-fase herordend: locatie-events na staging en vóór EVSE-checkpointupdate. Fixture gebruikt nu unieke `sprint3-zero-free-fixed` identiteit. Fix bevestigd op 23 oktober 2026: zes nieuwe `sprint3-zero-free-fixed` snapshots succesvol geïmporteerd naar geïsoleerde testdatabase; result: recovered_periods=1, censored_periods=2, zero_available_buckets={0,0,0,0,0,0}. Herordening succesvol. Replay bevestigd op 23 oktober 2026: `state-06` opnieuw succesvol geïmporteerd in 0,4822689 s; recovered_periods=1, censored_periods=2, zero_available_buckets={0,0,0,0,0,0} onveranderd. Eindbeoordeling en NDW-datakwaliteit blijven open. Geen migratie of verwijdering vereist.
 
