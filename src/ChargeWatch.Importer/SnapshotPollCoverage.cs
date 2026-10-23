@@ -20,6 +20,16 @@ internal static class SnapshotPollCoverage
           WHERE p.fetched_at<$1::timestamptz
             AND $1::timestamptz<=p.fetched_at+interval '15 minutes'
             AND p.source_sha256<>$2::text
+            -- A different gzip hash (or changed location metadata) does not
+            -- establish a new EVSE feed observation. Require at least one
+            -- changed EVSE source status/timestamp anywhere in the snapshot.
+            AND EXISTS (
+              SELECT 1 FROM stage_observation feed
+              LEFT JOIN evse_poll_checkpoint prev ON prev.evse_id=feed.evse_id
+              WHERE prev.evse_id IS NULL
+                 OR feed.status_class IS DISTINCT FROM prev.status_class
+                 OR feed.source_updated_at IS DISTINCT FROM prev.source_updated_at
+            )
             AND old.snapshot_sha256=p.source_sha256
             AND old.observed_at=p.fetched_at
             AND old.status_class=s.status_class
