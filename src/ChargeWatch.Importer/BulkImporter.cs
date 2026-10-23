@@ -262,6 +262,7 @@ internal static class BulkImporter
             // back both; the additive schema migration must be applied first.
             await ObservationCheckpoints.Capture(db, tx);
             await EvseHourFinalizer.Run(db, tx);
+            await LocationHourFinalizer.Run(db, tx);
 
             string sha;
             await using (var source = File.OpenRead(locationsPath))
