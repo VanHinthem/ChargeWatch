@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Tweede live smoke 23 oktober:** bijgewerkte Docker-image met `libgssapi-krb5-2` bouwde succesvol (8,8s); `collector --watch-once` gaf Locations 200 (18.497.996 bytes), Tariffs **304 cachehit**, en committe 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven in 31,43s. Eerdere GSSAPI-fout niet meer zichtbaar. Cachehergebruik en tweede import geslaagd; databasecontainer-herstart/persistentie en ononderbroken `--watch` loop **nog niet** getest. Geen NAS-deployment.
+
+
 **Live NDW Docker-smoke geslaagd 23 oktober:** geïsoleerd `chargewatch-s4test` `collector --watch-once` downloadde Locations (18.496.453 bytes) en Tariffs (4.151.815 bytes), bulktransaction `committed` na 38,2s: 80.836 locaties, 203.362 EVSE's, 204.065 connectoren, 101.368 tarieven. Tijdens import verscheen niet-fatale Linux GSSAPI-loadfout `libgssapi_krb5.so.2`; Dockerfile bijgewerkt om `libgssapi-krb5-2` te installeren, **nog niet opnieuw gebouwd/getest**. Hierna: image herbouw, HTTP304/herstart en persistentie controleren, runtime status op DB; géén NAS-deployment.
 
 
