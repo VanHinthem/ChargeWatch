@@ -1,7 +1,7 @@
 -- ChargeWatch Sprint 3 source-quality audit. Strictly read-only.
 -- Run against chargewatch_benchmark (national snapshot); not statistics_test.
 -- No temporary tables, extensions, mutations or schema migrations.
-SET TRANSACTION READ ONLY;
+BEGIN TRANSACTION READ ONLY;
 WITH base AS (
   SELECT e.id,e.location_id,e.status,e.source_last_updated,
          CASE upper(btrim(e.status))
@@ -78,3 +78,5 @@ FROM evse GROUP BY 1 ORDER BY evses DESC,raw_status;
 SELECT max(completed_at) AS most_recent_completed_import,
        count(*) AS completed_imports
 FROM import_run WHERE status='completed';
+
+COMMIT;
