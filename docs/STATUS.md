@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Persistente uurdekking (23 oktober):** migratie `004_hour_accumulator.sql`, de transactionele EVSE-uuraccumulatie en `db/tests/004_hour_accumulator_smoke.sql` toegevoegd. Deze nieuwe onderdelen zijn **nog niet lokaal gebouwd, gemigreerd of getest**. Migratie 003 is eerder wel uitgevoerd op `chargewatch_statistics_test`; eerst 004 op uitsluitend die geïsoleerde testdatabase uitvoeren vóór nieuwe bulkimports. Alleen EVSE-uurdekking, geen locatie-uurdekking, geen finalize-once en nog geen profielwrites.
+
+
 **Uuraccumulatie (23 oktober):** nieuwe pure `StatisticsHourAccumulator` met minstens 2700 seconden geldige dekking per UTC-uur, gewogen sample, alpha 0,20, overlapbescherming. Opgenomen in `--statistics-selftest`, gebruiker bevestigde op 23 oktober 2026 de volledige `--statistics-selftest`: PASS voor zowel de 168-slot splitter als hourly coverage gate, weighted sample en EWMA. Er zijn nog geen profielwrites: duurzame uuraccumulator/checkpoints en betrouwbare meetdekking tussen imports ontbreken. Zie `docs/SPRINT3_STATISTICS.md`.
 
 
