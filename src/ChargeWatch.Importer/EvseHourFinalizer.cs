@@ -18,6 +18,11 @@ internal static class EvseHourFinalizer
                 FROM evse_hour_accumulator
                 WHERE finalized_at IS NULL
                   AND hour_start_utc + interval '1 hour' <= statement_timestamp()
+                  AND EXISTS (
+                    SELECT 1 FROM stage_observation s
+                    WHERE s.evse_id=evse_hour_accumulator.evse_id
+                      AND s.source_updated_at >= evse_hour_accumulator.hour_start_utc + interval '1 hour'
+                  )
                 ORDER BY hour_start_utc, evse_id
                 FOR UPDATE
               LOOP
