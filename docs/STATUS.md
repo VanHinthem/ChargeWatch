@@ -5,6 +5,9 @@
 
 ## NAS-image-deployment voorbereiding (PR #15)
 
+**PR-build bevestigd 23 oktober:** GitHub Actions `NAS Images` run 39975985714 completed/success. Matrixjobs collector, maintenance en db afzonderlijk `success` op PR-head `eb70c7e0e826a98b7cc2578bbf5efc5ceaaa5370`. Dit valideert Linux/amd64-imagebuilds, **zonder publicatie** (PR-event). Pas een succesvolle workflow na merge op `main` levert deploybare GHCR-tags op. Nog geen NAS-deployment.
+
+
 **Besluit gebruiker 23 oktober 2026:** geen `git clone` en geen builds op de NAS. Deploy uitsluitend vooraf door GitHub Actions gebouwde images via GHCR. De deploymentconfiguratie voorziet drie linux/amd64-images (`chargewatch-db` inclusief init SQL, `chargewatch-maintenance` inclusief migratiescripts, `chargewatch-collector`) met dezelfde `sha-<main-commit>` tag. NAS heeft alleen lokale `compose.yaml` + geheime `.env` nodig. Geen volumes/data verwijderen, geen NAS-deployment. **Imagepublicatie en `docker pull` zijn nog niet bevestigd; nooit uitgaan van een gepubliceerd image zonder succesvolle Actions-run.** De workflow voert een linux/amd64 buildmatrix voor collector/db/maintenance uit op `pull_request`, **zonder GHCR-publicatie**; bij pushes op main publiceert dezelfde workflow met commitgebonden tags. Controleer GitHub Actions-resultaten vóór merge; GHCR-toegang en NAS-pull pas ná succesvolle publicatie controleren. PR-review en expliciet merge-/deploy-akkoord afzonderlijk nodig. Het eerdere Sprint 4-runbook met een NAS-checkout is vervangen door een GHCR-only installatiehandleiding.
 
 ## Actuele Sprint 4-overdracht
