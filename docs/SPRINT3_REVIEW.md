@@ -25,3 +25,14 @@
 Een *read-only* datakwaliteitscheck op werkelijke NDW-gegevens: verdeling/versheid van EVSE-`last_updated`, aandeel EVSE's met gelijke timestamp op een locatie, aandeel onbekende status, aandeel locaties die voldoen aan het synchronisatiecriterium. Indien onvoldoende dekking: statistieken niet publiceren als voorspellende kans of uptime. Daarna gerichte regressie op ontbrekende EVSE/statuswissel en performance check met landelijke benchmark **zonder de bestaande benchmarkdatabase te muteren**.
 
 **Besluit:** Sprint 3 blijft draft. Geen merge/deployment voordat bronkwaliteit en resterende relevante edgecases zijn beoordeeld; zonder voldoende dekking nadrukkelijk alleen een statistiekfundament, geen productiegeschikte beschikbaarheidsvoorspelling.
+
+
+## Landelijke read-only audit — uitgevoerd 23 oktober 2026
+
+Bron: gebruiker voerde `db/tests/sprint3_ndw_source_quality_readonly.sql` uit op `chargewatch_benchmark`; transactie BEGIN READ ONLY ... COMMIT, zonder mutaties. Snapshot bevat **80.787 locaties, 203.138 EVSE's**. Nul ontbrekende EVSE-brontimestamps. **15.354 onbekende statusklassen (7,56%)**, waaronder UNKNOWN 10.134, REMOVED 5.198, PLANNED 22. Beschikbare EVSE's 136.485; bezet 47.740; storing 3.559. Aantoonbaar vrije locaties 69.950, nul-vrij 7.864, nul-vrij onbepaald 2.973.
+
+Slechts **19.139/80.787 locaties (23,69%)** hebben één gelijke EVSE-brontimestamp; slechts **16.653 (20,61%)** combineren dat met uitsluitend bekende statussen. Bij de 63.081 locaties met twee EVSE's: slechts 9.827 gelijklopende timestamps (15,58%); 8.623 zijn bovendien zonder onbekende status. Per groep timestamp gelijk: 1 EVSE 7.733/7.733; 2 EVSE's 9.827/63.081; 3–4 699/5.966; 5–10 578/2.891; 11+ 302/1.116.
+
+EVSE timestampleeftijd t.o.v. de audit: 0 binnen 1 uur, 52.946 binnen 24 uur (26,06%), 177.810 binnen 7 dagen, mediane leeftijd 27,90 uur, P90 244,76 uur, P99 8.318,28 uur. Laatste geslaagde benchmarkimport: **2026-10-22 14:31:54 UTC**, 5 completed imports. **Let op:** leeftijd t.o.v. audit is niet leeftijd t.o.v. het importmoment; dataset is gisteren geïmporteerd, dus dit is geen meting van NDW-feed-latency of pollingfrequentie.
+
+**Besluit:** exact gelijke EVSE-brontimestamps is geen bruikbare algemene toelatingsregel voor locatieprofiledekking. Herzie observatiestrategie voordat statistieken als beschikbaarheidskans worden gepubliceerd. Eén snapshot bewijst niet dat `last_updated` uitsluitend op statusverandering wijzigt; dit moet met ten minste twee opeenvolgende bronversies worden gecontroleerd. Sprint 3 blijft draft, geen merge of deployment.
