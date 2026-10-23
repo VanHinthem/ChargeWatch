@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Npgsql;
 
+if (args.Length == 1 && args[0] == "--statistics-selftest")
+    return StatisticsHourSplitter.SelfTest();
 if (args.Length > 0 && args[0] == "--watch")
     return await WatchRunner.RunContinuous();
 if (args.Length > 0 && args[0] == "--watch-once")
