@@ -1,11 +1,11 @@
 # ChargeWatch — actuele werkstand
 
-**Bijgewerkt:** 23 oktober 2026  
-**Status vóór merge:** Sprint 0–2 op `main`; Sprint 3 volledig gevalideerd in PR #12 (`feature/sprint3-observation-foundation`), door gebruiker expliciet goedgekeurd voor merge **mits deze statusupdate meekomt**. Migraties 003–007 in geïsoleerde `chargewatch_statistics_test`, geen NAS-/productiedeployment. Na merge: Sprint 3 op `main`; volgende prioriteit Sprint 4 NAS Data Collector. Zie `docs/SPRINT3_REVIEW.md` en `docs/SPRINT3_PUBLICATION_POLICY.md`.
+**Bijgewerkt:** 23 oktober 2026
+**Status:** Sprint 0–3 gemerged naar `main`; Sprint 3 via [PR #12](https://github.com/VanHinthem/ChargeWatch/pull/12) (squash merge `065672a8e2ac33254f47e206039b5914a44b773a`). **Geen deployment op NAS of productie uitgevoerd.** Volgende prioriteit: **Sprint 4 — NAS Data Collector**.
 
-## Overdracht na goedgekeurde PR #12
+## Actuele overdracht
 
-**Besluit 23 oktober 2026:** gebruiker gaf expliciet akkoord om PR #12 te mergen nadat `docs/STATUS.md` tot en met nu is bijgewerkt. De merge moet nog via GitHub bevestigd worden; deze status is bewust vóór de merge gecommit. **Geen deployment op NAS of productie uitgevoerd.**
+**Sprint 3 afgerond op 23 oktober 2026.** De statistiekfundering, migraties 003–007, watcher-provenance, kandidaat-snapshotdekking en kwaliteitsregels staan op `main`. De migraties zijn uitsluitend toegepast op de lokale geïsoleerde `chargewatch_statistics_test`; op NAS is nog geen database of importer ingericht. Zie `docs/SPRINT3_REVIEW.md` en `docs/SPRINT3_PUBLICATION_POLICY.md`.
 
 **Volgende prioriteit: Sprint 4 — NAS Data Collector.** Doel: zo snel mogelijk betrouwbare, continue NDW-data verzamelen op de NAS, onafhankelijk van Windows DEV. Bouw een persistente PostgreSQL/PostGIS Docker-database met bewaarbeleid/back-ups en de ChargeWatch .NET importer/watch-service die ca. elke 5 minuten Locations checkt en periodiek tarieven ververst. Voeg beperkte health-/stalenessbewaking toe, database-migraties zonder bestaande historie weg te gooien, en veilige herstart. Begin met architectuur/configuratie en minimale featurebranch + PR; test lokaal/ACC waar mogelijk. **Voor NAS-deployment eerst gebruiker expliciet laten akkoord geven**, inclusief volumes, credentials en impact. Geen API of Android nodig om dataverzameling te starten.
 
@@ -13,7 +13,7 @@
 
 **Bevestigde eindvalidaties Sprint 3:** .NET 10 build 1,2s; 3 watcher-scenario's PASS; 10 poll-integraties PASS; SQL-overflow-guard PASS + rollback; UTC-uurverdeling 120+180s PASS; nationale synthetische imports 31,8s/29,4s op 80.825 locaties/203.328 EVSE's in geïsoleerde testdatabase. Benchmarkdatabase bleef read-only. Geen productierun.
 
-## Sprint 3 — afgerond voor merge (historische voortgang hieronder)
+## Sprint 3 — historisch voortgangslog (archief, niet de actuele status)
 
 **Sprint 3 gereed voor gebruikersreview (23 oktober; NIET gemerged):** gebruiker bevestigde de laatste `dotnet build src/ChargeWatch.Importer/ChargeWatch.Importer.csproj` op .NET 10 succesvol in **1,2 s**. De laatste 3 watcher-integraties en 10 poll-regressies slaagden; SQL overflow-guard gaf `PASS: overflow rejected with check_violation` met rollback; UTC-uursegmentatietest eerder geslaagd; landelijke synthetische imports 31,8 en 29,4 s. Publicatiebeleid `docs/SPRINT3_PUBLICATION_POLICY.md`: alleen intern statistiekfundament, **geen publieke historische percentages of vrij-komvoorspellingen**. PR #12 blijft draft tot expliciete gebruikersgoedkeuring, waarna pas merge overwogen wordt; deployment apart. Geen andere open geclaimde testacties.
 
