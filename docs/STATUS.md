@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Landelijke performanceharness toegevoegd (23 oktober, nog NIET uitgevoerd):** `tools/benchmark_sprint3_national_poll.py` serveert de bestaande landelijke `data/ndw-current/locations.json.gz` via lokale HTTP-server, voert twee afzonderlijke watcher-imports uit op uitsluitend `chargewatch_statistics_test`, meet beide wall-clocktijden en telt EVSE-pollcheckpoints en kandidaatdekkingsseconden. Tweede gzip krijgt alleen andere header-mtime/SHA, decompressie-identieke broninhoud: test throughput, niet nieuwe broninformatie of voorspelkwaliteit. Test wijzigt gesimuleerde 5-minuten-checkpointtijd in geïsoleerde database; vereist `--execute`. `chargewatch_benchmark` blijft ongemoeid/read-only. Nog geen resultaten; let op dat grote imports schijfruimte/tijd kosten en polling >15 minuten wegens verwerkingsduur dan geen coverage zal opleveren. Geen merge/deployment.
+
+
 **Resterende gerichte tests uitgevoerd (23 oktober; geslaagd):** `tools/test_sprint3_poll_coverage.py` toetst nu ook verdwijnende EVSE (geen coverage) en terugkerende EVSE (geen overbrugging). `db/tests/007_poll_utc_hour_split.sql` toetst deterministisch UTC-uurgrens 10:58→11:03: precies 120 seconden in 10:00-uur en 180 in 11:00-uur. Dit laatste is een SQL-segmentatiecontracttest en **nog geen volledige end-to-end uurgrens-importtest**. Gebruiker bevestigde volledige `test_sprint3_poll_coverage.py`: 8 PASS-regels (inclusief ontbrekende/terugkerende EVSE) en `007_poll_utc_hour_split.sql`: BEGIN / DO / ROLLBACK zonder fouten, dus 120+180s segmentatiecontract geslaagd. Resterend: landelijke performance/review en expliciete beslissing over snapshotkandidaatdekking versus gepubliceerde EWMA. Geen migratie, merge of deployment.
 
 
