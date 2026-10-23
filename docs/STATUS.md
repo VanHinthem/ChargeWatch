@@ -1,9 +1,19 @@
 # ChargeWatch — actuele werkstand
 
-**Bijgewerkt:** 23 oktober 2026
-**Status:** Sprint 0–3 gemerged naar `main`; Sprint 3 via [PR #12](https://github.com/VanHinthem/ChargeWatch/pull/12) (squash merge `065672a8e2ac33254f47e206039b5914a44b773a`). **Geen deployment op NAS of productie uitgevoerd.** Volgende prioriteit: **Sprint 4 — NAS Data Collector**.
+**Bijgewerkt:** 23 oktober 2026  
+**Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
 
-## Sprint 4 — NAS Data Collector (actief, featurebranch)
+## Actuele Sprint 4-overdracht
+
+**Opgeleverd:** gescheiden NAS Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
+
+**Lokaal gevalideerd op `chargewatch-s4test`:** Compose-config en Docker-build PASS; schone databasebootstrap en migraties 003–007 PASS, herhaling SKIP; databasegebruikers en tabelrechten correct; custom-format backup en herstel op een aparte lege database (20 tabellen, 5 migraties); landelijke import van 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven; databasegegevens behouden na containerherstart; automatische watcher herhaaldelijk succesvol met HTTP304 skip én HTTP200 bulkcommit (laatste 31,7s). Geen NAS-test uitgevoerd.
+
+**Nog nodig voor NAS-deployment:** controle NAS CPU/architectuur/capaciteit, vaste volumes en backupmap/retentie, secrets, restore van echte landelijke data, herstart-/monitoringcontrole en expliciet akkoord voor installatie. De lokale testcollector kan nog draaien onder `chargewatch-s4test`; deze is geen NAS-productiecollector. Geen auto-deployment of merge van nieuwe werkzaamheden zonder akkoord.
+
+## Sprint 4 — historisch validatielog (archief, niet de actuele status)
+
+
 
 **Lokale acceptatietests afgerond (23 oktober):** doorlopende `collector` log toont 304/no-op (`NDW source unchanged (304); database import skipped`), gevolgd door nieuwe Locations 200 (18.503.434 bytes) en `Bulk committed` na 31,706 s. Hiermee zijn automatische vervolgcheck, skip bij ongewijzigde data, en succesvolle volgende landelijke import bevestigd. Samen met geïsoleerde clean bootstrap + migraties, herhaling/idempotentie, rechtenaudit, databasebackup/schema-restore, Docker-build, twee one-shot imports en DB-herstart/persistentie is lokaal functioneel gevalideerd. **NAS CPU/architectuur, volume-/backup-pad, feitelijke restore van landelijke data, retention en beschikbaarheid na NAS-herstart niet getest. Geen NAS-deployment; PR #14 niet gemerged.**
 
