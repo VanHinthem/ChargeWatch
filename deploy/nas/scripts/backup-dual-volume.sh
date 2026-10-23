@@ -8,6 +8,7 @@ APP_DIR=${CW_APP_DIR:-/volume2/docker/chargewatch/app}
 SSD_DIR=${CW_SSD_BACKUP_DIR:-/volume2/docker/chargewatch/backups}
 HDD_DIR=${CW_HDD_BACKUP_DIR:-/volume1/chargewatch/backups}
 KEEP=${CW_BACKUP_KEEP:-3}
+ENABLE_RETENTION=${CW_ENABLE_RETENTION:-0}
 DOCKER=${CW_DOCKER:-docker}
 
 case "$KEEP" in *[!0-9]*|'') echo "CW_BACKUP_KEEP must be an integer >= 2" >&2; exit 2;; esac
@@ -65,6 +66,12 @@ mv -- "$tmp" "$dst"
 tmp=''
 echo "Mirrored and verified: $basename SHA256=$src_hash"
 
+# Retention is opt-in after manual validation and an isolated HDD restore.
+if [ "$ENABLE_RETENTION" != "1" ]; then
+  echo "Retention disabled (CW_ENABLE_RETENTION=1 to enable after review)"
+  echo "Dual-volume ChargeWatch backup completed"
+  exit 0
+fi
 # Retention only after BOTH copies of today's archive have been verified.
 # Keep N newest identically named, mirrored daily archives; never delete unmatched
 # files (e.g. pre-existing SSD-only backups) automatically.
