@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Korte NDW-intervalvergelijking uitgevoerd 23 oktober:** 203.328 EVSE's in beide snapshots; 199.753 ongewijzigd (98,24%), 904 timestamp-only (0,445%), 2.670 status+timestamp, één status-only; 2.410/80.825 locaties met enig EVSE-verschil. Niet bekend hoeveel van 904 geldige <=15-minutenintervallen zijn. Source-timestamp-only dekking is waarschijnlijk te schaars voor nationale historische profielen; ontwerpobservaties heroverwegen voordat PR #12 mergeklaar is. Zie `docs/SPRINT3_REVIEW.md`.
+
+
 **NDW twee-snapshotanalyse uitgevoerd (23 oktober):** 201.117 gedeelde EVSE's; 86.206 timestamp-only-wijzigingen, 52.932 status+timestamp, 61.458 ongewijzigd, 521 status-only; 1.997 verdwenen/2.211 nieuwe identiteiten. Brontimestamps kunnen bij onveranderde status vernieuwen, maar de snapshots zijn te ver uiteen om dekking binnen maximaal 15 minuten te bewijzen. Volgende validatie: twee bronsnapshots op 5–15 minuten afstand; locatie-timestamp-alignmenteis herzien. Zie `docs/SPRINT3_REVIEW.md`.
 
 
