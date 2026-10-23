@@ -94,25 +94,6 @@ internal static class ObservationCheckpoints
             WHERE observation_date <
                 ((statement_timestamp() AT TIME ZONE 'Europe/Amsterdam')::date - 89);
 
-            -- A missing source timestamp is not a fresh measurement.  Do not
-            -- reinterpret a replayed timestamp or late correction as elapsed time.
-            INSERT INTO evse_observation_checkpoint
-              (evse_id, status_class, source_updated_at, observed_at, state_started_at, continuity_valid)
-            SELECT s.evse_id, s.status_class, s.source_updated_at, statement_timestamp(),
-                   CASE WHEN d.continues THEN coalesce(d.previous_start,d.previous_at) ELSE NULL END,
-                   coalesce(d.continues,false)
-            FROM stage_observation s
-            LEFT JOIN stage_duration_transition d ON d.evse_id=s.evse_id
-            WHERE s.source_updated_at IS NOT NULL
-            ON CONFLICT (evse_id) DO UPDATE SET
-              status_class=excluded.status_class,
-              source_updated_at=excluded.source_updated_at,
-              observed_at=excluded.observed_at,
-              state_started_at=excluded.state_started_at,
-              continuity_valid=excluded.continuity_valid
-            WHERE excluded.source_updated_at > evse_observation_checkpoint.source_updated_at
-               OR evse_observation_checkpoint.source_updated_at IS NULL;
-
             -- Location availability is determined from the full imported set of
             -- EVSE statuses, not a product of independent EVSE probabilities.
             -- Unknown without a known AVAILABLE makes zero-availability uncertain.
@@ -224,6 +205,25 @@ internal static class ObservationCheckpoints
                    excluded.fault_count, excluded.unknown_count, excluded.any_available)
               OR (location_observation_checkpoint.continuity_valid,location_observation_checkpoint.zero_available_started_at)
                  IS DISTINCT FROM (excluded.continuity_valid,excluded.zero_available_started_at);
+            -- A missing source timestamp is not a fresh measurement.  Do not
+            -- reinterpret a replayed timestamp or late correction as elapsed time.
+            INSERT INTO evse_observation_checkpoint
+              (evse_id, status_class, source_updated_at, observed_at, state_started_at, continuity_valid)
+            SELECT s.evse_id, s.status_class, s.source_updated_at, statement_timestamp(),
+                   CASE WHEN d.continues THEN coalesce(d.previous_start,d.previous_at) ELSE NULL END,
+                   coalesce(d.continues,false)
+            FROM stage_observation s
+            LEFT JOIN stage_duration_transition d ON d.evse_id=s.evse_id
+            WHERE s.source_updated_at IS NOT NULL
+            ON CONFLICT (evse_id) DO UPDATE SET
+              status_class=excluded.status_class,
+              source_updated_at=excluded.source_updated_at,
+              observed_at=excluded.observed_at,
+              state_started_at=excluded.state_started_at,
+              continuity_valid=excluded.continuity_valid
+            WHERE excluded.source_updated_at > evse_observation_checkpoint.source_updated_at
+               OR evse_observation_checkpoint.source_updated_at IS NULL;
+
             """;
         const string boundary = "-- A missing source timestamp is not a fresh measurement.";
         var split = sql.IndexOf(boundary, StringComparison.Ordinal);
