@@ -96,6 +96,8 @@ def main():
             previous = sql("SELECT coalesce(sum(covered_seconds),0) FROM evse_poll_hour_coverage "
                            f"WHERE evse_id IN ({ids})")
             source[0]["address"] += "-second"
+            # A genuinely newer EVSE source timestamp validates a new feed observation.
+            source[0]["evses"][0]["last_updated"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             state["locations"] = gzip_json(source)
             state["loc_etag"] = '"snap-2-' + nonce + '"'
             command(run, env)
@@ -129,6 +131,13 @@ def main():
                 state["locations"] = gzip_json(source)
                 state["loc_etag"] = '"snap-' + label + '-' + nonce + '"'
                 command(run, env)
+
+            # Metadata-only change must not count as a new EVSE feed observation.
+            age_checkpoint(5)
+            unchanged_evse_baseline = coverage()
+            publish("metadata-only")
+            assert coverage() == unchanged_evse_baseline, "Metadata-only snapshot fabricated coverage"
+            print("PASS metadata-only change: no candidate coverage")
 
             # A gap longer than 15 min must not be extrapolated.
             age_checkpoint(20)
