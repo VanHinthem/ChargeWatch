@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**Bootstrapreview 23 oktober:** `db/init/001_schema.sql` maakt basistabellen, `db/init/002_roles.sh` DB-rollen. `schema_migration` wordt pas gemaakt in `db/migrations/003_statistics.sql`; daarom NAS-migratierunner gecorrigeerd om op een verse database eerst 003 transactioneel te draaien. SQL-parameters voor versiechecks op veilige stdin-route gezet; shellscripts expliciet via `/bin/sh`. **Nog geen runtime-test op een verse geïsoleerde Docker-database.** Voor test eigen Compose-projectnaam gebruiken zodat bestaande Docker-/benchmarkvolumes onaangeraakt blijven.
+
+
 **Validatie 23 oktober:** gebruiker bevestigde `docker compose ... config --quiet` PASS. Eerste `build collector` faalde tijdens `dotnet publish --no-restore` door een Windows-only NuGet fallback package folder in meegkopieerde `obj/project.assets.json`. `.dockerignore` toegevoegd om `**/obj/` en `**/bin/` uit Linux-buildcontext te weren. **Herbouw na fix bevestigd: `build collector` PASS in 6,1 s (image `chargewatch-collector:latest`)**; geen database/collector gestart.
 
 
