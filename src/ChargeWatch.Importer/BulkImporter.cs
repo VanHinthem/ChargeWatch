@@ -289,6 +289,7 @@ internal static class BulkImporter
             }
 
             await ObservationCheckpoints.Capture(db, tx);
+            // Poll candidate capture will be wired after validation.
             await EvseHourFinalizer.Run(db, tx);
             await LocationHourFinalizer.Run(db, tx);
 
