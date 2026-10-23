@@ -41,7 +41,7 @@ internal static class BulkImporter
 
     private static string Csv(string json) => "\"" + json.Replace("\"", "\"\"") + "\"";
 
-    public static async Task<int> Run(string[] args)
+    public static async Task<int> Run(string[] args, DateTimeOffset? verifiedLocationsFetchedAtUtc = null)
     {
         if (args.Length is < 1 or > 3)
         {
@@ -257,6 +257,42 @@ internal static class BulkImporter
                     WHERE (tariff.currency,tariff.details,tariff.source_last_updated)
                         IS DISTINCT FROM (excluded.currency,excluded.details,excluded.source_last_updated);
                     """);
+
+            // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
+            // back both; the additive schema migration must be applied first.
+            await ObservationCheckpoints.Capture(db, tx);
+            // Provenance is only supplied by WatchRunner after a successful HTTP 200
+            // Locations download. Manual --bulk, 304 and tariff-only imports never
+            // manufacture new observed fetch times.
+            if (verifiedLocationsFetchedAtUtc is { } fetchedAt)
+            {
+                string locationsHash;
+                await using (var source = File.OpenRead(locationsPath))
+                    locationsHash = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
+                await using var provenance = new NpgsqlCommand("""
+                    INSERT INTO ndw_snapshot_checkpoint
+                      (source_name,source_sha256,fetched_at,location_count,evse_count)
+                    VALUES ('ndw-locations',$1,$2,$3,$4)
+                    ON CONFLICT(source_name) DO UPDATE SET
+                      source_sha256=excluded.source_sha256,
+                      fetched_at=excluded.fetched_at,
+                      last_committed_at=statement_timestamp(),
+                      location_count=excluded.location_count,
+                      evse_count=excluded.evse_count
+                    WHERE ndw_snapshot_checkpoint.source_sha256<>excluded.source_sha256
+                      AND excluded.fetched_at>ndw_snapshot_checkpoint.fetched_at;
+                    """, db, tx);
+                provenance.Parameters.AddWithValue(locationsHash);
+                provenance.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
+                provenance.Parameters.AddWithValue(locCount);
+                provenance.Parameters.AddWithValue(evseCount);
+                await SnapshotPollCoverage.Capture(db, tx, fetchedAt, locationsHash);
+                await provenance.ExecuteNonQueryAsync();
+            }
+
+
+            await EvseHourFinalizer.Run(db, tx);
+            await LocationHourFinalizer.Run(db, tx);
 
             string sha;
             await using (var source = File.OpenRead(locationsPath))

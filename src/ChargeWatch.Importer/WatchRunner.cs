@@ -19,7 +19,8 @@ internal static class WatchRunner
         bool Changed,
         string? PendingPath,
         string? ETag,
-        DateTimeOffset? LastModified);
+        DateTimeOffset? LastModified,
+        DateTimeOffset? FetchedAtUtc);
 
     public static Task<int> RunOnce()
         => Run(oneShot: true);
@@ -167,7 +168,7 @@ internal static class WatchRunner
                     locationsForImport,
                     tariffsForImport,
                     minimumLocations.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                ]);
+                ], locations?.Changed == true ? locations.FetchedAtUtc : null);
                 if (result != 0)
                     throw new InvalidOperationException($"Bulk importer returned exit code {result}.");
 
@@ -222,7 +223,7 @@ internal static class WatchRunner
                 throw new InvalidOperationException($"Source returned 304 but cache file is missing: {targetPath}");
 
             Console.WriteLine($"304 {url}");
-            return new DownloadResult(false, null, state?.ETag, state?.LastModified);
+            return new DownloadResult(false, null, state?.ETag, state?.LastModified, null);
         }
 
         response.EnsureSuccessStatusCode();
@@ -238,7 +239,7 @@ internal static class WatchRunner
             var etag = response.Headers.ETag?.ToString();
             var lastModified = response.Content.Headers.LastModified;
             Console.WriteLine($"200 {url} -> {new FileInfo(pendingPath).Length:N0} bytes pending validation/import.");
-            return new DownloadResult(true, pendingPath, etag, lastModified);
+            return new DownloadResult(true, pendingPath, etag, lastModified, DateTimeOffset.UtcNow);
         }
         catch
         {
