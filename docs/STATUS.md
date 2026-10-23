@@ -3,6 +3,10 @@
 **Bijgewerkt:** 23 oktober 2026  
 **Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
 
+## Compacte snapshotstatistieken — ontwerp-PR (23 oktober 2026)
+
+**Nieuw ontwerp op feature branch** `feature/compact-snapshot-statistics` in `docs/COMPACT_SNAPSHOT_STATISTICS.md`. Doel: geen ruwe EVSE-historie maar compacte per-status-categorie tellers/gewichten en eventueel EWMA per Nederlands weekdag-/uurslot; `observed_at` is basis, `source_last_updated` diagnostisch. Expliciete regels voor UNKNOWN, PLANNED, REMOVED, ontbrekende EVSE's, dubbele/304-feeds, ongeldige imports, tariefupdates en hiaten; locaties worden gezamenlijk uit EVSE-snapshot bepaald. Afzonderlijke statuscategorieën houden latere interpretaties mogelijk zonder herimport. Ontwerp heeft **nog geen code- of schemamutaties** en is niet geïmplementeerd, getest of gedeployed. Na merge (uitsluitend met expliciet akkoord) blijft implementatie de volgende stap op een afzonderlijke gecontroleerde PR/branch. Bestaande collector draait door; geen NAS-wijziging via deze PR.
+
 ## NAS-image-deployment voorbereiding (PR #15)
 
 **PR-build bevestigd 23 oktober:** GitHub Actions `NAS Images` run 39975985714 completed/success. Matrixjobs collector, maintenance en db afzonderlijk `success` op PR-head `eb70c7e0e826a98b7cc2578bbf5efc5ceaaa5370`. Dit valideert Linux/amd64-imagebuilds, **zonder publicatie** (PR-event). Pas een succesvolle workflow na merge op `main` levert deploybare GHCR-tags op. Nog geen NAS-deployment.
