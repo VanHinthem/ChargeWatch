@@ -98,3 +98,17 @@ Geen ruwe EVSE-per-poll historie. Alleen laatste waarneming/checkpoint, per-slot
 ## Scopekeuze — pragmatische eerste versie (23 oktober 2026)
 
 **Correctie gebruiker:** geen individuele historische meetregels opslaan, ook niet gedurende 90 dagen. Kies compacte online accumulatie per EVSE/locatie en statuscategorie, met een **EWMA-afnametermijn rond 90 dagen** als richtwaarde; dit is geen exact afgekapt 90-dagenvenster. Een exact venster zou aanvullende tijdgebonden buckets vereisen, en wordt nu niet gebouwd. Bewaar compacte categorie-specifieke gewichten, kwaliteitstellers en laatste checkpoint; geen dagrecords per EVSE. Andere afgeleide noemers blijven mogelijk, maar afgevlakte oudere bijdragen kunnen niet exact worden hersteld. Bepaal de precieze opslagvorm pas na een benchmark op nationale schaal; niet alvast extra seizoenstabellen, 365-dagenhistories of voorspelmodellen bouwen. Later uitbreiden is mogelijk, maar reeds weggegooide ruwe waarnemingen zijn niet te reconstrueren. Actuele NAS-collector is ongewijzigd.
+
+
+## Implementatiekeuze opslag — kandidaat migratie 008
+
+De eerste concrete opslagkandidaat is `008_compact_snapshot_profiles.sql`. Deze bewaart **geen poll- of uurhistorie**. Per EVSE en locatie bestaan maximaal zeven aggregaatrijen, één per ISO-weekdag. Binnen zo'n rij staan de 24 lokale uren in arrays. EVSE gebruikt 9 afzonderlijke categorieën × 24 uur; locatie gebruikt 5 categorieën × 24 uur. Daarnaast blijven per uur alleen sample-aantal en changed/unchanged-feedkwaliteitsaantallen bewaard.
+
+Waarom per weekdag in plaats van één rij per 168-slot:
+- maximaal 7 rijen per object in plaats van 168 meet-/slotrijen;
+- veel minder rij-overhead dan tientallen miljoenen slotrijen;
+- een latere batch kan alleen de betreffende weekdagrij aanpassen;
+- statuscategorieën blijven afzonderlijk interpreteerbaar;
+- nog steeds geen ruwe metingen die na 90 dagen moeten worden opgeschoond.
+
+Dit schema is **nog geen deploymentbesluit**. `db/tests/008_compact_snapshot_profiles_benchmark.sql` meet in een geïsoleerde PostgreSQL-database representatieve bytes per gevulde rij, extrapoleert landelijke opslag voor circa 203,5k EVSE's en 80,9k locaties, en meet WAL voor een representatieve batchupdate. De uitkomst bepaalt of deze kandidaat blijft of vóór merge wordt aangepast. Het benchmarkscript mag niet tegen de NAS-productiedatabase worden uitgevoerd.
