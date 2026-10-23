@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Twee-snapshot bronanalyse voorbereid (23 oktober; nog niet uitgevoerd):** `tools/ndw_observation_diff.py` vergelijkt twee echte Locations-gzipbestanden op samengestelde OCPI-EVSE-identiteit, statuswijziging, bron-timestampwijziging, verdwenen/toegevoegde EVSE's en statusovergangen; slaat alleen samenvatting+max vijf voorbeelden in `data/` op. Geen DB-mutatie. Echte snapshots moeten lokaal worden aangeleverd. Alleen wijzigingen tussen twee versies meetbaar, geen bewijs van volledige tussentijdse waarneming.
+
+
 **NDW read-only kwaliteitsrapport uitgevoerd 23 oktober:** `db/tests/sprint3_ndw_source_quality_readonly.sql` bevat uitsluitend SELECT-query's binnen `BEGIN TRANSACTION READ ONLY` en analyseert de landelijke benchmark-snapshot op statusclassificatie, versheid, ontbrekende timestamps, gelijke EVSE-bronmomenten per locatie, onbekende statussen en importversheid. **Uitgevoerd op chargewatch_benchmark:** 80.787 locaties / 203.138 EVSE's; alle EVSE's hebben timestamp, maar slechts 19.139 locaties (23,7%) alle EVSE-timestamps gelijk; 16.653 locaties (20,6%) ook uitsluitend bekende statussen. Bij 2-EVSE-locaties slechts 15,6% timestamps gelijk. 15.354 EVSE's onbekende statusklasse; 69.950 locaties aantoonbaar vrij, 7.864 aantoonbaar nul-vrij, 2.973 onbepaald. Mediane bron-timestamp-leeftijd 27,9 uur (dataset laatst geïmporteerd 22 okt 14:31 UTC). **Exacte timestamp-alignmenteis ongeschikt voor landelijke dekking; observatiestrategie herzien vóór publicatie.** Een momentopname kan geen polling-cadans of werkelijke nieuwe statuswaarnemingen bewijzen. Volgende stap: uitvoeren op `chargewatch_benchmark`, resultaten interpreteren en merge-gate beoordelen.
 
 
