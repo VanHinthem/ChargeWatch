@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Poll-dekking kandidaatpad (23 oktober, nog NIET getest):** migratie `007_poll_hour_coverage.sql`, `SnapshotPollCoverage.Capture` en koppeling in BulkImporter toegevoegd. Alleen WatchRunner-provenance via HTTP200 Locations voert poll-capture uit; eerste snapshot vormt baseline, latere snapshots met nieuwe SHA, maximaal 15 minuten gap, dezelfde bekende EVSE-status en niet-teruglopende `last_updated` kunnen seconde-dekking opslaan in `evse_poll_hour_coverage`. 304, tariffs-only en handmatige --bulk geven geen dekking. **Geen EWMA/uptime-omschakeling**. Eerst migratie 007 in `chargewatch_statistics_test`, SQL-smoke, .NET build en watcher regressie; positiever gedrag over meerdere Locations-snapshots is nog apart te testen. Bewijskracht blijft snapshot-sampling en geen gegarandeerde fysieke bezettingsduur.
+
+
 **Watcher HTTP-integratietest uitgevoerd (23 oktober; geslaagd):** `tools/test_sprint3_watcher_provenance.py` start een tijdelijke localhost HTTP-server met ETags, simuleert Locations+Tariffs HTTP200, beide 304, en Locations304/Tariffs200; voert voor elk `--watch-once` uit tegen uitsluitend `chargewatch_statistics_test`, controleert SHA/fetchmoment in `ndw_snapshot_checkpoint` en import_run-count. Script weigert andere `CW_IMPORT_CONNECTION`-databases en gebruikt een tijdelijke cache. Het schrijft via de importer echte synthetische fixture-imports in de geïsoleerde testdatabase; geen productiedatabase. Gebruiker bevestigde scriptuitvoer: baseline ndw-locations checkpoint afwezig en 70 completed import_runs; PASS HTTP200 Locations met nieuwe SHA/fetchmoment, PASS 304 zonder import/provenanceverandering, PASS tarieven-only 200 met één import en ongewijzigde Locations-provenance. Alle drie succesvol; cache tijdelijk. Nog geen poll-intervalaccumulatie aangesloten.
 
 
