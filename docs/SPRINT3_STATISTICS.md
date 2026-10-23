@@ -214,3 +214,30 @@ Correctie: uurfinalisatie vereist nu **zowel** een verstreken UTC-uur **als** ee
 - `full-01..14`: 20 oktober 2026 van 08:00 tot 09:05 UTC iedere 5 minuten. Verwacht 08:00-uur 3600 seconden dekking per EVSE, afgesloten met één sample (beschikbaarheid 1.0) in het Nederlandse dinsdag-10:00-slot (PostgreSQL-index 35).
 
 Alleen uitvoeren tegen `chargewatch_statistics_test`, na een lokale `git pull` en succesvolle build. Houd de bestaande unieke fixtures intact. De nieuwe finalizercorrectie is nog niet gebouwd of getest.
+
+
+## Sprint 3 — locatiebrede uurprofielen (23 oktober 2026)
+
+**Nog niet lokaal gevalideerd.** Nieuwe migratie `005_location_hours.sql` voegt `location_hour_accumulator` toe; `LocationHourPersistence` en `LocationHourFinalizer` draaien in dezelfde transactie als de bulkimport. De bron wordt **rechtstreeks per locatie** geaggregeerd: een tijdvak is vrij als minstens één EVSE `AVAILABLE` is. Er vindt geen vermenigvuldiging van individuele EVSE-kansen plaats.
+
+Dit eerste conservatieve contract vereist dat **alle EVSE's op de locatie**:
+- een vorige checkpoint met exact hetzelfde bronmoment hebben;
+- een volgend bronmoment op exact hetzelfde tijdstip hebben, maximaal 15 minuten later;
+- hun vorige statusklasse behouden, zonder `unknown`.
+
+Een incomplete, asynchrone of wisselende bronstatus produceert dus voorlopig geen locatie-uurdekking. Zelfs als een andere EVSE beschikbaar is, wordt een interval met `UNKNOWN` vooralsnog uitgesloten voor **kwaliteitsdekking**; de huidige locatiestatus kan nog wel terecht `any_available=true` zijn. Dit is een bewuste, conservatieve tijdelijke beperking, die met echte NDW-feeds gevalideerd moet worden.
+
+Voor voldoende gedekte afgeronde uren (>=2700 seconden) wordt één directe locatiesample in het Nederlandse 168-slot EWMA-profiel gepubliceerd, alpha 0,20. Afsluiten vereist een bronwaarneming voorbij de uurgrens. Geen profiel bij onvoldoende dekking. Dit is **geen** voorspelling van een vertrekmoment.
+
+**Geïsoleerde lokale test na `git pull`:**
+
+```powershell
+Get-Content -Raw .\db\migrations\005_location_hours.sql |
+    docker compose exec -T db psql -v ON_ERROR_STOP=1 -1 -U chargewatch_owner -d chargewatch_statistics_test
+dotnet build .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj
+python .\tools\build_sprint3_location_fixture.py
+```
+
+Daarna `available-01` t/m `available-14` sequentieel importeren met de bestaande tarieffixture. Verwacht per locatie: 08:00–09:00 UTC 3600 seconden, `finalized=true`, Nederlandse dinsdag 10:00 `sample_count[35]=1`, `available_ewma[35]=1`. De `unknown`-reeks heeft één EVSE met onbekende status en mag **geen locatie-uurdekking of locatieprofiel** opleveren. Controleer bovendien de huidige `any_available` uit `location_observation_checkpoint`: die mag in dat scenario wel `true` zijn.
+
+Deze test is nog **niet** uitgevoerd. Bestaande `chargewatch` en `chargewatch_benchmark` niet wijzigen. De extra migratie is alleen nodig voor de **featurebranch**; `main` blijft ongewijzigd.
