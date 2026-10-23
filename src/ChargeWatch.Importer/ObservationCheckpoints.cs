@@ -137,13 +137,16 @@ internal static class ObservationCheckpoints
                    s.unknown_count, s.any_available, statement_timestamp(),
                    CASE WHEN s.any_available=false AND old.any_available=false
                               AND old.continuity_valid AND s.valid_continuation
-                        THEN old.zero_available_started_at
+                        THEN coalesce(old.zero_available_started_at, s.oldest_previous_updated_at)
                         WHEN s.any_available=false AND old.any_available=false
-                              AND s.valid_continuation THEN old.observed_at
+                              AND s.valid_continuation THEN s.oldest_previous_updated_at
                         ELSE NULL END,
                    (s.any_available=false AND old.any_available=false AND s.valid_continuation)
             FROM (
                 SELECT obs.*,
+                  (SELECT min(prev.source_updated_at) FROM stage_observation n
+                   JOIN evse_observation_checkpoint prev ON prev.evse_id=n.evse_id
+                   WHERE n.location_id=obs.location_id) AS oldest_previous_updated_at,
                   NOT EXISTS (
                     SELECT 1 FROM stage_observation n
                     LEFT JOIN evse_observation_checkpoint prev ON prev.evse_id=n.evse_id
