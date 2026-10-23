@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Snapshotobservaties — ontwerp gestart 23 oktober:** `docs/SPRINT3_OBSERVATION_DESIGN.md` toegevoegd met expliciet onderscheid NDW `last_updated`, bewezen fetchmoment en importcommit. Schema `db/migrations/006_snapshot_provenance.sql` toegevoegd als additieve voorbereiding voor bron-SHA/fetchcheckpoint en EVSE-pollcheckpoints. **Migratie 006 nergens uitgevoerd; importer nog niet omgeschakeld en geen nieuwe test uitgevoerd.** Eerst fetcher-provenance controleren/aansluiten, dan transactionele polling-dekking voor gevalideerde verse snapshots. Historische fixture-replays mogen nooit automatisch observation coverage creëren.
+
+
 **Korte NDW-intervalvergelijking uitgevoerd 23 oktober:** 203.328 EVSE's in beide snapshots; 199.753 ongewijzigd (98,24%), 904 timestamp-only (0,445%), 2.670 status+timestamp, één status-only; 2.410/80.825 locaties met enig EVSE-verschil. Niet bekend hoeveel van 904 geldige <=15-minutenintervallen zijn. Source-timestamp-only dekking is waarschijnlijk te schaars voor nationale historische profielen; ontwerpobservaties heroverwegen voordat PR #12 mergeklaar is. Zie `docs/SPRINT3_REVIEW.md`.
 
 
