@@ -5,6 +5,9 @@
 
 ## Sprint 4 — NAS Data Collector (actief, featurebranch)
 
+**DB-persistentie bevestigd 23 oktober:** geïsoleerde `chargewatch-s4test` PostgreSQL-container herstartte en werd weer `healthy`; tellingen bleven identiek vóór/na restart: 80.836 locaties, 203.362 EVSE's, 101.368 tarieven, 5 migraties. Nog open: doorlopende watcher-runtime kort observeren en NAS-deploymentafspraken/backup-retentie; geen NAS-installatie.
+
+
 **Tweede live smoke 23 oktober:** bijgewerkte Docker-image met `libgssapi-krb5-2` bouwde succesvol (8,8s); `collector --watch-once` gaf Locations 200 (18.497.996 bytes), Tariffs **304 cachehit**, en committe 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven in 31,43s. Eerdere GSSAPI-fout niet meer zichtbaar. Cachehergebruik en tweede import geslaagd; databasecontainer-herstart/persistentie en ononderbroken `--watch` loop **nog niet** getest. Geen NAS-deployment.
 
 
