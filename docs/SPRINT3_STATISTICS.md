@@ -164,3 +164,24 @@ De nieuwe zelftest is nog niet uitgevoerd op de ontwikkelmachine. Lokale opdrach
 ```powershell
 dotnet run --project .\src\ChargeWatch.Importer -- --statistics-selftest
 ```
+
+
+## Persistente EVSE-uurdekking — migratie 004 (23 oktober 2026)
+
+`db/migrations/004_hour_accumulator.sql` is **een nieuwe migratie**, omdat 003 al door de gebruiker is toegepast op `chargewatch_statistics_test`. De tabel `evse_hour_accumulator` bewaart per EVSE en werkelijk UTC-uur de laatste verwerkte intervalgrens, meetseconden en beschikbare seconden. Deze tijdvakken zijn afzonderlijk van de 168 Nederlandse weekuurprofielen: de beide wintertijduren krijgen elk hun eigen UTC-uurrecord, terwijl ze later hetzelfde weekuurslot kunnen voeden.
+
+De bulkimport gebruikt de vorige broncheckpoints en telt alleen strikt nieuwe, maximaal 15 minuten lange, ongewijzigde bekende EVSE-statusintervallen. Bij overlap of replay telt een uur niet opnieuw. De uitvoering is in dezelfde DB-transactie als de catalogus. Dit is **dekkingregistratie, nog geen EWMA-publicatie**. Beperkingen: locatieuurdekking en finalize-once ontbreken; de betekenis van bron-`last_updated` vereist nog echte meetreeksanalyse. Profielen blijven leeg.
+
+**Nieuwe testdatabase-validatie (voer alléén uit tegen `chargewatch_statistics_test`):**
+
+```powershell
+Get-Content -Raw .\db\migrations\004_hour_accumulator.sql |
+  docker compose exec -T db psql -v ON_ERROR_STOP=1 -1 -U chargewatch_owner -d chargewatch_statistics_test
+
+Get-Content -Raw .\db\tests\004_hour_accumulator_smoke.sql |
+  docker compose exec -T db psql -v ON_ERROR_STOP=1 -U chargewatch_owner -d chargewatch_statistics_test
+
+dotnet build .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj
+```
+
+Daarna kan dezelfde Sprint 1-fixture in die testdatabase opnieuw worden geïmporteerd; zonder nieuwe bronmomenten behoren er **0 uuraccumulatierijen** te ontstaan. Op een database zonder migratie 004 faalt de featurebranch-import expliciet en rolt de transactie terug. De migratie is hier nog niet uitgevoerd en de nieuwe code is nog niet lokaal gebouwd.
