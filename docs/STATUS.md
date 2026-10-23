@@ -1,7 +1,66 @@
 # ChargeWatch — actuele werkstand
 
-**Bijgewerkt:** 23 oktober 2026
-**Status:** Sprint 0–3 gemerged naar `main`; Sprint 3 via [PR #12](https://github.com/VanHinthem/ChargeWatch/pull/12) (squash merge `065672a8e2ac33254f47e206039b5914a44b773a`). **Geen deployment op NAS of productie uitgevoerd.** Volgende prioriteit: **Sprint 4 — NAS Data Collector**.
+**Bijgewerkt:** 23 oktober 2026  
+**Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
+
+## Actuele Sprint 4-overdracht
+
+**Opgeleverd:** gescheiden NAS Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
+
+**Lokaal gevalideerd op `chargewatch-s4test`:** Compose-config en Docker-build PASS; schone databasebootstrap en migraties 003–007 PASS, herhaling SKIP; databasegebruikers en tabelrechten correct; custom-format backup en herstel op een aparte lege database (20 tabellen, 5 migraties); landelijke import van 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven; databasegegevens behouden na containerherstart; automatische watcher herhaaldelijk succesvol met HTTP304 skip én HTTP200 bulkcommit (laatste 31,7s). Geen NAS-test uitgevoerd.
+
+**Nog nodig voor NAS-deployment:** controle NAS CPU/architectuur/capaciteit, vaste volumes en backupmap/retentie, secrets, restore van echte landelijke data, herstart-/monitoringcontrole en expliciet akkoord voor installatie. De lokale testcollector kan nog draaien onder `chargewatch-s4test`; deze is geen NAS-productiecollector. Geen auto-deployment of merge van nieuwe werkzaamheden zonder akkoord.
+
+## Sprint 4 — historisch validatielog (archief, niet de actuele status)
+
+
+
+**Lokale acceptatietests afgerond (23 oktober):** doorlopende `collector` log toont 304/no-op (`NDW source unchanged (304); database import skipped`), gevolgd door nieuwe Locations 200 (18.503.434 bytes) en `Bulk committed` na 31,706 s. Hiermee zijn automatische vervolgcheck, skip bij ongewijzigde data, en succesvolle volgende landelijke import bevestigd. Samen met geïsoleerde clean bootstrap + migraties, herhaling/idempotentie, rechtenaudit, databasebackup/schema-restore, Docker-build, twee one-shot imports en DB-herstart/persistentie is lokaal functioneel gevalideerd. **NAS CPU/architectuur, volume-/backup-pad, feitelijke restore van landelijke data, retention en beschikbaarheid na NAS-herstart niet getest. Geen NAS-deployment; PR #14 niet gemerged.**
+
+
+**Continu collector-import bevestigd 23 oktober:** gebruiker stuurde vervolglog: `Staged: 80836 locations, 203362 EVSEs, 204065 connectors, 101368 tariffs` gevolgd door `Bulk committed ... in 00:00:39.8587096` in `chargewatch-s4test-collector-1`. Continue worker start/execute/commit gevalideerd; **een volgende 5-minuten-HTTP poll is nog niet zichtbaar/bevestigd**. NAS nog niet gedeployed.
+
+
+**Continue watcher smoke 23 oktober:** `docker compose -p chargewatch-s4test ... up -d collector` startte collector (`Up`) naast `db` (`healthy`). Log: Locations HTTP200 18.502.405 bytes, Tariffs HTTP304, `NDW source changed; running transactional bulk import`. **De commit van deze lopende import en tweede 5-minuten-poll nog niet bevestigd**; die moeten nog worden geverifieerd. Geen NAS-deployment.
+
+
+**DB-persistentie bevestigd 23 oktober:** geïsoleerde `chargewatch-s4test` PostgreSQL-container herstartte en werd weer `healthy`; tellingen bleven identiek vóór/na restart: 80.836 locaties, 203.362 EVSE's, 101.368 tarieven, 5 migraties. Nog open: doorlopende watcher-runtime kort observeren en NAS-deploymentafspraken/backup-retentie; geen NAS-installatie.
+
+
+**Tweede live smoke 23 oktober:** bijgewerkte Docker-image met `libgssapi-krb5-2` bouwde succesvol (8,8s); `collector --watch-once` gaf Locations 200 (18.497.996 bytes), Tariffs **304 cachehit**, en committe 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven in 31,43s. Eerdere GSSAPI-fout niet meer zichtbaar. Cachehergebruik en tweede import geslaagd; databasecontainer-herstart/persistentie en ononderbroken `--watch` loop **nog niet** getest. Geen NAS-deployment.
+
+
+**Live NDW Docker-smoke geslaagd 23 oktober:** geïsoleerd `chargewatch-s4test` `collector --watch-once` downloadde Locations (18.496.453 bytes) en Tariffs (4.151.815 bytes), bulktransaction `committed` na 38,2s: 80.836 locaties, 203.362 EVSE's, 204.065 connectoren, 101.368 tarieven. Tijdens import verscheen niet-fatale Linux GSSAPI-loadfout `libgssapi_krb5.so.2`; Dockerfile bijgewerkt om `libgssapi-krb5-2` te installeren, **nog niet opnieuw gebouwd/getest**. Hierna: image herbouw, HTTP304/herstart en persistentie controleren, runtime status op DB; géén NAS-deployment.
+
+
+**Restore bevestigd 23 oktober:** na maintenance entrypoint-fix gaf `pg_restore --exit-on-error --no-owner --no-acl` naar apart `chargewatch_restore_test` zonder fouten; controle telde **20 tabellen en 5 schema_migration-regels**. Databasebackup en schema-/migratierestore op lege testdatabase gevalideerd; nog GEEN herstel van echte landelijke datarijen en nog geen NAS-deployment. Volgende: collector-smoke en persistentie/herstart.
+
+
+**Restore-fix 23 oktober:** gebruiker maakte `chargewatch_restore_test` aan, maar `maintenance -c pg_restore ...` startte onbedoeld de standaard `postgres:18` server-entrypoint, met fout `Database is uninitialized and superuser password is not specified`. Er is geen restore uitgevoerd; fout `schema_migration does not exist` volgde logisch. `maintenance.entrypoint` nu expliciet `/bin/sh` en NAS-runbook-commando's aangepast. **Opnieuw restore testen na git pull; herstel nog NIET bevestigd.** Bestaande primaire test-DB niet gewijzigd.
+
+
+**Back-up gevalideerd 23 oktober:** `maintenance /bin/sh /scripts/backup.sh` op `chargewatch-s4test` leverde `/backups/chargewatch-20261023T142735Z.dump` op, `pg_restore --list` PASS. Werkelijke restore naar aparte database nog niet getest. Geen NAS-deployment.
+
+
+**Tabelrechten bevestigd 23 oktober:** gebruiker controleerde 20 `public` tabellen in `chargewatch-s4test`: importer INSERT op alle applicatietabellen, reader SELECT op applicatietabellen en géén INSERT voor reader. `schema_migration`: importer INSERT=false, reader SELECT=false (verwacht; importer heeft SELECT via migratie 003). `spatial_ref_sys` is PostGIS-extensietabel. Nog te verifiëren: afzonderlijke PostgreSQL backup + volledige restore naar geïsoleerde database, collector smoke, herstart/persistentie. Geen NAS-deployment.
+
+
+**Rollen gecontroleerd 23 oktober:** geïsoleerde `chargewatch-s4test` DB heeft `chargewatch_owner` (login, superuser, createdb), `chargewatch_import` en `chargewatch_read` (login, geen superuser/createdb). Tabelrechten nog niet getest. Volgende actie: SELECT-/INSERT-rechten functioneel toetsen, backup/restore op afzonderlijke DB. Geen NAS-deployment.
+
+
+**Idempotentie bevestigd 23 oktober:** gebruiker draaide `/bin/sh /scripts/migrate.sh` opnieuw op geïsoleerde `chargewatch-s4test` PostgreSQL 18; alle migraties 003–007 rapporteerden `SKIP (already applied)`, eindresultaat `Migration pass completed.` Geen NAS-actie. Vervolg: DB-rollen, backup en daadwerkelijke restore-test.
+
+
+**Gevalideerd op Windows Docker (23 oktober):** geïsoleerd Compose-project `chargewatch-s4test` heeft verse PostGIS 18 database als `healthy` gestart. Maintenance migration runner bootstrapte `003_statistics` inclusief `schema_migration`, sloeg 003 bij vervolgcontrole over en paste 004–007 foutloos toe; eindmelding `Migration pass completed.` Eerder `compose config --quiet` PASS en collector-image build PASS (6,1s). Open: herhaalde migratierun/idempotentie, DB-rollen, echte pg_dump/pg_restore naar aparte testdatabase en collector-smoke. **Geen NAS-deployment.**
+
+
+**Bootstrapreview 23 oktober:** `db/init/001_schema.sql` maakt basistabellen, `db/init/002_roles.sh` DB-rollen. `schema_migration` wordt pas gemaakt in `db/migrations/003_statistics.sql`; daarom NAS-migratierunner gecorrigeerd om op een verse database eerst 003 transactioneel te draaien. SQL-parameters voor versiechecks op veilige stdin-route gezet; shellscripts expliciet via `/bin/sh`. **Nog geen runtime-test op een verse geïsoleerde Docker-database.** Voor test eigen Compose-projectnaam gebruiken zodat bestaande Docker-/benchmarkvolumes onaangeraakt blijven.
+
+
+**Validatie 23 oktober:** gebruiker bevestigde `docker compose ... config --quiet` PASS. Eerste `build collector` faalde tijdens `dotnet publish --no-restore` door een Windows-only NuGet fallback package folder in meegkopieerde `obj/project.assets.json`. `.dockerignore` toegevoegd om `**/obj/` en `**/bin/` uit Linux-buildcontext te weren. **Herbouw na fix bevestigd: `build collector` PASS in 6,1 s (image `chargewatch-collector:latest`)**; geen database/collector gestart.
+
+
+**Branch:** `feature/sprint4-nas-data-collector`. **Nog geen merge of NAS-deployment.** Eerste werkblok: `deploy/nas/Dockerfile`, `deploy/nas/compose.yaml`, `.env.example` en `deploy/nas/README.md` toegevoegd. Daarnaast on-demand `maintenance` service en `deploy/nas/scripts/migrate.sh` (schema_migration-guard + versie-skip + transactie per migratie), `backup.sh` (pg_dump custom archive, TOC-validatie) toegevoegd. Aparte PostGIS 18 database en persistente `pgdata` / `ndw-cache` volumes, geen hostpoorten; bestaande .NET 10 `--watch`-importer met 5-minuten Locations en 60-minuten Tariffs. Dit is voorbereid in GitHub; imagebuild, Compose-configcheck, migraties/roles op een lege Postgres-volume, back-up en daadwerkelijk herstel en NAS-resources **nog niet getest**. Volgende actie: op Windows geïsoleerd Compose-config + imagebuild verifiëren, migratie-init en databaserechten inspecteren, back-up/restore proefdraaien en daarna pas expliciet NAS-deploymentakkoord vragen. PR #14 blijft draft. Bestaande Windows DEV blijft ongemoeid. Geen API, Android of publieke statistieken in deze sprint.
 
 ## Actuele overdracht
 
