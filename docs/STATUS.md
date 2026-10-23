@@ -5,6 +5,9 @@
 
 ## Sprint 3 — actief en afgebakend
 
+**Review na nationale benchmark (23 oktober):** 31,8s en 29,4s doorvoer voor 80.825 locaties/203.328 EVSE's is bevestigd. Nieuw: read-only audit `db/tests/007_poll_coverage_quality_readonly.sql` (nog niet gedraaid), plus kwaliteitsbevindingen in `docs/SPRINT3_REVIEW.md`: verschillende gzip-SHA's bewijzen geen nieuwe bronobservatie (benchmark varieerde alleen header), oude NDW-brontimestamps kunnen nog kandidaatdekking genereren, cumulatieve uurdekking kan bij >3600s stilzwijgend een segment overslaan, en EWMA blijft op bestaande bronklok. **Sprint 3 nog niet mergeklaar: eerst audit uitvoeren en versheidsbeleid/coverage-correctheid vaststellen.**
+
+
 **Landelijke performanceharness uitgevoerd (23 oktober; geslaagd):** `tools/benchmark_sprint3_national_poll.py` serveert de bestaande landelijke `data/ndw-current/locations.json.gz` via lokale HTTP-server, voert twee afzonderlijke watcher-imports uit op uitsluitend `chargewatch_statistics_test`, meet beide wall-clocktijden en telt EVSE-pollcheckpoints en kandidaatdekkingsseconden. Tweede gzip krijgt alleen andere header-mtime/SHA, decompressie-identieke broninhoud: test throughput, niet nieuwe broninformatie of voorspelkwaliteit. Test wijzigt gesimuleerde 5-minuten-checkpointtijd in geïsoleerde database; vereist `--execute`. `chargewatch_benchmark` blijft ongemoeid/read-only. Gebruiker bevestigde fase 1: 31,8s (bulk 29,144s), fase 2: 29,4s (bulk 28,134s); beide 80.825 locaties, 203.328 EVSE's en 204.031 connectoren. Na afloop 203.328 EVSE-pollcheckpoints en **cumulatief** 62.386.732 kandidaat-covered seconds in hergebruikte testdatabase. De cumulatieve waarde is GEEN geïsoleerde benchmark-delta. Beide imports binnen 5-minuten-cadans qua verwerkingsduur, geen bewezen end-to-end live 5-minuten-scheduler of productie-SLA. Nog review van dekking, schema/performance en mogelijk publish-besluit. Geen merge/deployment.
 
 
