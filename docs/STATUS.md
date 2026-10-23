@@ -1,14 +1,17 @@
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 23 oktober 2026  
-**Status:** Sprints 0–4 technisch afgerond op `main` via goedgekeurde PR's (Sprint 4: PR #14). **Geen NAS- of productiedeployment.** De volgende prioriteit is een gecontroleerde **NAS-installatie van de data collector**, pas na afzonderlijk gebruikersakkoord.
+**Status:** Sprints 0–4 gemerged op `main`; **eerste NAS-deployment draait op HINNAS** met drie gepubliceerde GHCR-images van squash-merge `9dc9964cc4339003bfd1f33bd39864c17615bc54` (PR #15). Database is gezond, vijf migraties toegepast en eerste volledige NDW-import gecommit. Volgende beheerstap: post-import back-up en hersteltest; dagelijkse NAS-taak nog niet ingesteld of bevestigd. Geen nieuwe deployment zonder afzonderlijk akkoord.
 
-## NAS-image-deployment voorbereiding (PR #15)
+## NAS-overdracht en backupbeheer (feature-PR, 23 oktober)
 
-**PR-build bevestigd 23 oktober:** GitHub Actions `NAS Images` run 39975985714 completed/success. Matrixjobs collector, maintenance en db afzonderlijk `success` op PR-head `eb70c7e0e826a98b7cc2578bbf5efc5ceaaa5370`. Dit valideert Linux/amd64-imagebuilds, **zonder publicatie** (PR-event). Pas een succesvolle workflow na merge op `main` levert deploybare GHCR-tags op. Nog geen NAS-deployment.
+**Door gebruiker bevestigd:** `chargewatch-db-1` gezond en `chargewatch-collector-1` draaiend; migraties 003–007 geregistreerd; eerste import: **80.838 locaties, 203.366 EVSE's, 1 voltooide import**. Collector-staging rapporteert daarnaast 204.069 connectoren en 101.368 tarieven; databaseaantallen hiervoor nog niet bevestigd. Docker-volumes `chargewatch_pgdata` en `chargewatch_ndw-cache` bestaan. De eerste opzettelijk afgebroken import is transactioneel niet gecommit; daarna is een import geslaagd.
 
+**Back-upstatus:** pre-import `chargewatch-20261023T153609Z.dump` aangemaakt en archive-index gevalideerd. Post-import back-up **aangevraagd, nog niet bevestigd**. Restore naar geïsoleerde database op NAS **nog niet getest**. Dagelijkse NAS Task Scheduler-taak **nog niet ingesteld** en retention **niet ingeschakeld**. Runbook: `deploy/nas/README.md`. Bewaar secrets uitsluitend in lokale NAS-`.env`. Wijzigingen via PR met expliciet merge-akkoord; geen automatische NAS-deployment.
 
-**Besluit gebruiker 23 oktober 2026:** geen `git clone` en geen builds op de NAS. Deploy uitsluitend vooraf door GitHub Actions gebouwde images via GHCR. De deploymentconfiguratie voorziet drie linux/amd64-images (`chargewatch-db` inclusief init SQL, `chargewatch-maintenance` inclusief migratiescripts, `chargewatch-collector`) met dezelfde `sha-<main-commit>` tag. NAS heeft alleen lokale `compose.yaml` + geheime `.env` nodig. Geen volumes/data verwijderen, geen NAS-deployment. **Imagepublicatie en `docker pull` zijn nog niet bevestigd; nooit uitgaan van een gepubliceerd image zonder succesvolle Actions-run.** De workflow voert een linux/amd64 buildmatrix voor collector/db/maintenance uit op `pull_request`, **zonder GHCR-publicatie**; bij pushes op main publiceert dezelfde workflow met commitgebonden tags. Controleer GitHub Actions-resultaten vóór merge; GHCR-toegang en NAS-pull pas ná succesvolle publicatie controleren. PR-review en expliciet merge-/deploy-akkoord afzonderlijk nodig. Het eerdere Sprint 4-runbook met een NAS-checkout is vervangen door een GHCR-only installatiehandleiding.
+## NAS-images / PR #15 — afgerond
+
+PR #15 is gemerged op `main` als `9dc9964cc4339003bfd1f33bd39864c17615bc54`. GHCR-images zijn aantoonbaar door de NAS gedownload en gestart (volgens operatorlogs). Eerdere PR-only buildvalidatie: GitHub Actions `NAS Images` run 39975985714, drie jobs succesvol; die PR-run publiceerde zelf geen images. Runbook vereist geen Git-checkout of imagebuild op NAS.
 
 ## Actuele Sprint 4-overdracht
 
