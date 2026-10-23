@@ -11,6 +11,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from uuid import uuid4
@@ -41,6 +42,10 @@ def main():
     source = json.loads(gzip.decompress(LOCATIONS.read_bytes()))
     nonce = uuid4().hex
     source[0]["address"] = "snapshot-smoke-" + nonce
+    # Fresh source moments for the positive interval, regardless of when the test is run.
+    fresh_source_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    for evse in source[0]["evses"]:
+        evse["last_updated"] = fresh_source_time
     tariffs = TARIFFS.read_bytes()
     state = {"locations": gzip_json(source), "tariffs": tariffs,
              "loc_etag": '"snap-1-' + nonce + '"', "tar_etag": '"tariff-' + nonce + '"'}
