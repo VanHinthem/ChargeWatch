@@ -227,7 +227,14 @@ internal static class ObservationCheckpoints
             """;
         const string boundary = "-- Location availability is determined";
         var split = sql.IndexOf(boundary, StringComparison.Ordinal);
-        if (split < 0) throw new InvalidOperationException("Observation SQL phase boundary is missing.");
+        if (split < 0 || sql.IndexOf(boundary, split + boundary.Length, StringComparison.Ordinal) >= 0)
+            throw new InvalidOperationException("Observation SQL must contain exactly one phase boundary.");
+        // Enforce the staged-old-checkpoint contract: phase 1 must create source
+        // observations, phase 2 must advance the EVSE checkpoint exactly once.
+        if (!sql[..split].Contains("CREATE TEMP TABLE stage_observation", StringComparison.Ordinal)
+            || !sql[split..].Contains("INSERT INTO evse_observation_checkpoint", StringComparison.Ordinal)
+            || sql[..split].Contains("INSERT INTO evse_observation_checkpoint", StringComparison.Ordinal))
+            throw new InvalidOperationException("Observation SQL phase order is invalid.");
 
         // Phase 1 materializes old/new observations and uptime before checkpoint writes.
         await using (var first = new NpgsqlCommand(sql[..split], db, tx) { CommandTimeout = 600 })
