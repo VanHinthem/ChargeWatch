@@ -196,7 +196,7 @@ private fun ChargeMap(
                         .target(LatLng(51.765, 5.525))
                         .zoom(12.0)
                         .build()
-                    configureStyle(map, styleUri, currentLocations.value, onViewportChanged)
+                    configureStyle(map, styleUri, currentLocations.value, onViewportChanged, context, iconCache)
                     map.getStyle { renderNativeMarkers(map, currentLocations.value, iconCache, context) }
                     map.addOnCameraIdleListener {
                         renderNativeMarkers(map, currentLocations.value, iconCache, context)
@@ -229,10 +229,12 @@ private fun configureStyle(
     map: MapLibreMap,
     styleUri: String,
     locations: List<MapLocation>,
-    onViewportChanged: (NdwViewport) -> Unit
+    onViewportChanged: (NdwViewport) -> Unit,
+    context: Context,
+    iconCache: MutableMap<String, Icon>
 ) {
     map.setStyle(styleUri) { style ->
-        renderNativeMarkers(map, locations, mutableMapOf(), mapView.context)
+        renderNativeMarkers(map, locations, iconCache, context)
         // Camera-idle events are not guaranteed to fire on the initial map load.
         // Explicitly request the initial visible viewport once the map is ready.
         val bounds = map.projection.visibleRegion.latLngBounds
