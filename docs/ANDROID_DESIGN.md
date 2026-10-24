@@ -27,6 +27,14 @@ De onderstaande keuzes zijn tijdens de gezamenlijke ontwerpsessie bevestigd; **d
 - **Wel externe acties** op geselecteerde locatie en in details: **Navigeren** naar coördinaten via een geïnstalleerde navigatie-app en **Street View bekijken** via Google Maps (extern). Beschikbaarheid van Street View is niet gegarandeerd; geen ingebouwde panorama-/foto-API nodig.
 - Visuele mock-ups zonder verplichte foto ontwerpen; compact detailoverzicht gebruikt die ruimte voor status en acties. Definitieve iconen en positionering nog te beoordelen.
 
+### Versiebeheerde visuele referentie
+
+![ChargeWatch vier-schermen UX-referentie](design/android-ux-baseline.svg)
+
+- SVG-bron in `docs/design/android-ux-baseline.svg` is een **schematische, versiebeheerbare reconstructie** van de besproken vier schermen; niet de originele gegenereerde PNG.
+- De oorspronkelijke gedetailleerde PNG-mock-up uit de designsessie moet nog als afzonderlijk binair asset aan deze PR worden toegevoegd om de volledige visuele referentie te bewaren. Geen impliciete pixelgoedkeuring op basis van deze SVG.
+- Mock-upgegevens zijn illustratief; geen echte laadlocatiestatistieken of vastgestelde tarieven.
+
 ### Visuele basis gekozen — kaart, detail en favorieten (24 oktober 2026)
 De samen bekeken derde mock-up geldt **als uitgangspunt** voor verdere vormgeving, niet als definitieve pixel- of totaalontwerpgoedkeuring.
 
