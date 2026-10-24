@@ -1,6 +1,10 @@
+## Widgetconfiguratie PNG gekoppeld (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget UX Board.png` staat op de designbranch en wordt rechtstreeks weergegeven in `docs/ANDROID_DESIGN.md`. Het is een visuele richting: de vijfstappenwizard uit de afbeelding wordt vervangen door één scrollbaar configuratiescherm met live voorbeeld. Geen definitief totaalontwerpakkoord, merge of deployment.
+
 ## Widgetconfiguratie — richting gekozen (24 oktober 2026)
 
-Eén scrollbaar configuratiescherm met live voorbeeld, selectie/volgorde van lokale favorieten en optionele grafieken, afstand en update-indicatie. Geen vijfstappenwizard. Instellingen per widgetinstantie achteraf bewerkbaar. Configuratie-PNG nog als referentie toevoegen aan PR #35; volgende ontwerptaak is kleuren/typografie/light-dark en resterende schermdetails. Geen definitief totaalakkkoord, Android-code, merge of deployment.
+Eén scrollbaar configuratiescherm met live voorbeeld, selectie/volgorde van lokale favorieten en optionele grafieken, afstand en update-indicatie. Geen vijfstappenwizard. Instellingen per widgetinstantie achteraf bewerkbaar. Configuratie-PNG is als referentie toegevoegd aan PR #35; volgende ontwerptaak is kleuren/typografie/light-dark en resterende schermdetails. Geen definitief totaalakkkoord, Android-code, merge of deployment.
 
 ## Widgetmock-up vastgelegd — PR #35 (24 oktober 2026)
 
