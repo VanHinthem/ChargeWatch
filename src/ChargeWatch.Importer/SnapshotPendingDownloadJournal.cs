@@ -21,7 +21,16 @@ internal static class SnapshotPendingDownloadJournal
         var journal = targetPath + ".pending-response.json";
         var temporary = journal + ".tmp";
         var entry = new Entry(Path.GetFileName(fullPending), hash, observedAt.ToUniversalTime(), etag, lastModified);
-        await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(entry));
+        // Persist metadata bytes before atomic same-directory rename. The gzip
+        // was flushed before Save was called, so metadata never points to an
+        // incompletely copied response after an ordinary process crash.
+        await using (var output = new FileStream(temporary, FileMode.Create,
+            FileAccess.Write, FileShare.None, 4096, useAsync: true))
+        {
+            await JsonSerializer.SerializeAsync(output, entry);
+            await output.FlushAsync();
+            output.Flush(flushToDisk: true);
+        }
         File.Move(temporary, journal, true);
     }
 
@@ -76,6 +85,9 @@ internal static class SnapshotPendingDownloadJournal
             await File.WriteAllTextAsync(pending, "test pending body");
             var when = new DateTimeOffset(2026, 10, 24, 8, 12, 3, TimeSpan.Zero);
             await Save(target, pending, when, "\"etag\"", null);
+            // Simulate a crash before the metadata rename. An orphan .tmp
+            // must never be mistaken for a committed response.
+            await File.WriteAllTextAsync(target + ".pending-response.json.tmp", "{broken");
             var read = await Load(target);
             if (read is null || read.Value.Path != pending || read.Value.ObservedAtUtc != when)
                 throw new Exception("Pending response did not survive new journal reader.");
