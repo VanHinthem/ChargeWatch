@@ -33,8 +33,11 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
             DateTimeOffset.UtcNow.AddMinutes(-1), false, null);
         var json = System.Text.Json.JsonSerializer.Serialize(sample,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-        Require(json.Contains("\\"isStale\\":true") && json.Contains("\\"feedIsStale\\":false")
-                && json.Contains("\\"feedLastObservedAt\\""),
+        using var parsed = System.Text.Json.JsonDocument.Parse(json);
+        var root = parsed.RootElement;
+        Require(root.GetProperty("isStale").GetBoolean() &&
+                !root.GetProperty("feedIsStale").GetBoolean() &&
+                root.GetProperty("feedLastObservedAt").ValueKind == System.Text.Json.JsonValueKind.String,
             "separate source-age and feed freshness fields in Android JSON contract");
         Console.WriteLine("ChargeWatch API selftest passed.");
     }
