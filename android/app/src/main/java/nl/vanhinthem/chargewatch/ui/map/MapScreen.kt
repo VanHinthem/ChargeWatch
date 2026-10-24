@@ -1,6 +1,9 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,6 +42,13 @@ import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
 import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.Style
+import org.maplibre.android.annotations.Icon
+import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
@@ -72,12 +81,10 @@ import org.maplibre.geojson.Point
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
-    var showNativePins by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
             locations = state.locations,
-            showNativePins = showNativePins,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged
         )
@@ -100,12 +107,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = viewModel::testNdwOss) { Text("Test NDW Oss") }
-                Button(onClick = { showNativePins = !showNativePins }) {
-                    Text(if (showNativePins) "Verberg testpinnen" else "Toon testpinnen")
-                }
-            }
+            Button(onClick = viewModel::testNdwOss) { Text("Test NDW Oss") }
         }
 
         if (state.loading) {
@@ -162,13 +164,14 @@ private fun SearchHeader(modifier: Modifier = Modifier) {
 @Composable
 private fun ChargeMap(
     locations: List<MapLocation>,
-    showNativePins: Boolean,
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
+    val currentLocations = rememberUpdatedState(locations)
+    val iconCache = remember { mutableMapOf<String, Icon>() }
 
     val mapView = remember(context, darkTheme) {
         MapView(context).apply { onCreate(Bundle()) }
@@ -197,8 +200,10 @@ private fun ChargeMap(
                         .target(LatLng(51.765, 5.525))
                         .zoom(12.0)
                         .build()
-                    configureStyle(map, styleUri, locations, onViewportChanged)
+                    configureStyle(map, styleUri, currentLocations.value, onViewportChanged)
+                    map.getStyle { renderNativeMarkers(map, currentLocations.value, iconCache) }
                     map.addOnCameraIdleListener {
+                        renderNativeMarkers(map, currentLocations.value, iconCache)
                         val bounds = map.projection.visibleRegion.latLngBounds
                         if (bounds.longitudeWest < bounds.longitudeEast &&
                             bounds.latitudeSouth < bounds.latitudeNorth
@@ -218,18 +223,7 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle { style ->
-                    ensureLayers(style)
-                    updateLocations(style, locations)
-                }
-                // Keep a manually switchable native-pin reference while validating
-                // that the GeoJSON source and style layers render on a real device.
-                map.clear()
-                if (showNativePins) {
-                    locations.take(100).forEach { location ->
-                        map.addMarker(MarkerOptions().position(LatLng(location.latitude, location.longitude)).title(location.title))
-                    }
-                }
+                map.getStyle { renderNativeMarkers(map, locations, iconCache) }
             }
         }
     )
@@ -242,8 +236,7 @@ private fun configureStyle(
     onViewportChanged: (NdwViewport) -> Unit
 ) {
     map.setStyle(styleUri) { style ->
-        ensureLayers(style)
-        updateLocations(style, locations)
+        renderNativeMarkers(map, locations, mutableMapOf())
         // Camera-idle events are not guaranteed to fire on the initial map load.
         // Explicitly request the initial visible viewport once the map is ready.
         val bounds = map.projection.visibleRegion.latLngBounds
@@ -262,112 +255,60 @@ private fun configureStyle(
     }
 }
 
-private fun ensureLayers(style: Style) {
-    if (style.getSource(SOURCE_ID) != null) return
+// MapLibre native annotations render reliably on the tested device, unlike the
+// previous custom GeoJSON source/layers. Clustering is visual only and NEVER
+// aggregates connector or EVSE totals.
+private fun renderNativeMarkers(
+    map: MapLibreMap,
+    locations: List<MapLocation>,
+    icons: MutableMap<String, Icon>
+) {
+    map.clear()
+    if (locations.isEmpty()) return
 
-    style.addSource(
-        GeoJsonSource(
-            SOURCE_ID,
-            FeatureCollection.fromFeatures(arrayOf<Feature>()),
-            GeoJsonOptions()
-                .withCluster(true)
-                .withClusterRadius(52)
-                .withClusterMaxZoom(14)
+    // Group close *screen-space* points to avoid unreadable piles at low zoom.
+    // This is display clustering; no availability totals are inferred.
+    val cells = locations.groupBy { location ->
+        val p = map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
+        (p.x.toInt() / 64) to (p.y.toInt() / 64)
+    }
+    val iconFactory = IconFactory.getInstance(map.context)
+    cells.values.forEach { group ->
+        val isCluster = group.size > 1
+        val location = group.first()
+        val label = if (isCluster) "…" else location.availability.label
+        val color = if (isCluster) UNKNOWN_COLOR else when (location.availability.status) {
+            AvailabilityStatus.Available -> AVAILABLE_COLOR
+            AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
+            AvailabilityStatus.Unknown -> UNKNOWN_COLOR
+        }
+        val key = "$color:$label"
+        val icon = icons.getOrPut(key) { iconFactory.fromBitmap(createMarkerBitmap(color, label)) }
+        val latitude = group.map { it.latitude }.average()
+        val longitude = group.map { it.longitude }.average()
+        map.addMarker(
+            MarkerOptions()
+                .position(LatLng(latitude, longitude))
+                .icon(icon)
+                .title(if (isCluster) "${group.size} laadlocaties" else location.title)
         )
-    )
-
-    // Unfiltered baseline ensures that every NDW point has a visible circle
-    // even if MapLibre's status/cluster filters do not match on a device.
-    style.addLayer(
-        CircleLayer(BASE_LAYER, SOURCE_ID).withProperties(
-            circleColor(UNKNOWN_COLOR),
-            circleRadius(19f),
-            circleStrokeColor("#FFFFFF"),
-            circleStrokeWidth(2f)
-        )
-    )
-
-    val cluster = CircleLayer(CLUSTER_LAYER, SOURCE_ID).withProperties(
-        circleColor(UNKNOWN_COLOR),
-        circleRadius(24f),
-        circleStrokeColor(UNKNOWN_COLOR),
-        circleStrokeWidth(4f)
-    ).withFilter(has("point_count"))
-    style.addLayer(cluster)
-
-    style.addLayer(
-        CircleLayer(AVAILABLE_LAYER, SOURCE_ID)
-            .withProperties(circleColor(AVAILABLE_COLOR), circleRadius(22f))
-            .withFilter(
-                all(
-                    not(has("point_count")),
-                    eq(get("status"), literal("available"))
-                )
-            )
-    )
-    style.addLayer(
-        CircleLayer(NONE_AVAILABLE_LAYER, SOURCE_ID)
-            .withProperties(circleColor(NONE_AVAILABLE_COLOR), circleRadius(22f))
-            .withFilter(
-                all(
-                    not(has("point_count")),
-                    eq(get("status"), literal("none"))
-                )
-            )
-    )
-    style.addLayer(
-        CircleLayer(UNKNOWN_LAYER, SOURCE_ID)
-            .withProperties(circleColor(UNKNOWN_COLOR), circleRadius(22f))
-            .withFilter(
-                all(
-                    not(has("point_count")),
-                    eq(get("status"), literal("unknown"))
-                )
-            )
-    )
-
-    style.addLayer(
-        SymbolLayer(CLUSTER_LABEL_LAYER, SOURCE_ID)
-            .withProperties(
-                textField("…"),
-                textColor(Color.WHITE),
-                textSize(17f),
-                textAllowOverlap(true),
-                textIgnorePlacement(true)
-            )
-            .withFilter(has("point_count"))
-    )
-
-    style.addLayer(
-        SymbolLayer(LABEL_LAYER, SOURCE_ID)
-            .withProperties(
-                textField(get("label")),
-                textColor(Color.WHITE),
-                textSize(13f),
-                textAllowOverlap(true),
-                textIgnorePlacement(true)
-            )
-            .withFilter(not(has("point_count")))
-    )
+    }
 }
 
-private fun updateLocations(style: Style, locations: List<MapLocation>) {
-    val features = locations.map { location ->
-        Feature.fromGeometry(Point.fromLngLat(location.longitude, location.latitude)).apply {
-            addStringProperty("feature_id", location.featureId)
-            addStringProperty("label", location.availability.label)
-            addStringProperty(
-                "status",
-                when (location.availability.status) {
-                    AvailabilityStatus.Available -> "available"
-                    AvailabilityStatus.NoneAvailable -> "none"
-                    AvailabilityStatus.Unknown -> "unknown"
-                }
-            )
-        }
-    }
-    style.getSourceAs<GeoJsonSource>(SOURCE_ID)
-        ?.setGeoJson(FeatureCollection.fromFeatures(features))
+private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
+    val bitmap = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = Color.WHITE
+    canvas.drawCircle(56f, 56f, 49f, paint)
+    paint.color = Color.parseColor(colorHex)
+    canvas.drawCircle(56f, 56f, 45f, paint)
+    paint.color = Color.WHITE
+    paint.textAlign = Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    paint.textSize = if (label.length > 4) 29f else 34f
+    canvas.drawText(label, 56f, 68f, paint)
+    return bitmap
 }
 
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
