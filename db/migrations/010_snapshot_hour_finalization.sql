@@ -17,6 +17,11 @@ BEGIN
      OR p_alpha <= 0 OR p_alpha > 1 THEN
     RAISE EXCEPTION 'invalid slot or EWMA alpha';
   END IF;
+  IF p_local_weekday <> extract(isodow from p_before_utc AT TIME ZONE 'Europe/Amsterdam')::integer
+     OR p_local_hour <> extract(hour from p_before_utc AT TIME ZONE 'Europe/Amsterdam')::integer
+     OR p_before_utc <> date_trunc('hour',p_before_utc) THEN
+    RAISE EXCEPTION 'local slot must match UTC hour in Europe/Amsterdam';
+  END IF;
   -- Caller supplies one UTC hour at a time, with its Amsterdam local slot.
   -- Profiles already finalized cannot be finalized twice: source rows are deleted
   -- by the same transaction, and advisory serialization is required from caller.
