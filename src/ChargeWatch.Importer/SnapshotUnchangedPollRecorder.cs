@@ -21,9 +21,6 @@ internal static class SnapshotUnchangedPollRecorder
                 await gate.ExecuteNonQueryAsync();
 
             string currentHash;
-            if (!string.Equals(currentHash, cachedSnapshotSha256, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException(
-                    "304 cache SHA does not match committed catalog; reject observation and refetch Locations.");
             DateTimeOffset? pendingHour = null;
             string? pendingHash = null;
 
@@ -35,6 +32,10 @@ internal static class SnapshotUnchangedPollRecorder
                 currentHash = (string?)await current.ExecuteScalarAsync()
                     ?? throw new InvalidOperationException("No committed NDW Locations snapshot exists.");
             }
+            if (!string.Equals(currentHash, cachedSnapshotSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    "304 cache SHA does not match committed catalog; reject observation and refetch Locations.");
+
 
             await using (var pending = new NpgsqlCommand("""
                 SELECT hour_start_utc,snapshot_sha256
