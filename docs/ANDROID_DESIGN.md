@@ -4,7 +4,7 @@ Status: **geplande verplichte fase; ontwerp nog niet gemaakt of goedgekeurd** (2
 
 ## Plaats in de planning (besloten)
 
-1. **Laatste backendfeature (voorgesteld PR #32)**: conservatieve NDW GeoJSON-feature-ID parsing en gerichte read-only ChargeWatch-detail/statistiekenlookup op de bestaande externe OCPI-sleutel; tests en statusupdate in dezelfde PR.
+1. **Laatste backendfeature (PR #33 gemerged)**: conservatieve NDW GeoJSON-feature-ID parsing en gerichte read-only ChargeWatch-detail/statistiekenlookup op de bestaande externe OCPI-sleutel; tests en statusupdate in dezelfde PR.
 2. **Design/layout app én widget**: een zelfstandige, gezamenlijke ontwerpfase. **Geen Android UI-implementatie voordat de gebruiker de ontwerpen expliciet heeft beoordeeld en goedgekeurd.** Dit is een afzonderlijke fase ná de backendstap.
 3. **Android MVP**: Kotlin/Jetpack Compose; kaart rechtstreeks via NDW, ChargeWatch-details pas bij openen en ChargeWatch-kaartfallback bij NDW-uitval.
 4. **Widget**: Glance-weergaven op basis van goedgekeurde widgetontwerpen en lokaal bewaarde favorieten.
