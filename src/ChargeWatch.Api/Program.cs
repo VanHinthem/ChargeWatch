@@ -87,6 +87,27 @@ app.MapGet("/api/v1/locations/{id:long}/statistics", async (long id,ApiDatabase 
     return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
+// External NDW GeoJSON lookup. Does not expose internal IDs as an identity requirement.
+app.MapGet("/api/v1/locations/by-ndw-id/{featureId}", async (string featureId, ApiDatabase database) =>
+{
+    if (!NdwLocationKey.TryParse(featureId, out var key))
+        return Results.BadRequest(new { error = "Invalid NDW GeoJSON feature ID." });
+    var id = await database.FindLocationId(key);
+    if (id is null) return Results.NotFound();
+    var detail = await database.GetLocation(id.Value);
+    return detail is null ? Results.NotFound() : Results.Ok(detail);
+});
+
+app.MapGet("/api/v1/locations/by-ndw-id/{featureId}/statistics", async (string featureId, ApiDatabase database) =>
+{
+    if (!NdwLocationKey.TryParse(featureId, out var key))
+        return Results.BadRequest(new { error = "Invalid NDW GeoJSON feature ID." });
+    var id = await database.FindLocationId(key);
+    if (id is null) return Results.NotFound();
+    var statistics = await database.GetStatistics(id.Value);
+    return statistics is null ? Results.NotFound() : Results.Ok(statistics);
+});
+
 app.MapGet("/api/v1/data-status", async (ApiDatabase database)
     => Results.Ok(await database.GetDataStatus()));
 
