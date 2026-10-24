@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -70,10 +72,12 @@ import org.maplibre.geojson.Point
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
+    var showNativePins by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
             locations = state.locations,
+            showNativePins = showNativePins,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged
         )
@@ -96,7 +100,12 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Button(onClick = viewModel::testNdwOss) { Text("Test NDW Oss") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = viewModel::testNdwOss) { Text("Test NDW Oss") }
+                Button(onClick = { showNativePins = !showNativePins }) {
+                    Text(if (showNativePins) "Verberg testpinnen" else "Toon testpinnen")
+                }
+            }
         }
 
         if (state.loading) {
@@ -153,6 +162,7 @@ private fun SearchHeader(modifier: Modifier = Modifier) {
 @Composable
 private fun ChargeMap(
     locations: List<MapLocation>,
+    showNativePins: Boolean,
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit
 ) {
@@ -212,11 +222,13 @@ private fun ChargeMap(
                     ensureLayers(style)
                     updateLocations(style, locations)
                 }
-                // Diagnostic fallback: native MapLibre markers reveal whether
-                // coordinates are drawable independently of GeoJSON layers.
+                // Keep a manually switchable native-pin reference while validating
+                // that the GeoJSON source and style layers render on a real device.
                 map.clear()
-                locations.take(100).forEach { location ->
-                    map.addMarker(MarkerOptions().position(LatLng(location.latitude, location.longitude)).title(location.title))
+                if (showNativePins) {
+                    locations.take(100).forEach { location ->
+                        map.addMarker(MarkerOptions().position(LatLng(location.latitude, location.longitude)).title(location.title))
+                    }
                 }
             }
         }
@@ -261,6 +273,17 @@ private fun ensureLayers(style: Style) {
                 .withCluster(true)
                 .withClusterRadius(52)
                 .withClusterMaxZoom(14)
+        )
+    )
+
+    // Unfiltered baseline ensures that every NDW point has a visible circle
+    // even if MapLibre's status/cluster filters do not match on a device.
+    style.addLayer(
+        CircleLayer(BASE_LAYER, SOURCE_ID).withProperties(
+            circleColor(UNKNOWN_COLOR),
+            circleRadius(19f),
+            circleStrokeColor("#FFFFFF"),
+            circleStrokeWidth(2f)
         )
     )
 
@@ -350,6 +373,7 @@ private fun updateLocations(style: Style, locations: List<MapLocation>) {
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
 private const val SOURCE_ID = "chargewatch-locations"
+private const val BASE_LAYER = "chargewatch-base-diagnostics"
 private const val CLUSTER_LAYER = "chargewatch-clusters"
 private const val AVAILABLE_LAYER = "chargewatch-available"
 private const val NONE_AVAILABLE_LAYER = "chargewatch-none-available"
