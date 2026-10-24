@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "nl.vanhinthem.chargewatch"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "nl.vanhinthem.chargewatch"
