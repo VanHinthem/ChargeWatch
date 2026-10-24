@@ -1,3 +1,11 @@
+## Actuele overdracht — NAS compact statistics operationeel (24 oktober 2026, 10:06 UTC)
+
+**Leidend boven oudere statusregels hieronder.** PR #19 is na expliciet gebruikersakkoord met squash gemerged op main: `407455d912469767329fd8408325a050e28c6091`. De post-merge [NAS Images-run #40084113436](https://github.com/VanHinthem/ChargeWatch/actions/runs/40084113436) is groen en heeft de images gepubliceerd. Op NAS `/volume2/docker/chargewatch`, lokaal `docker-compose.yaml`, `.env` verwijst naar `CW_IMAGE_TAG=sha-407455d912469767329fd8408325a050e28c6091` en `CW_ENABLE_COMPACT_STATISTICS=1`; de collector is daadwerkelijk opgestart. DB-migraties 003 t/m 013 zijn aanwezig (008–013 op 24 oktober toegepast). De eerdere fout 23502 op `location_observation_checkpoint.continuity_valid` werd hersteld via `coalesce(...,false)` en met integratieregressie afgedekt.
+
+**Live verificatie**: na replay van bewaarde Locations-HTTP200-response met originele waarnemingstijd heeft de collector `Bulk committed: 81700 locations, 205730 EVSEs, 206436 connectors, 101478 tariffs in 00:00:48.7580088` gelogd. Een volgende PostgreSQL-controle om 10:06 UTC gaf **82.130** `charging_location`, **207.565** `evse`, **207.565** `evse_snapshot_active_hour`, **82.130** `location_snapshot_active_hour`, **0** `snapshot_unchanged_hour`: volledige initiële dekking. De 90-dagenstatistiek moet zich nog met nieuwe waarnemingen opbouwen. Er worden geen ruwe statusgeschiedenisregels opgeslagen. Een eerdere backup `backups/chargewatch-20261024T093224Z.dump` van 29 MB werd succesvol in aparte database `chargewatch_restore_test` hersteld en aantallen werden vergeleken; testdatabase kan later na bevestiging worden opgeruimd. Let op: permissies backupbestand eerder zeer ruim (`777+`), hardening als restpunt. Controleer collectorlogs en health bij vervolg.
+
+**Open**: dagelijkse automatische backup (TODO), later doorlopende operationele controles/stats/API/Android; oude statusregels hieronder over 'geen NAS-deployment' en 'PR #19 nog niet gemerged' zijn historisch en niet meer actueel.
+
 # ChargeWatch — actuele werkstand
 
 **Bijgewerkt:** 24 oktober 2026  
