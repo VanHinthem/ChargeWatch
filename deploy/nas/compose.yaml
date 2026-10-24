@@ -37,6 +37,19 @@ services:
     volumes:
       - ndw-cache:/data/cache
 
+  api:
+    image: ghcr.io/vanhinthem/chargewatch-api:${CW_API_IMAGE_TAG:?Set CW_API_IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      CW_API_CONNECTION: "Host=db;Port=5432;Database=chargewatch;Username=chargewatch_read;Password=${CW_READ_PASSWORD:?Set CW_READ_PASSWORD};Pooling=true;Timeout=15;Command Timeout=30"
+      CW_API_STALE_AFTER_MINUTES: ${CW_API_STALE_AFTER_MINUTES:-15}
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "127.0.0.1:5088:8080"
+
   maintenance:
     image: ghcr.io/vanhinthem/chargewatch-maintenance:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     profiles: ["maintenance"]
