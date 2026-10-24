@@ -1,5 +1,6 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -49,11 +50,6 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.MapView
-import org.maplibre.android.maps.MapLibreMap
-import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression.all
 import org.maplibre.android.style.expressions.Expression.eq
 import org.maplibre.android.style.expressions.Expression.get
@@ -201,9 +197,9 @@ private fun ChargeMap(
                         .zoom(12.0)
                         .build()
                     configureStyle(map, styleUri, currentLocations.value, onViewportChanged)
-                    map.getStyle { renderNativeMarkers(map, currentLocations.value, iconCache) }
+                    map.getStyle { renderNativeMarkers(map, currentLocations.value, iconCache, context) }
                     map.addOnCameraIdleListener {
-                        renderNativeMarkers(map, currentLocations.value, iconCache)
+                        renderNativeMarkers(map, currentLocations.value, iconCache, context)
                         val bounds = map.projection.visibleRegion.latLngBounds
                         if (bounds.longitudeWest < bounds.longitudeEast &&
                             bounds.latitudeSouth < bounds.latitudeNorth
@@ -223,7 +219,7 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle { renderNativeMarkers(map, locations, iconCache) }
+                map.getStyle { renderNativeMarkers(map, locations, iconCache, context) }
             }
         }
     )
@@ -236,7 +232,7 @@ private fun configureStyle(
     onViewportChanged: (NdwViewport) -> Unit
 ) {
     map.setStyle(styleUri) { style ->
-        renderNativeMarkers(map, locations, mutableMapOf())
+        renderNativeMarkers(map, locations, mutableMapOf(), mapView.context)
         // Camera-idle events are not guaranteed to fire on the initial map load.
         // Explicitly request the initial visible viewport once the map is ready.
         val bounds = map.projection.visibleRegion.latLngBounds
@@ -261,7 +257,8 @@ private fun configureStyle(
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
-    icons: MutableMap<String, Icon>
+    icons: MutableMap<String, Icon>,
+    context: Context
 ) {
     map.clear()
     if (locations.isEmpty()) return
@@ -272,7 +269,7 @@ private fun renderNativeMarkers(
         val p = map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
         (p.x.toInt() / 64) to (p.y.toInt() / 64)
     }
-    val iconFactory = IconFactory.getInstance(map.context)
+    val iconFactory = IconFactory.getInstance(context)
     cells.values.forEach { group ->
         val isCluster = group.size > 1
         val location = group.first()
