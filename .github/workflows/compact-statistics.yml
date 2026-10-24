@@ -1,0 +1,125 @@
+name: Compact Statistics Database
+on:
+  pull_request:
+    paths:
+      - 'db/migrations/008_compact_snapshot_profiles.sql'
+      - 'db/migrations/009_snapshot_active_hour.sql'
+      - 'db/migrations/010_snapshot_hour_finalization.sql'
+      - 'db/migrations/011_snapshot_unchanged_hour.sql'
+      - 'db/migrations/012_snapshot_unchanged_flush.sql'
+      - 'db/migrations/013_snapshot_changed_hour.sql'
+      - 'db/tests/013_snapshot_changed_hour_smoke.sql'
+      - 'db/tests/014_snapshot_transition_rollback_smoke.sql'
+      - 'db/tests/015_snapshot_restart_setup.sql'
+      - 'db/tests/015_snapshot_restart_verify.sql'
+      - 'db/tests/016_changed_feed_function_benchmark.sql'
+      - 'db/tests/017_poll_replay_guard.sql'
+      - 'db/tests/012_snapshot_unchanged_flush_smoke.sql'
+      - 'db/tests/011_snapshot_unchanged_hour_smoke.sql'
+      - 'db/tests/010_snapshot_hour_finalization_smoke.sql'
+      - 'db/tests/011_active_hour_write_benchmark.sql'
+      - 'db/tests/012_hourly_batch_wal_benchmark.sql'
+      - 'db/tests/009_snapshot_active_hour_smoke.sql'
+      - 'db/tests/008_compact_snapshot_profiles_smoke.sql'
+      - 'db/tests/008_compact_snapshot_profiles_benchmark.sql'
+      - '.github/workflows/compact-statistics.yml'
+      - 'src/ChargeWatch.Importer/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compile and run focused snapshot statistics checks
+        run: dotnet run --project src/ChargeWatch.Importer -- --statistics-selftest
+      - name: Kill journal writer and recover in fresh OS process
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cw-journal-kill
+          target=/tmp/cw-journal-kill/locations.json.gz
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --statistics-journal-create "$target" test &
+          child=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if [[ -s "$target.pending-response.json" ]]; then ready=1; break; fi
+            if ! kill -0 "$child" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          if [[ "$ready" != 1 ]]; then echo 'Journal writer failed to create durable metadata'; exit 1; fi
+          kill -9 "$child"
+          wait "$child" || true
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --statistics-journal-recover "$target" test
+          rm -rf /tmp/cw-journal-kill
+
+  isolated-schema-and-benchmark:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_statistics_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_statistics_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_statistics_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Bootstrap isolated schema only
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chargewatch_import;
+          CREATE ROLE chargewatch_read;
+          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, location_id bigint REFERENCES charging_location(id),status text);
+          CREATE TABLE ndw_snapshot_checkpoint(source_name text PRIMARY KEY, source_sha256 text NOT NULL);
+          CREATE TABLE schema_migration(version text PRIMARY KEY);
+          INSERT INTO charging_location DEFAULT VALUES;
+          INSERT INTO evse DEFAULT VALUES;
+          SQL
+      - name: Apply migration and rollback-safe schema test
+        run: |
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/008_compact_snapshot_profiles.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/009_snapshot_active_hour.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/009_snapshot_active_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/010_snapshot_hour_finalization.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/010_snapshot_hour_finalization_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/011_snapshot_unchanged_hour.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/011_snapshot_unchanged_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/012_snapshot_unchanged_flush.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/012_snapshot_unchanged_flush_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/013_snapshot_changed_hour.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/013_snapshot_changed_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/014_snapshot_transition_rollback_smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/017_poll_replay_guard.sql
+      - name: Persist and consume compact buffer across DB sessions
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/tests/015_snapshot_restart_setup.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/015_snapshot_restart_verify.sql
+      - name: Measure storage and WAL on isolated data
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/011_active_hour_write_benchmark.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/012_hourly_batch_wal_benchmark.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/016_changed_feed_function_benchmark.sql

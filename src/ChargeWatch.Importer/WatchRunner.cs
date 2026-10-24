@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 internal static class WatchRunner
@@ -54,6 +55,23 @@ internal static class WatchRunner
         var tariffsPath = Path.Combine(cacheDirectory, "tariffs.json.gz");
         var statePath = Path.Combine(cacheDirectory, "refresh-state.json");
         var state = await LoadState(statePath);
+        if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+        {
+            var promoted = await SnapshotPendingDownloadJournal.RecoverPromoted(locationsPath);
+            if (promoted is { } recovered)
+            {
+                state = state with
+                {
+                    Locations = new FeedState(
+                        recovered.ETag,
+                        recovered.LastModified,
+                        DateTimeOffset.UtcNow)
+                };
+                await SaveState(statePath, state);
+                SnapshotPendingDownloadJournal.Complete(locationsPath);
+                Console.WriteLine("Recovered promoted Locations cache validators from durable journal.");
+            }
+        }
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("ChargeWatch/1.0");
@@ -147,10 +165,61 @@ internal static class WatchRunner
 
         try
         {
-            if (checkLocations)
+            if (checkLocations && Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                var pendingResponse = await SnapshotPendingDownloadJournal.Load(locationsPath);
+                if (pendingResponse is { } prior)
+                {
+                    Console.WriteLine("Replaying preserved HTTP 200 Locations response with original observation time.");
+                    locations = new DownloadResult(true, prior.Path, prior.ETag, prior.LastModified, prior.ObservedAtUtc);
+                }
+            }
+            if (checkLocations && locations is null)
+            {
                 locations = await Download(http, locationsUrl, state.Locations, locationsPath, cancellationToken);
+                if (locations is { Changed: true, PendingPath: { } pendingPath,
+                                   FetchedAtUtc: { } downloadedAt } &&
+                    Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                    await SnapshotPendingDownloadJournal.Save(
+                        locationsPath, pendingPath, downloadedAt, locations.ETag, locations.LastModified);
+            }
             if (checkTariffs)
                 tariffs = await Download(http, tariffsUrl, state.Tariffs, tariffsPath, cancellationToken);
+
+            // A committed HTTP 200 can precede local cache promotion when the
+            // process dies. On the next 304, reject stale cache observations and
+            // refetch unconditionally rather than using an inconsistent snapshot.
+            if (locations is { Changed: false, FetchedAtUtc: { } observedAt } &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                var conn = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
+                    ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
+                string cacheSha256;
+                await using (var cached = File.OpenRead(locationsPath))
+                    cacheSha256 = Convert.ToHexString(SHA256.HashData(cached)).ToLowerInvariant();
+                try
+                {
+                    var accepted = await SnapshotUnchangedPollRecorder.Record(
+                        conn, Guid.NewGuid().ToString("N"), observedAt, cacheSha256);
+                    Console.WriteLine(accepted
+                        ? "Compact snapshot: verified 304 observation stored."
+                        : "Compact snapshot: duplicate observation skipped.");
+                }
+                catch (InvalidOperationException ex) when
+                    (ex.Message.StartsWith("304 cache SHA does not match committed catalog",
+                        StringComparison.Ordinal))
+                {
+                    Console.WriteLine("Compact snapshot: stale cache detected; refetching Locations without validators.");
+                    // Pass no ETag/Last-Modified: the HTTP response must be a 200.
+                    locations = await Download(http, locationsUrl, null, locationsPath, cancellationToken);
+                    if (locations is { Changed: true, PendingPath: { } recoveredPath,
+                                       FetchedAtUtc: { } recoveredAt })
+                        await SnapshotPendingDownloadJournal.Save(
+                            locationsPath, recoveredPath, recoveredAt, locations.ETag, locations.LastModified);
+                    if (!locations.Changed || locations.PendingPath is null)
+                        throw new InvalidOperationException("Unconditional recovery download did not return HTTP 200.");
+                }
+            }
 
             var locationsForImport = locations?.Changed == true ? locations.PendingPath! : locationsPath;
             var tariffsForImport = tariffs?.Changed == true ? tariffs.PendingPath! : tariffsPath;
@@ -173,7 +242,17 @@ internal static class WatchRunner
                     throw new InvalidOperationException($"Bulk importer returned exit code {result}.");
 
                 if (locations?.Changed == true)
+                {
+                    // CI-only: simulate death after PostgreSQL commit, before
+                    // local cache promotion. The pending response is recoverable.
+                    if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1" &&
+                        Environment.GetEnvironmentVariable("CW_TEST_PAUSE_AFTER_COMMIT_FILE") is { Length: > 0 } marker)
+                    {
+                        await File.WriteAllTextAsync(marker, "ready");
+                        await Task.Delay(Timeout.InfiniteTimeSpan);
+                    }
                     Promote(locations.PendingPath!, locationsPath);
+                 }
                 if (tariffs?.Changed == true)
                     Promote(tariffs.PendingPath!, tariffsPath);
             }
@@ -186,21 +265,116 @@ internal static class WatchRunner
             {
                 Locations = locations is null
                     ? state.Locations
-                    : new FeedState(locations.ETag ?? state.Locations?.ETag, locations.LastModified ?? state.Locations?.LastModified, DateTimeOffset.UtcNow),
+                    : new FeedState(locations.Changed ? locations.ETag : (locations.ETag ?? state.Locations?.ETag),
+                        locations.Changed ? locations.LastModified : (locations.LastModified ?? state.Locations?.LastModified), DateTimeOffset.UtcNow),
                 Tariffs = tariffs is null
                     ? state.Tariffs
-                    : new FeedState(tariffs.ETag ?? state.Tariffs?.ETag, tariffs.LastModified ?? state.Tariffs?.LastModified, DateTimeOffset.UtcNow),
+                    : new FeedState(tariffs.Changed ? tariffs.ETag : (tariffs.ETag ?? state.Tariffs?.ETag),
+                        tariffs.Changed ? tariffs.LastModified : (tariffs.LastModified ?? state.Tariffs?.LastModified), DateTimeOffset.UtcNow),
                 LastSuccessfulCheckUtc = DateTimeOffset.UtcNow,
                 LastSuccessfulImportUtc = anyChanged ? DateTimeOffset.UtcNow : state.LastSuccessfulImportUtc
             };
             await SaveState(statePath, newState);
+            if (locations?.Changed == true &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                SnapshotPendingDownloadJournal.Complete(locationsPath);
             return newState;
         }
         finally
         {
-            DeletePending(locations?.PendingPath);
+            // Keep a journaled 200 response through failures/restarts.
+            if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") != "1" ||
+                !File.Exists(locationsPath + ".pending-response.json"))
+                DeletePending(locations?.PendingPath);
             DeletePending(tariffs?.PendingPath);
         }
+    }
+
+
+    // Local in-process HTTP contract test: never requests the NDW production feed.
+    internal static async Task SelfTestHttp()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "chargewatch-http-selftest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var cached = Path.Combine(folder, "locations.json.gz");
+        try
+        {
+            byte[] validGzip;
+            await using (var memory = new MemoryStream())
+            {
+                await using (var compressor = new GZipStream(memory, CompressionLevel.Fastest, leaveOpen: true))
+                    await compressor.WriteAsync(System.Text.Encoding.UTF8.GetBytes("[{}]"));
+                validGzip = memory.ToArray();
+            }
+
+            var calls = 0;
+            using var http = new HttpClient(new ContractHandler(request =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new ByteArrayContent(validGzip) };
+                    response.Headers.ETag = new EntityTagHeaderValue("\"feed-v1\"");
+                    return response;
+                }
+                if (calls == 2)
+                {
+                    if (!request.Headers.IfNoneMatch.Any(x => x.Tag == "\"feed-v1\""))
+                        throw new InvalidOperationException("HTTP selftest: missing conditional ETag");
+                    return new HttpResponseMessage(HttpStatusCode.NotModified);
+                }
+                if (calls == 3)
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("invalid gzip")) };
+                if (request.Headers.IfNoneMatch.Count != 0 || request.Headers.IfModifiedSince is not null)
+                    throw new InvalidOperationException("HTTP selftest: recovery request retained validators");
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                { Content = new ByteArrayContent(validGzip) };
+            }));
+            var first = await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None);
+            if (!first.Changed || first.PendingPath is null || first.FetchedAtUtc is null)
+                throw new InvalidOperationException("HTTP selftest: first 200 did not return verified pending content");
+            Promote(first.PendingPath, cached);
+            var firstBytes = await File.ReadAllBytesAsync(cached);
+            var firstSha = Convert.ToHexString(SHA256.HashData(firstBytes)).ToLowerInvariant();
+            if (firstSha.Length != 64 || firstSha == new string('0',64))
+                throw new InvalidOperationException("HTTP selftest: cache fingerprint missing");
+            var unchanged = await Download(http, "https://example.invalid/locations",
+                new FeedState(first.ETag), cached, CancellationToken.None);
+            if (unchanged.Changed || unchanged.PendingPath is not null || unchanged.FetchedAtUtc is null)
+                throw new InvalidOperationException("HTTP selftest: 304 did not count as distinct verified observation");
+            var bytesAfter304 = await File.ReadAllBytesAsync(cached);
+            if (!firstBytes.SequenceEqual(bytesAfter304))
+                throw new InvalidOperationException("HTTP selftest: 304 modified cached snapshot");
+
+            var invalidRejected = false;
+            try { await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None); }
+            catch (InvalidDataException) { invalidRejected = true; }
+            var bytesAfterInvalid200 = await File.ReadAllBytesAsync(cached);
+            if (!invalidRejected || !firstBytes.SequenceEqual(bytesAfterInvalid200))
+                throw new InvalidOperationException("HTTP selftest: bad 200 changed the committed cache");
+            if (Directory.GetFiles(folder, "*.pending-*").Length != 0)
+                throw new InvalidOperationException("HTTP selftest: bad 200 left a pending file");
+            // A recovery request with null feed state must not send validators.
+            var recovered = await Download(http, "https://example.invalid/locations",
+                null, cached, CancellationToken.None);
+            if (!recovered.Changed || recovered.PendingPath is null)
+                throw new InvalidOperationException("HTTP selftest: unconditional recovery did not return 200");
+            DeletePending(recovered.PendingPath);
+            var afterRecoveryDownload = await File.ReadAllBytesAsync(cached);
+            if (!firstBytes.SequenceEqual(afterRecoveryDownload))
+                throw new InvalidOperationException("HTTP selftest: recovery download replaced cache before import");
+            Console.WriteLine("HTTP 200/304/cache contract selftest passed.");
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    private sealed class ContractHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(responder(request));
     }
 
     private static async Task<DownloadResult> Download(
@@ -223,7 +397,7 @@ internal static class WatchRunner
                 throw new InvalidOperationException($"Source returned 304 but cache file is missing: {targetPath}");
 
             Console.WriteLine($"304 {url}");
-            return new DownloadResult(false, null, state?.ETag, state?.LastModified, null);
+            return new DownloadResult(false, null, state?.ETag, state?.LastModified, DateTimeOffset.UtcNow);
         }
 
         response.EnsureSuccessStatusCode();
@@ -232,7 +406,11 @@ internal static class WatchRunner
         try
         {
             await using (var output = new FileStream(pendingPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true))
+            {
                 await response.Content.CopyToAsync(output, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+                output.Flush(flushToDisk: true);
+            }
 
             await ValidateGzip(pendingPath, cancellationToken);
 

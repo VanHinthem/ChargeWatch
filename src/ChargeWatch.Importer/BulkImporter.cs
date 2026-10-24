@@ -152,6 +152,14 @@ internal static class BulkImporter
                 }
             }
 
+            // PR17 opt-in isolated integration gate; default remains disabled.
+            // This runs while the OLD committed catalog is still intact and uses
+            // the same transaction as the forthcoming location/EVSE upserts.
+            if (verifiedLocationsFetchedAtUtc is { } verifiedAt &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                await SnapshotCatalogTransition.PrepareBeforeChangedCatalog(db, tx, verifiedAt);
+            }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
                 INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated)
@@ -288,6 +296,22 @@ internal static class BulkImporter
                 provenance.Parameters.AddWithValue(evseCount);
                 await SnapshotPollCoverage.Capture(db, tx, fetchedAt, locationsHash);
                 await provenance.ExecuteNonQueryAsync();
+                if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                {
+                    // HTTP 200: the old 304 counts were consumed before catalog upserts.
+                    // Register one fresh observation against the new committed-to-be catalog
+                    // with the poll claim in the SAME transaction as import/provenance.
+                    if (await SnapshotPollStore.TryClaim(db, tx,
+                            "200-" + locationsHash + "-" + fetchedAt.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture), fetchedAt,
+                            SnapshotFeedQuality.ChangedFeed))
+                    {
+                        await using var sample = new NpgsqlCommand(
+                            "SELECT * FROM snapshot_record_changed_hour($1)", db, tx)
+                            { CommandTimeout = 600 };
+                        sample.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
+                        await sample.ExecuteNonQueryAsync();
+                    }
+                }
             }
 
 
@@ -307,6 +331,15 @@ internal static class BulkImporter
                 cmd.Parameters.AddWithValue(evseCount);
                 cmd.Parameters.AddWithValue(connectorCount);
                 await cmd.ExecuteNonQueryAsync();
+            }
+            // CI-only fault injection, gated by the opt-in statistics feature.
+            // An explicit marker file ensures the parent kills this process
+            // after all catalog and statistics writes, BEFORE PostgreSQL commit.
+            if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1" &&
+                Environment.GetEnvironmentVariable("CW_TEST_PAUSE_BEFORE_COMMIT_FILE") is { Length: > 0 } marker)
+            {
+                await File.WriteAllTextAsync(marker, "ready");
+                await Task.Delay(Timeout.InfiniteTimeSpan);
             }
             await tx.CommitAsync();
             Console.WriteLine($"Bulk committed: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs in {stopwatch.Elapsed}.");
