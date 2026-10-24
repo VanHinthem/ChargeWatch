@@ -1,6 +1,6 @@
-## Visuele ontwerpreferentie in PR #35 (24 oktober 2026)
+## Android UX — primaire PNG-mock-up geborgd (24 oktober 2026)
 
-Een vier-schermen SVG-ontwerpschets staat onder `docs/design/android-ux-baseline.svg`, met verwijzing vanuit `docs/ANDROID_DESIGN.md`. Dit is een schematische reconstructie; de originele gedetailleerde PNG uit de chatsessie moet nog binair worden toegevoegd aan dezelfde PR. De PNG is dus **nog niet** veilig geborgd in GitHub. Vervolg: originele afbeelding toevoegen en widgetmock-ups uitwerken. Geen volledige designgoedkeuring of UI-code.
+De originele vier-schermen afbeelding `docs/design/EV Charging Station App Mockup.png` staat op de designbranch en is als **primaire visuele referentie** opgenomen in `docs/ANDROID_DESIGN.md`. De SVG is alleen een schematische aanvulling. Mock-up is een goedgekeurd uitgangspunt, nog **geen definitief totaalontwerpakkoord**. Vervolg: widgetvarianten en verdere UX-details binnen PR #35. Geen merge of deployment.
 
 ## Android UX — visuele basis gekozen (24 oktober 2026)
 
