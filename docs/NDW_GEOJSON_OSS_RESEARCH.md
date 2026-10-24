@@ -41,5 +41,20 @@ Onze bestaande importer slaat `charging_location(country_code, party_id, source_
 
 **Resultaat nog open:** daadwerkelijke HTTP-code, Oss feature count, response headers, geobserveerde velden, live ID-matches, statusvergelijking en tijdstempels. De agentomgeving kon het dynamische endpoint niet bereikbaar testen. Een geslaagde offline parsercheck alleen is **niet** genoeg om de identity-gate te sluiten.
 
+## Eerste echte Oss-meting — 24 oktober 2026 (aangeleverd rapport)
+
+De gebruiker heeft `tools/ndw_geojson_oss.py` uitgevoerd met de standaardbbox `5.49,51.74,5.56,51.80` en het resulterende rapport gedeeld. Dit is **wel** een daadwerkelijk gegenereerd NDW-rapport, maar de tool bewaart geen ruwe HTTP-status/headers en slechts maximaal tien feature-samples, niet alle 252 ruwe features.
+
+- `type=FeatureCollection`, `feature_count=252`. Geen ontbrekende feature-ID's, geen dubbele feature-ID's, geen ongeldige features.
+- Geobserveerde properties: `address`, `availabilities`, `country`, `cpo_id`, `last_updated`, `open`, `operator_name`, `owner_name`, `suboperator_name`.
+- Geobserveerde availability-properties: `available`, `total`, `connector_type`, `connector_format`, `power_type`, `power_max`, `tariff_ids`. Geen individuele EVSE-status of EVSE-UID in het rapport.
+- Echte voorbeelden: `NL-505-91056291` / 50five / Schutterij 32 / 1 van 1 vrij; `NL-NUO-402fa3d671aef15471b2f7a47f2d12e7` / Vattenfall / Arena 2 / 0 van 2 vrij; `NL-EFL-650dc75ff063f600200cc198` / E-Flux / Lekstraat 13 / 1 van 2 vrij.
+- Eén werkelijk feature-ID kan meerdere koppeltekens bevatten (bijv. UUID); niet naïef `split("-")` gebruiken. Kandidaatformaat `<country>-<cpo_id>-<rest>` is een **hypothese**, niet voldoende voor gevalideerde OCPI-mapping.
+- Rapportvoorbeeld toont `country=NLD` terwijl de feature-ID begint met `NL`; ook `country` kan dus niet klakkeloos aan OCPI `country_code` worden gekoppeld.
+- `last_updated` is aanwezig, maar de semantiek (wijziging/poll) is hiermee niet vastgesteld. Geen gevolgtrekking over de verdeling van alle 252 locatie-/statusrecords op grond van de tien voorbeelden.
+- **Identity gate blijft open**: geen directe vergelijking met werkelijke `charging_location(country_code,party_id,source_id)` uit de NAS/Postgres of API gedaan. NDW rate-limit scope per publiek IP eveneens onbevestigd.
+
+**Volgende gerichte verificatie:** read-only lookup van dezelfde tien kandidaten in de lokale/NAS-OCPI-tabel en individuele EVSE/connectorgegevens; vastleggen van exacte matches en mismatches. Geen backend- of Android-code op grond van onbewezen identity-contract implementeren.
+
 ## Vervolg na geslaagde meting
 Een kleine Android NDW-first kaartclient met fixtures; daarna een read-only serverendpoint voor gericht detail/statistiek op bewezen externe OCPI-location-key (zonder interne DB-ID aan mobiele client te koppelen). Onafhankelijk daarvan releasegates uit `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`. Geen publiek exposure, NAS deployment of merge zonder expliciet gebruikersakkoord.
