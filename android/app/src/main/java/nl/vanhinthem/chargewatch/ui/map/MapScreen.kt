@@ -1,7 +1,7 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import android.graphics.Color
 import android.os.Bundle
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,18 +20,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
@@ -41,10 +40,11 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression.all
+import org.maplibre.android.style.expressions.Expression.eq
 import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.android.style.expressions.Expression.has
 import org.maplibre.android.style.expressions.Expression.literal
-import org.maplibre.android.style.expressions.Expression.match
 import org.maplibre.android.style.expressions.Expression.not
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
@@ -65,7 +65,7 @@ import org.maplibre.geojson.Point
 
 @Composable
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -127,10 +127,7 @@ private fun SearchHeader(modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Icon(
-                Icons.Default.FilterList,
-                contentDescription = "Filters — implementatie volgt"
-            )
+            Icon(Icons.Default.FilterList, contentDescription = "Filters")
         }
     }
 }
@@ -141,8 +138,186 @@ private fun ChargeMap(
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit
 ) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val mapView = remember {
-        MapView(lifecycleOwner.lifecycle.coroutineScope.coroutineContext[androidx.lifecycle.ViewTreeLifecycleOwner] as? android.content.Context)
+    val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
+
+    val mapView = remember(context) {
+        MapView(context).apply { onCreate(Bundle()) }
+    }
+
+    DisposableEffect(lifecycleOwner, mapView) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) = mapView.onStart()
+            override fun onResume(owner: LifecycleOwner) = mapView.onResume()
+            override fun onPause(owner: LifecycleOwner) = mapView.onPause()
+            override fun onStop(owner: LifecycleOwner) = mapView.onStop()
+            override fun onDestroy(owner: LifecycleOwner) = mapView.onDestroy()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = {
+            mapView.apply {
+                getMapAsync { map ->
+                    map.cameraPosition = CameraPosition.Builder()
+                        .target(LatLng(52.15, 5.35))
+                        .zoom(7.2)
+                        .build()
+                    configureStyle(map, styleUri, locations)
+                    map.addOnCameraIdleListener {
+                        val bounds = map.projection.visibleRegion.latLngBounds
+                        if (bounds.longitudeWest < bounds.longitudeEast &&
+                            bounds.latitudeSouth < bounds.latitudeNorth
+                        ) {
+                            onViewportChanged(
+                                NdwViewport(
+                                    minLongitude = bounds.longitudeWest,
+                                    minLatitude = bounds.latitudeSouth,
+                                    maxLongitude = bounds.longitudeEast,
+                                    maxLatitude = bounds.latitudeNorth
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        update = { view ->
+            view.getMapAsync { map ->
+                val currentUri = map.style?.uri
+                if (currentUri != styleUri) {
+                    configureStyle(map, styleUri, locations)
+                } else {
+                    map.getStyle { style -> updateLocations(style, locations) }
+                }
+            }
+        }
+    )
+}
+
+private fun configureStyle(
+    map: MapLibreMap,
+    styleUri: String,
+    locations: List<MapLocation>
+) {
+    map.setStyle(styleUri) { style ->
+        ensureLayers(style)
+        updateLocations(style, locations)
     }
 }
+
+private fun ensureLayers(style: Style) {
+    if (style.getSource(SOURCE_ID) != null) return
+
+    style.addSource(
+        GeoJsonSource(
+            SOURCE_ID,
+            FeatureCollection.fromFeatures(arrayOf()),
+            GeoJsonOptions()
+                .withCluster(true)
+                .withClusterRadius(52)
+                .withClusterMaxZoom(14)
+        )
+    )
+
+    val cluster = CircleLayer(CLUSTER_LAYER, SOURCE_ID).withProperties(
+        circleColor(UNKNOWN_COLOR),
+        circleRadius(24f),
+        circleStrokeColor(UNKNOWN_COLOR),
+        circleStrokeWidth(4f)
+    ).withFilter(has("point_count"))
+    style.addLayer(cluster)
+
+    style.addLayer(
+        CircleLayer(AVAILABLE_LAYER, SOURCE_ID)
+            .withProperties(circleColor(AVAILABLE_COLOR), circleRadius(22f))
+            .withFilter(
+                all(
+                    not(has("point_count")),
+                    eq(get("status"), literal("available"))
+                )
+            )
+    )
+    style.addLayer(
+        CircleLayer(NONE_AVAILABLE_LAYER, SOURCE_ID)
+            .withProperties(circleColor(NONE_AVAILABLE_COLOR), circleRadius(22f))
+            .withFilter(
+                all(
+                    not(has("point_count")),
+                    eq(get("status"), literal("none"))
+                )
+            )
+    )
+    style.addLayer(
+        CircleLayer(UNKNOWN_LAYER, SOURCE_ID)
+            .withProperties(circleColor(UNKNOWN_COLOR), circleRadius(22f))
+            .withFilter(
+                all(
+                    not(has("point_count")),
+                    eq(get("status"), literal("unknown"))
+                )
+            )
+    )
+
+    style.addLayer(
+        SymbolLayer(CLUSTER_LABEL_LAYER, SOURCE_ID)
+            .withProperties(
+                textField("…"),
+                textColor(Color.WHITE),
+                textSize(17f),
+                textAllowOverlap(true),
+                textIgnorePlacement(true)
+            )
+            .withFilter(has("point_count"))
+    )
+
+    style.addLayer(
+        SymbolLayer(LABEL_LAYER, SOURCE_ID)
+            .withProperties(
+                textField(get("label")),
+                textColor(Color.WHITE),
+                textSize(13f),
+                textAllowOverlap(true),
+                textIgnorePlacement(true)
+            )
+            .withFilter(not(has("point_count")))
+    )
+}
+
+private fun updateLocations(style: Style, locations: List<MapLocation>) {
+    val features = locations.map { location ->
+        Feature.fromGeometry(Point.fromLngLat(location.longitude, location.latitude)).apply {
+            addStringProperty("feature_id", location.featureId)
+            addStringProperty("label", location.availability.label)
+            addStringProperty(
+                "status",
+                when (location.availability.status) {
+                    AvailabilityStatus.Available -> "available"
+                    AvailabilityStatus.NoneAvailable -> "none"
+                    AvailabilityStatus.Unknown -> "unknown"
+                }
+            )
+        }
+    }
+    style.getSourceAs<GeoJsonSource>(SOURCE_ID)
+        ?.setGeoJson(FeatureCollection.fromFeatures(features))
+}
+
+private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
+private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
+private const val SOURCE_ID = "chargewatch-locations"
+private const val CLUSTER_LAYER = "chargewatch-clusters"
+private const val AVAILABLE_LAYER = "chargewatch-available"
+private const val NONE_AVAILABLE_LAYER = "chargewatch-none-available"
+private const val UNKNOWN_LAYER = "chargewatch-unknown"
+private const val CLUSTER_LABEL_LAYER = "chargewatch-cluster-label"
+private const val LABEL_LAYER = "chargewatch-labels"
+private const val AVAILABLE_COLOR = "#168653"
+private const val NONE_AVAILABLE_COLOR = "#D43B3B"
+private const val UNKNOWN_COLOR = "#818D96"
