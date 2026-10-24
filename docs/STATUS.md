@@ -1,6 +1,10 @@
+## ChargeWatch appicoon PNG gekoppeld (24 oktober 2026)
+
+De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. Definitieve expliciete goedkeuring van de icoonuitwerking blijft afzonderlijk open. PR #35 niet gemerged; geen deployment.
+
 ## Appicoon — concept B geselecteerd (24 oktober 2026)
 
-Van drie ChargeWatch-iconrichtingen is **Stekker + statusring** gekozen: donkerblauwe achtergrond, witte stekker, groen accent en decoratieve statusring. Uitwerking tot adaptive/monochrome icon en archivering van de concept-PNG blijven open in PR #35. Geen implementatiecode, merge of deployment.
+Van drie ChargeWatch-iconrichtingen is **Stekker + statusring** gekozen: donkerblauwe achtergrond, witte stekker, groen accent en decoratieve statusring. Uitwerking tot adaptive/monochrome icon en archivering van de concept-PNG is afgerond in PR #35. Geen implementatiecode, merge of deployment.
 
 ## Android UX — finale contract- en randgevallenreview afgerond (24 oktober 2026)
 
