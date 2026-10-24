@@ -124,3 +124,17 @@ Unit tests voor statusinterpretatie en compacte statistieken, fixture-/contractt
 - `data-status.lastSuccessfulImportAt` betekent laatste geslaagde gewijzigde import; `lastObservedPollAt` betekent het laatste geaccepteerde snapshot-pollmoment volgens `snapshot_poll_checkpoint`. `ageSeconds` en de algemene `isStale` zijn hierop gebaseerd. Als de collector niets nieuws heeft geobserveerd, is de indicatie conservatief. `sourceUpdatedAt` en locatie-`isStale` houden hun bestaande, **afzonderlijke** semantiek: oud bronwijzigingsmoment (niet noodzakelijk mislukte poll).
 - Beschikbaarheids-`availableProbability` blijft **null** zolang het publicatiebeleid `docs/SPRINT3_PUBLICATION_POLICY.md` geen gekalibreerde grens en voldoende geschiedenis heeft. De API behoudt diagnostische sample-/feedtellers. Null is geen 0% kans.
 - Tarieven blijven ruwe OCPI-componenten en originele bron-tekst. Geen API-berekening of claim van een consumentenprijs inclusief btw: veld `vat` en vrije tarieftekst kunnen anders zijn afgerond en contractvoorwaarden kunnen gelden. De latere Android-presentatie moet dit expliciet interpreteren.
+
+
+## Android API-contract — twee soorten versheid
+
+Bij `GET /api/v1/locations` en `GET /api/v1/locations/{id}` geldt:
+
+| JSON-veld | Betekenis | Interpretatie client |
+|---|---|---|
+| `sourceUpdatedAt` | Recentste bronwijziging van locatie/gekoppelde EVSE's | Informatief tijdstip; status kan langer ongewijzigd zijn |
+| `isStale` | Bronwijzigingsmoment ouder dan de geconfigureerde drempel | **Niet** gebruiken als bewijs dat de ingestelde polling is gestopt |
+| `feedLastObservedAt` | Recentste geaccepteerde nationale snapshotpoll in `snapshot_poll_checkpoint` | Tijdstip waarop de nationale feed is verwerkt/geobserveerd, niet individuele EVSE-bevestiging |
+| `feedIsStale` | Geen nationale poll binnen de drempel, of onbekend | Waarschuwing over algemene feed-actualiteit; `true` bij ontbrekende checkpoint |
+
+Voor de widget onderscheidt de client 'feed recent gecontroleerd' van 'bronstatus voor het laatst gewijzigd'. Zeg **niet** dat één specifieke EVSE bij de meest recente poll fysiek opnieuw geverifieerd is. De API bewijst dat niet. Bij `feedIsStale=true` de getoonde beschikbaarheid als mogelijk verouderd markeren. Geef geen percentage weer bij `availableProbability=null`. Favorieten/eigen namen/volgorde blijven uitsluitend op Android opgeslagen.
