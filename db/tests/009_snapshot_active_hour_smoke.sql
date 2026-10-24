@@ -36,7 +36,7 @@ BEGIN
 END $$;
 
 -- Reject an older poll after the newest accepted point, including a different ID.
-DO $
+DO $older$
 DECLARE claimed integer;
 BEGIN
  WITH attempt AS (
@@ -54,7 +54,7 @@ BEGIN
      WHERE source_name='ndw-locations-ci')<>1 THEN
   RAISE EXCEPTION 'checkpoint mutated by replay or older poll';
  END IF;
-END $;
+END $older$;
 
 WITH target AS (SELECT id FROM evse ORDER BY id LIMIT 1)
 INSERT INTO evse_snapshot_active_hour(evse_id,hour_start_utc,category_counts,changed_count)
