@@ -2,6 +2,27 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Npgsql;
 
+// Test-only subprocess hooks: separate OS processes validate journal replay without NDW/NAS.
+if (args.Length == 3 && args[0] == "--statistics-journal-create")
+{
+    var target = args[1];
+    var pending = target + ".pending-test";
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
+    await File.WriteAllTextAsync(pending, "fixture-durable-pending-snapshot");
+    await SnapshotPendingDownloadJournal.Save(target, pending,
+        new DateTimeOffset(2026, 10, 24, 8, 40, 0, TimeSpan.Zero), "\"fixture\"", null);
+    return 0;
+}
+if (args.Length == 3 && args[0] == "--statistics-journal-recover")
+{
+    var recovered = await SnapshotPendingDownloadJournal.Load(args[1]);
+    if (recovered is null ||
+        recovered.Value.ObservedAtUtc != new DateTimeOffset(2026, 10, 24, 8, 40, 0, TimeSpan.Zero))
+        throw new InvalidOperationException("Journal did not survive an OS process restart.");
+    if ((await File.ReadAllTextAsync(recovered.Value.Path)) != "fixture-durable-pending-snapshot")
+        throw new InvalidOperationException("Recovered pending response mismatch.");
+    return 0;
+}
 if (args.Length == 1 && args[0] == "--statistics-selftest")
 {
     StatisticsHourSplitter.SelfTest();
