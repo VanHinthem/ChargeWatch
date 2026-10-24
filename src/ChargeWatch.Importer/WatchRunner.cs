@@ -148,8 +148,24 @@ internal static class WatchRunner
 
         try
         {
-            if (checkLocations)
+            if (checkLocations && Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                var pendingResponse = await SnapshotPendingDownloadJournal.Load(locationsPath);
+                if (pendingResponse is { } prior)
+                {
+                    Console.WriteLine("Replaying preserved HTTP 200 Locations response with original observation time.");
+                    locations = new DownloadResult(true, prior.Path, prior.ETag, prior.LastModified, prior.ObservedAtUtc);
+                }
+            }
+            if (checkLocations && locations is null)
+            {
                 locations = await Download(http, locationsUrl, state.Locations, locationsPath, cancellationToken);
+                if (locations is { Changed: true, PendingPath: { } pendingPath,
+                                   FetchedAtUtc: { } observedAt } &&
+                    Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                    await SnapshotPendingDownloadJournal.Save(
+                        locationsPath, pendingPath, observedAt, locations.ETag, locations.LastModified);
+            }
             if (checkTariffs)
                 tariffs = await Download(http, tariffsUrl, state.Tariffs, tariffsPath, cancellationToken);
 
@@ -179,6 +195,10 @@ internal static class WatchRunner
                     Console.WriteLine("Compact snapshot: stale cache detected; refetching Locations without validators.");
                     // Pass no ETag/Last-Modified: the HTTP response must be a 200.
                     locations = await Download(http, locationsUrl, null, locationsPath, cancellationToken);
+                    if (locations is { Changed: true, PendingPath: { } recoveredPath,
+                                       FetchedAtUtc: { } recoveredAt })
+                        await SnapshotPendingDownloadJournal.Save(
+                            locationsPath, recoveredPath, recoveredAt, locations.ETag, locations.LastModified);
                     if (!locations.Changed || locations.PendingPath is null)
                         throw new InvalidOperationException("Unconditional recovery download did not return HTTP 200.");
                 }
@@ -205,7 +225,11 @@ internal static class WatchRunner
                     throw new InvalidOperationException($"Bulk importer returned exit code {result}.");
 
                 if (locations?.Changed == true)
+                {
                     Promote(locations.PendingPath!, locationsPath);
+                    if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                        SnapshotPendingDownloadJournal.Complete(locationsPath);
+                }
                 if (tariffs?.Changed == true)
                     Promote(tariffs.PendingPath!, tariffsPath);
             }
@@ -230,7 +254,10 @@ internal static class WatchRunner
         }
         finally
         {
-            DeletePending(locations?.PendingPath);
+            // Keep a journaled 200 response through failures/restarts.
+            if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") != "1" ||
+                !File.Exists(locationsPath + ".pending-response.json"))
+                DeletePending(locations?.PendingPath);
             DeletePending(tariffs?.PendingPath);
         }
     }
