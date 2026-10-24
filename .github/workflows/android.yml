@@ -32,10 +32,10 @@ jobs:
           SDKMANAGER: /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
         run: |
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.6.0'
       - name: Unit tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Build debug APK
