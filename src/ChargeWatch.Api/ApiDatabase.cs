@@ -43,7 +43,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             throw new ArgumentOutOfRangeException(nameof(radiusMeters), "radiusMeters must be between 100 and 100000.");
 
         var useNear = latitude is not null;
-        var effectiveRadius = useNear ? radiusMeters ?? 5000 : null;
+        int? effectiveRadius = useNear ? radiusMeters ?? 5000 : null;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
 
