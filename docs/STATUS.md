@@ -1,3 +1,7 @@
+## Overdracht — feed timestamp HTTP 500 hotfix (24 oktober 2026)
+
+**Live NAS-observatie na PR #27:** `GET /api/v1/locations?q=Oss&limit=1` retourneert HTTP 500. Npgsql `ExecuteScalarAsync()` geeft een `System.DateTime` terug voor `max(last_observed_at)`, terwijl `GetFeedLastObservedAt` dit direct naar `DateTimeOffset` cast (`InvalidCastException`). `fix/api-feed-observed-timestamp` zet expliciet UTC `DateTime` om naar `DateTimeOffset`. Geen database-/collectorwijzigingen. Na geslaagde CI en expliciete mergegoedkeuring: alleen nieuwe API-image op HINNAS uitrollen en zoek/detail/status testen. Workaround: oude, werkende API-image uit PR #26 (merge `dbcda4745be104b635735161a9700c8c24e30caa`) gebruiken. 
+
 ## Overdracht — Android-contract dataversheid (24 oktober 2026)
 
 **Implementatie:** locatiezoekresultaten en locatiedetails bevatten naast het bestaande `sourceUpdatedAt` en `isStale` nu `feedLastObservedAt` en `feedIsStale`. De eerste twee beschrijven de leeftijd van het **bronwijzigingsmoment**; de laatste twee beschrijven de laatste landelijk geaccepteerde snapshotpoll en de algemene feed-versheid. Een landelijke poll is **geen bewijs dat iedere individuele EVSE-status opnieuw is bevestigd**. Android mag dus 'Feed gecontroleerd' tonen met de juiste nuance, niet 'Deze laadpaal is gecontroleerd'. Bij onbekende poll is de feed stale. Bestaande velden blijven voor compatibiliteit behouden.
