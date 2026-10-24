@@ -3,3 +3,8 @@
 **/obj/
 .vs/
 data/ndw-compare/
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
