@@ -69,6 +69,13 @@ internal sealed class ApiDatabase(ApiOptions options)
                    ST_DWithin(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9))
             GROUP BY l.id
             ORDER BY
+              CASE WHEN $1::text IS NOT NULL AND trim($1) <> '' THEN
+                CASE WHEN lower(l.city)=lower(trim($1)) THEN 0
+                     WHEN lower(l.address)=lower(trim($1)) THEN 1
+                     WHEN lower(l.city) LIKE lower(trim($1))||'%' THEN 2
+                     WHEN lower(l.address) LIKE lower(trim($1))||'%' THEN 3
+                     ELSE 4 END
+                ELSE 0 END,
               CASE WHEN $7::double precision IS NOT NULL THEN
                 ST_Distance(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography)
               END NULLS LAST,
@@ -230,6 +237,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand("""
             SELECT (SELECT max(completed_at) FROM import_run WHERE status='completed'),
+                   (SELECT max(last_observed_at) FROM snapshot_poll_checkpoint),
                    (SELECT count(*) FROM charging_location),
                    (SELECT count(*) FROM evse),
                    (SELECT count(*) FROM connector),
@@ -238,9 +246,10 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var reader = await command.ExecuteReaderAsync();
         await reader.ReadAsync();
         var completed = NullableTimestamp(reader,0);
-        var age = completed is null ? (double?)null : (DateTimeOffset.UtcNow-completed.Value).TotalSeconds;
-        return new DataStatus(completed,age,IsStale(completed),(int)_staleAfter.TotalMinutes,
-            reader.GetInt64(1),reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4));
+        var observed = NullableTimestamp(reader,1);
+        var age = observed is null ? (double?)null : (DateTimeOffset.UtcNow-observed.Value).TotalSeconds;
+        return new DataStatus(completed,observed,age,IsStale(observed),(int)_staleAfter.TotalMinutes,
+            reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5));
     }
 
     private void AppendSlots(List<AvailabilitySlot> target, NpgsqlDataReader reader, int categoryCount, int offset=0)
@@ -254,7 +263,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         if (ewma.Length != categoryCount*24 || samples.Length != 24)
             throw new InvalidDataException("Unexpected compact statistics array shape.");
         for (var hour=0; hour<24; hour++)
-            target.Add(new AvailabilitySlot(weekday,hour,ewma[hour],samples[hour],changed[hour],unchanged[hour],last));
+            target.Add(new AvailabilitySlot(weekday,hour,null,samples[hour],changed[hour],unchanged[hour],last));
     }
 
     private bool IsStale(DateTimeOffset? timestamp)
