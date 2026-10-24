@@ -8,7 +8,6 @@ import android.graphics.Paint
 import android.os.Bundle
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -91,20 +89,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         )
 
-        Column(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 6.dp) {
-                Text(
-                    text = state.diagnostic + if (state.locations.isNotEmpty()) " · Eerste punt: ${state.locations.first().latitude}, ${state.locations.first().longitude}" else "",
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Button(onClick = viewModel::testNdwOss) { Text("Test NDW Oss") }
-        }
 
         if (state.loading) {
             CircularProgressIndicator(
