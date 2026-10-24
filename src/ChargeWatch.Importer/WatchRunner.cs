@@ -264,13 +264,15 @@ internal static class WatchRunner
                 new FeedState(first.ETag), cached, CancellationToken.None);
             if (unchanged.Changed || unchanged.PendingPath is not null || unchanged.FetchedAtUtc is null)
                 throw new InvalidOperationException("HTTP selftest: 304 did not count as distinct verified observation");
-            if (!firstBytes.SequenceEqual(await File.ReadAllBytesAsync(cached)))
+            var bytesAfter304 = await File.ReadAllBytesAsync(cached);
+            if (!firstBytes.SequenceEqual(bytesAfter304))
                 throw new InvalidOperationException("HTTP selftest: 304 modified cached snapshot");
 
             var invalidRejected = false;
             try { await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None); }
             catch (InvalidDataException) { invalidRejected = true; }
-            if (!invalidRejected || !firstBytes.SequenceEqual(await File.ReadAllBytesAsync(cached)))
+            var bytesAfterInvalid200 = await File.ReadAllBytesAsync(cached);
+            if (!invalidRejected || !firstBytes.SequenceEqual(bytesAfterInvalid200))
                 throw new InvalidOperationException("HTTP selftest: bad 200 changed the committed cache");
             if (Directory.GetFiles(folder, "*.pending-*").Length != 0)
                 throw new InvalidOperationException("HTTP selftest: bad 200 left a pending file");
