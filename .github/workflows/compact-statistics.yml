@@ -6,6 +6,7 @@ on:
       - 'db/migrations/009_snapshot_active_hour.sql'
       - 'db/migrations/010_snapshot_hour_finalization.sql'
       - 'db/tests/010_snapshot_hour_finalization_smoke.sql'
+      - 'db/tests/011_active_hour_write_benchmark.sql'
       - 'db/tests/009_snapshot_active_hour_smoke.sql'
       - 'db/tests/008_compact_snapshot_profiles_smoke.sql'
       - 'db/tests/008_compact_snapshot_profiles_benchmark.sql'
@@ -73,4 +74,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/010_snapshot_hour_finalization.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/010_snapshot_hour_finalization_smoke.sql
       - name: Measure storage and WAL on isolated data
-        run: psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/011_active_hour_write_benchmark.sql
