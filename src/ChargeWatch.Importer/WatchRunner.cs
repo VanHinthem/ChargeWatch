@@ -269,8 +269,13 @@ internal static class WatchRunner
                         throw new InvalidOperationException("HTTP selftest: missing conditional ETag");
                     return new HttpResponseMessage(HttpStatusCode.NotModified);
                 }
+                if (calls == 3)
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("invalid gzip")) };
+                if (request.Headers.IfNoneMatch.Count != 0 || request.Headers.IfModifiedSince is not null)
+                    throw new InvalidOperationException("HTTP selftest: recovery request retained validators");
                 return new HttpResponseMessage(HttpStatusCode.OK)
-                { Content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("invalid gzip")) };
+                { Content = new ByteArrayContent(validGzip) };
             }));
             var first = await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None);
             if (!first.Changed || first.PendingPath is null || first.FetchedAtUtc is null)
@@ -296,6 +301,15 @@ internal static class WatchRunner
                 throw new InvalidOperationException("HTTP selftest: bad 200 changed the committed cache");
             if (Directory.GetFiles(folder, "*.pending-*").Length != 0)
                 throw new InvalidOperationException("HTTP selftest: bad 200 left a pending file");
+            // A recovery request with null feed state must not send validators.
+            var recovered = await Download(http, "https://example.invalid/locations",
+                null, cached, CancellationToken.None);
+            if (!recovered.Changed || recovered.PendingPath is null)
+                throw new InvalidOperationException("HTTP selftest: unconditional recovery did not return 200");
+            DeletePending(recovered.PendingPath);
+            var afterRecoveryDownload = await File.ReadAllBytesAsync(cached);
+            if (!firstBytes.SequenceEqual(afterRecoveryDownload))
+                throw new InvalidOperationException("HTTP selftest: recovery download replaced cache before import");
             Console.WriteLine("HTTP 200/304/cache contract selftest passed.");
         }
         finally { Directory.Delete(folder, recursive: true); }
