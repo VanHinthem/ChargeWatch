@@ -142,7 +142,7 @@ private fun ChargeMap(
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
 
-    val mapView = remember(context) {
+    val mapView = remember(context, darkTheme) {
         MapView(context).apply { onCreate(Bundle()) }
     }
 
@@ -190,12 +190,7 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                val currentUri = map.style?.uri
-                if (currentUri != styleUri) {
-                    configureStyle(map, styleUri, locations)
-                } else {
-                    map.getStyle { style -> updateLocations(style, locations) }
-                }
+                map.getStyle { style -> updateLocations(style, locations) }
             }
         }
     )
@@ -218,7 +213,7 @@ private fun ensureLayers(style: Style) {
     style.addSource(
         GeoJsonSource(
             SOURCE_ID,
-            FeatureCollection.fromFeatures(arrayOf()),
+            FeatureCollection.fromFeatures(arrayOf<Feature>()),
             GeoJsonOptions()
                 .withCluster(true)
                 .withClusterRadius(52)
