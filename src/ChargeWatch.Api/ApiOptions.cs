@@ -26,6 +26,16 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
         Require(ParseLimit(999) == 200, "maximum limit");
         Require(TryParseBbox("4.8,51.7,5.0,51.9", out var bbox) && bbox.MinLon < bbox.MaxLon, "bbox parsing");
         Require(!TryParseBbox("5,52,4,51", out _), "invalid bbox order");
+        var sample = new LocationListItem(
+            1, "NL", "ABC", "source", "Teststraat", "Oss", null, 51.75, 5.53,
+            2, 0, 2, 0, 0,
+            DateTimeOffset.UtcNow.AddHours(-1), true,
+            DateTimeOffset.UtcNow.AddMinutes(-1), false, null);
+        var json = System.Text.Json.JsonSerializer.Serialize(sample,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Require(json.Contains("\\"isStale\\":true") && json.Contains("\\"feedIsStale\\":false")
+                && json.Contains("\\"feedLastObservedAt\\""),
+            "separate source-age and feed freshness fields in Android JSON contract");
         Console.WriteLine("ChargeWatch API selftest passed.");
     }
 
