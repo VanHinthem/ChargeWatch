@@ -276,15 +276,15 @@ private fun renderNativeMarkers(
         val nearest = clusters.minByOrNull { group ->
             val x = group.map { positions.getValue(it).x.toDouble() }.average()
             val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x
-            val dy = y - point.y
+            val dx = x - point.x.toDouble()
+            val dy = y - point.y.toDouble()
             dx * dx + dy * dy
         }
         val distanceSquared = nearest?.let { group ->
             val x = group.map { positions.getValue(it).x.toDouble() }.average()
             val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x
-            val dy = y - point.y
+            val dx = x - point.x.toDouble()
+            val dy = y - point.y.toDouble()
             dx * dx + dy * dy
         } ?: Double.POSITIVE_INFINITY
         if (nearest != null && distanceSquared < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
