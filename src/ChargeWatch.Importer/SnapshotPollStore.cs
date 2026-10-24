@@ -11,6 +11,8 @@ internal static class SnapshotPollStore
     {
         if (string.IsNullOrWhiteSpace(pollId))
             throw new ArgumentException("A stable poll identity is required.", nameof(pollId));
+        await using (var gate = new NpgsqlCommand("SELECT pg_advisory_xact_lock(24680, 17017)", connection, transaction))
+            await gate.ExecuteNonQueryAsync();
         const string sql = """
             INSERT INTO snapshot_poll_checkpoint
               (source_name,last_poll_id,last_observed_at,last_quality)
