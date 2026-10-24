@@ -181,6 +181,15 @@ De onderstaande stijlrichting is door de gebruiker als basis bevestigd. De hex-k
 ### Reviewstatus en implementatiegrenzen
 De kaart-, app-, widget- en designrichting is interactief besproken. Deze review legt de randgevallen en expliciete data-acceptatiegates vast; **de volledige designfase is nog niet expliciet finaal goedgekeurd**. De drie PNG-mock-ups zijn visuele conceptreferenties en hun fictieve waarden zijn niet leidend boven het data- en beveiligingscontract. Geen Android UI-code, publieke API-uitrol of merge zonder apart akkoord.
 
+### Appicoon — visuele referentie
+
+![ChargeWatch concept 2 — Stekker en statusring](design/ChargeWatch%20App%20Icon%20Guideline%20Board.png)
+
+- Bronbestand: [ChargeWatch App Icon Guideline Board.png](design/ChargeWatch%20App%20Icon%20Guideline%20Board.png) in PR #35.
+- Deze PNG is de **primaire visuele referentie** voor het geselecteerde concept 2 (stekker + statusring), met donkerblauwe standaardvariant, monochrome variant en adaptive-iconvoorbeelden.
+- De PNG is een ontwerpplaat, **niet** een set direct te gebruiken Android-resources. Foreground, background en monochrome vector-/bitmap-assets en veilige marges volgen bij de Android-implementatie.
+- De gebruiker heeft concept 2 gekozen; expliciete definitieve goedkeuring van de afzonderlijke iconuitwerking is nog niet bevestigd.
+
 ## Appicoon — gekozen concept (24 oktober 2026)
 
 De gebruiker heeft uit drie voorgestelde icoonrichtingen **concept B: stekker + statusring** gekozen als voorkeursrichting. Dit is een ontwerpskeuze binnen PR #35, geen akkoord op definitieve exportbestanden.
@@ -188,7 +197,7 @@ De gebruiker heeft uit drie voorgestelde icoonrichtingen **concept B: stekker + 
 - Donkerblauw/antraciet achtergrond, witte stekker, klein groen bliksemsymbool en groene (decoratieve) statusring.
 - Statusring staat voor monitoring; suggereert **geen actuele operationele status**.
 - Uit te werken: scherp vereenvoudigd icoon dat op launcherformaat leesbaar blijft, Android adaptive-icon foreground/background, monochrome versie voor themed icons, veilige marges en rond-masker-preview.
-- De gegenereerde drie-concepten-PNG is nog niet als bronbestand aan de repository toegevoegd en moet, indien gewenst, in `docs/design/` op de designbranch worden opgenomen.
+- De afzonderlijke concept-2-ontwerpplaat is als PNG aan de designbranch toegevoegd en hierboven gelinkt.
 - Geen Android UI-/launcher-code of merge/deployment voor afzonderlijk akkoord.
 
 ## Definition of done — designfase
