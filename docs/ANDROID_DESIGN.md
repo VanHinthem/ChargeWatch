@@ -27,6 +27,17 @@ De onderstaande keuzes zijn tijdens de gezamenlijke ontwerpsessie bevestigd; **d
 - **Wel externe acties** op geselecteerde locatie en in details: **Navigeren** naar coördinaten via een geïnstalleerde navigatie-app en **Street View bekijken** via Google Maps (extern). Beschikbaarheid van Street View is niet gegarandeerd; geen ingebouwde panorama-/foto-API nodig.
 - Visuele mock-ups zonder verplichte foto ontwerpen; compact detailoverzicht gebruikt die ruimte voor status en acties. Definitieve iconen en positionering nog te beoordelen.
 
+### Visuele basis gekozen — kaart, detail en favorieten (24 oktober 2026)
+De samen bekeken derde mock-up geldt **als uitgangspunt** voor verdere vormgeving, niet als definitieve pixel- of totaalontwerpgoedkeuring.
+
+- **Kaart:** zoekbalk en filterchips bovenop de kaart, twee hoofditems Kaart/Favorieten, gekleurde beschikbaarheidsmarkers met `x/y`, clusterring en kleine favorietster rechtsboven. In de gegenereerde mock-up zijn sommige clusters abusievelijk blauw; **de afgesproken statuskleuren gelden ook voor clusters**. Blauwe markering is geen goedgekeurde aparte clusterstatus.
+- **Geselecteerde locatie / bottom sheet:** niet kleiner maken; titel, adres, afstand, beschikbaarheid, passend vermogen en connectorsoorten, ster, externe acties Navigeren en Street View, doorklik naar details en een **mini-staafgrafiek met historische bezetting per uur**. Geen foto.
+- **Detailpagina:** helder EVSE-/aansluitingenoverzicht en tarieven; onder "Populaire laadtijden" een combinatie van **staafdiagram gemiddelde historische bezetting** en **lijn historische kans op minstens één vrije aansluiting** per gekozen weekdag/uur.
+- **Favorietenlijst:** overzichtelijke statuskaarten inclusief **kleine historische bezettingsgrafiek** per favoriet, eigen namen en lokale opslag.
+- **Statistische waarborgen:** alle getoonde grafiekwaarden in de conceptafbeeldingen zijn fictief. Alleen werkelijk beschikbare en gevalideerde data tonen; `availableProbability=null` betekent **geen percentage/lijn publiceren**, niet nul procent. Bij onvoldoende historische data tonen we een neutrale uitleg. "Populaire laadtijden" is een presentatietitel en mag niet suggereren dat echte laadsessies of nauwkeurige voorspellingen zijn gemeten. Geen ruwe historie opslaan.
+
+Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, correcte tel-eenheid EVSE versus connector en brondekking, narrow-screen geometrie, dark mode, interactieve flows, beide Glance-widgetformaten. Geen Android UI-code voor expliciet totaalontwerpakkoord.
+
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
 2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
