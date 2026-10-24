@@ -63,8 +63,8 @@ internal static class WatchRunner
                 state = state with
                 {
                     Locations = new FeedState(
-                        recovered.ETag ?? state.Locations?.ETag,
-                        recovered.LastModified ?? state.Locations?.LastModified,
+                        recovered.ETag,
+                        recovered.LastModified,
                         DateTimeOffset.UtcNow)
                 };
                 await SaveState(statePath, state);
@@ -265,10 +265,12 @@ internal static class WatchRunner
             {
                 Locations = locations is null
                     ? state.Locations
-                    : new FeedState(locations.ETag ?? state.Locations?.ETag, locations.LastModified ?? state.Locations?.LastModified, DateTimeOffset.UtcNow),
+                    : new FeedState(locations.Changed ? locations.ETag : (locations.ETag ?? state.Locations?.ETag),
+                        locations.Changed ? locations.LastModified : (locations.LastModified ?? state.Locations?.LastModified), DateTimeOffset.UtcNow),
                 Tariffs = tariffs is null
                     ? state.Tariffs
-                    : new FeedState(tariffs.ETag ?? state.Tariffs?.ETag, tariffs.LastModified ?? state.Tariffs?.LastModified, DateTimeOffset.UtcNow),
+                    : new FeedState(tariffs.Changed ? tariffs.ETag : (tariffs.ETag ?? state.Tariffs?.ETag),
+                        tariffs.Changed ? tariffs.LastModified : (tariffs.LastModified ?? state.Tariffs?.LastModified), DateTimeOffset.UtcNow),
                 LastSuccessfulCheckUtc = DateTimeOffset.UtcNow,
                 LastSuccessfulImportUtc = anyChanged ? DateTimeOffset.UtcNow : state.LastSuccessfulImportUtc
             };
