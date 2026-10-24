@@ -22,7 +22,7 @@ class NdwGeoJsonParserTest {
     }
 
     @Test
-    fun repeatedIdenticalCategoryCountsAreNotSummed() {
+    fun repeatedIdenticalCategoryCountsAreAmbiguousWithoutEvseIds() {
         val location = parser.parse(featureCollection(
             """[
                 {"available":2,"total":4,"connector_type":"IEC_62196_T2"},
@@ -30,9 +30,9 @@ class NdwGeoJsonParserTest {
             ]"""
         )).single()
 
-        assertEquals(2, location.availability.available)
-        assertEquals(4, location.availability.total)
-        assertEquals(CountReliability.Safe, location.availability.reliability)
+        assertNull(location.availability.available)
+        assertNull(location.availability.total)
+        assertEquals(CountReliability.Ambiguous, location.availability.reliability)
     }
 
     @Test
