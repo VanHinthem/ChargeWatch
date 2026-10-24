@@ -90,3 +90,16 @@ De gebruiker heeft `tools/ndw_geojson_oss_match.sql` op HINNAS tegen de bestaand
 
 ## Vervolg na geslaagde meting
 Een kleine Android NDW-first kaartclient met fixtures; daarna een read-only serverendpoint voor gericht detail/statistiek op bewezen externe OCPI-location-key (zonder interne DB-ID aan mobiele client te koppelen). Onafhankelijk daarvan releasegates uit `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`. Geen publiek exposure, NAS deployment of merge zonder expliciet gebruikersakkoord.
+
+## API-verrijkingscontract voor de Android-client
+
+De read-only API biedt twee routes op basis van de **volledige URL-geëncodeerde GeoJSON feature-ID**:
+
+- `GET /api/v1/locations/by-ndw-id/{featureId}` — bestaand locatiedetail inclusief EVSE's/connectors/tarieven, hergebruikt via interne sleutel.
+- `GET /api/v1/locations/by-ndw-id/{featureId}/statistics` — bestaand statistiekantwoord; ongevalideerde beschikbaarheidskans blijft `null`.
+
+`NL-NUO-0bf8edee-f912-4891-8b4c-ad709ff523fb` wordt zonder splitsen op alle streepjes omgezet naar de exact geobserveerde triple `(NL, NUO, 0bf8edee-f912-4891-8b4c-ad709ff523fb)`. Het land `NL`, OCPI party-ID van exact drie hoofdletters/cijfers en beperkte veilige bron-ID-tekens worden gevalideerd. Niet passend formaat → 400; geen exacte catalogusmatch → 404. Geen adres- of coördinatenfallback voor identity; bij 404 kan de app NDW-data tonen zonder ChargeWatch-verrijking. De client moet dezelfde ID voor beide routes gebruiken. Routes vragen de database alleen op na het openen van details, nooit per kaartmarker.
+
+**Technische grens:** een ID uit een andere NDW- of OCPI-namespace dan dit geteste Nederlandse formaat wordt conservatief afgewezen, niet gegokt. Verwijderen/aanpassen van parserbeperkingen vereist een bronfixture. Er is geen nieuwe database-index nodig omdat `charging_location(country_code,party_id,source_id)` al uniek is.
+
+**Teststatus:** de parser is opgenomen in de bestaande `--self-test`; de .NET SDK is niet beschikbaar in de huidige agentomgeving, zodat build/self-test nog via CI of een lokale ontwikkelmachine geverifieerd moet worden. Bestaande NAS-bronmatching 10/10 bewezen; endpoint zelf is nog niet live getest of gedeployed.

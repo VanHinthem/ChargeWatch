@@ -110,6 +110,22 @@ internal sealed class ApiDatabase(ApiOptions options)
         return result;
     }
 
+    // Resolve by the compound OCPI key. Never infer identity from nearby coordinates.
+    public async Task<long?> FindLocationId(NdwLocationKey key)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT id FROM charging_location
+            WHERE country_code=$1 AND party_id=$2 AND source_id=$3
+            """, connection);
+        command.Parameters.AddWithValue(key.CountryCode);
+        command.Parameters.AddWithValue(key.PartyId);
+        command.Parameters.AddWithValue(key.SourceId);
+        var id = await command.ExecuteScalarAsync();
+        return id is null or DBNull ? null : (long)id;
+    }
+
     public async Task<LocationDetail?> GetLocation(long id)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
