@@ -1,6 +1,34 @@
 # Android app + widget — ontwerp- en goedkeuringsfase
 
-Status: **geplande verplichte fase; ontwerp nog niet gemaakt of goedgekeurd** (24 oktober 2026).
+Status: **gezamenlijke ontwerpfase gestart; eerste kaart-/markerkeuzes bevestigd, totaalontwerp nog niet goedgekeurd** (24 oktober 2026).
+
+## UX-besluiten — eerste gezamenlijke sessie (24 oktober 2026)
+
+De onderstaande keuzes zijn tijdens de gezamenlijke ontwerpsessie bevestigd; **dit is geen definitief akkoord op het volledige Android-/widgetontwerp**.
+
+### Bevestigd
+- **Kaart is het startscherm.** Bij openen meteen de kaart tonen; in beginsel centreren op huidige locatie. Als locatie ontbreekt of geweigerd wordt: laatst bekeken gebied en anders een bruikbare landelijke kaartweergave. Locatiebepaling mag de kaart niet blokkeren. NDW-first met bestaande ChargeWatch-fallback bij NDW-uitval.
+- **Locatiemarkers tonen `vrij/passend totaal`**, bijvoorbeeld `2/4`. De aantallen gelden uitsluitend voor aansluitingen die aan de **actieve filters** voldoen. Afwijkende of onbekende status niet als bezet of vrij suggereren.
+- **Clustering bij overlap:** clusters tonen óók uitsluitend `vrij/passend totaal` (bijvoorbeeld `5/12`), gesommeerd over onderliggende locaties, **niet het aantal locaties**. Cluster herkenbaar door een extra ring om dezelfde markeropmaak. Geen tweede getal, bijschrift of tekst onder markers. Bij aanraken verder inzoomen of overlappende locaties bereikbaar maken.
+- **Kleurcodering:** groen als minstens één passende aansluiting beschikbaar is; rood als nul passende aansluitingen beschikbaar zijn en de statussen bekend zijn; grijs/waarschuwing bij onbekende of onvoldoende betrouwbare data. Voor een gedeeltelijk onbekende telling moet het ontwerp expliciet tonen dat de ratio niet volledig betrouwbaar is; geen schijnzekerheid. Stale feed mag geen onvoorwaardelijke live-beschikbaarheid suggereren.
+- **Favoriet op kaart:** individuele favoriet heeft uitsluitend een klein sterretje **rechtsboven op/in de marker**, zonder de ratio onleesbaar te maken. Clusters krijgen geen ster.
+- **Kaartfilters op hoofdlijnen:** aansluitingstype, AC/DC, minimaal vermogen, beschikbaarheid; filters combineren en aantallen op marker/cluster volgen de selectie. Gebruiker wil deze filters; exacte opties, interactie en schema-/NDW-veldondersteuning worden nog gevalideerd. Geen kaartmarker-specifieke ChargeWatch-verrijkingsrequests. Locaties zonder passende aansluitingen worden niet getoond.
+- **Favorieten blijven lokaal** op Android; app en widget hanteren dezelfde statusregels.
+
+### Voorstellen — nog niet definitief goedgekeurd
+- Bottom navigation met alleen **Kaart** en **Favorieten**; zoeken in de kaartzoekbalk; instellingen secundair.
+- Zoekbalk en filterknop bovenaan, actieve filterchips, knop huidige locatie; selectie van losse marker opent compacte bottom sheet en daarna details.
+- Eén scrollbare detailpagina met aansluitingen, tarieven, statistieken en dataversheid in plaats van aparte tabs.
+- Compacte en uitgebreide favorietenwidget zonder mini-kaart.
+- Filtervoorkeuren lokaal onthouden; precieze reset-/bewaarsemantiek nog te bespreken.
+
+### Open ontwerp-/contractpunten
+1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
+2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
+3. Exacte NDW GeoJSON-dekking voor vermogen, connectorsoort en filters. Bij ontoereikende bronvelden functies beperken of transparant als onbekend behandelen, niet alle markers via de eigen API verrijken.
+4. Overlap/clustering met meer dan 1.000 NDW-features per bbox, viewport-cache en NDW-quota; geen onbetrouwbare totalen in onvolledige clusters.
+5. Locatiedetails, tarief-/statistiekpresentatie (bij `availableProbability=null` geen percentage), zoek- en favorietenflows; widgetlayouts en updatefrequentie.
+6. Expliciete goedkeuring complete app- én widgetdesign vóór de eerste Android UI-code; documentatie-PR en merge hebben apart akkoord nodig.
 
 ## Plaats in de planning (besloten)
 
@@ -36,4 +64,4 @@ Een goedgekeurde set app- en widgetontwerpen, vastgelegde gebruikersstromen, sem
 
 ## Huidige vervolgactie
 
-Eerst backend-lookup-PR uitvoeren en volgens werkwijze laten beoordelen. Daarna **design/layoutfase starten vóór het bouwen van de Android-client**, inclusief widgetconcepten. Bevestig keuzes tijdens de designfase; dit document legt nog geen definitieve schermindeling of huisstijl vast.
+Kaartscherm als geheel visueel uitwerken en bespreken; daarna locatiedetails, favorieten en beide widgetformaten. Besluiten iteratief hier vastleggen. Android UI-code blijft geblokkeerd tot expliciet totaalontwerpakkoord.
