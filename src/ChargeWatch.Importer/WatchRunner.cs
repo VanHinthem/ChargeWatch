@@ -153,6 +153,37 @@ internal static class WatchRunner
             if (checkTariffs)
                 tariffs = await Download(http, tariffsUrl, state.Tariffs, tariffsPath, cancellationToken);
 
+            // A committed HTTP 200 can precede local cache promotion when the
+            // process dies. On the next 304, reject stale cache observations and
+            // refetch unconditionally rather than using an inconsistent snapshot.
+            if (locations is { Changed: false, FetchedAtUtc: { } observedAt } &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                var conn = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
+                    ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
+                string cacheSha256;
+                await using (var cached = File.OpenRead(locationsPath))
+                    cacheSha256 = Convert.ToHexString(SHA256.HashData(cached)).ToLowerInvariant();
+                try
+                {
+                    var accepted = await SnapshotUnchangedPollRecorder.Record(
+                        conn, Guid.NewGuid().ToString("N"), observedAt, cacheSha256);
+                    Console.WriteLine(accepted
+                        ? "Compact snapshot: verified 304 observation stored."
+                        : "Compact snapshot: duplicate observation skipped.");
+                }
+                catch (InvalidOperationException ex) when
+                    (ex.Message.StartsWith("304 cache SHA does not match committed catalog",
+                        StringComparison.Ordinal))
+                {
+                    Console.WriteLine("Compact snapshot: stale cache detected; refetching Locations without validators.");
+                    // Pass no ETag/Last-Modified: the HTTP response must be a 200.
+                    locations = await Download(http, locationsUrl, null, locationsPath, cancellationToken);
+                    if (!locations.Changed || locations.PendingPath is null)
+                        throw new InvalidOperationException("Unconditional recovery download did not return HTTP 200.");
+                }
+            }
+
             var locationsForImport = locations?.Changed == true ? locations.PendingPath! : locationsPath;
             var tariffsForImport = tariffs?.Changed == true ? tariffs.PendingPath! : tariffsPath;
             var anyChanged = locations?.Changed == true || tariffs?.Changed == true;
@@ -181,24 +212,6 @@ internal static class WatchRunner
             else
             {
                 Console.WriteLine("NDW source unchanged (304); database import skipped.");
-            }
-
-            // PR17 opt-in statistics. A real new 304 response is a fresh
-            // observed-status sample despite identical source bytes.
-            // Tariff-only imports do not themselves produce Locations samples.
-            if (locations is { Changed: false, FetchedAtUtc: { } observedAt } &&
-                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
-            {
-                var conn = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
-                    ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
-                string cacheSha256;
-                await using (var cached = File.OpenRead(locationsPath))
-                    cacheSha256 = Convert.ToHexString(SHA256.HashData(cached)).ToLowerInvariant();
-                var accepted = await SnapshotUnchangedPollRecorder.Record(
-                    conn, Guid.NewGuid().ToString("N"), observedAt, cacheSha256);
-                Console.WriteLine(accepted
-                    ? "Compact snapshot: verified 304 observation stored."
-                    : "Compact snapshot: duplicate observation skipped.");
             }
 
             var newState = state with
