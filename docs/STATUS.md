@@ -1,3 +1,7 @@
+## Android designsysteem — stijlrichting gekozen (24 oktober 2026)
+
+Kleurrollen en initiële tokens, Roboto/Material 3, afgeronde componenten, consistente iconen, light/dark volgens systeeminstelling met optionele override, en toegankelijkheidsregels zijn vastgelegd in `docs/ANDROID_DESIGN.md`. Groene statusmarkers, rood voor nul vrij, grijs voor onbekend; blauw/turquoise uitsluitend voor historische bezetting, amber voor favorietster. Hex-codes blijven voorwaardelijk aan contrastvalidatie. **Volgende stap:** finale review van UX-flows, tel-eenheden, onbekende/stale data, statistiekbeschikbaarheid, scherm- en widgettoestanden. Geen definitief ontwerp- of merge-akkoord en geen UI-code/deployment.
+
 ## Widgetconfiguratie PNG gekoppeld (24 oktober 2026)
 
 `docs/design/ChargeWatch Android Widget UX Board.png` staat op de designbranch en wordt rechtstreeks weergegeven in `docs/ANDROID_DESIGN.md`. Het is een visuele richting: de vijfstappenwizard uit de afbeelding wordt vervangen door één scrollbaar configuratiescherm met live voorbeeld. Geen definitief totaalontwerpakkoord, merge of deployment.
