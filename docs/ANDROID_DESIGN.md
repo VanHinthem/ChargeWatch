@@ -29,11 +29,14 @@ De onderstaande keuzes zijn tijdens de gezamenlijke ontwerpsessie bevestigd; **d
 
 ### Versiebeheerde visuele referentie
 
-![ChargeWatch vier-schermen UX-referentie](design/android-ux-baseline.svg)
+**Primaire visuele referentie (goedgekeurd als uitgangspunt, niet als definitief totaalontwerp):**
 
-- SVG-bron in `docs/design/android-ux-baseline.svg` is een **schematische, versiebeheerbare reconstructie** van de besproken vier schermen; niet de originele gegenereerde PNG.
-- De oorspronkelijke gedetailleerde PNG-mock-up uit de designsessie moet nog als afzonderlijk binair asset aan deze PR worden toegevoegd om de volledige visuele referentie te bewaren. Geen impliciete pixelgoedkeuring op basis van deze SVG.
-- Mock-upgegevens zijn illustratief; geen echte laadlocatiestatistieken of vastgestelde tarieven.
+![ChargeWatch Android app — eerste vier-schermen mock-up](design/EV%20Charging%20Station%20App%20Mockup.png)
+
+- Bronbestand: [EV Charging Station App Mockup.png](design/EV%20Charging%20Station%20App%20Mockup.png), toegevoegd op `docs/android-ux-design` binnen PR #35.
+- De mock-up is leidend voor de algemene visuele richting van kaart, geselecteerde locatie, details en favorieten. **Expliciet besproken ontwerpbesluiten in dit document gaan vóór onjuiste of toevallige details in gegenereerde mock-ups** (zoals afwijkende clusterkleuren of fictieve cijfers).
+- `docs/design/android-ux-baseline.svg` is slechts een schematische extra referentie; de PNG is de primaire visuele referentie.
+- Alle in mock-ups getoonde gegevens, grafieken en tarieven zijn illustratief. De exacte styling, widgetvarianten en het volledige Android-ontwerp zijn nog niet definitief goedgekeurd.
 
 ### Visuele basis gekozen — kaart, detail en favorieten (24 oktober 2026)
 De samen bekeken derde mock-up geldt **als uitgangspunt** voor verdere vormgeving, niet als definitieve pixel- of totaalontwerpgoedkeuring.
