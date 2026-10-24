@@ -6,8 +6,11 @@ using Npgsql;
 internal static class SnapshotUnchangedPollRecorder
 {
     public static async Task<bool> Record(
-        string connectionString, string pollId, DateTimeOffset observedAtUtc)
+        string connectionString, string pollId, DateTimeOffset observedAtUtc,
+        string cachedSnapshotSha256)
     {
+        if (cachedSnapshotSha256.Length != 64 || !cachedSnapshotSha256.All(Uri.IsHexDigit))
+            throw new ArgumentException("Verified cached feed SHA-256 required.", nameof(cachedSnapshotSha256));
         await using var db = new NpgsqlConnection(connectionString);
         await db.OpenAsync();
         await using var tx = await db.BeginTransactionAsync();
@@ -18,6 +21,9 @@ internal static class SnapshotUnchangedPollRecorder
                 await gate.ExecuteNonQueryAsync();
 
             string currentHash;
+            if (!string.Equals(currentHash, cachedSnapshotSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    "304 cache SHA does not match committed catalog; reject observation and refetch Locations.");
             DateTimeOffset? pendingHour = null;
             string? pendingHash = null;
 
