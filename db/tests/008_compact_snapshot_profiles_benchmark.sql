@@ -30,7 +30,7 @@ CREATE TABLE benchmark_location_snapshot_profile (
 -- 20k representative populated rows; random values avoid unrealistic zero-array compression.
 INSERT INTO benchmark_evse_snapshot_profile
 SELECT g, ((g-1)%7)+1,
-       ARRAY(SELECT random()::real FROM generate_series(1,216)),
+       ARRAY(SELECT (random() + g*0)::real FROM generate_series(1,216)),
        array_fill(100,ARRAY[24]),
        array_fill(70,ARRAY[24]),
        array_fill(30,ARRAY[24])
@@ -38,7 +38,7 @@ FROM generate_series(1,20000) g;
 
 INSERT INTO benchmark_location_snapshot_profile
 SELECT g, ((g-1)%7)+1,
-       ARRAY(SELECT random()::real FROM generate_series(1,120)),
+       ARRAY(SELECT (random() + g*0)::real FROM generate_series(1,120)),
        array_fill(100,ARRAY[24]),
        array_fill(70,ARRAY[24]),
        array_fill(30,ARRAY[24])
