@@ -5,7 +5,7 @@ internal readonly record struct NdwLocationKey(string CountryCode, string PartyI
     public static bool TryParse(string? featureId, out NdwLocationKey key)
     {
         key = default;
-        if (string.IsNullOrEmpty(featureId) || featureId.Length > 260 || !featureId.StartsWith("NL-", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(featureId) || featureId.Length > 262 || !featureId.StartsWith("NL-", StringComparison.Ordinal))
             return false;
 
         const int sourceStart = 7; // NL- + 3-char OCPI party ID + '-'
