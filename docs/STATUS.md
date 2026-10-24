@@ -1,3 +1,9 @@
+## Overdracht — API-datakwaliteit (24 oktober 2026)
+
+**Werk:** `feature/api-data-quality`; API-kwaliteit na geslaagde interne live endpointtests. Exacte zoekplaats heeft nu voorrang boven substringmatches, `data-status` rapporteert naast `lastSuccessfulImportAt` een `lastObservedPollAt` op basis van `snapshot_poll_checkpoint` en gebruikt dit voor algemene ouderdom/stale-status. Bron-`sourceUpdatedAt` en locatie-`isStale` blijven bronleeftijd, geen oordeel over succesvolle polls. Beschikbaarheidskans is expliciet `null` zolang de landelijke statistiek volgens `docs/SPRINT3_PUBLICATION_POLICY.md` niet geschikt voor publicatie is. Samples blijven diagnostisch beschikbaar. Ruwe OCPI-tariefdetails blijven ongewijzigd; er wordt geen btw-/consumentenprijs geconstrueerd.
+
+**Verificatie:** CI API-build, selftest en role contract uitvoeren. Live API-test op NAS na geslaagde gepubliceerde nieuwe image, alleen na merge-/deploymentakkoord. Geen databank-/collectorwijzigingen en geen publieke toegang. Open latere uitbreiding: betrouwbare historische statistiekpublicatie op basis van vastgestelde criteria, eventueel afzonderlijke tariefnormalisatie en betere exacte-/postcodezoekfilters.
+
 ## Overdracht — API-zoekendpoint 500 herstel (24 oktober 2026)
 
 **Geconstateerd op NAS:** `/api/v1/data-status` retourneert HTTP 200 met 82.130 locaties, 207.565 EVSE's; `/api/v1/locations?q=Oss&limit=2` retourneerde HTTP 500. API-log toont `System.IndexOutOfRangeException: Ordinal must be between 0 and 15` in `ApiDatabase.SearchLocations`. De SELECT projecteert 16 kolommen (index 0–15), maar de mapper leest de bron-timestamp op index 15 in plaats van 14, en afstand op 16 in plaats van 15. De timestamp werd fout geïnterpreteerd en afstand veroorzaakt de exception.
