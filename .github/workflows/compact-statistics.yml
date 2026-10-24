@@ -13,6 +13,7 @@ on:
       - 'db/tests/015_snapshot_restart_setup.sql'
       - 'db/tests/015_snapshot_restart_verify.sql'
       - 'db/tests/016_changed_feed_function_benchmark.sql'
+      - 'db/tests/017_poll_replay_guard.sql'
       - 'db/tests/012_snapshot_unchanged_flush_smoke.sql'
       - 'db/tests/011_snapshot_unchanged_hour_smoke.sql'
       - 'db/tests/010_snapshot_hour_finalization_smoke.sql'
@@ -92,6 +93,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/013_snapshot_changed_hour.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/013_snapshot_changed_hour_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/014_snapshot_transition_rollback_smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/017_poll_replay_guard.sql
       - name: Persist and consume compact buffer across DB sessions
         run: |
           psql -v ON_ERROR_STOP=1 -f db/tests/015_snapshot_restart_setup.sql
