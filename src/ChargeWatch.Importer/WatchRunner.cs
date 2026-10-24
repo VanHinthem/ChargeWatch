@@ -264,6 +264,9 @@ internal static class WatchRunner
                 throw new InvalidOperationException("HTTP selftest: first 200 did not return verified pending content");
             Promote(first.PendingPath, cached);
             var firstBytes = await File.ReadAllBytesAsync(cached);
+            var firstSha = Convert.ToHexString(SHA256.HashData(firstBytes)).ToLowerInvariant();
+            if (firstSha.Length != 64 || firstSha == new string('0',64))
+                throw new InvalidOperationException("HTTP selftest: cache fingerprint missing");
             var unchanged = await Download(http, "https://example.invalid/locations",
                 new FeedState(first.ETag), cached, CancellationToken.None);
             if (unchanged.Changed || unchanged.PendingPath is not null || unchanged.FetchedAtUtc is null)
