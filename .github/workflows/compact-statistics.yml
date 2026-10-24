@@ -12,6 +12,7 @@ on:
       - 'db/tests/014_snapshot_transition_rollback_smoke.sql'
       - 'db/tests/015_snapshot_restart_setup.sql'
       - 'db/tests/015_snapshot_restart_verify.sql'
+      - 'db/tests/016_changed_feed_function_benchmark.sql'
       - 'db/tests/012_snapshot_unchanged_flush_smoke.sql'
       - 'db/tests/011_snapshot_unchanged_hour_smoke.sql'
       - 'db/tests/010_snapshot_hour_finalization_smoke.sql'
@@ -100,3 +101,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/011_active_hour_write_benchmark.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/012_hourly_batch_wal_benchmark.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/016_changed_feed_function_benchmark.sql
