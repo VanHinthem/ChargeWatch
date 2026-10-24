@@ -302,7 +302,7 @@ internal static class BulkImporter
                     // Register one fresh observation against the new committed-to-be catalog
                     // with the poll claim in the SAME transaction as import/provenance.
                     if (await SnapshotPollStore.TryClaim(db, tx,
-                            "200-" + Guid.NewGuid().ToString("N"), fetchedAt,
+                            "200-" + locationsHash + "-" + fetchedAt.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture), fetchedAt,
                             SnapshotFeedQuality.ChangedFeed))
                     {
                         await using var sample = new NpgsqlCommand(
