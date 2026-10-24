@@ -181,6 +181,16 @@ De onderstaande stijlrichting is door de gebruiker als basis bevestigd. De hex-k
 ### Reviewstatus en implementatiegrenzen
 De kaart-, app-, widget- en designrichting is interactief besproken. Deze review legt de randgevallen en expliciete data-acceptatiegates vast; **de volledige designfase is nog niet expliciet finaal goedgekeurd**. De drie PNG-mock-ups zijn visuele conceptreferenties en hun fictieve waarden zijn niet leidend boven het data- en beveiligingscontract. Geen Android UI-code, publieke API-uitrol of merge zonder apart akkoord.
 
+## Appicoon — gekozen concept (24 oktober 2026)
+
+De gebruiker heeft uit drie voorgestelde icoonrichtingen **concept B: stekker + statusring** gekozen als voorkeursrichting. Dit is een ontwerpskeuze binnen PR #35, geen akkoord op definitieve exportbestanden.
+
+- Donkerblauw/antraciet achtergrond, witte stekker, klein groen bliksemsymbool en groene (decoratieve) statusring.
+- Statusring staat voor monitoring; suggereert **geen actuele operationele status**.
+- Uit te werken: scherp vereenvoudigd icoon dat op launcherformaat leesbaar blijft, Android adaptive-icon foreground/background, monochrome versie voor themed icons, veilige marges en rond-masker-preview.
+- De gegenereerde drie-concepten-PNG is nog niet als bronbestand aan de repository toegevoegd en moet, indien gewenst, in `docs/design/` op de designbranch worden opgenomen.
+- Geen Android UI-/launcher-code of merge/deployment voor afzonderlijk akkoord.
+
 ## Definition of done — designfase
 
 Een goedgekeurde set app- en widgetontwerpen, vastgelegde gebruikersstromen, semantische staten, basiscomponenten en prioriteit voor MVP versus later. Documentatie (dit bestand en `docs/STATUS.md`) wordt bijgewerkt in dezelfde PR als het afgeronde ontwerp. Pas dan Android UI-featurebranches starten.
