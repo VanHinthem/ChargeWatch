@@ -49,13 +49,22 @@ De samen bekeken derde mock-up geldt **als uitgangspunt** voor verdere vormgevin
 
 Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, correcte tel-eenheid EVSE versus connector en brondekking, narrow-screen geometrie, dark mode, interactieve flows, beide Glance-widgetformaten. Geen Android UI-code voor expliciet totaalontwerpakkoord.
 
+### Widgetmock-up — visuele referentie
+
+![ChargeWatch Android widget showcase](design/ChargeWatch%20Android%20Widget%20Showcase.png)
+
+- Primair widgetbeeld: [ChargeWatch Android Widget Showcase.png](design/ChargeWatch%20Android%20Widget%20Showcase.png), toegevoegd aan PR #35.
+- De afbeelding toont compacte, overzichts- en uitgebreide varianten, statusweergaven en light/dark. Dit is een **voorlopig ontwerp**, geen finale configuratie of pixelgoedkeuring.
+- De afgesproken widgetinteractie (tikken op locatie → Details/Navigeren) en optioneel aan/uitzetten van grafieken zijn leidend, ook als de afbeelding die acties nog niet laat zien.
+- Alle aantallen/grafieken/tijden in de afbeelding zijn illustratief.
+
 ### Widget — voorlopige interactiebesluiten (24 oktober 2026)
 - Compacte (2×2), overzichts- (4×2) en uitgebreide (4×3) Glance-widget zijn ontwerpvarianten; werkelijke resizable afmetingen testen op Android.
 - **Historische minigrafieken per widget configureerbaar** (aan/uit); compact standaard uit, grotere varianten standaard aan als ruimte en gevalideerde gegevens dat toelaten. Beschikbaarheidsstatus heeft altijd prioriteit boven grafiek.
 - Iedere widgetinstantie kan apart worden ingesteld (favorieten/selectie, grafieken en waar zinvol bijkomende gegevens), uitsluitend lokaal opgeslagen.
 - **Tik op een locatie in de widget:** opent een klein actiemenu / bottom sheet in ChargeWatch met **Details** of **Navigeren**. Details opent de locatiepagina; Navigeren geeft coördinaten door aan een externe navigatie-app. Interactie werkt voor alle widgetformaten.
 - Geen claims van continu live-verversen; toon bronversheid/laatste update en houd rekening met Android-achtergrondrestricties.
-- Widgetmock-up uit chatsessie is nog een ontwerpvoorstel, geen definitief totaalontwerpakkoord; oorspronkelijke PNG is nog niet in de repository geborgd.
+- Widgetmock-up is als PNG vastgelegd in de repository; dit is nog geen definitief totaalontwerpakkoord.
 
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
