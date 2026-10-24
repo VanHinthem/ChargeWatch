@@ -22,6 +22,11 @@ De onderstaande keuzes zijn tijdens de gezamenlijke ontwerpsessie bevestigd; **d
 - Compacte en uitgebreide favorietenwidget zonder mini-kaart.
 - Filtervoorkeuren lokaal onthouden; precieze reset-/bewaarsemantiek nog te bespreken.
 
+### Besluit — locatieafbeeldingen en externe acties (24 oktober 2026)
+- **Geen locatieafbeeldingen in MVP**: geen automatische Street View-/Google Places-foto's in kaart-bottom-sheet of detailpagina, geen fotolaadverzoeken of nieuwe fotokosten.
+- **Wel externe acties** op geselecteerde locatie en in details: **Navigeren** naar coördinaten via een geïnstalleerde navigatie-app en **Street View bekijken** via Google Maps (extern). Beschikbaarheid van Street View is niet gegarandeerd; geen ingebouwde panorama-/foto-API nodig.
+- Visuele mock-ups zonder verplichte foto ontwerpen; compact detailoverzicht gebruikt die ruimte voor status en acties. Definitieve iconen en positionering nog te beoordelen.
+
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
 2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
