@@ -17,6 +17,8 @@ internal sealed record LocationListItem(
     int UnknownCount,
     DateTimeOffset? SourceUpdatedAt,
     bool IsStale,
+    DateTimeOffset? FeedLastObservedAt,
+    bool FeedIsStale,
     double? DistanceMeters);
 
 internal sealed class LocationDetail
@@ -32,6 +34,8 @@ internal sealed class LocationDetail
     public double? Longitude { get; init; }
     public DateTimeOffset? SourceUpdatedAt { get; init; }
     public required bool IsStale { get; init; }
+    public DateTimeOffset? FeedLastObservedAt { get; init; }
+    public bool FeedIsStale { get; init; }
     public List<EvseDetail> Evses { get; } = [];
 }
 
