@@ -1,6 +1,6 @@
 # ChargeWatch — Technisch ontwerp
 
-**Status:** Voorgestelde architectuur; nog niet gebouwd.
+**Status:** Importer, PostgreSQL/PostGIS en compacte statistieken zijn operationeel; de read-only API wordt in PR #22 toegevoegd. Android is nog niet gebouwd.
 
 ## Hoofdopzet — versie 1
 
@@ -98,16 +98,20 @@ Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per 
 
 HTTPS, aparte PostgreSQL-rol met alleen SELECT voor de API en schrijfrechten uitsluitend voor de importer, GET-only publieke endpoints, rate limiting en passende toegangsbeveiliging. In v1 geen accounts, device-/pushregistraties, persoonlijke serverdata of Athlon bearer-tokens. Monitoring van imports en staleness blijft nodig. Vastleggen van NDW-hergebruikvoorwaarden, attributie en kaarttegellicenties vóór distributie.
 
-## Concept API
+## Read-only API — PR #22
 
-- `GET /api/locations?bbox=...` — kaart en filtering
-- `GET /api/locations/{id}` — details, EVSE-status en bronversheid
-- `GET /api/locations/{id}/alternatives` — nabijgelegen beschikbare laadlocaties
-- `GET /api/locations/{id}/statistics` — **v1**: bezettingsprofielen per EVSE en locatie, 90-daagse uptime, rechtstreeks gemeten kans op >=1 vrij per weekdag/uur, met meetdekking en onvoldoende-data-indicatie
+De eerste API-versie gebruikt prefix `/api/v1` en bevat uitsluitend publieke GET-routes:
 
-**Geen favorieten-, accounts-, alerts- of device-API in v1:** favorieten worden lokaal in Android beheerd.
+- `GET /api/v1/locations?q=...&bbox=minLon,minLat,maxLon,maxLat&latitude=...&longitude=...&radiusMeters=...&limit=...` — begrensde kaart-/zoekresultaten (maximaal 200), actuele EVSE-samenvatting, bronmoment, stale-indicatie en optionele afstand.
+- `GET /api/v1/locations/{id}` — locatie, EVSE's, connectoren, actuele statussen en gekoppelde actuele OCPI-tarieven.
+- `GET /api/v1/locations/{id}/statistics` — compact rechtstreeks gemeten beschikbaarheidsprofiel per locatie en EVSE, inclusief sample/changed/unchanged-tellingen en laatste sample. De API claimt nog geen minimum betrouwbaarheid of exact vrijkommoment.
+- `GET /api/v1/data-status` — laatste succesvolle import, ouderdom/stale-indicatie en actuele catalogusaantallen.
 
-Dit is conceptuele API-vormgeving; authenticatie, paging, responsecontracten en idempotency keys moeten nog uitgewerkt worden.
+De API verbindt uitsluitend met PostgreSQL als `chargewatch_read`; startup faalt bij een andere rol of schrijftoegang. HTTPS-redirection en IP-gebaseerde rate limiting zijn onderdeel van de service. De stale-drempel is configureerbaar via `CW_API_STALE_AFTER_MINUTES` (standaard 15 minuten). De DB-connection string staat uitsluitend server-side in `CW_API_CONNECTION`.
+
+**Niet in deze API:** favorieten, eigen namen, sortering, accounts, alerts, device-registratie, synchronisatie, import-/beheerwrites of geheime app-keys. Favorieten blijven lokaal op Android. Alternatieven worden niet als aparte serverroute in PR #22 toegevoegd; de client kan de nabijheidszoekroute gebruiken en latere ranking blijft een afzonderlijke feature.
+
+PR #22 is uitsluitend voor interne ontwikkeling/test. Publieke deployment en Google Play Integrity volgen pas na apart ontwerp en expliciet akkoord.
 
 ## Testing en CI
 
