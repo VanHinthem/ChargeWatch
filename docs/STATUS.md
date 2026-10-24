@@ -1,3 +1,5 @@
+**Reviewoverdracht:** de verificatiehulpmiddelen staan nu in **draft PR #39** (`feature/38-ndw-evse-validation`), gekoppeld aan issue #38. Het is nadrukkelijk geen voltooide live bronvalidatie: de twee NDW-snapshots moeten nog werkelijk worden vergeleken en de veldmapping moet aan een echte GeoJSON-response worden getoetst. De extra workflow `NDW EVSE validation tests` test alleen synthetische semantiek, geen live feed. PR blijft draft; geen merge of deployment.
+
 ## Issue #38 — unieke EVSE-tellingen bronvalidatie gestart (24 oktober 2026)
 
 **Featurebranch:** `feature/38-ndw-evse-validation`. NDW publiceert GeoJSON en OCPI gzip-bestanden in het Open Data Portaal; hun portal-index toont overeenkomstige publicatiemomenten (te vergelijken snapshots). De uitvoeromgeving kan de bronbestanden echter niet rechtstreeks ophalen (DNS-blokkade). Daarom is **nog geen live inhoudelijke bronvergelijking uitgevoerd** en wordt geen betrouwbaarheidspercentage verzonnen.
