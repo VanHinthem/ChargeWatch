@@ -14,12 +14,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path not in sources:
             self.send_error(404); return
-        changed = Path("/tmp/cw-fixture-changed").exists() and self.path == "/locations"
-        etag = '"fixtures-v2"' if changed else '"fixtures-v1"'
+        newest = Path("/tmp/cw-fixture-postcommit").exists() and self.path == "/locations"
+        changed = (newest or Path("/tmp/cw-fixture-changed").exists()) and self.path == "/locations"
+        etag = '"fixtures-v3"' if newest else ('"fixtures-v2"' if changed else '"fixtures-v1"')
         data = sources[self.path]
         if changed:
             new_locations = json.loads(json.dumps(locations))
-            new_locations[0]["evses"][0]["status"] = "CHARGING"
+            new_locations[0]["evses"][0]["status"] = "INOPERATIVE" if newest else "CHARGING"
             data = gzip.compress(json.dumps(new_locations).encode())
         if self.headers.get("If-None-Match")==etag:
             self.send_response(304); self.end_headers(); return
