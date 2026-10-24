@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 internal static class WatchRunner
@@ -190,8 +191,11 @@ internal static class WatchRunner
             {
                 var conn = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
                     ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
+                string cacheSha256;
+                await using (var cached = File.OpenRead(locationsPath))
+                    cacheSha256 = Convert.ToHexString(SHA256.HashData(cached)).ToLowerInvariant();
                 var accepted = await SnapshotUnchangedPollRecorder.Record(
-                    conn, Guid.NewGuid().ToString("N"), observedAt);
+                    conn, Guid.NewGuid().ToString("N"), observedAt, cacheSha256);
                 Console.WriteLine(accepted
                     ? "Compact snapshot: verified 304 observation stored."
                     : "Compact snapshot: duplicate observation skipped.");
