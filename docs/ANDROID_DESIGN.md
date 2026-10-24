@@ -1,6 +1,6 @@
 # Android app + widget — ontwerp- en goedkeuringsfase
 
-Status: **gezamenlijke ontwerpfase gestart; eerste kaart-/markerkeuzes bevestigd, totaalontwerp nog niet goedgekeurd** (24 oktober 2026).
+Status: **volledig app-/widget-UX/UI-ontwerp en icoonrichting door gebruiker expliciet goedgekeurd op 24 oktober 2026**. Visuele referenties vastgelegd; Kotlin/Compose/Glance-implementatie is de volgende fase. NDW EVSE-/connectordeduplicatie en releasebeveiliging blijven technische acceptatiegates.
 
 ## UX-besluiten — eerste gezamenlijke sessie (24 oktober 2026)
 
@@ -206,4 +206,4 @@ Een goedgekeurde set app- en widgetontwerpen, vastgelegde gebruikersstromen, sem
 
 ## Huidige vervolgactie
 
-Gezamenlijke finale designreview: vastgelegde flows, drie PNG-mock-ups, designsysteem en contractgates beoordelen; expliciet akkoord op het totale app- en widgetontwerp vragen. Daarna afzonderlijk PR-mergeakkoord en pas vervolgens Android UI-implementatie op een nieuwe featurebranch.
+Start de Android MVP-implementatiefase op een nieuwe featurebranch, gebaseerd op dit goedgekeurde ontwerp. Eerst appfundament, NDW-first kaart en aantoonbaar correcte EVSE-/connector-aggregatie; vervolgens details/favorieten en Glance-widgets in beheersbare PR's. De externe NDW-ID API-routes moeten op NAS nog apart worden uitgerold en geverifieerd. Publieke uitrol blijft geblokkeerd tot de beveiligings-/releasegates en afzonderlijk deploymentakkoord.
