@@ -1,3 +1,7 @@
+## Android widget — configuratie en locatieactie (24 oktober 2026)
+
+Widgetconcepten 2×2, 4×2 en 4×3 besproken. Grafieken per widgetinstantie aan/uit configureerbaar; de actuele beschikbaarheid krijgt prioriteit. Tik op een widgetlocatie opent een ChargeWatch-actiemenu met **Details** en **Navigeren**. Widgetmock-up moet nog als asset in PR #35 worden opgenomen, en het totaalontwerp is nog niet goedgekeurd. Geen UI-code, merge of deployment.
+
 ## Android UX — primaire PNG-mock-up geborgd (24 oktober 2026)
 
 De originele vier-schermen afbeelding `docs/design/EV Charging Station App Mockup.png` staat op de designbranch en is als **primaire visuele referentie** opgenomen in `docs/ANDROID_DESIGN.md`. De SVG is alleen een schematische aanvulling. Mock-up is een goedgekeurd uitgangspunt, nog **geen definitief totaalontwerpakkoord**. Vervolg: widgetvarianten en verdere UX-details binnen PR #35. Geen merge of deployment.
