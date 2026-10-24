@@ -159,7 +159,7 @@ internal static class ObservationCheckpoints
                         WHEN s.any_available=false AND old.any_available=false
                               AND s.valid_continuation THEN s.oldest_previous_updated_at
                         ELSE NULL END,
-                   (s.any_available=false AND old.any_available=false AND s.valid_continuation)
+                   coalesce(s.any_available=false AND old.any_available=false AND s.valid_continuation, false)
             FROM (
                 SELECT obs.*,
                   (SELECT min(prev.source_updated_at) FROM stage_observation n
