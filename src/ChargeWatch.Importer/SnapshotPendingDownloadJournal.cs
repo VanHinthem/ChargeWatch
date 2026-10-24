@@ -69,6 +69,25 @@ internal static class SnapshotPendingDownloadJournal
         return (path, entry.ObservedAtUtc, entry.ETag, entry.LastModified);
     }
 
+    // If the process died after cache promotion but before refresh-state was
+    // persisted, recover HTTP validators from the still-present journal.
+    // The caller must persist refresh-state BEFORE deleting the journal.
+    public static async Task<(string? ETag, DateTimeOffset? LastModified)?> RecoverPromoted(string targetPath)
+    {
+        var journal = targetPath + ".pending-response.json";
+        if (!File.Exists(journal)) return null;
+        var entry = JsonSerializer.Deserialize<Entry>(await File.ReadAllTextAsync(journal))
+            ?? throw new InvalidDataException("Invalid pending response journal.");
+        var pending = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(targetPath))!, entry.Filename);
+        if (File.Exists(pending) || !File.Exists(targetPath))
+            return null;
+        await using var stream = File.OpenRead(targetPath);
+        var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream)).ToLowerInvariant();
+        if (!hash.Equals(entry.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Promoted Locations cache does not match journal.");
+        return (entry.ETag, entry.LastModified);
+    }
+
     public static void Complete(string targetPath)
     {
         File.Delete(targetPath + ".pending-response.json");
