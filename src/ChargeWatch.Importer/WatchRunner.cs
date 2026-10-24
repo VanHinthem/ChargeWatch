@@ -218,6 +218,74 @@ internal static class WatchRunner
         }
     }
 
+
+    // Local in-process HTTP contract test: never requests the NDW production feed.
+    internal static async Task SelfTestHttp()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "chargewatch-http-selftest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var cached = Path.Combine(folder, "locations.json.gz");
+        try
+        {
+            byte[] validGzip;
+            await using (var memory = new MemoryStream())
+            {
+                await using (var compressor = new GZipStream(memory, CompressionLevel.Fastest, leaveOpen: true))
+                    await compressor.WriteAsync(System.Text.Encoding.UTF8.GetBytes("[{}]"));
+                validGzip = memory.ToArray();
+            }
+
+            var calls = 0;
+            using var http = new HttpClient(new ContractHandler(request =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new ByteArrayContent(validGzip) };
+                    response.Headers.ETag = new EntityTagHeaderValue("\"feed-v1\"");
+                    return response;
+                }
+                if (calls == 2)
+                {
+                    if (!request.Headers.IfNoneMatch.Any(x => x.Tag == "\"feed-v1\""))
+                        throw new InvalidOperationException("HTTP selftest: missing conditional ETag");
+                    return new HttpResponseMessage(HttpStatusCode.NotModified);
+                }
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                { Content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("invalid gzip")) };
+            }));
+            var first = await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None);
+            if (!first.Changed || first.PendingPath is null || first.FetchedAtUtc is null)
+                throw new InvalidOperationException("HTTP selftest: first 200 did not return verified pending content");
+            Promote(first.PendingPath, cached);
+            var firstBytes = await File.ReadAllBytesAsync(cached);
+            var unchanged = await Download(http, "https://example.invalid/locations",
+                new FeedState(first.ETag), cached, CancellationToken.None);
+            if (unchanged.Changed || unchanged.PendingPath is not null || unchanged.FetchedAtUtc is null)
+                throw new InvalidOperationException("HTTP selftest: 304 did not count as distinct verified observation");
+            if (!firstBytes.SequenceEqual(await File.ReadAllBytesAsync(cached)))
+                throw new InvalidOperationException("HTTP selftest: 304 modified cached snapshot");
+
+            var invalidRejected = false;
+            try { await Download(http, "https://example.invalid/locations", null, cached, CancellationToken.None); }
+            catch (InvalidDataException) { invalidRejected = true; }
+            if (!invalidRejected || !firstBytes.SequenceEqual(await File.ReadAllBytesAsync(cached)))
+                throw new InvalidOperationException("HTTP selftest: bad 200 changed the committed cache");
+            if (Directory.GetFiles(folder, "*.pending-*").Length != 0)
+                throw new InvalidOperationException("HTTP selftest: bad 200 left a pending file");
+            Console.WriteLine("HTTP 200/304/cache contract selftest passed.");
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    private sealed class ContractHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(responder(request));
+    }
+
     private static async Task<DownloadResult> Download(
         HttpClient http,
         string url,
