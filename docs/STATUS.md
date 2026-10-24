@@ -1,3 +1,7 @@
+## Widgetconfiguratie — richting gekozen (24 oktober 2026)
+
+Eén scrollbaar configuratiescherm met live voorbeeld, selectie/volgorde van lokale favorieten en optionele grafieken, afstand en update-indicatie. Geen vijfstappenwizard. Instellingen per widgetinstantie achteraf bewerkbaar. Configuratie-PNG nog als referentie toevoegen aan PR #35; volgende ontwerptaak is kleuren/typografie/light-dark en resterende schermdetails. Geen definitief totaalakkkoord, Android-code, merge of deployment.
+
 ## Widgetmock-up vastgelegd — PR #35 (24 oktober 2026)
 
 `docs/design/ChargeWatch Android Widget Showcase.png` is toegevoegd aan de designbranch en in `docs/ANDROID_DESIGN.md` opgenomen als visuele widgetreferentie. Compact (2×2), overzicht (4×2) en uitgebreid (4×3), grafieken configureerbaar en locatieactie Details/Navigeren blijven de ontwerprichting. Nog geen definitief ontwerpakkoord; geen UI-code, merge of deployment.
