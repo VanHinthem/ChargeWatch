@@ -1,3 +1,7 @@
+## Appicoon — concept B geselecteerd (24 oktober 2026)
+
+Van drie ChargeWatch-iconrichtingen is **Stekker + statusring** gekozen: donkerblauwe achtergrond, witte stekker, groen accent en decoratieve statusring. Uitwerking tot adaptive/monochrome icon en archivering van de concept-PNG blijven open in PR #35. Geen implementatiecode, merge of deployment.
+
 ## Android UX — finale contract- en randgevallenreview afgerond (24 oktober 2026)
 
 Ontwerpcontract voor markers/clusters, filters, onbekende/stale data, offline/fallback, lege favorieten, widgetformaten en statistiekpublicatie is beschreven in `docs/ANDROID_DESIGN.md`. **Belangrijkste implementatiegate:** de NDW GeoJSON-aggregaten bevatten geen unieke EVSE-ID per connectorcategorie; voorkom dubbeltelling bij gefilterde `x/y` en clusters voordat UI-aantallen worden gepubliceerd. Drie PNG's en het designsysteem zijn geborgd in PR #35. Volgende stap is expliciete gezamenlijke goedkeuring van het **totale** Android app- en widgetdesign; daarna apart merge-akkoord. Geen UI-code of deployment.
