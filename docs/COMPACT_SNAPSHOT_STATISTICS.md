@@ -112,3 +112,19 @@ Waarom per weekdag in plaats van één rij per 168-slot:
 - nog steeds geen ruwe metingen die na 90 dagen moeten worden opgeschoond.
 
 Dit schema is **nog geen deploymentbesluit**. `db/tests/008_compact_snapshot_profiles_benchmark.sql` meet in een geïsoleerde PostgreSQL-database representatieve bytes per gevulde rij, extrapoleert landelijke opslag voor circa 203,5k EVSE's en 80,9k locaties, en meet WAL voor een representatieve batchupdate. De uitkomst bepaalt of deze kandidaat blijft of vóór merge wordt aangepast. Het benchmarkscript mag niet tegen de NAS-productiedatabase worden uitgevoerd.
+
+
+## Eerste geïsoleerde opslagbenchmark (24 oktober 2026)
+
+GitHub Actions `Compact Statistics Database` run [40074717451](https://github.com/VanHinthem/ChargeWatch/actions/runs/40074717451) **success**. PostgreSQL 18 met zelfstandige CI-database, zonder NAS-contact:
+
+| Meting | EVSE-profiel | Locatieprofiel |
+|---|---:|---:|
+| Gevulde synthetische rijen | 20.000 | 20.000 |
+| Totale opslag inclusief index/toast | 27.992.064 B | 18.890.752 B |
+| Bytes per rij | 1.399,6 | 944,5 |
+| Landelijke extrapolatie, 7 rijen/object | 1,86 GiB (203,5k EVSE's) | 0,50 GiB (80,9k locaties) |
+
+Een gecombineerde brede update van 40.000 rijen veroorzaakte **49 MB PostgreSQL-WAL**. Deze test heeft een echte database-update uitgevoerd, maar **geen landelijke NDW-poll gesimuleerd**; de landelijke WAL-impact is nog niet gemeten. Dit is voldoende om **niet blind per vijfminutenpoll alle weekdagprofielrijen te updaten**. Naast compact ruimtegebruik moet write-amortisatie expliciet worden ontworpen en gemeten voordat het pollpad aan deze opslag wordt gekoppeld.
+
+Verder opletten: de voorlopig gecalibreerde EWMA-alpha geldt voor één *wekelijkse uursample* per weekdag/uur, **niet** voor ieder afzonderlijk vijfminutenpollmoment. Een uuraggregate of een bewezen gelijkwaardige cadence-normalisatie is dus vereist; zonder die stap zou het profiel te snel reageren. Geen tijdsgaten invullen bij gemiste polls en geen ongeteste publicatieclaim.
