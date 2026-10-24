@@ -1,0 +1,66 @@
+name: Read-only API
+on:
+  pull_request:
+    paths:
+      - 'src/ChargeWatch.Api/**'
+      - 'db/tests/018_readonly_api_role_smoke.sql'
+      - '.github/workflows/read-only-api.yml'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/STATUS.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build API
+        run: dotnet build src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release
+      - name: Run focused API selftest
+        run: dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release --no-build -- --self-test
+
+  readonly-database-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_api_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_api_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_api_ci
+      POSTGRES_USER: chargewatch_owner
+      POSTGRES_DB: chargewatch_api_ci
+      CW_IMPORT_PASSWORD: import-test-only
+      CW_READ_PASSWORD: read-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Bootstrap schema and roles
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
+          sh db/init/002_roles.sh
+          for migration in db/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -1 -f "$migration"
+          done
+      - name: Verify API read-only database contract
+        run: psql -f db/tests/018_readonly_api_role_smoke.sql
