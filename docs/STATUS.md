@@ -1,4 +1,8 @@
-## Overdracht — PR #22 read-only API (24 oktober 2026)
+## Overdracht — interne NAS-API-testvoorbereiding (24 oktober 2026)
+
+**Volgende actie:** API-container als eigen GHCR-image met gescheiden CW_API_IMAGE_TAG en NAS-loopback 127.0.0.1:5088 klaarzetten, zonder bestaande collector/database te wijzigen. Featurebranch feature/api-nas-internal-deployment; geen publieke toegang. Na PR-goedkeuring/merge en aantoonbare publicatie van het API-image: NAS Compose handmatig bijwerken, API-only starten, echte locatie- en statistiekdata valideren. Geen directe SSH-toegang vanuit deze chat. Dagelijkse backup blijft apart TODO. Zie deploy/nas/README.md.
+
+## Overdracht — PR #23 read-only API (24 oktober 2026)
 
 **Read-only API afgerond:** issue #22, ontwikkeld op branch `feature/read-only-api` en aangeboden als PR #23. De interne .NET 10 GET-only API boven de bestaande PostgreSQL/PostGIS-catalogus is geïmplementeerd. Geen NAS-/publieke deployment uitgevoerd; daarvoor blijft afzonderlijk expliciet akkoord vereist.
 
