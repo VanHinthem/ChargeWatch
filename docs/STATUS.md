@@ -1,3 +1,7 @@
+## Android UX — externe locatieacties besloten (24 oktober 2026)
+
+Voor MVP geen locatieafbeeldingen of Google Places/Street View-fotoloads. Wel externe acties **Navigeren** en **Street View bekijken** vanaf locatieoverzicht/details; fallback bij ontbrekende Street View-dekking nog uitwerken. In ontwerpfase, geen UI-code of deployment. Zie `docs/ANDROID_DESIGN.md`.
+
 ## Android app/widget UX-design — eerste besluiten gedocumenteerd (24 oktober 2026)
 
 **Ontwerpfase gestart.** Kaart is Home met geolocatie/fallback; markers en clusters tonen `beschikbaar/passend totaal` volgens filters, clusters herkenbaar door buitenring, individuele favorieten door ster rechtsboven. Filters op connector, vermogen, AC/DC en beschikbaarheid op hoofdlijnen bevestigd. Het telobject (EVSE versus connector), gedeeltelijk onbekende data en NDW-velddekking moeten nog worden uitgewerkt. Zoekbalk, bottom navigation, details en widgetvormen zijn **voorstellen, nog geen totaalontwerpakkoord**. Zie `docs/ANDROID_DESIGN.md`.
