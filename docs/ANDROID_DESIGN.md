@@ -66,6 +66,15 @@ Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, cor
 - Geen claims van continu live-verversen; toon bronversheid/laatste update en houd rekening met Android-achtergrondrestricties.
 - Widgetmock-up is als PNG vastgelegd in de repository; dit is nog geen definitief totaalontwerpakkoord.
 
+### Widgetconfiguratie — visuele referentie
+
+![ChargeWatch Android Widget UX Board](design/ChargeWatch%20Android%20Widget%20UX%20Board.png)
+
+- Primair configuratiebeeld: [ChargeWatch Android Widget UX Board.png](design/ChargeWatch%20Android%20Widget%20UX%20Board.png) in PR #35.
+- De mock-up dient als **visuele richting**, niet als exacte implementatiespecificatie. De afgebeelde meerstappenwizard wordt **niet** overgenomen: het goedgekeurde ontwerp gebruikt **één scrollbaar configuratiescherm met live preview**.
+- Widgetinstellingen worden per widgetinstantie lokaal opgeslagen; beschikbare ruimte en gegevenskwaliteit bepalen welke onderdelen kunnen worden getoond.
+- De afgebeelde waarden zijn fictief.
+
 ### Widgetconfiguratie — gekozen ontwerprichting (24 oktober 2026)
 
 - **Eén scrollbaar configuratiescherm**, géén verplichte wizard met vijf stappen.
@@ -74,7 +83,7 @@ Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, cor
 - **Elke widgetinstantie heeft eigen lokale instellingen**, die ook later opnieuw aanpasbaar zijn.
 - Android bepaalt de widgetplaatsing en resize; geen belofte dat alle formaten op elk toestel identiek zijn.
 - Tik op een locatie opent ChargeWatch met een compacte keuze **Details / Navigeren**.
-- De samen bekeken configuratie-mock-up is als **richting** geaccepteerd, niet als pixel-perfect definitief ontwerp. De mock-up toont deels een vijfstappenwizard die bewust **niet** wordt overgenomen. Het originele PNG-bestand moet nog als designasset aan PR #35 worden toegevoegd.
+- De samen bekeken configuratie-mock-up is als **richting** geaccepteerd, niet als pixel-perfect definitief ontwerp. De mock-up toont deels een vijfstappenwizard die bewust **niet** wordt overgenomen. De PNG-mock-up is opgenomen in PR #35 en hierboven gelinkt.
 
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
