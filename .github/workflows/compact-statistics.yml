@@ -39,6 +39,25 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Compile and run focused snapshot statistics checks
         run: dotnet run --project src/ChargeWatch.Importer -- --statistics-selftest
+      - name: Kill journal writer and recover in fresh OS process
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cw-journal-kill
+          target=/tmp/cw-journal-kill/locations.json.gz
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --statistics-journal-create "$target" test &
+          child=$!
+          ready=0
+          for i in $(seq 1 100); do
+            if [[ -s "$target.pending-response.json" ]]; then ready=1; break; fi
+            if ! kill -0 "$child" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          if [[ "$ready" != 1 ]]; then echo 'Journal writer failed to create durable metadata'; exit 1; fi
+          kill -9 "$child"
+          wait "$child" || true
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --statistics-journal-recover "$target" test
+          rm -rf /tmp/cw-journal-kill
 
   isolated-schema-and-benchmark:
     runs-on: ubuntu-latest
