@@ -1,3 +1,9 @@
+## Overdracht — API-zoekendpoint 500 herstel (24 oktober 2026)
+
+**Geconstateerd op NAS:** `/api/v1/data-status` retourneert HTTP 200 met 82.130 locaties, 207.565 EVSE's; `/api/v1/locations?q=Oss&limit=2` retourneerde HTTP 500. API-log toont `System.IndexOutOfRangeException: Ordinal must be between 0 and 15` in `ApiDatabase.SearchLocations`. De SELECT projecteert 16 kolommen (index 0–15), maar de mapper leest de bron-timestamp op index 15 in plaats van 14, en afstand op 16 in plaats van 15. De timestamp werd fout geïnterpreteerd en afstand veroorzaakt de exception.
+
+**Herstel:** `source_updated_at` en `distance_meters` worden via Npgsql `GetOrdinal(kolomnaam)` gelezen. Geen databasewijziging. De read-only API en NAS collector blijven verder ongemoeid. CI-build en live API-test met echte data moeten de fix verifiëren. Na PR-akkoord/merge moet de nieuwe API-image gepubliceerd worden en **uitsluitend** de `api`-service worden bijgewerkt via afzonderlijke `CW_API_IMAGE_TAG`. Na uitrol: `/api/v1/locations?q=Oss&limit=2`, detail- en statistiekendpoint testen; `/api/v1/data-status` moet blijven werken. Geen publiek exposure.
+
 ## Overdracht — interne NAS-API-testvoorbereiding (24 oktober 2026)
 
 **Volgende actie:** API-container als eigen GHCR-image met gescheiden CW_API_IMAGE_TAG en NAS-loopback 127.0.0.1:5088 klaarzetten, zonder bestaande collector/database te wijzigen. Featurebranch feature/api-nas-internal-deployment; geen publieke toegang. Na PR-goedkeuring/merge en aantoonbare publicatie van het API-image: NAS Compose handmatig bijwerken, API-only starten, echte locatie- en statistiekdata valideren. Geen directe SSH-toegang vanuit deze chat. Dagelijkse backup blijft apart TODO. Zie deploy/nas/README.md.
