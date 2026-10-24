@@ -81,6 +81,7 @@ internal sealed record LocationStatistics(
 
 internal sealed record DataStatus(
     DateTimeOffset? LastSuccessfulImportAt,
+    DateTimeOffset? LastObservedPollAt,
     double? AgeSeconds,
     bool IsStale,
     int StaleAfterMinutes,
