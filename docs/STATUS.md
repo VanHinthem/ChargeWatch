@@ -1,3 +1,9 @@
+## Android app/widget UX-design — eerste besluiten gedocumenteerd (24 oktober 2026)
+
+**Ontwerpfase gestart.** Kaart is Home met geolocatie/fallback; markers en clusters tonen `beschikbaar/passend totaal` volgens filters, clusters herkenbaar door buitenring, individuele favorieten door ster rechtsboven. Filters op connector, vermogen, AC/DC en beschikbaarheid op hoofdlijnen bevestigd. Het telobject (EVSE versus connector), gedeeltelijk onbekende data en NDW-velddekking moeten nog worden uitgewerkt. Zoekbalk, bottom navigation, details en widgetvormen zijn **voorstellen, nog geen totaalontwerpakkoord**. Zie `docs/ANDROID_DESIGN.md`.
+
+**Volgende stap:** visuele kaartmock-up samen beoordelen; vervolgens details en widget ontwerpen. Geen Android UI-code, merge, NAS-deployment of publieke API-publicatie zonder afzonderlijk expliciet akkoord. NDW-externe-ID-routes zijn nog niet op NAS uitgerold.
+
 ## Backend afgerond — NDW externe OCPI-lookup (24 oktober 2026)
 
 **PR #33 gemerged op main** (squashcommit `aa03a638c124726df256546a123d277b391af970`). Read-only `GET /api/v1/locations/by-ndw-id/{featureId}` en `.../{featureId}/statistics` koppelen de Nederlandse NDW GeoJSON-feature-ID aan de unieke OCPI-triple en hergebruiken bestaande detail-/statistiekresponsen. Formaatfout → 400; onbekende ID → 404; geen schema- of importerwijziging. GitHub CI **Read-only API** en **NAS Images** succesvol op de PR-head; de routes zijn **nog niet live op NAS gevalideerd en niet gedeployed**. Publicatie blijft afgeschermd totdat Play Integrity en releasegates gereed zijn.
