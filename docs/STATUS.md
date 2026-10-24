@@ -1,3 +1,7 @@
+## Android PR #37 — afronding afbakening (24 oktober 2026)
+
+**Android CI #39 geslaagd** (`testDebugUnitTest`, `assembleDebug`, APK-artifact `chargewatch-debug-apk`). Toesteltest vóór de laatste conservatieve parserverandering bevestigt werkende NDW-kaart, native markers en zoomafhankelijke clustering. Diagnostische UI is verwijderd; **de definitieve opgeschoonde APK is nog niet door gebruiker op toestel beoordeeld**. Inhoudelijke EVSE-telling en cluster-ratio zijn als afzonderlijk vervolgissue **#38** uitgewerkt, inclusief reproduceerbare NDW GeoJSON/OCPI-snapshotvergelijking en acceptatiecriteria. PR #37 houdt neutrale clusters en voorzichtigere individuele cijfers; geen onbewezen EVSE-totalen. Nog te beoordelen vóór merge: uiteindelijke APK, eventuele regressies en expliciet merge-akkoord. Geen deployment.
+
 **Extra veiligheidsaanpassing:** Android markeert vanaf deze commit ook meerdere *identieke* connectorcategorie-rijen als onbekend (`?`) wanneer geen unieke EVSE-identiteit beschikbaar is. Eerder werden identieke paren onterecht als bewezen EVSE-telling behandeld. Een enkele geldige NDW-categorierij blijft zichtbaar als `x/y` (connectortype-bronindicatie, niet algemeen bewezen EVSE-aantal). Bijbehorende unittests zijn aangescherpt. Meer grijze individuele markers is dus een bewuste beperking ter voorkoming van schijnzekerheid; cluster-`…` is iets anders. Android CI #39 draait voor deze wijziging.
 
 ## Android PR #37 — actuele voortgang na EVSE-broncontrole (24 oktober 2026)
