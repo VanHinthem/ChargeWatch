@@ -21,6 +21,7 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
             if (!condition) throw new InvalidOperationException("API selftest failed: " + message);
         }
 
+        NdwLocationKey.SelfTest();
         Require(ParseLimit(null) == 100, "default limit");
         Require(ParseLimit(1) == 1, "minimum limit");
         Require(ParseLimit(999) == 200, "maximum limit");
