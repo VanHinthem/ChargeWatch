@@ -88,3 +88,44 @@ Script tracked in Git: `deploy/nas/scripts/backup-dual-volume.sh`. The script is
 On the NAS, manually confirm `command -v docker` and test `sudo sh /volume2/docker/chargewatch/app/backup-dual-volume.sh`. The script expects `/volume2/docker/chargewatch/.env` to keep `CW_NAS_BACKUP_DIR=/volume2/docker/chargewatch/backups`; it does not alter or restart running DB/collector services. Restrict NAS backup folder and script permissions/ACL. Only after the manual test is confirmed, configure one daily NAS Task Scheduler command `/bin/sh /volume2/docker/chargewatch/app/backup-dual-volume.sh` under a Docker-authorized account; test the same command under the scheduler identity and review task history. Do not schedule both this script and the earlier single-volume backup command.
 
 **Actual HINNAS layout confirmed:** Compose project and secrets are stored in `/volume2/docker/chargewatch/docker-compose.yaml` and `/volume2/docker/chargewatch/.env`; script may live in `/volume2/docker/chargewatch/app`. The script resolves Compose from the parent directory by default, preferring `docker-compose.yaml`, and explicitly passes `--env-file` and `-f`. Previous `Missing compose.yaml or .env` validation failure was caused by the old incorrect assumption. Re-download updated script before retrying.
+
+## Internal API-only NAS deployment
+
+The API has a separate image `ghcr.io/vanhinthem/chargewatch-api:sha-<merged-main-SHA>`.
+Set `CW_API_IMAGE_TAG` independently of `CW_IMAGE_TAG`: never upgrade the existing collector or DB as part of this smoke test.
+The Compose API publishes `127.0.0.1:5088:8080`, **loopback on the NAS only**. No internet/LAN access, reverse proxy or router forwarding.
+The API uses the existing `chargewatch_read` password via server-side environment; never place passwords in chat or GitHub.
+
+Only after the PR is approved/merged and the NAS Images workflow has successfully **published** the API image:
+
+1. Copy `deploy/nas/compose.yaml` from merged main to the actual NAS file `/volume2/docker/chargewatch/docker-compose.yaml` (back up the existing file first); preserve `.env` and Docker volumes.
+2. Add `CW_API_IMAGE_TAG=sha-<verified-published-main-SHA>` to `/volume2/docker/chargewatch/.env`. Leave `CW_IMAGE_TAG` untouched. Optionally set `CW_API_STALE_AFTER_MINUTES=15`.
+3. Run these commands via SSH on NAS from `/volume2/docker/chargewatch` (prefix `sudo` when appropriate):
+
+```sh
+docker compose --env-file .env -f docker-compose.yaml config --quiet
+docker compose --env-file .env -f docker-compose.yaml pull api
+docker compose --env-file .env -f docker-compose.yaml up -d --no-deps api
+docker compose --env-file .env -f docker-compose.yaml ps api
+docker compose --env-file .env -f docker-compose.yaml logs --tail=100 api
+curl -i --max-time 20 http://127.0.0.1:5088/api/v1/data-status
+curl -i --max-time 20 'http://127.0.0.1:5088/api/v1/locations?limit=2'
+```
+
+Use the numerical `id` from the location search result to smoke-test both detail routes:
+
+```sh
+curl -i --max-time 20 http://127.0.0.1:5088/api/v1/locations/REPLACE_ID
+curl -i --max-time 20 http://127.0.0.1:5088/api/v1/locations/REPLACE_ID/statistics
+```
+
+Expected: HTTP 200 on data-status and search, no DB role error in logs, at least some known locations, nested EVSE/connector details, and statistics shape (profiles may still be immature). Compare reported freshness to collector observations before trusting stale indicators.
+HTTP is acceptable **only via the NAS loopback** for this phase. For workstation testing, tunnel using SSH (`ssh -L 5088:127.0.0.1:5088 NAS_USER@NAS_HOST`); do not publish HTTP to the LAN/internet. HTTPS-redirection in ASP.NET is not a replacement for TLS termination. A public phase must configure HTTPS and trusted proxies independently.
+
+Rollback only the API, leaving DB and collector intact:
+
+```sh
+docker compose --env-file .env -f docker-compose.yaml stop api
+```
+
+Never use `down -v`, reset the DB, run migrations, or change `CW_IMAGE_TAG` for this test.

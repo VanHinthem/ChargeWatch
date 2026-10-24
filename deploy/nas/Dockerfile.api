@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY src/ChargeWatch.Api/ChargeWatch.Api.csproj src/ChargeWatch.Api/
+RUN dotnet restore src/ChargeWatch.Api/ChargeWatch.Api.csproj
+COPY src/ChargeWatch.Api/ src/ChargeWatch.Api/
+RUN dotnet publish src/ChargeWatch.Api/ChargeWatch.Api.csproj -c Release -o /out --no-restore /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /out/ ./
+ENV ASPNETCORE_URLS=http://+:8080
+USER $APP_UID
+EXPOSE 8080
+ENTRYPOINT ["dotnet","ChargeWatch.Api.dll"]
