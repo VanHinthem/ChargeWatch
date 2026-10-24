@@ -332,6 +332,15 @@ internal static class BulkImporter
                 cmd.Parameters.AddWithValue(connectorCount);
                 await cmd.ExecuteNonQueryAsync();
             }
+            // CI-only fault injection, gated by the opt-in statistics feature.
+            // An explicit marker file ensures the parent kills this process
+            // after all catalog and statistics writes, BEFORE PostgreSQL commit.
+            if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1" &&
+                Environment.GetEnvironmentVariable("CW_TEST_PAUSE_BEFORE_COMMIT_FILE") is { Length: > 0 } marker)
+            {
+                await File.WriteAllTextAsync(marker, "ready");
+                await Task.Delay(Timeout.InfiniteTimeSpan);
+            }
             await tx.CommitAsync();
             Console.WriteLine($"Bulk committed: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs in {stopwatch.Elapsed}.");
             return 0;
