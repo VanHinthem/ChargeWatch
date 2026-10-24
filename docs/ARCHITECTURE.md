@@ -116,3 +116,11 @@ PR #22 is uitsluitend voor interne ontwikkeling/test. Publieke deployment en Goo
 ## Testing en CI
 
 Unit tests voor statusinterpretatie en compacte statistieken, fixture-/contracttests voor OCPI-import, integratietests voor PostgreSQL en mislukte/partiële imports, injecteerbare klok, mocked FCM, geautomatiseerde .NET- en Android-builds. Migraties versioneren en importdata nooit zonder validatie publiceren.
+
+
+### API-datakwaliteit (interne API, oktober 2026)
+
+- Tekstzoekresultaten krijgen **exacte plaatsnaam** vóór prefix- of straat-/operatorhits. Een substring zoals `oss` in een Tilburgs straatadres kan nog voorkomen, maar staat achter de exacte plaats Oss.
+- `data-status.lastSuccessfulImportAt` betekent laatste geslaagde gewijzigde import; `lastObservedPollAt` betekent het laatste geaccepteerde snapshot-pollmoment volgens `snapshot_poll_checkpoint`. `ageSeconds` en de algemene `isStale` zijn hierop gebaseerd. Als de collector niets nieuws heeft geobserveerd, is de indicatie conservatief. `sourceUpdatedAt` en locatie-`isStale` houden hun bestaande, **afzonderlijke** semantiek: oud bronwijzigingsmoment (niet noodzakelijk mislukte poll).
+- Beschikbaarheids-`availableProbability` blijft **null** zolang het publicatiebeleid `docs/SPRINT3_PUBLICATION_POLICY.md` geen gekalibreerde grens en voldoende geschiedenis heeft. De API behoudt diagnostische sample-/feedtellers. Null is geen 0% kans.
+- Tarieven blijven ruwe OCPI-componenten en originele bron-tekst. Geen API-berekening of claim van een consumentenprijs inclusief btw: veld `vat` en vrije tarieftekst kunnen anders zijn afgerond en contractvoorwaarden kunnen gelden. De latere Android-presentatie moet dit expliciet interpreteren.
