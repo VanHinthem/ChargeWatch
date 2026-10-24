@@ -119,6 +119,9 @@ internal static class SnapshotPendingDownloadJournal
             await File.WriteAllTextAsync(pending, "test pending body");
             await Save(target, pending, when, "\"etag\"", null);
             File.Move(pending, target, true);
+            var promotedState = await RecoverPromoted(target);
+            if (promotedState is null || promotedState.Value.ETag != "\"etag\"")
+                throw new Exception("Promoted cache lost HTTP validators across restart.");
             if (await Load(target) is not null)
                 throw new Exception("Already promoted response was replayed.");
             if (File.Exists(target + ".pending-response.json"))
