@@ -1,3 +1,7 @@
+## Android PR #37 — definitieve debug-APK op toestel bevestigd (24 oktober 2026)
+
+Gebruiker heeft de opgeschoonde Android-APK van CI-build #39 op een fysiek Samsung-toestel getest: **kaart en markers werken nog na verwijderen van technische testinterface**. Zoals verwacht verschijnen iets meer grijze individuele markers door de aangescherpte conservatieve regels voor meerdere connectorcategorieën. Dit is een succesvolle functionele rooktest, geen inhoudelijke bevestiging van unieke EVSE-aantallen. Die bronsemantiek en betrouwbare cluster-ratio's volgen in issue #38. PR #37 staat klaar voor finale beoordeling; **geen merge zonder expliciet merge-akkoord** en geen deployment.
+
 ## Android PR #37 — afronding afbakening (24 oktober 2026)
 
 **Android CI #39 geslaagd** (`testDebugUnitTest`, `assembleDebug`, APK-artifact `chargewatch-debug-apk`). Toesteltest vóór de laatste conservatieve parserverandering bevestigt werkende NDW-kaart, native markers en zoomafhankelijke clustering. Diagnostische UI is verwijderd; **de definitieve opgeschoonde APK is nog niet door gebruiker op toestel beoordeeld**. Inhoudelijke EVSE-telling en cluster-ratio zijn als afzonderlijk vervolgissue **#38** uitgewerkt, inclusief reproduceerbare NDW GeoJSON/OCPI-snapshotvergelijking en acceptatiecriteria. PR #37 houdt neutrale clusters en voorzichtigere individuele cijfers; geen onbewezen EVSE-totalen. Nog te beoordelen vóór merge: uiteindelijke APK, eventuele regressies en expliciet merge-akkoord. Geen deployment.
