@@ -1,3 +1,7 @@
+## Android UX — visuele basis gekozen (24 oktober 2026)
+
+De gezamenlijke derde app-mock-up is als **voorlopig visueel uitgangspunt** gekozen voor kaart, bottom sheet, detailpagina en favorietenlijst. Mini-grafieken tonen historische bezettingspatronen; de detailpagina combineert bezetting met historische kans op minstens één vrije aansluiting, uitsluitend als databeschikbaarheid/kwaliteitsgate dit toestaat. Mock-upgetallen zijn fictief. Geen locatiebeelden; Navigeren en Street View blijven externe acties. Vervolg: design verfijnen en compacte/uitgebreide widget ontwerpen; geen definitief ontwerpakkoord of Android UI-code. Zie `docs/ANDROID_DESIGN.md`.
+
 ## Android UX — externe locatieacties besloten (24 oktober 2026)
 
 Voor MVP geen locatieafbeeldingen of Google Places/Street View-fotoloads. Wel externe acties **Navigeren** en **Street View bekijken** vanaf locatieoverzicht/details; fallback bij ontbrekende Street View-dekking nog uitwerken. In ontwerpfase, geen UI-code of deployment. Zie `docs/ANDROID_DESIGN.md`.
