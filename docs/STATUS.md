@@ -1,3 +1,7 @@
+## Widgetmock-up vastgelegd — PR #35 (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget Showcase.png` is toegevoegd aan de designbranch en in `docs/ANDROID_DESIGN.md` opgenomen als visuele widgetreferentie. Compact (2×2), overzicht (4×2) en uitgebreid (4×3), grafieken configureerbaar en locatieactie Details/Navigeren blijven de ontwerprichting. Nog geen definitief ontwerpakkoord; geen UI-code, merge of deployment.
+
 ## Android widget — configuratie en locatieactie (24 oktober 2026)
 
 Widgetconcepten 2×2, 4×2 en 4×3 besproken. Grafieken per widgetinstantie aan/uit configureerbaar; de actuele beschikbaarheid krijgt prioriteit. Tik op een widgetlocatie opent een ChargeWatch-actiemenu met **Details** en **Navigeren**. Widgetmock-up moet nog als asset in PR #35 worden opgenomen, en het totaalontwerp is nog niet goedgekeurd. Geen UI-code, merge of deployment.
