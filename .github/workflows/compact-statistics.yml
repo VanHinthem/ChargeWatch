@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'db/migrations/008_compact_snapshot_profiles.sql'
+      - 'db/migrations/009_snapshot_active_hour.sql'
+      - 'db/tests/009_snapshot_active_hour_smoke.sql'
       - 'db/tests/008_compact_snapshot_profiles_smoke.sql'
       - 'db/tests/008_compact_snapshot_profiles_benchmark.sql'
       - '.github/workflows/compact-statistics.yml'
@@ -64,5 +66,7 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/008_compact_snapshot_profiles.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/009_snapshot_active_hour.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/009_snapshot_active_hour_smoke.sql
       - name: Measure storage and WAL on isolated data
         run: psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
