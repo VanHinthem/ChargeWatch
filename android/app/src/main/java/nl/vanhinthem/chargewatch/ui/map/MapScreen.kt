@@ -166,10 +166,10 @@ private fun ChargeMap(
             mapView.apply {
                 getMapAsync { map ->
                     map.cameraPosition = CameraPosition.Builder()
-                        .target(LatLng(52.15, 5.35))
-                        .zoom(7.2)
+                        .target(LatLng(51.765, 5.525))
+                        .zoom(12.0)
                         .build()
-                    configureStyle(map, styleUri, locations)
+                    configureStyle(map, styleUri, locations, onViewportChanged)
                     map.addOnCameraIdleListener {
                         val bounds = map.projection.visibleRegion.latLngBounds
                         if (bounds.longitudeWest < bounds.longitudeEast &&
@@ -199,11 +199,27 @@ private fun ChargeMap(
 private fun configureStyle(
     map: MapLibreMap,
     styleUri: String,
-    locations: List<MapLocation>
+    locations: List<MapLocation>,
+    onViewportChanged: (NdwViewport) -> Unit
 ) {
     map.setStyle(styleUri) { style ->
         ensureLayers(style)
         updateLocations(style, locations)
+        // Camera-idle events are not guaranteed to fire on the initial map load.
+        // Explicitly request the initial visible viewport once the map is ready.
+        val bounds = map.projection.visibleRegion.latLngBounds
+        if (bounds.longitudeWest < bounds.longitudeEast &&
+            bounds.latitudeSouth < bounds.latitudeNorth
+        ) {
+            onViewportChanged(
+                NdwViewport(
+                    minLongitude = bounds.longitudeWest,
+                    minLatitude = bounds.latitudeSouth,
+                    maxLongitude = bounds.longitudeEast,
+                    maxLatitude = bounds.latitudeNorth
+                )
+            )
+        }
     }
 }
 
