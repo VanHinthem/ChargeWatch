@@ -37,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
+import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
@@ -90,7 +91,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         ) {
             Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 6.dp) {
                 Text(
-                    text = state.diagnostic,
+                    text = state.diagnostic + if (state.locations.isNotEmpty()) " · Eerste punt: ${state.locations.first().latitude}, ${state.locations.first().longitude}" else "",
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -207,7 +208,16 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle { style -> updateLocations(style, locations) }
+                map.getStyle { style ->
+                    ensureLayers(style)
+                    updateLocations(style, locations)
+                }
+                // Diagnostic fallback: native MapLibre markers reveal whether
+                // coordinates are drawable independently of GeoJSON layers.
+                map.clear()
+                locations.take(100).forEach { location ->
+                    map.addMarker(MarkerOptions().position(LatLng(location.latitude, location.longitude)).title(location.title))
+                }
             }
         }
     )
