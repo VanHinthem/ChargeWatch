@@ -161,10 +161,10 @@ internal static class WatchRunner
             {
                 locations = await Download(http, locationsUrl, state.Locations, locationsPath, cancellationToken);
                 if (locations is { Changed: true, PendingPath: { } pendingPath,
-                                   FetchedAtUtc: { } observedAt } &&
+                                   FetchedAtUtc: { } downloadedAt } &&
                     Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
                     await SnapshotPendingDownloadJournal.Save(
-                        locationsPath, pendingPath, observedAt, locations.ETag, locations.LastModified);
+                        locationsPath, pendingPath, downloadedAt, locations.ETag, locations.LastModified);
             }
             if (checkTariffs)
                 tariffs = await Download(http, tariffsUrl, state.Tariffs, tariffsPath, cancellationToken);
