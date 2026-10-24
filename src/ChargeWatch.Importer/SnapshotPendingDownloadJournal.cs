@@ -36,7 +36,23 @@ internal static class SnapshotPendingDownloadJournal
             !entry.Filename.StartsWith(Path.GetFileName(targetPath) + ".pending-", StringComparison.Ordinal))
             throw new InvalidDataException("Unexpected pending Locations filename.");
         var path = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(targetPath))!, entry.Filename);
-        if (!File.Exists(path)) throw new InvalidDataException("Pending Locations gzip is missing.");
+        if (!File.Exists(path))
+        {
+            // A process may die after cache promotion but before journal cleanup.
+            // Treat that case as completed only when the promoted cache matches
+            // exactly the originally verified response; never invent a new poll.
+            if (File.Exists(targetPath))
+            {
+                await using var promoted = File.OpenRead(targetPath);
+                var promotedHash = Convert.ToHexString(await SHA256.HashDataAsync(promoted)).ToLowerInvariant();
+                if (promotedHash.Equals(entry.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    Complete(targetPath);
+                    return null;
+                }
+            }
+            throw new InvalidDataException("Pending Locations gzip is missing.");
+        }
         await using var stream = File.OpenRead(path);
         var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream)).ToLowerInvariant();
         if (!hash.Equals(entry.Sha256, StringComparison.OrdinalIgnoreCase))
@@ -67,6 +83,15 @@ internal static class SnapshotPendingDownloadJournal
             var rejected = false;
             try { await Load(target); } catch (InvalidDataException) { rejected = true; }
             if (!rejected) throw new Exception("Tampered pending response was accepted.");
+            // Simulate process termination after File.Move(pending, target),
+            // before removing the pending response journal.
+            await File.WriteAllTextAsync(pending, "test pending body");
+            await Save(target, pending, when, "\"etag\"", null);
+            File.Move(pending, target, true);
+            if (await Load(target) is not null)
+                throw new Exception("Already promoted response was replayed.");
+            if (File.Exists(target + ".pending-response.json"))
+                throw new Exception("Already promoted journal not cleaned.");
             Complete(target);
             if (await Load(target) is not null)
                 throw new Exception("Completed response was replayed.");
