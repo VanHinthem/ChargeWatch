@@ -49,6 +49,14 @@ De samen bekeken derde mock-up geldt **als uitgangspunt** voor verdere vormgevin
 
 Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, correcte tel-eenheid EVSE versus connector en brondekking, narrow-screen geometrie, dark mode, interactieve flows, beide Glance-widgetformaten. Geen Android UI-code voor expliciet totaalontwerpakkoord.
 
+### Widget — voorlopige interactiebesluiten (24 oktober 2026)
+- Compacte (2×2), overzichts- (4×2) en uitgebreide (4×3) Glance-widget zijn ontwerpvarianten; werkelijke resizable afmetingen testen op Android.
+- **Historische minigrafieken per widget configureerbaar** (aan/uit); compact standaard uit, grotere varianten standaard aan als ruimte en gevalideerde gegevens dat toelaten. Beschikbaarheidsstatus heeft altijd prioriteit boven grafiek.
+- Iedere widgetinstantie kan apart worden ingesteld (favorieten/selectie, grafieken en waar zinvol bijkomende gegevens), uitsluitend lokaal opgeslagen.
+- **Tik op een locatie in de widget:** opent een klein actiemenu / bottom sheet in ChargeWatch met **Details** of **Navigeren**. Details opent de locatiepagina; Navigeren geeft coördinaten door aan een externe navigatie-app. Interactie werkt voor alle widgetformaten.
+- Geen claims van continu live-verversen; toon bronversheid/laatste update en houd rekening met Android-achtergrondrestricties.
+- Widgetmock-up uit chatsessie is nog een ontwerpvoorstel, geen definitief totaalontwerpakkoord; oorspronkelijke PNG is nog niet in de repository geborgd.
+
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
 2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
