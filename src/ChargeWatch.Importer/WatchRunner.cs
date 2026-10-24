@@ -182,6 +182,21 @@ internal static class WatchRunner
                 Console.WriteLine("NDW source unchanged (304); database import skipped.");
             }
 
+            // PR17 opt-in statistics. A real new 304 response is a fresh
+            // observed-status sample despite identical source bytes.
+            // Tariff-only imports do not themselves produce Locations samples.
+            if (locations is { Changed: false, FetchedAtUtc: { } observedAt } &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                var conn = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
+                    ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
+                var accepted = await SnapshotUnchangedPollRecorder.Record(
+                    conn, Guid.NewGuid().ToString("N"), observedAt);
+                Console.WriteLine(accepted
+                    ? "Compact snapshot: verified 304 observation stored."
+                    : "Compact snapshot: duplicate observation skipped.");
+            }
+
             var newState = state with
             {
                 Locations = locations is null
@@ -223,7 +238,7 @@ internal static class WatchRunner
                 throw new InvalidOperationException($"Source returned 304 but cache file is missing: {targetPath}");
 
             Console.WriteLine($"304 {url}");
-            return new DownloadResult(false, null, state?.ETag, state?.LastModified, null);
+            return new DownloadResult(false, null, state?.ETag, state?.LastModified, DateTimeOffset.UtcNow);
         }
 
         response.EnsureSuccessStatusCode();
