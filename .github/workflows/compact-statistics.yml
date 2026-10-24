@@ -6,6 +6,8 @@ on:
       - 'db/migrations/009_snapshot_active_hour.sql'
       - 'db/migrations/010_snapshot_hour_finalization.sql'
       - 'db/migrations/011_snapshot_unchanged_hour.sql'
+      - 'db/migrations/012_snapshot_unchanged_flush.sql'
+      - 'db/tests/012_snapshot_unchanged_flush_smoke.sql'
       - 'db/tests/011_snapshot_unchanged_hour_smoke.sql'
       - 'db/tests/010_snapshot_hour_finalization_smoke.sql'
       - 'db/tests/011_active_hour_write_benchmark.sql'
@@ -63,7 +65,8 @@ jobs:
           CREATE ROLE chargewatch_import;
           CREATE ROLE chargewatch_read;
           CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
-          CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, location_id bigint REFERENCES charging_location(id),status text);
+          CREATE TABLE ndw_snapshot_checkpoint(source_name text PRIMARY KEY, source_sha256 text NOT NULL);
           CREATE TABLE schema_migration(version text PRIMARY KEY);
           INSERT INTO charging_location DEFAULT VALUES;
           INSERT INTO evse DEFAULT VALUES;
@@ -78,6 +81,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f db/tests/010_snapshot_hour_finalization_smoke.sql
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/011_snapshot_unchanged_hour.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/011_snapshot_unchanged_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/012_snapshot_unchanged_flush.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/012_snapshot_unchanged_flush_smoke.sql
       - name: Measure storage and WAL on isolated data
         run: |
           psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
