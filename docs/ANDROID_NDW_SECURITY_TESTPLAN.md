@@ -1,3 +1,18 @@
+## EVSE- versus connectortelling — verificatiegate PR #37 (24 oktober 2026)
+
+**Wat de bron wél garandeert:** NDW GeoJSON is een samenvatting van OCPI per locatie; `availabilities[]` kent `connector_type`, `available` en `total`. Volgens NDW zijn dit aantallen voor een connectortype. De GeoJSON-rijen bevatten geen zelfstandig uniek EVSE-ID. Het optellen van deze rijen kan één EVSE met bijvoorbeeld CCS én CHAdeMO dubbel tellen. Een identiek `available/total`-paar over typen bewijst **niet** dat de EVSE-unie diezelfde teller/noemer heeft.
+
+**Geverifieerd in Android-toesteltest:** echte GeoJSON-locaties worden geladen, groene/rode individuele markers en zoomafhankelijke neutrale clusters verschijnen. **Niet geverifieerd:** de daadwerkelijke EVSE-teller/noemer bij locaties met verschillende connectortypen. Een live vergelijking met het volledige NDW OCPI-bestand kon tijdens deze stap niet worden uitgevoerd; geen gefingeerde datasetstatistiek of afwijkingspercentage publiceren.
+
+**Nodige vergelijking:**
+1. Download voor één NDW-publicatiemoment zowel `charging_point_locations.geojson.gz` als `charging_point_locations_ocpi.json.gz` via `https://opendata.ndw.nu/`. Noteer de timestamps om verkeerde vergelijkingen door statuswijzigingen te voorkomen.
+2. Selecteer circa 20-50 locatie-ID's rond Oss, bewust inclusief CCS+CHAdeMO, dubbele Type 2, één connector en gemengde status.
+3. Groepeer OCPI op unieke `EVSE.uid` per locatie. Elke EVSE draagt één bezettingsstatus; tel `AVAILABLE` als vrij en onderscheid overige bekende/onbekende statussen. Tel geen `connectors[]` als afzonderlijke EVSE.
+4. Vergelijk met het geojson `availabilities[]`-paar per connectorcategorie. Stel vast of categorieën elkaar overlappen en of eventueel `max(total)` of één type overeenkomt met EVSE-totaal en EVSE-vrij. **Niet veronderstellen** dat dat voor alle locaties geldt.
+5. Leg geanonimiseerde fixtures en gerichte unit tests vast, inclusief verschillen bij onbekende/stale statussen en de beslissing welk `x/y`-getal veilig is. Alleen bij bewijs cluster-ratio's implementeren; anders grijze `…` laten staan.
+
+**Releasegate:** zonder deze vergelijking is de huidige `x/y` op individuele markers een conservatieve **bronindicatie**, geen bewezen EVSE-telling. Er wordt geen som van categorieën of EVSE-clusterratio toegevoegd. Testdiagnostiek is uit de app verwijderd. PR #37 niet mergen zonder expliciet akkoord.
+
 # Android NDW-first architectuur, API-beveiliging en testplan
 Datum: 24 oktober 2026. Status: **voorkeursarchitectuur / beslisdocument**; geen appcode of publieke API-ontsluiting in deze PR.
 
