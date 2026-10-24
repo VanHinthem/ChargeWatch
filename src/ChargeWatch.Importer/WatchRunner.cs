@@ -55,6 +55,23 @@ internal static class WatchRunner
         var tariffsPath = Path.Combine(cacheDirectory, "tariffs.json.gz");
         var statePath = Path.Combine(cacheDirectory, "refresh-state.json");
         var state = await LoadState(statePath);
+        if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+        {
+            var promoted = await SnapshotPendingDownloadJournal.RecoverPromoted(locationsPath);
+            if (promoted is { } recovered)
+            {
+                state = state with
+                {
+                    Locations = new FeedState(
+                        recovered.ETag ?? state.Locations?.ETag,
+                        recovered.LastModified ?? state.Locations?.LastModified,
+                        DateTimeOffset.UtcNow)
+                };
+                await SaveState(statePath, state);
+                SnapshotPendingDownloadJournal.Complete(locationsPath);
+                Console.WriteLine("Recovered promoted Locations cache validators from durable journal.");
+            }
+        }
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("ChargeWatch/1.0");
@@ -235,9 +252,7 @@ internal static class WatchRunner
                         await Task.Delay(Timeout.InfiniteTimeSpan);
                     }
                     Promote(locations.PendingPath!, locationsPath);
-                    if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
-                        SnapshotPendingDownloadJournal.Complete(locationsPath);
-                }
+                 }
                 if (tariffs?.Changed == true)
                     Promote(tariffs.PendingPath!, tariffsPath);
             }
@@ -258,6 +273,9 @@ internal static class WatchRunner
                 LastSuccessfulImportUtc = anyChanged ? DateTimeOffset.UtcNow : state.LastSuccessfulImportUtc
             };
             await SaveState(statePath, newState);
+            if (locations?.Changed == true &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                SnapshotPendingDownloadJournal.Complete(locationsPath);
             return newState;
         }
         finally
