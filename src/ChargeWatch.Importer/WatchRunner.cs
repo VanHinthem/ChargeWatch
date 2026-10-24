@@ -378,7 +378,11 @@ internal static class WatchRunner
         try
         {
             await using (var output = new FileStream(pendingPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true))
+            {
                 await response.Content.CopyToAsync(output, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+                output.Flush(flushToDisk: true);
+            }
 
             await ValidateGzip(pendingPath, cancellationToken);
 
