@@ -74,5 +74,19 @@ Get-Content -Raw tools/ndw_geojson_oss_match.sql | ssh hinthem@HINNAS "cd /volum
 
 **Verificatiecriteria:** iedere van de tien features krijgt nul, één of meerdere kandidaten met gedocumenteerde reden; accepteer externe sleutelmapping pas na 1-op-1 bevestiging en controle van afwijkingen. Een gecombineerde locatie-/EVSE-statusteller is niet noodzakelijk numeriek gelijk aan NDW connector-aggregaties.
 
+## NAS-vergelijking uitgevoerd — 24 oktober 2026
+
+De gebruiker heeft `tools/ndw_geojson_oss_match.sql` op HINNAS tegen de bestaande ChargeWatch-catalogus uitgevoerd. De read-only transactie gaf `BEGIN`, **12 rijen**, `COMMIT`, zonder gemelde SQL-fout.
+
+**Resultaat over de 10 verschillende NDW-features:** 10/10 hebben exact één kandidaat met `id_exact_candidate=t` op `country_code=NL`, `party_id=cpo_id`, `source_id=feature.id` na de prefix `NL-<cpo_id>-`. Alle tien exacte kandidaten hebben gelijk adres; afstand 0,0–0,2 meter. Alle tien hebben dezelfde telling `reported_available=available_evses` en `reported_total=evse_count` in deze momentopname. Dit is geen bewijs dat NDW-connectortellingen algemeen altijd EVSE-tellingen zijn.
+
+**Waarom 12 in plaats van 10 rijen:** Sportlaan 31 en Podium 1 liggen 4,2–4,4 meter van elkaar; de extra nabijheidskandidaten hebben `id_exact_candidate=f` en `address_equal=f`. Ruimtelijke nabijheid is dus nadrukkelijk ongeschikt als identiteitssleutel.
+
+**Statusvoorbeeld:** Merwedestraat 54 heeft NDW `available=0,total=1`, terwijl de catalogus `INOPERATIVE` toont: `total-available` is niet hetzelfde als `CHARGING`.
+
+**Besluit binnen de onderzoekscope:** de mapping is empirisch ondersteund voor deze tien echte Oss-locaties. Android mag een conservatieve parser voor `NL-<cpo_id>-<source_id>` gebruiken, maar moet prefix en niet-lege delen valideren, ongeldige IDs veilig afwijzen en nooit via coördinaten/adres automatisch verrijken. Exact NDW-contract, cross-operator-dekking en stabiliteit over tijd blijven buiten deze steekproef; niet als universele zekerheid presenteren.
+
+**Nog open:** rate-limit-scope (per publiek IP is aanname), HTTP-responseheaders, toekomstig 1000-features-gedrag, volledige tariefsemantiek, tijdstempelbetekenis en publieke externe-key endpoint. Geen DB/schema/code-releasewijziging gedaan.
+
 ## Vervolg na geslaagde meting
 Een kleine Android NDW-first kaartclient met fixtures; daarna een read-only serverendpoint voor gericht detail/statistiek op bewezen externe OCPI-location-key (zonder interne DB-ID aan mobiele client te koppelen). Onafhankelijk daarvan releasegates uit `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`. Geen publiek exposure, NAS deployment of merge zonder expliciet gebruikersakkoord.
