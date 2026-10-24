@@ -296,6 +296,22 @@ internal static class BulkImporter
                 provenance.Parameters.AddWithValue(evseCount);
                 await SnapshotPollCoverage.Capture(db, tx, fetchedAt, locationsHash);
                 await provenance.ExecuteNonQueryAsync();
+                if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                {
+                    // HTTP 200: the old 304 counts were consumed before catalog upserts.
+                    // Register one fresh observation against the new committed-to-be catalog
+                    // with the poll claim in the SAME transaction as import/provenance.
+                    if (await SnapshotPollStore.TryClaim(db, tx,
+                            "200-" + Guid.NewGuid().ToString("N"), fetchedAt,
+                            SnapshotFeedQuality.ChangedFeed))
+                    {
+                        await using var sample = new NpgsqlCommand(
+                            "SELECT * FROM snapshot_record_changed_hour($1)", db, tx)
+                            { CommandTimeout = 600 };
+                        sample.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
+                        await sample.ExecuteNonQueryAsync();
+                    }
+                }
             }
 
 
