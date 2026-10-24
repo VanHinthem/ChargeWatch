@@ -11,6 +11,8 @@ if (args.Length == 3 && args[0] == "--statistics-journal-create")
     await File.WriteAllTextAsync(pending, "fixture-durable-pending-snapshot");
     await SnapshotPendingDownloadJournal.Save(target, pending,
         new DateTimeOffset(2026, 10, 24, 8, 40, 0, TimeSpan.Zero), "\"fixture\"", null);
+    Console.WriteLine("Journal ready for forced termination.");
+    await Task.Delay(Timeout.InfiniteTimeSpan);
     return 0;
 }
 if (args.Length == 3 && args[0] == "--statistics-journal-recover")
