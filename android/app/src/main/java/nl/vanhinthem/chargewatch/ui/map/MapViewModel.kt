@@ -39,27 +39,19 @@ class MapViewModel(
         coordinator.submit(viewport)
     }
 
-    fun testNdwOss() {
-        coordinator.cancel()
-        val oss = NdwViewport(5.50, 51.75, 5.55, 51.78)
-        lastRequestedViewport = oss
-        viewModelScope.launch { load(oss) }
-    }
-
     fun retry() {
         val viewport = lastRequestedViewport ?: return
         viewModelScope.launch { load(viewport) }
     }
 
     private suspend fun load(viewport: NdwViewport) {
-        _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false, diagnostic = "NDW-aanvraag gestart (${viewport.asBboxParameter()})")
+        _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false)
 
         when (val result = client.load(viewport)) {
             is NdwResult.Success -> {
                 _uiState.value = MapUiState(
                     locations = result.locations,
                     loading = false,
-                    diagnostic = "NDW OK: ${result.locations.size} locaties ontvangen",
                     message = if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null
                 )
             }
@@ -68,7 +60,6 @@ class MapViewModel(
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     message = "NDW limiet bereikt.$suffix",
-                    diagnostic = "NDW HTTP 429",
                     rateLimited = true
                 )
             }
@@ -76,7 +67,6 @@ class MapViewModel(
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     message = "${result.message} ChargeWatch-fallback volgt in een aparte feature.",
-                    diagnostic = result.message,
                     rateLimited = false
                 )
             }
@@ -95,7 +85,6 @@ class MapViewModel(
 
 data class MapUiState(
     val locations: List<MapLocation> = emptyList(),
-    val diagnostic: String = "NDW: nog geen verzoek gestart",
     val loading: Boolean = false,
     val message: String? = "Zoom verder in om laadlocaties te laden.",
     val rateLimited: Boolean = false
