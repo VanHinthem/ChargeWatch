@@ -265,14 +265,60 @@ private fun renderNativeMarkers(
     map.clear()
     if (locations.isEmpty()) return
 
-    // Group close *screen-space* points to avoid unreadable piles at low zoom.
-    // This is display clustering; no availability totals are inferred.
-    val cells = locations.groupBy { location ->
-        val p = map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
-        (p.x.toInt() / 64) to (p.y.toInt() / 64)
+    // Merge locations by actual on-screen distance, not 64-pixel grid cells.
+    // A marker bitmap is 112 pixels wide, so keep group centers separated.
+    val clusters = mutableListOf<MutableList<MapLocation>>()
+    val positions = locations.associateWith { location ->
+        map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
     }
+    locations.forEach { location ->
+        val point = positions.getValue(location)
+        val nearest = clusters.minByOrNull { group ->
+            val x = group.map { positions.getValue(it).x.toDouble() }.average()
+            val y = group.map { positions.getValue(it).y.toDouble() }.average()
+            val dx = x - point.x
+            val dy = y - point.y
+            dx * dx + dy * dy
+        }
+        val distanceSquared = nearest?.let { group ->
+            val x = group.map { positions.getValue(it).x.toDouble() }.average()
+            val y = group.map { positions.getValue(it).y.toDouble() }.average()
+            val dx = x - point.x
+            val dy = y - point.y
+            dx * dx + dy * dy
+        } ?: Double.POSITIVE_INFINITY
+        if (nearest != null && distanceSquared < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
+            nearest.add(location)
+        } else {
+            clusters.add(mutableListOf(location))
+        }
+    }
+
+    // Joining points changes the centroid; merge adjacent final clusters again
+    // to avoid the leftover marker-on-marker overlap seen on the device.
+    var merged: Boolean
+    do {
+        merged = false
+        outer@ for (i in clusters.indices) {
+            for (j in i + 1 until clusters.size) {
+                val a = clusters[i]
+                val b = clusters[j]
+                val dx = a.map { positions.getValue(it).x.toDouble() }.average() -
+                    b.map { positions.getValue(it).x.toDouble() }.average()
+                val dy = a.map { positions.getValue(it).y.toDouble() }.average() -
+                    b.map { positions.getValue(it).y.toDouble() }.average()
+                if (dx * dx + dy * dy < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
+                    a.addAll(b)
+                    clusters.removeAt(j)
+                    merged = true
+                    break@outer
+                }
+            }
+        }
+    } while (merged)
+
     val iconFactory = IconFactory.getInstance(context)
-    cells.values.forEach { group ->
+    clusters.forEach { group ->
         val isCluster = group.size > 1
         val location = group.first()
         val label = if (isCluster) "…" else location.availability.label
@@ -310,6 +356,7 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     return bitmap
 }
 
+private const val CLUSTER_DISTANCE_PX = 144.0
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
 private const val SOURCE_ID = "chargewatch-locations"
