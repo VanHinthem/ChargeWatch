@@ -1,3 +1,63 @@
+## Android app + widget — ontwerp afgerond en goedgekeurd (24 oktober 2026)
+
+**Definitieve designbeslissing:** gebruiker heeft het totale ChargeWatch Android-app-/widgetontwerp én de concept-2-appicoonuitwerking (**Stekker + statusring**) expliciet goedgekeurd. De designset staat in `docs/ANDROID_DESIGN.md` met drie UX-PNG's, icon-PNG en aanvullende SVG-schets onder `docs/design/`. De schriftelijke contractregels hebben voorrang op foutieve of fictieve details in de conceptafbeeldingen.
+
+**Volgende fase:** Android MVP via Kotlin/Jetpack Compose en daarna Glance op nieuwe featurebranches; begin met projectfundament, NDW-first kaart, statusmarkers/filters/fallback en lokale favorieten. **Technische gate:** voorkom dubbeltelling bij EVSE/connectoraggregatie in gefilterde `x/y`-markers/clusters. API-verrijking pas bij details, met onbekende kansen verborgen. Externe NDW-ID-lookup uit PR #33 is nog niet op NAS gedeployed; apart uitrollen/valideren vereist expliciete toestemming. Play Integrity, proxy-/quota-/licentiechecks blijven vóór publieke uitrol verplicht. Geen Android UI-code of NAS-deployment in de design-PR.
+
+## Appicoonontwerp expliciet goedgekeurd (24 oktober 2026)
+
+De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is nog niet gemerged; merge vereist afzonderlijk expliciet akkoord.** Geen UI-code of deployment.
+
+## ChargeWatch appicoon PNG gekoppeld (24 oktober 2026)
+
+De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. De icoonuitwerking is inmiddels expliciet goedgekeurd. PR #35 niet gemerged; geen deployment.
+
+## Appicoon — concept B geselecteerd (24 oktober 2026)
+
+Van drie ChargeWatch-iconrichtingen is **Stekker + statusring** gekozen: donkerblauwe achtergrond, witte stekker, groen accent en decoratieve statusring. Uitwerking tot adaptive/monochrome icon en archivering van de concept-PNG is afgerond in PR #35. Geen implementatiecode, merge of deployment.
+
+## Android UX — finale contract- en randgevallenreview afgerond (24 oktober 2026)
+
+Ontwerpcontract voor markers/clusters, filters, onbekende/stale data, offline/fallback, lege favorieten, widgetformaten en statistiekpublicatie is beschreven in `docs/ANDROID_DESIGN.md`. **Belangrijkste implementatiegate:** de NDW GeoJSON-aggregaten bevatten geen unieke EVSE-ID per connectorcategorie; voorkom dubbeltelling bij gefilterde `x/y` en clusters voordat UI-aantallen worden gepubliceerd. Drie PNG's en het designsysteem zijn geborgd in PR #35. Volgende stap is expliciete gezamenlijke goedkeuring van het **totale** Android app- en widgetdesign; daarna apart merge-akkoord. Geen UI-code of deployment.
+
+## Android designsysteem — stijlrichting gekozen (24 oktober 2026)
+
+Kleurrollen en initiële tokens, Roboto/Material 3, afgeronde componenten, consistente iconen, light/dark volgens systeeminstelling met optionele override, en toegankelijkheidsregels zijn vastgelegd in `docs/ANDROID_DESIGN.md`. Groene statusmarkers, rood voor nul vrij, grijs voor onbekend; blauw/turquoise uitsluitend voor historische bezetting, amber voor favorietster. Hex-codes blijven voorwaardelijk aan contrastvalidatie. **Volgende stap:** finale review van UX-flows, tel-eenheden, onbekende/stale data, statistiekbeschikbaarheid, scherm- en widgettoestanden. Geen definitief ontwerp- of merge-akkoord en geen UI-code/deployment.
+
+## Widgetconfiguratie PNG gekoppeld (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget UX Board.png` staat op de designbranch en wordt rechtstreeks weergegeven in `docs/ANDROID_DESIGN.md`. Het is een visuele richting: de vijfstappenwizard uit de afbeelding wordt vervangen door één scrollbaar configuratiescherm met live voorbeeld. Geen definitief totaalontwerpakkoord, merge of deployment.
+
+## Widgetconfiguratie — richting gekozen (24 oktober 2026)
+
+Eén scrollbaar configuratiescherm met live voorbeeld, selectie/volgorde van lokale favorieten en optionele grafieken, afstand en update-indicatie. Geen vijfstappenwizard. Instellingen per widgetinstantie achteraf bewerkbaar. Configuratie-PNG is als referentie toegevoegd aan PR #35; volgende ontwerptaak is kleuren/typografie/light-dark en resterende schermdetails. Geen definitief totaalakkkoord, Android-code, merge of deployment.
+
+## Widgetmock-up vastgelegd — PR #35 (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget Showcase.png` is toegevoegd aan de designbranch en in `docs/ANDROID_DESIGN.md` opgenomen als visuele widgetreferentie. Compact (2×2), overzicht (4×2) en uitgebreid (4×3), grafieken configureerbaar en locatieactie Details/Navigeren blijven de ontwerprichting. Nog geen definitief ontwerpakkoord; geen UI-code, merge of deployment.
+
+## Android widget — configuratie en locatieactie (24 oktober 2026)
+
+Widgetconcepten 2×2, 4×2 en 4×3 besproken. Grafieken per widgetinstantie aan/uit configureerbaar; de actuele beschikbaarheid krijgt prioriteit. Tik op een widgetlocatie opent een ChargeWatch-actiemenu met **Details** en **Navigeren**. Widgetmock-up moet nog als asset in PR #35 worden opgenomen, en het totaalontwerp is nog niet goedgekeurd. Geen UI-code, merge of deployment.
+
+## Android UX — primaire PNG-mock-up geborgd (24 oktober 2026)
+
+De originele vier-schermen afbeelding `docs/design/EV Charging Station App Mockup.png` staat op de designbranch en is als **primaire visuele referentie** opgenomen in `docs/ANDROID_DESIGN.md`. De SVG is alleen een schematische aanvulling. Mock-up is een goedgekeurd uitgangspunt, nog **geen definitief totaalontwerpakkoord**. Vervolg: widgetvarianten en verdere UX-details binnen PR #35. Geen merge of deployment.
+
+## Android UX — visuele basis gekozen (24 oktober 2026)
+
+De gezamenlijke derde app-mock-up is als **voorlopig visueel uitgangspunt** gekozen voor kaart, bottom sheet, detailpagina en favorietenlijst. Mini-grafieken tonen historische bezettingspatronen; de detailpagina combineert bezetting met historische kans op minstens één vrije aansluiting, uitsluitend als databeschikbaarheid/kwaliteitsgate dit toestaat. Mock-upgetallen zijn fictief. Geen locatiebeelden; Navigeren en Street View blijven externe acties. Vervolg: design verfijnen en compacte/uitgebreide widget ontwerpen; geen definitief ontwerpakkoord of Android UI-code. Zie `docs/ANDROID_DESIGN.md`.
+
+## Android UX — externe locatieacties besloten (24 oktober 2026)
+
+Voor MVP geen locatieafbeeldingen of Google Places/Street View-fotoloads. Wel externe acties **Navigeren** en **Street View bekijken** vanaf locatieoverzicht/details; fallback bij ontbrekende Street View-dekking nog uitwerken. In ontwerpfase, geen UI-code of deployment. Zie `docs/ANDROID_DESIGN.md`.
+
+## Android app/widget UX-design — eerste besluiten gedocumenteerd (24 oktober 2026)
+
+**Ontwerpfase gestart.** Kaart is Home met geolocatie/fallback; markers en clusters tonen `beschikbaar/passend totaal` volgens filters, clusters herkenbaar door buitenring, individuele favorieten door ster rechtsboven. Filters op connector, vermogen, AC/DC en beschikbaarheid op hoofdlijnen bevestigd. Het telobject (EVSE versus connector), gedeeltelijk onbekende data en NDW-velddekking moeten nog worden uitgewerkt. Zoekbalk, bottom navigation, details en widgetvormen zijn **voorstellen, nog geen totaalontwerpakkoord**. Zie `docs/ANDROID_DESIGN.md`.
+
+**Volgende stap:** visuele kaartmock-up samen beoordelen; vervolgens details en widget ontwerpen. Geen Android UI-code, merge, NAS-deployment of publieke API-publicatie zonder afzonderlijk expliciet akkoord. NDW-externe-ID-routes zijn nog niet op NAS uitgerold.
+
 ## Backend afgerond — NDW externe OCPI-lookup (24 oktober 2026)
 
 **PR #33 gemerged op main** (squashcommit `aa03a638c124726df256546a123d277b391af970`). Read-only `GET /api/v1/locations/by-ndw-id/{featureId}` en `.../{featureId}/statistics` koppelen de Nederlandse NDW GeoJSON-feature-ID aan de unieke OCPI-triple en hergebruiken bestaande detail-/statistiekresponsen. Formaatfout → 400; onbekende ID → 404; geen schema- of importerwijziging. GitHub CI **Read-only API** en **NAS Images** succesvol op de PR-head; de routes zijn **nog niet live op NAS gevalideerd en niet gedeployed**. Publicatie blijft afgeschermd totdat Play Integrity en releasegates gereed zijn.
