@@ -226,6 +226,14 @@ internal static class WatchRunner
 
                 if (locations?.Changed == true)
                 {
+                    // CI-only: simulate death after PostgreSQL commit, before
+                    // local cache promotion. The pending response is recoverable.
+                    if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1" &&
+                        Environment.GetEnvironmentVariable("CW_TEST_PAUSE_AFTER_COMMIT_FILE") is { Length: > 0 } marker)
+                    {
+                        await File.WriteAllTextAsync(marker, "ready");
+                        await Task.Delay(Timeout.InfiniteTimeSpan);
+                    }
                     Promote(locations.PendingPath!, locationsPath);
                     if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
                         SnapshotPendingDownloadJournal.Complete(locationsPath);
