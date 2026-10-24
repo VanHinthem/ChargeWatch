@@ -1,6 +1,10 @@
+## Appicoonontwerp expliciet goedgekeurd (24 oktober 2026)
+
+De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is nog niet gemerged; merge vereist afzonderlijk expliciet akkoord.** Geen UI-code of deployment.
+
 ## ChargeWatch appicoon PNG gekoppeld (24 oktober 2026)
 
-De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. Definitieve expliciete goedkeuring van de icoonuitwerking blijft afzonderlijk open. PR #35 niet gemerged; geen deployment.
+De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. De icoonuitwerking is inmiddels expliciet goedgekeurd. PR #35 niet gemerged; geen deployment.
 
 ## Appicoon — concept B geselecteerd (24 oktober 2026)
 
