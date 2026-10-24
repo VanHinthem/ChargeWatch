@@ -8,3 +8,6 @@ data/ndw-compare/
 .gradle/
 **/build/
 local.properties
+
+# Local NDW feed snapshot analysis (not committed)
+.local/ndw/
