@@ -5,6 +5,7 @@ on:
       - 'src/ChargeWatch.Importer/**'
       - 'db/migrations/**'
       - 'db/tests/019_national_fixture.py'
+      - 'db/tests/020_national_http_fixture.py'
       - '.github/workflows/compact-national-benchmark.yml'
   workflow_dispatch:
 permissions:
@@ -67,3 +68,35 @@ jobs:
           END $verify$;
           SQL
           echo "NOTE: --bulk is not verified HTTP200: compact sample counters are intentionally not written." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark verified national HTTP200 including statistics
+        env:
+          CW_NDW_LOCATIONS_URL: 'http://127.0.0.1:18888/locations'
+          CW_NDW_TARIFFS_URL: 'http://127.0.0.1:18888/tariffs'
+          CW_NDW_CACHE_DIR: '/tmp/cw-national-watch-cache'
+          CW_NDW_MIN_LOCATIONS: '80777'
+        run: |
+          set -euo pipefail
+          python3 db/tests/020_national_http_fixture.py &
+          fixture=$!
+          trap 'kill "$fixture" 2>/dev/null || true' EXIT
+          for i in $(seq 1 100); do
+            if curl -fsS http://127.0.0.1:18888/locations -o /dev/null; then break; fi
+            sleep 0.1
+          done
+          start=$(date +%s)
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --watch-once
+          elapsed=$(($(date +%s)-start))
+          echo "National HTTP200 import + compact counters: ${elapsed} seconds" | tee -a "$GITHUB_STEP_SUMMARY"
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $verify$
+          BEGIN
+            IF (SELECT count(*) FROM charging_location)<>80777 OR
+               (SELECT count(*) FROM evse)<>203114 OR
+               (SELECT count(*) FROM evse_snapshot_active_hour)<>203114 OR
+               (SELECT count(*) FROM location_snapshot_active_hour)<>80777 OR
+               EXISTS (SELECT 1 FROM evse_snapshot_active_hour WHERE changed_count<>1) OR
+               EXISTS (SELECT 1 FROM location_snapshot_active_hour WHERE changed_count<>1)
+            THEN RAISE EXCEPTION 'Verified nationwide HTTP200 lost compact statistics'; END IF;
+          END $verify$;
+          SQL
