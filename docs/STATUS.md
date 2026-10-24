@@ -1,3 +1,7 @@
+## Visuele ontwerpreferentie in PR #35 (24 oktober 2026)
+
+Een vier-schermen SVG-ontwerpschets staat onder `docs/design/android-ux-baseline.svg`, met verwijzing vanuit `docs/ANDROID_DESIGN.md`. Dit is een schematische reconstructie; de originele gedetailleerde PNG uit de chatsessie moet nog binair worden toegevoegd aan dezelfde PR. De PNG is dus **nog niet** veilig geborgd in GitHub. Vervolg: originele afbeelding toevoegen en widgetmock-ups uitwerken. Geen volledige designgoedkeuring of UI-code.
+
 ## Android UX — visuele basis gekozen (24 oktober 2026)
 
 De gezamenlijke derde app-mock-up is als **voorlopig visueel uitgangspunt** gekozen voor kaart, bottom sheet, detailpagina en favorietenlijst. Mini-grafieken tonen historische bezettingspatronen; de detailpagina combineert bezetting met historische kans op minstens één vrije aansluiting, uitsluitend als databeschikbaarheid/kwaliteitsgate dit toestaat. Mock-upgetallen zijn fictief. Geen locatiebeelden; Navigeren en Street View blijven externe acties. Vervolg: design verfijnen en compacte/uitgebreide widget ontwerpen; geen definitief ontwerpakkoord of Android UI-code. Zie `docs/ANDROID_DESIGN.md`.
