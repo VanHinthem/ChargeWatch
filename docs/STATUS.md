@@ -1,3 +1,7 @@
+## Android UX — finale contract- en randgevallenreview afgerond (24 oktober 2026)
+
+Ontwerpcontract voor markers/clusters, filters, onbekende/stale data, offline/fallback, lege favorieten, widgetformaten en statistiekpublicatie is beschreven in `docs/ANDROID_DESIGN.md`. **Belangrijkste implementatiegate:** de NDW GeoJSON-aggregaten bevatten geen unieke EVSE-ID per connectorcategorie; voorkom dubbeltelling bij gefilterde `x/y` en clusters voordat UI-aantallen worden gepubliceerd. Drie PNG's en het designsysteem zijn geborgd in PR #35. Volgende stap is expliciete gezamenlijke goedkeuring van het **totale** Android app- en widgetdesign; daarna apart merge-akkoord. Geen UI-code of deployment.
+
 ## Android designsysteem — stijlrichting gekozen (24 oktober 2026)
 
 Kleurrollen en initiële tokens, Roboto/Material 3, afgeronde componenten, consistente iconen, light/dark volgens systeeminstelling met optionele override, en toegankelijkheidsregels zijn vastgelegd in `docs/ANDROID_DESIGN.md`. Groene statusmarkers, rood voor nul vrij, grijs voor onbekend; blauw/turquoise uitsluitend voor historische bezetting, amber voor favorietster. Hex-codes blijven voorwaardelijk aan contrastvalidatie. **Volgende stap:** finale review van UX-flows, tel-eenheden, onbekende/stale data, statistiekbeschikbaarheid, scherm- en widgettoestanden. Geen definitief ontwerp- of merge-akkoord en geen UI-code/deployment.
