@@ -56,5 +56,23 @@ De gebruiker heeft `tools/ndw_geojson_oss.py` uitgevoerd met de standaardbbox `5
 
 **Volgende gerichte verificatie:** read-only lookup van dezelfde tien kandidaten in de lokale/NAS-OCPI-tabel en individuele EVSE/connectorgegevens; vastleggen van exacte matches en mismatches. Geen backend- of Android-code op grond van onbewezen identity-contract implementeren.
 
+## Concrete databasevergelijking beschikbaar
+
+`tools/ndw_geojson_oss_match.sql` bevat de tien geobserveerde NDW-samples uit het Oss-rapport. Het draait in `BEGIN TRANSACTION READ ONLY` en vraagt:
+
+- mogelijke OCPI identity candidate `NL + cpo_id + remainder(feature.id na "NL-<cpo_id>-")`;
+- database-locaties binnen 30 meter, **alleen als extra vergelijkingskandidaten**, nooit bewijs van dezelfde locatie;
+- bron-ID, naam/adres, afstand, statusverdeling en het verschil tussen geaggregeerde NDW-`available/total` en individuele EVSE-statussen.
+
+Run vanaf Windows PowerShell, wanneer NAS SSH en Docker beschikbaar zijn (pas hostname en gebruikersnaam aan):
+
+```powershell
+Get-Content -Raw tools/ndw_geojson_oss_match.sql | ssh hinthem@HINNAS "cd /volume2/docker/chargewatch && docker compose exec -T db psql -U chargewatch_owner -d chargewatch"
+```
+
+**Let op:** `chargewatch_owner` in dit voorbeeld is alleen de bestaande administratieve connectie; de SQL-transactie is expliciet read-only. Gebruik bij voorkeur een werkende read-only DB-rol als lokale authenticatie dat toestaat. Controleer de daadwerkelijke Compose-DB-naam/credentials; stuur nooit een wachtwoord of connection string naar Git. De opdracht gebruikt geen wijzigingen aan de collector of database. Alleen als `docker compose` op die NAS toestemming vereist, moet de beheerder de gebruikelijke `sudo`-werkwijze volgen.
+
+**Verificatiecriteria:** iedere van de tien features krijgt nul, één of meerdere kandidaten met gedocumenteerde reden; accepteer externe sleutelmapping pas na 1-op-1 bevestiging en controle van afwijkingen. Een gecombineerde locatie-/EVSE-statusteller is niet noodzakelijk numeriek gelijk aan NDW connector-aggregaties.
+
 ## Vervolg na geslaagde meting
 Een kleine Android NDW-first kaartclient met fixtures; daarna een read-only serverendpoint voor gericht detail/statistiek op bewezen externe OCPI-location-key (zonder interne DB-ID aan mobiele client te koppelen). Onafhankelijk daarvan releasegates uit `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`. Geen publiek exposure, NAS deployment of merge zonder expliciet gebruikersakkoord.
