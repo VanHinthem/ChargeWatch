@@ -1,0 +1,57 @@
+name: Compact Statistics Database
+on:
+  pull_request:
+    paths:
+      - 'db/migrations/008_compact_snapshot_profiles.sql'
+      - 'db/tests/008_compact_snapshot_profiles_smoke.sql'
+      - 'db/tests/008_compact_snapshot_profiles_benchmark.sql'
+      - '.github/workflows/compact-statistics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-schema-and-benchmark:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_statistics_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_statistics_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_statistics_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Bootstrap isolated schema only
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chargewatch_import;
+          CREATE ROLE chargewatch_read;
+          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE schema_migration(version text PRIMARY KEY);
+          INSERT INTO charging_location DEFAULT VALUES;
+          INSERT INTO evse DEFAULT VALUES;
+          SQL
+      - name: Apply migration and rollback-safe schema test
+        run: |
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/008_compact_snapshot_profiles.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_smoke.sql
+      - name: Measure storage and WAL on isolated data
+        run: psql -v ON_ERROR_STOP=1 -f db/tests/008_compact_snapshot_profiles_benchmark.sql
