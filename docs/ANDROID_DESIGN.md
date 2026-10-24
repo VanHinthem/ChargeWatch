@@ -121,6 +121,30 @@ De voorgestelde nummers zijn planning, geen vooraf aangemaakte PR's of definitie
 - Statusvoorspellingen zijn geen harde realtime garanties; toon versheid/onzekerheid waar relevant.
 - Geen redesign van de serverarchitectuur tijdens de designfase zonder apart besluit.
 
+## Designsystem — gekozen visuele richting (24 oktober 2026)
+
+De onderstaande stijlrichting is door de gebruiker als basis bevestigd. De hex-kleuren zijn **startwaarden**; definitieve contrast-, leesbaarheids- en dark-modecontrole kan tot verfijning leiden zonder statusbetekenis te veranderen.
+
+| Rol | Conceptkleur | Gebruik |
+|---|---|---|
+| Primair / beschikbaar | `#168653` | merkaccent, minstens één passende vrije aansluiting |
+| Geen passende vrije aansluiting | `#D43B3B` | alleen bij betrouwbaar vastgestelde 0 vrij |
+| Onbekend / onzekere status | `#818D96` | onbekend of onvoldoende betrouwbare beschikbaarheid |
+| Historische bezetting | `#278DA7` | staafgrafieken; geen alternatieve clusterkleur |
+| Favoriet | `#F3AF25` | ster rechtsboven op individuele marker |
+| Licht oppervlak | `#F5F7F8` | subtiele kaart-/widgetachtergrond en panelen |
+| Donker oppervlak | concept `#151D24`, kaarten `#26313A` | donkerblauw/antraciet in plaats van volledig zwart |
+
+- **Typografie:** Android Roboto met Material 3-teksthiërarchie. Kerninformatie (zoals `2/4`) moet direct scanbaar zijn; geen overmatige hoeveelheid tekst of onleesbare labels in markers/widgets.
+- **Iconen:** één consistente Material-stijl voor zoeken, filters, locatie, navigeren, Street View, details, favoriet, refresh en informatie.
+- **Light/dark:** beide vanaf MVP; standaard Android-systeeminstelling volgen, gebruiker kan licht/donker expliciet kiezen. Dezelfde semantische statussen in beide thema's; controle op contrast en tinten.
+- **Grafieken:** turquoise/blauwe staven voor historisch bezettingspatroon; groene lijn voor gevalideerde historische kans op minstens één vrije aansluiting. Duidelijke legenda; bij ontbrekende of niet-publiceerbare kans géén lijn/percentage tekenen.
+- **Componenten:** afgeronde panelen, zachte vlakken en spaarzame schaduw. Kaart zelf houdt visueel de hoofdrol; compacte locatiekaart en widget gebruiken hetzelfde componentvocabulaire.
+- **Toegankelijkheid:** kleur nooit als enige indicator, hoge leesbaarheid en tekstcontrast, voldoende grote bedieningsvlakken (richtlijn 48 dp voor interactieve doelen), grotere systeemfonts ondersteunen en niet steunen op tiny labels.
+- **Statusintegriteit:** stale data apart zichtbaar maken; `0/y` is niet gelijk aan 'allemaal actief aan het laden'; onbekende metingen nooit tot rood of groen forceren. Bij cluster en individuele marker blijven statuskleuren identiek en onderscheidt alleen de ring het cluster.
+
+**Nog geen totaalontwerpakkoord.** De resterende designreview omvat kaart-/widgetflows, betrouwbaarheid van `x/y` en grafieken, lege/loading/fallbackscenario's, toetsen van toegankelijkheid en referenties naar de mock-ups.
+
 ## Definition of done — designfase
 
 Een goedgekeurde set app- en widgetontwerpen, vastgelegde gebruikersstromen, semantische staten, basiscomponenten en prioriteit voor MVP versus later. Documentatie (dit bestand en `docs/STATUS.md`) wordt bijgewerkt in dezelfde PR als het afgeronde ontwerp. Pas dan Android UI-featurebranches starten.
