@@ -33,20 +33,20 @@ jobs:
         env:
           POSTGRES_USER: chargewatch_owner
           POSTGRES_PASSWORD: test-only
-          POSTGRES_DB: chargewatch_api_ci
+          POSTGRES_DB: chargewatch
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_api_ci"
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
       PGUSER: chargewatch_owner
       PGPASSWORD: test-only
-      PGDATABASE: chargewatch_api_ci
+      PGDATABASE: chargewatch
       POSTGRES_USER: chargewatch_owner
-      POSTGRES_DB: chargewatch_api_ci
+      POSTGRES_DB: chargewatch
       CW_IMPORT_PASSWORD: import-test-only
       CW_READ_PASSWORD: read-test-only
     steps:
