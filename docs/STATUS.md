@@ -1,3 +1,7 @@
+## Issue #38 / draft PR #39 — validatiescript en uitvoerpad geverifieerd (24 oktober 2026)
+
+**CI groen:** de workflow `NDW EVSE validation tests` en de bestaande `Read-only API` workflow zijn geslaagd op eerdere branchcommit. Daarnaast staat er nu `docs/NDW_EVSE_VALIDATION.md` met concrete Windows PowerShell-commando's om de twee NDW GZIP-snapshots op te halen en de vergelijking lokaal uit te voeren; `.local/ndw/` is genegeerd door Git. Vanaf deze uitvoeromgeving is directe bron-download opnieuw geprobeerd en op DNS-resolutie geblokkeerd. Een kleine bbox via de publieke NDW API kon via de beschikbare webgateway niet worden gelezen. **Geen live EVSE/GeoJSON-vergelijking is daadwerkelijk gedraaid**, dus PR #39 blijft draft en issue #38 open. Eerst op een omgeving met externe toegang een representatieve gepaarde dataset en echte identiteitsmapping vaststellen, daarna fixturevalidatie en interpretatie van telregels afronden.
+
 **Reviewoverdracht:** de verificatiehulpmiddelen staan nu in **draft PR #39** (`feature/38-ndw-evse-validation`), gekoppeld aan issue #38. Het is nadrukkelijk geen voltooide live bronvalidatie: de twee NDW-snapshots moeten nog werkelijk worden vergeleken en de veldmapping moet aan een echte GeoJSON-response worden getoetst. De extra workflow `NDW EVSE validation tests` test alleen synthetische semantiek, geen live feed. PR blijft draft; geen merge of deployment.
 
 ## Issue #38 — unieke EVSE-tellingen bronvalidatie gestart (24 oktober 2026)
