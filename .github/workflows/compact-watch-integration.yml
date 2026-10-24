@@ -52,7 +52,7 @@ jobs:
           for migration in db/migrations/*.sql; do
             psql -v ON_ERROR_STOP=1 -1 -f "$migration"
           done
-      - name: Start local NDW fixture and run real WatchRunner twice
+      - name: Run actual WatchRunner through HTTP200, HTTP304 and changed HTTP200
         run: |
           set -euo pipefail
           python3 db/tests/018_watch_http_fixture.py &
@@ -81,5 +81,19 @@ jobs:
                (SELECT poll_count FROM snapshot_unchanged_hour)<>1 OR
                (SELECT changed_count FROM evse_snapshot_active_hour)<>1
             THEN RAISE EXCEPTION 'HTTP304 did not journal exactly one compact observation'; END IF;
+          END $check$;
+          SQL
+          touch /tmp/cw-fixture-changed
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --watch-once
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT status FROM evse) <> 'CHARGING'
+               OR EXISTS (SELECT 1 FROM snapshot_unchanged_hour)
+               OR (SELECT changed_count FROM evse_snapshot_active_hour) <> 2
+               OR (SELECT unchanged_count FROM evse_snapshot_active_hour) <> 1
+               OR (SELECT category_counts[1] FROM evse_snapshot_active_hour) <> 2
+               OR (SELECT category_counts[2] FROM evse_snapshot_active_hour) <> 1
+            THEN RAISE EXCEPTION 'HTTP304 to changed HTTP200 transition incorrect'; END IF;
           END $check$;
           SQL
