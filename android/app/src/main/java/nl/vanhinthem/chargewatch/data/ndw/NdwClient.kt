@@ -41,13 +41,13 @@ class NdwClient(
                         try {
                             NdwResult.Success(parser.parse(raw))
                         } catch (ex: Exception) {
-                            NdwResult.Unavailable("NDW-data kon niet veilig worden verwerkt.")
+                            NdwResult.Unavailable("NDW parser: ${ex.javaClass.simpleName}: ${ex.message?.take(180) ?: "onbekende fout"}. HTTP ${response.code}.")
                         }
                     }
                 }
             }
         } catch (ex: IOException) {
-            NdwResult.Unavailable("NDW is tijdelijk niet bereikbaar.")
+            NdwResult.Unavailable("NDW verbinding: ${ex.javaClass.simpleName}: ${ex.message?.take(160) ?: "onbekende fout"}.")
         }
     }
 
