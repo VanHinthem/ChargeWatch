@@ -132,6 +132,7 @@ internal static class CompactSnapshotStatistics
         var retainedAfterNinetyDays = Math.Pow(1.0 - WeeklySlotAlpha, HalfLifeDays / 7.0);
         Require(Math.Abs(retainedAfterNinetyDays - 0.5) < 1e-12, "90-day half-life calibration");
 
+        SnapshotHourReducerTests.SelfTest();
         Console.WriteLine(
             $"Compact snapshot statistics selftest passed. Weekly-slot alpha={WeeklySlotAlpha:F9}, half-life={HalfLifeDays:F0} days.");
         return 0;
