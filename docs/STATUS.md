@@ -1,3 +1,15 @@
+## Android MVP — projectfundament en NDW-first kaart gereed voor review (24 oktober 2026)
+
+**Feature/PR:** issue #36, branch `feature/android-ndw-map-foundation`, PR #37. Eerste Kotlin/Jetpack Compose-appfundament staat er met MapLibre-kaart, light/dark basis volgens het goedgekeurde ontwerp en directe NDW GeoJSON-datatoegang per zichtbaar kaartgebied. De kaartlaag gebruikt OpenFreeMap alleen als basemap; laadstatus komt rechtstreeks van NDW. Zoek-/filterchrome is in deze eerste feature visueel aanwezig maar nog niet functioneel. Favorieten, details/statistiekverrijking, Room/DataStore en widgets volgen in aparte features.
+
+**NDW-first gedrag:** kaartrequests worden pas na camera-idle verstuurd, 500 ms gedebounced, pending requests worden vervangen en kaartgebieden groter dan 1 vierkante graad vragen eerst verder inzoomen. Een response met 1000 features wordt als mogelijk afgekapt afgewezen. Normale pan/zoom bevat geen ChargeWatch-API-call. 429, timeout/IO en 5xx leveren een begrensde fouttoestand; de daadwerkelijke ChargeWatch kaartfallback is bewust nog niet geïmplementeerd en blijft vervolgwerk.
+
+**Veilige beschikbaarheid:** NDW `availabilities` zijn connectorcategorieën zonder bewezen unieke EVSE-ID. Categorie-totalen worden daarom nooit bij elkaar opgeteld. Een individuele marker toont alleen `x/y` wanneer alle geldige categorie-rijen exact hetzelfde paar rapporteren; bij afwijkende categorieën wordt de marker grijs met `?`. Clusters tonen in deze feature bewust een neutrale grijze ring met ellipsis in plaats van een mogelijk misleidend EVSE-/connectoraantal. Dit blijft zo totdat een veilige unieke aggregatiemethode aantoonbaar is.
+
+**Verificatie:** nieuwe GitHub Actions-workflow `Android` draait op JDK 17 / Android API 36. Gerichte unit tests voor NDW parsing, de anti-dubbeltelregel, 1000-feature gate, bbox-begrenzing en debounce/cancel zijn groen; `assembleDebug` is eveneens groen op PR #37. Toolchain is pragmatisch gepind op Android 16/AGP 8.13.2 en Compose BOM 2026.06.01 (Compose 1.11-lijn), zodat het MVP-fundament niet afhankelijk is van de Android 17 preview-SDK.
+
+**Volgende stap na expliciet merge-akkoord:** werkende kaart handmatig op emulator/toestel valideren tegen het goedgekeurde ontwerp en echte NDW-data; daarna de eerstvolgende kaartfeature kiezen (functionele filters/veilige markersemantiek en/of ChargeWatch fallback). Externe NDW-ID-routes uit PR #33 zijn nog niet apart op NAS gedeployed. Geen deployment uitgevoerd. PR #37 wordt niet gemerged zonder expliciet gebruikersakkoord.
+
 ## Android app + widget — ontwerp afgerond en goedgekeurd (24 oktober 2026)
 
 **Definitieve designbeslissing:** gebruiker heeft het totale ChargeWatch Android-app-/widgetontwerp én de concept-2-appicoonuitwerking (**Stekker + statusring**) expliciet goedgekeurd. De designset staat in `docs/ANDROID_DESIGN.md` met drie UX-PNG's, icon-PNG en aanvullende SVG-schets onder `docs/design/`. De schriftelijke contractregels hebben voorrang op foutieve of fictieve details in de conceptafbeeldingen.
@@ -6,11 +18,11 @@
 
 ## Appicoonontwerp expliciet goedgekeurd (24 oktober 2026)
 
-De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is nog niet gemerged; merge vereist afzonderlijk expliciet akkoord.** Geen UI-code of deployment.
+De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is gemerged naar `main` via mergecommit `7925c6db1fc91405ff71c68c5d1ffd389dcdf459`.** Geen UI-code of deployment.
 
 ## ChargeWatch appicoon PNG gekoppeld (24 oktober 2026)
 
-De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. De icoonuitwerking is inmiddels expliciet goedgekeurd. PR #35 niet gemerged; geen deployment.
+De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. De icoonuitwerking is inmiddels expliciet goedgekeurd. PR #35 is gemerged naar `main`; geen deployment.
 
 ## Appicoon — concept B geselecteerd (24 oktober 2026)
 
