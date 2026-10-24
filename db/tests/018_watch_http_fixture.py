@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 locations=[{"country_code":"NL","party_id":"TST","id":"LOC001","address":"CI test",
- "city":"Test","evses":[{"uid":"EVSE001","status":"AVAILABLE","connectors":[{"id":"1","standard":"IEC_62196_T2","power_type":"AC_3_PHASE"}]}]}]
+ "city":"Test","evses":[{"uid":"EVSE001","status":"AVAILABLE","last_updated":"2026-10-24T08:00:00Z","connectors":[{"id":"1","standard":"IEC_62196_T2","power_type":"AC_3_PHASE"}]}]}]
 sources={"/locations":gzip.compress(json.dumps(locations).encode()),"/tariffs":gzip.compress(b"[]")}
 
 class Handler(BaseHTTPRequestHandler):
