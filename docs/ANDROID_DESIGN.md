@@ -188,11 +188,11 @@ De kaart-, app-, widget- en designrichting is interactief besproken. Deze review
 - Bronbestand: [ChargeWatch App Icon Guideline Board.png](design/ChargeWatch%20App%20Icon%20Guideline%20Board.png) in PR #35.
 - Deze PNG is de **primaire visuele referentie** voor het geselecteerde concept 2 (stekker + statusring), met donkerblauwe standaardvariant, monochrome variant en adaptive-iconvoorbeelden.
 - De PNG is een ontwerpplaat, **niet** een set direct te gebruiken Android-resources. Foreground, background en monochrome vector-/bitmap-assets en veilige marges volgen bij de Android-implementatie.
-- De gebruiker heeft concept 2 gekozen; expliciete definitieve goedkeuring van de afzonderlijke iconuitwerking is nog niet bevestigd.
+- De gebruiker heeft de afzonderlijke uitwerking van **concept 2 expliciet goedgekeurd op 24 oktober 2026**. De PNG is definitieve visuele icoonreferentie; productie-assets worden tijdens Android-implementatie gemaakt.
 
 ## Appicoon — gekozen concept (24 oktober 2026)
 
-De gebruiker heeft uit drie voorgestelde icoonrichtingen **concept B: stekker + statusring** gekozen als voorkeursrichting. Dit is een ontwerpskeuze binnen PR #35, geen akkoord op definitieve exportbestanden.
+De gebruiker heeft uit drie voorgestelde icoonrichtingen **concept B: stekker + statusring** gekozen als voorkeursrichting. Dit is een ontwerpskeuze binnen PR #35, de gekozen concept-2-ontwerpuitwerking is expliciet goedgekeurd; exportbestanden volgen bij implementatie.
 
 - Donkerblauw/antraciet achtergrond, witte stekker, klein groen bliksemsymbool en groene (decoratieve) statusring.
 - Statusring staat voor monitoring; suggereert **geen actuele operationele status**.
