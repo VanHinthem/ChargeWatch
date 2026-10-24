@@ -47,4 +47,23 @@ BEGIN
     AND changed_feed_count[10]=2 AND unchanged_feed_count[10]=4)
  THEN RAISE EXCEPTION 'weekly EWMA not applied once per hourly observation'; END IF;
 END $$;
+-- Reject a wrong caller-provided Amsterdam slot even without eligible assets.
+DO $guard$
+BEGIN
+  BEGIN
+    PERFORM * FROM snapshot_finalize_hours('2026-10-24 07:00Z',6,8,0.05248399218516142);
+    RAISE EXCEPTION 'wrong local slot was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'local slot must match UTC hour in Europe/Amsterdam' THEN
+      RAISE;
+    END IF;
+  END;
+END $guard$;
+
+-- Autumn fallback: both UTC 00:00 and 01:00 map to Sunday 02:00.
+DO $dst$
+BEGIN
+  PERFORM * FROM snapshot_finalize_hours('2026-10-25 00:00Z',7,2,0.05248399218516142);
+  PERFORM * FROM snapshot_finalize_hours('2026-10-25 01:00Z',7,2,0.05248399218516142);
+END $dst$;
 ROLLBACK;
