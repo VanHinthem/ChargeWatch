@@ -1,3 +1,11 @@
+## Issue #38 — unieke EVSE-tellingen bronvalidatie gestart (24 oktober 2026)
+
+**Featurebranch:** `feature/38-ndw-evse-validation`. NDW publiceert GeoJSON en OCPI gzip-bestanden in het Open Data Portaal; hun portal-index toont overeenkomstige publicatiemomenten (te vergelijken snapshots). De uitvoeromgeving kan de bronbestanden echter niet rechtstreeks ophalen (DNS-blokkade). Daarom is **nog geen live inhoudelijke bronvergelijking uitgevoerd** en wordt geen betrouwbaarheidspercentage verzonnen.
+
+**Opgeleverd voor reproduceerbare analyse:** `scripts/validate_ndw_evse.py` vergelijkt expliciet gekoppelde locatie-identiteiten en telt unieke OCPI EVSE-`uid`s/statussen, nooit de verschillende connectoren als aparte laadpunten. Het rapporteert overeenkomende/afwijkende GeoJSON-categorieparen en houdt onbekende EVSE-statussen apart. `scripts/tests/test_validate_ndw_evse.py` bevat gerichte synthetische controles voor meerdere connectoren per EVSE, herhaalde UIDs en schijnbaar identieke categorieparen. **Identiteitsmapping is bewust strikt** en kan nul matches opleveren wanneer de NDW GeoJSON-props andere sleutelnamen hebben; eerst daadwerkelijke recordstructuur controleren voordat een conclusie wordt getrokken.
+
+**Vervolg:** met beide live bestanden van hetzelfde publicatiemoment de analyse draaien, de concrete NDW identity properties inspecteren en matcher daarop aanpassen, resultaten/fixtures vastleggen, pas daarna bepalen of unieke EVSE-tellingen afleidbaar zijn en Android-marker-/clusterratio's wijzigen. Geen wijzigingen aan gepubliceerde Android-weergave of API en geen merge/deployment zonder gebruikersakkoord.
+
 ## Android PR #37 — definitieve debug-APK op toestel bevestigd (24 oktober 2026)
 
 Gebruiker heeft de opgeschoonde Android-APK van CI-build #39 op een fysiek Samsung-toestel getest: **kaart en markers werken nog na verwijderen van technische testinterface**. Zoals verwacht verschijnen iets meer grijze individuele markers door de aangescherpte conservatieve regels voor meerdere connectorcategorieën. Dit is een succesvolle functionele rooktest, geen inhoudelijke bevestiging van unieke EVSE-aantallen. Die bronsemantiek en betrouwbare cluster-ratio's volgen in issue #38. PR #37 staat klaar voor finale beoordeling; **geen merge zonder expliciet merge-akkoord** en geen deployment.
