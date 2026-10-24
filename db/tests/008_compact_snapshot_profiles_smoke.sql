@@ -7,7 +7,10 @@ BEGIN
     RAISE EXCEPTION 'migration 008_compact_snapshot_profiles not applied';
   END IF;
 
-  IF NOT has_table_privilege('chargewatch_import','evse_snapshot_weekday_profile','SELECT,INSERT,UPDATE,DELETE') THEN
+  IF NOT (has_table_privilege('chargewatch_import','evse_snapshot_weekday_profile','SELECT')
+      AND has_table_privilege('chargewatch_import','evse_snapshot_weekday_profile','INSERT')
+      AND has_table_privilege('chargewatch_import','evse_snapshot_weekday_profile','UPDATE')
+      AND has_table_privilege('chargewatch_import','evse_snapshot_weekday_profile','DELETE')) THEN
     RAISE EXCEPTION 'chargewatch_import EVSE profile privileges missing';
   END IF;
 
