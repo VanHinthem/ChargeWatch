@@ -1,0 +1,398 @@
+{
+  "type": "FeatureCollection",
+  "feature_count": 252,
+  "feature_properties_seen": [
+    "address",
+    "availabilities",
+    "country",
+    "cpo_id",
+    "last_updated",
+    "open",
+    "operator_name",
+    "owner_name",
+    "suboperator_name"
+  ],
+  "availability_properties_seen": [
+    "available",
+    "connector_format",
+    "connector_type",
+    "power_max",
+    "power_type",
+    "tariff_ids",
+    "total"
+  ],
+  "missing_feature_id_count": 0,
+  "duplicate_feature_id_count": 0,
+  "invalid_feature_count": 0,
+  "samples": [
+    {
+      "feature_id": "NL-505-91056291",
+      "country": "NLD",
+      "cpo_id": "505",
+      "operator_name": "50five",
+      "address": "Schutterij 32",
+      "last_updated": "2026-10-23T22:22:56Z",
+      "coordinates": [
+        5.511838,
+        51.782173
+      ],
+      "availabilities": [
+        {
+          "available": 1,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 17250.0,
+          "power_type": "AC3",
+          "total": 1,
+          "tariff_ids": [
+            "417371351"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-505-91275531",
+      "country": "NLD",
+      "cpo_id": "505",
+      "operator_name": "50five",
+      "address": "Oijenseweg 230",
+      "last_updated": "2026-10-23T23:18:31Z",
+      "coordinates": [
+        5.518126,
+        51.781818
+      ],
+      "availabilities": [
+        {
+          "available": 1,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 2760.0,
+          "power_type": "AC1",
+          "total": 1,
+          "tariff_ids": [
+            "417371522"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-0bf8edee-f912-4891-8b4c-ad709ff523fb",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Slotgracht 65",
+      "last_updated": "2026-10-24T11:29:47Z",
+      "coordinates": [
+        5.517754,
+        51.781479
+      ],
+      "availabilities": [
+        {
+          "available": 1,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "2000025393-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-402fa3d671aef15471b2f7a47f2d12e7",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Arena 2",
+      "last_updated": "2026-10-24T11:36:19Z",
+      "coordinates": [
+        5.520364,
+        51.78215
+      ],
+      "availabilities": [
+        {
+          "available": 0,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "2000025394-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-44efa5d013fa9b11279ad0b7190450fa",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Sportlaan 31",
+      "last_updated": "2026-10-24T08:19:00Z",
+      "coordinates": [
+        5.521772,
+        51.781704
+      ],
+      "availabilities": [
+        {
+          "available": 2,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "2000025394-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-48f01e6d-8273-4387-ba93-91c11ead2c03",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Sportlaan 13",
+      "last_updated": "2026-10-24T09:20:15Z",
+      "coordinates": [
+        5.522135,
+        51.782295
+      ],
+      "availabilities": [
+        {
+          "available": 2,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "2000025394-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-bc499ff6-3e6e-4f98-8dec-41f7252cc7c0",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Banier 28",
+      "last_updated": "2026-10-24T11:10:10Z",
+      "coordinates": [
+        5.52065,
+        51.78265
+      ],
+      "availabilities": [
+        {
+          "available": 2,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 4,
+          "tariff_ids": [
+            "2000025394-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-NUO-fecd71a7f2150d35a1300626c2209a09",
+      "country": "NLD",
+      "cpo_id": "NUO",
+      "operator_name": "Vattenfall InCharge",
+      "address": "Podium 1",
+      "last_updated": "2026-10-23T09:02:10Z",
+      "coordinates": [
+        5.521816,
+        51.781677
+      ],
+      "availabilities": [
+        {
+          "available": 2,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11040.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "2000025394-2000011292"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-EFL-650dc75ff063f600200cc198",
+      "country": "NLD",
+      "cpo_id": "EFL",
+      "operator_name": "E-Flux by Road",
+      "address": "Lekstraat 13",
+      "last_updated": "2026-10-24T09:55:18.321Z",
+      "coordinates": [
+        5.549473,
+        51.785358
+      ],
+      "availabilities": [
+        {
+          "available": 1,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 22080.0,
+          "power_type": "AC3",
+          "total": 2,
+          "tariff_ids": [
+            "t-650af228f505027ee3dc51b0-1"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    },
+    {
+      "feature_id": "NL-LNT-3966410",
+      "country": "NLD",
+      "cpo_id": "LNT",
+      "operator_name": "Laadnet",
+      "address": "Merwedestraat 54",
+      "last_updated": "2026-10-23T07:17:40Z",
+      "coordinates": [
+        5.550586,
+        51.787689
+      ],
+      "availabilities": [
+        {
+          "available": 0,
+          "connector_format": "SOCKET",
+          "connector_type": "IEC_62196_T2",
+          "power_max": 11000.0,
+          "power_type": "AC3",
+          "total": 1,
+          "tariff_ids": [
+            "20682ac"
+          ]
+        }
+      ],
+      "properties_keys": [
+        "address",
+        "availabilities",
+        "country",
+        "cpo_id",
+        "last_updated",
+        "open",
+        "operator_name",
+        "owner_name",
+        "suboperator_name"
+      ]
+    }
+  ],
+  "identity_verified": false,
+  "note": "A GeoJSON feature ID is NOT proven to be an OCPI location ID. Compare manually with charging_location (country_code,party_id,source_id).",
+  "requested_bbox": [
+    5.49,
+    51.74,
+    5.56,
+    51.8
+  ],
+  "source": "https://dotnl.ndw.nu/api/rest/geojson/dynamic-road-status/charge-point-data/v1/features"
+}

@@ -1,0 +1,139 @@
+{
+  "baseline": {
+    "path": "data\\ndw-current\\locations.json.gz",
+    "sha256": "f914168c56018467602cc7dede97a5334fca9c352f2a676242e9f89d56decffb",
+    "evses": 203328
+  },
+  "current": {
+    "path": "data\\ndw-current\\locations-next.json.gz",
+    "sha256": "03877629b56cf55b4c6b2ca28952190995d0abd2ade2cf2da1a64dd9653aced0",
+    "evses": 203328
+  },
+  "same_file_bytes": false,
+  "shared_evses": 203328,
+  "only_baseline": 0,
+  "only_current": 0,
+  "changes": {
+    "status_and_timestamp_changed": 2670,
+    "status_only_changed": 1,
+    "timestamp_only_changed": 904,
+    "unchanged": 199753
+  },
+  "locations_with_shared_evses": 80825,
+  "locations_with_no_changes_in_shared_evses": 78415,
+  "top_status_transitions": [
+    {
+      "from": "AVAILABLE",
+      "to": "CHARGING",
+      "count": 1228
+    },
+    {
+      "from": "CHARGING",
+      "to": "AVAILABLE",
+      "count": 1148
+    },
+    {
+      "from": "AVAILABLE",
+      "to": "OUTOFORDER",
+      "count": 123
+    },
+    {
+      "from": "AVAILABLE",
+      "to": "UNKNOWN",
+      "count": 44
+    },
+    {
+      "from": "UNKNOWN",
+      "to": "AVAILABLE",
+      "count": 34
+    },
+    {
+      "from": "UNKNOWN",
+      "to": "CHARGING",
+      "count": 19
+    },
+    {
+      "from": "CHARGING",
+      "to": "OUTOFORDER",
+      "count": 18
+    },
+    {
+      "from": "OUTOFORDER",
+      "to": "AVAILABLE",
+      "count": 14
+    },
+    {
+      "from": "AVAILABLE",
+      "to": "INOPERATIVE",
+      "count": 11
+    },
+    {
+      "from": "CHARGING",
+      "to": "UNKNOWN",
+      "count": 9
+    },
+    {
+      "from": "BLOCKED",
+      "to": "AVAILABLE",
+      "count": 8
+    },
+    {
+      "from": "OUTOFORDER",
+      "to": "CHARGING",
+      "count": 5
+    }
+  ],
+  "same_status_new_timestamp_examples": [
+    {
+      "location": [
+        "NL",
+        "QPA",
+        "E4D382F9-58B0-4977-82D2-A8AE630C5915"
+      ],
+      "uid": "NL-QPA-E18B16159-1",
+      "before": "2026-10-23T10:26:59Z",
+      "after": "2026-10-23T10:35:52Z"
+    },
+    {
+      "location": [
+        "NL",
+        "ALL",
+        "NLLOC002480"
+      ],
+      "uid": "NLALLEGO0024422",
+      "before": "2026-10-21T08:21:59Z",
+      "after": "2026-10-23T10:34:08Z"
+    },
+    {
+      "location": [
+        "NL",
+        "FAS",
+        "50103"
+      ],
+      "uid": "5003995",
+      "before": "2026-10-23T09:31:51Z",
+      "after": "2026-10-23T10:32:35Z"
+    },
+    {
+      "location": [
+        "NL",
+        "QPA",
+        "27CE7996-17D2-42DA-96C8-A1FBE64398CB"
+      ],
+      "uid": "NL-QPA-E18B07462-1",
+      "before": "2026-10-23T10:23:22Z",
+      "after": "2026-10-23T10:36:54Z"
+    },
+    {
+      "location": [
+        "NL",
+        "FAS",
+        "50033"
+      ],
+      "uid": "5004330",
+      "before": "2026-10-23T10:16:31Z",
+      "after": "2026-10-23T10:36:21Z"
+    }
+  ],
+  "interpretation": "Timestamp-only changes are evidence of source refresh without a status-class change, not proof of continuous 5-minute observations. Two files alone do not prove all intermediate states."
+}
