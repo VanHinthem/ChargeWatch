@@ -87,7 +87,7 @@ jobs:
           # Kill the real collector after catalogue+statistics SQL, before commit.
           marker=/tmp/cw-watch-precommit-ready
           rm -f "$marker"
-          CW_TEST_PAUSE_BEFORE_COMMIT_FILE="$marker" dotnet run --no-build --project src/ChargeWatch.Importer -- --watch-once &
+          CW_TEST_PAUSE_BEFORE_COMMIT_FILE="$marker" dotnet src/ChargeWatch.Importer/bin/Debug/net10.0/ChargeWatch.Importer.dll --watch-once &
           collector=$!
           ready=0
           for attempt in $(seq 1 200); do
