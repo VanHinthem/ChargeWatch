@@ -53,9 +53,8 @@ class NdwGeoJsonParser(
             return AvailabilitySummary(null, null, CountReliability.Ambiguous)
         }
 
-        val uniquePairs = validPairs.distinct()
-        return if (validPairs.size == rows.size && uniquePairs.size == 1) {
-            val (available, total) = uniquePairs.single()
+        return if (rows.size == 1 && validPairs.size == 1) {
+            val (available, total) = validPairs.single()
             AvailabilitySummary(available, total, CountReliability.Safe)
         } else {
             // NDW rows describe connector categories, not proven unique EVSEs.
