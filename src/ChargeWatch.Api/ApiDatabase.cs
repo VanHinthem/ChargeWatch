@@ -90,13 +90,13 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            var updated = NullableTimestamp(reader, 15);
+            var updated = NullableTimestamp(reader, reader.GetOrdinal("source_updated_at"));
             result.Add(new LocationListItem(
                 reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
                 reader.GetString(4), reader.GetString(5), NullableString(reader, 6),
                 NullableDouble(reader, 7), NullableDouble(reader, 8),
                 reader.GetInt32(9), reader.GetInt32(10), reader.GetInt32(11), reader.GetInt32(12), reader.GetInt32(13),
-                updated, IsStale(updated), NullableDouble(reader, 16)));
+                updated, IsStale(updated), NullableDouble(reader, reader.GetOrdinal("distance_meters"))));
         }
         return result;
     }
