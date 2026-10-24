@@ -1,3 +1,9 @@
+## Android app + widget — ontwerp afgerond en goedgekeurd (24 oktober 2026)
+
+**Definitieve designbeslissing:** gebruiker heeft het totale ChargeWatch Android-app-/widgetontwerp én de concept-2-appicoonuitwerking (**Stekker + statusring**) expliciet goedgekeurd. De designset staat in `docs/ANDROID_DESIGN.md` met drie UX-PNG's, icon-PNG en aanvullende SVG-schets onder `docs/design/`. De schriftelijke contractregels hebben voorrang op foutieve of fictieve details in de conceptafbeeldingen.
+
+**Volgende fase:** Android MVP via Kotlin/Jetpack Compose en daarna Glance op nieuwe featurebranches; begin met projectfundament, NDW-first kaart, statusmarkers/filters/fallback en lokale favorieten. **Technische gate:** voorkom dubbeltelling bij EVSE/connectoraggregatie in gefilterde `x/y`-markers/clusters. API-verrijking pas bij details, met onbekende kansen verborgen. Externe NDW-ID-lookup uit PR #33 is nog niet op NAS gedeployed; apart uitrollen/valideren vereist expliciete toestemming. Play Integrity, proxy-/quota-/licentiechecks blijven vóór publieke uitrol verplicht. Geen Android UI-code of NAS-deployment in de design-PR.
+
 ## Appicoonontwerp expliciet goedgekeurd (24 oktober 2026)
 
 De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is nog niet gemerged; merge vereist afzonderlijk expliciet akkoord.** Geen UI-code of deployment.
