@@ -138,3 +138,8 @@ Bij `GET /api/v1/locations` en `GET /api/v1/locations/{id}` geldt:
 | `feedIsStale` | Geen nationale poll binnen de drempel, of onbekend | Waarschuwing over algemene feed-actualiteit; `true` bij ontbrekende checkpoint |
 
 Voor de widget onderscheidt de client 'feed recent gecontroleerd' van 'bronstatus voor het laatst gewijzigd'. Zeg **niet** dat één specifieke EVSE bij de meest recente poll fysiek opnieuw geverifieerd is. De API bewijst dat niet. Bij `feedIsStale=true` de getoonde beschikbaarheid als mogelijk verouderd markeren. Geef geen percentage weer bij `availableProbability=null`. Favorieten/eigen namen/volgorde blijven uitsluitend op Android opgeslagen.
+
+
+## Besluit 24 oktober 2026 — NDW-first Android, eigen API voor verrijking/fallback
+
+De Android-app haalt zichtbare kaartlocaties/statussen **rechtstreeks** op bij de NDW GeoJSON Consumer API en verrijkt **pas bij het openen van details** met ChargeWatch-statistieken. Als NDW niet beschikbaar is of de response niet bruikbaar is, haalt Android de nodige kaart-/locatiedata op bij de read-only ChargeWatch API. Favorieten en aliassen blijven lokaal. De bestaande import/landelijke database blijft bestaan. Details, identificatiemapping, caching en widgetverzoeken moeten nog aan de hand van echte NDW-data worden gevalideerd. De limiet van NDW (10 requests/s) is gedocumenteerd; **per-IP-toepassing is niet bevestigd**. Publieke ChargeWatch API vereist vóór release uitgewerkte Play Integrity Standard-serververificatie, HTTPS, rate limiting, proxy-IP-trust, DB-limieten en tests. Zie [ANDROID_NDW_SECURITY_TESTPLAN.md](ANDROID_NDW_SECURITY_TESTPLAN.md) voor het volledige contract, de open punten, negatieve tests en releasegates.
