@@ -67,4 +67,45 @@ BEGIN
  SELECT count(*) INTO n FROM evse_snapshot_active_hour WHERE array_length(category_counts,1)<>9;
  IF n<>0 THEN RAISE EXCEPTION 'invalid EVSE buckets'; END IF;
 END $$;
+
+-- Atomic rollback demonstration: claiming a newer poll and recording a counter
+-- must disappear together when the transaction rolls back.
+SAVEPOINT before_atomic_poll;
+INSERT INTO snapshot_poll_checkpoint(source_name,last_poll_id,last_observed_at,last_quality)
+VALUES ('ndw-locations-ci','poll-B','2026-10-24 07:10Z','unchanged_feed')
+ON CONFLICT (source_name) DO UPDATE SET
+ last_poll_id=excluded.last_poll_id,
+ last_observed_at=excluded.last_observed_at,
+ last_quality=excluded.last_quality,
+ accepted_poll_count=snapshot_poll_checkpoint.accepted_poll_count+1
+WHERE excluded.last_observed_at>snapshot_poll_checkpoint.last_observed_at;
+WITH target AS (SELECT id FROM evse ORDER BY id LIMIT 1)
+UPDATE evse_snapshot_active_hour a SET
+ category_counts[2]=category_counts[2]+1,
+ unchanged_count=unchanged_count+1
+FROM target WHERE a.evse_id=target.id;
+
+DO $verify$
+BEGIN
+ IF (SELECT accepted_poll_count FROM snapshot_poll_checkpoint
+      WHERE source_name='ndw-locations-ci')<>2 THEN
+   RAISE EXCEPTION 'atomic poll checkpoint did not advance';
+ END IF;
+ IF EXISTS (SELECT 1 FROM evse_snapshot_active_hour
+   WHERE unchanged_count<>1 OR category_counts[2]<>1) THEN
+   RAISE EXCEPTION 'atomic counter update failed';
+ END IF;
+END $verify$;
+ROLLBACK TO SAVEPOINT before_atomic_poll;
+DO $verify$
+BEGIN
+ IF (SELECT accepted_poll_count FROM snapshot_poll_checkpoint
+      WHERE source_name='ndw-locations-ci')<>1 THEN
+   RAISE EXCEPTION 'atomic poll rollback failed';
+ END IF;
+ IF EXISTS (SELECT 1 FROM evse_snapshot_active_hour
+   WHERE unchanged_count<>0 OR category_counts[2]<>0) THEN
+   RAISE EXCEPTION 'atomic counter rollback failed';
+ END IF;
+END $verify$;
 ROLLBACK;
