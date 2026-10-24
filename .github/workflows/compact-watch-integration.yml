@@ -1,0 +1,85 @@
+name: Compact Statistics Watch Integration
+on:
+  pull_request:
+    paths:
+      - 'src/ChargeWatch.Importer/**'
+      - 'db/migrations/**'
+      - 'db/tests/018_watch_http_fixture.py'
+      - '.github/workflows/compact-watch-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-watch-flow:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_watch_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_watch_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_watch_ci
+      CW_IMPORT_CONNECTION: 'Host=localhost;Port=5432;Username=chargewatch_owner;Password=test-only;Database=chargewatch_watch_ci'
+      CW_ENABLE_COMPACT_STATISTICS: '1'
+      CW_NDW_LOCATIONS_URL: 'http://127.0.0.1:18887/locations'
+      CW_NDW_TARIFFS_URL: 'http://127.0.0.1:18887/tariffs'
+      CW_NDW_MIN_LOCATIONS: '1'
+      CW_NDW_CACHE_DIR: '/tmp/cw-watch-ci'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare isolated full catalog database
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE chargewatch_import; CREATE ROLE chargewatch_read;'
+          for migration in db/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -1 -f "$migration"
+          done
+      - name: Start local NDW fixture and run real WatchRunner twice
+        run: |
+          set -euo pipefail
+          python3 db/tests/018_watch_http_fixture.py &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:18887/locations -o /dev/null; then break; fi
+            sleep 0.1
+          done
+          dotnet run --project src/ChargeWatch.Importer -- --watch-once
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT count(*) FROM charging_location)<>1 OR
+               (SELECT count(*) FROM evse)<>1 OR
+               (SELECT changed_count FROM evse_snapshot_active_hour)<>1 OR
+               (SELECT unchanged_count FROM evse_snapshot_active_hour)<>0
+            THEN RAISE EXCEPTION 'HTTP200 full import missed compact sample'; END IF;
+          END $check$;
+          SQL
+          dotnet run --no-build --project src/ChargeWatch.Importer -- --watch-once
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT count(*) FROM snapshot_unchanged_hour)<>1 OR
+               (SELECT poll_count FROM snapshot_unchanged_hour)<>1 OR
+               (SELECT changed_count FROM evse_snapshot_active_hour)<>1
+            THEN RAISE EXCEPTION 'HTTP304 did not journal exactly one compact observation'; END IF;
+          END $check$;
+          SQL
