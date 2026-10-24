@@ -1,3 +1,7 @@
+## Android APK — permanente zichtbare diagnostiek voor testversie (24 oktober 2026)
+
+Tweede debug-APK liet op telefoon nog steeds geen markers én geen foutmelding zien. Daarom heeft PR #37 nu een **zichtbare statusregel** (nog geen verzoek / aanvraag gestart / NDW OK met aantal locaties / HTTP-parserfout) plus de knop **Test NDW Oss**, die rechtstreeks een vaste kleine bbox bevraagt onafhankelijk van MapLibre camera-events. Dit maakt onderscheid mogelijk tussen request-trigger, netwerk, parsing en rendering. Deze diagnostische knop is uitsluitend voor de testfase en moet vóór productie worden verwijderd. De werkelijke oorzaak is nog niet vastgesteld; **geen merge** zonder geslaagde toesteltest.
+
 ## Android APK — tweede toesteltest faalt; NDW-diagnostiek toegevoegd (24 oktober 2026)
 
 Op een fysiek toestel opent correctie #1 de kaart in Oss, maar ook na zoom/pan ontbreken NDW-markers. **Oorzaak niet bewezen**: mogelijke HTTP-, parser-, of maplaagfout. PR #37 blijft geblokkeerd voor merge. Correctie #2 maakt de concrete NDW-exceptie (klasse + ingekorte oorzaak) zichtbaar in de test-APK in plaats van de generieke parser-/netwerkfout. Dit is tijdelijke ontwikkelaarsdiagnostiek, **niet voor publieke release**, en wordt verwijderd of vervangen door neutrale foutmeldingen voor productie. De openbare NDW-documentatie bevestigt bbox `minLon,minLat,maxLon,maxLat`, limiet 1 graad²/1000 features/10 requests/s. Nieuwe APK op fysiek toestel testen en de exacte foutmelding terugkoppelen alvorens bronparsing of kaartlaag gericht te herstellen. Geen merge/deploy.
