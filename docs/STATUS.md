@@ -1,3 +1,7 @@
+## Android APK — NDW-data bevestigd, MapLibre markers ontbreken (24 oktober 2026)
+
+Fysieke Android-test met knop **Test NDW Oss** meldt een positief aantal ontvangen locaties, maar er verschijnen geen markers. Daarmee zijn de NDW-request en het parsen van ten minste een aantal features bevestigd; fout ligt vermoedelijk in GeoJSON-kaartlagen, camerabereik of de coördinaten/rendering. Voor de volgende debug-APK is een **tijdelijke native MapLibre-markerdiagnose** toegevoegd (maximaal eerste 100 punten, naast bestaande GeoJSON/clusterlaag) plus de coördinaten van het eerste punt. De native annotations isoleren een probleem met GeoJSON-style layers van een camera-/coördinatenprobleem. Niet bedoeld als definitieve, schaalbare oplossing; na toesteltest gericht herstellen en debug markers weer verwijderen. PR #37 blijft geblokkeerd voor merge.
+
 ## Android APK — permanente zichtbare diagnostiek voor testversie (24 oktober 2026)
 
 Tweede debug-APK liet op telefoon nog steeds geen markers én geen foutmelding zien. Daarom heeft PR #37 nu een **zichtbare statusregel** (nog geen verzoek / aanvraag gestart / NDW OK met aantal locaties / HTTP-parserfout) plus de knop **Test NDW Oss**, die rechtstreeks een vaste kleine bbox bevraagt onafhankelijk van MapLibre camera-events. Dit maakt onderscheid mogelijk tussen request-trigger, netwerk, parsing en rendering. Deze diagnostische knop is uitsluitend voor de testfase en moet vóór productie worden verwijderd. De werkelijke oorzaak is nog niet vastgesteld; **geen merge** zonder geslaagde toesteltest.
