@@ -275,7 +275,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var command = new NpgsqlCommand(
             "SELECT max(last_observed_at) FROM snapshot_poll_checkpoint", connection);
         var value = await command.ExecuteScalarAsync();
-        return value is null or DBNull ? null : (DateTimeOffset)value;
+        return value is null or DBNull ? null : new DateTimeOffset((DateTime)value, TimeSpan.Zero);
     }
 
     private bool IsStale(DateTimeOffset? timestamp)
