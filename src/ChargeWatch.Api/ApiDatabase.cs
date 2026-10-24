@@ -46,6 +46,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         int? effectiveRadius = useNear ? radiusMeters ?? 5000 : null;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
+        var feedObservedAt = await GetFeedLastObservedAt(connection);
 
         await using var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
@@ -103,7 +104,8 @@ internal sealed class ApiDatabase(ApiOptions options)
                 reader.GetString(4), reader.GetString(5), NullableString(reader, 6),
                 NullableDouble(reader, 7), NullableDouble(reader, 8),
                 reader.GetInt32(9), reader.GetInt32(10), reader.GetInt32(11), reader.GetInt32(12), reader.GetInt32(13),
-                updated, IsStale(updated), NullableDouble(reader, reader.GetOrdinal("distance_meters"))));
+                updated, IsStale(updated), feedObservedAt, IsStale(feedObservedAt),
+                NullableDouble(reader, reader.GetOrdinal("distance_meters"))));
         }
         return result;
     }
@@ -113,6 +115,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
 
+        var feedObservedAt = await GetFeedLastObservedAt(connection);
         LocationDetail? location;
         await using (var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
@@ -130,7 +133,8 @@ internal sealed class ApiDatabase(ApiOptions options)
                 Id=reader.GetInt64(0), CountryCode=reader.GetString(1), PartyId=reader.GetString(2),
                 SourceId=reader.GetString(3), Address=reader.GetString(4), City=reader.GetString(5),
                 OperatorName=NullableString(reader,6), Latitude=NullableDouble(reader,7), Longitude=NullableDouble(reader,8),
-                SourceUpdatedAt=updated, IsStale=IsStale(updated)
+                SourceUpdatedAt=updated, IsStale=IsStale(updated),
+                FeedLastObservedAt=feedObservedAt, FeedIsStale=IsStale(feedObservedAt)
             };
         }
 
@@ -264,6 +268,14 @@ internal sealed class ApiDatabase(ApiOptions options)
             throw new InvalidDataException("Unexpected compact statistics array shape.");
         for (var hour=0; hour<24; hour++)
             target.Add(new AvailabilitySlot(weekday,hour,null,samples[hour],changed[hour],unchanged[hour],last));
+    }
+
+    private static async Task<DateTimeOffset?> GetFeedLastObservedAt(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT max(last_observed_at) FROM snapshot_poll_checkpoint", connection);
+        var value = await command.ExecuteScalarAsync();
+        return value is null or DBNull ? null : (DateTimeOffset)value;
     }
 
     private bool IsStale(DateTimeOffset? timestamp)
