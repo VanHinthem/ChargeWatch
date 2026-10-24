@@ -1,6 +1,8 @@
-## Backend gereed voor review — NDW externe OCPI-lookup (24 oktober 2026)
+## Backend afgerond — NDW externe OCPI-lookup (24 oktober 2026)
 
-**Toegevoegd op featurebranch:** read-only `GET /api/v1/locations/by-ndw-id/{featureId}` en `.../{featureId}/statistics`. Strikte Nederlandse NDW feature-ID-parser koppelt alleen via de unieke OCPI-triple `(country_code,party_id,source_id)`; bron-ID met streepjes blijft intact. Onjuist ID → 400, niet gevonden → 404. Detail en statistieken hergebruiken bestaande API-logica; geen schema-, import-, favorieten- of Android UI-wijzigingen. Gericht parserzelftest opgenomen in `--self-test`. **Niet geverifieerd in deze omgeving:** .NET build, self-test en CI (SDK ontbreekt), en live endpoint op NAS (niet gedeployed). Zie `docs/NDW_GEOJSON_OSS_RESEARCH.md` voor contract en resterende aannames. **Na review/merge:** gezamenlijke design/layoutfase van app én widget met expliciete goedkeuring vóór Android UI-implementatie; Play Integrity blijft een publieke releasegate.
+**PR #33 gemerged op main** (squashcommit `aa03a638c124726df256546a123d277b391af970`). Read-only `GET /api/v1/locations/by-ndw-id/{featureId}` en `.../{featureId}/statistics` koppelen de Nederlandse NDW GeoJSON-feature-ID aan de unieke OCPI-triple en hergebruiken bestaande detail-/statistiekresponsen. Formaatfout → 400; onbekende ID → 404; geen schema- of importerwijziging. GitHub CI **Read-only API** en **NAS Images** succesvol op de PR-head; de routes zijn **nog niet live op NAS gevalideerd en niet gedeployed**. Publicatie blijft afgeschermd totdat Play Integrity en releasegates gereed zijn.
+
+**Volgende fase is design/layout van Android-app én widget**, verplicht vóór de eerste Android UI-implementatie. Werk concrete flows en mock-ups gezamenlijk uit, leg besluiten vast in `docs/ANDROID_DESIGN.md` en vraag afzonderlijk gebruikersakkoord op het ontwerp. De PR-/CI-/statusregels blijven gelden; geen merge/deployment zonder expliciet akkoord.
 
 ## Planning vastgelegd — verplichte Android app-/widget-designfase (24 oktober 2026)
 
