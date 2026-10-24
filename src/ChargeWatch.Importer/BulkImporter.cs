@@ -152,6 +152,14 @@ internal static class BulkImporter
                 }
             }
 
+            // PR17 opt-in isolated integration gate; default remains disabled.
+            // This runs while the OLD committed catalog is still intact and uses
+            // the same transaction as the forthcoming location/EVSE upserts.
+            if (verifiedLocationsFetchedAtUtc is { } verifiedAt &&
+                Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+            {
+                await SnapshotCatalogTransition.PrepareBeforeChangedCatalog(db, tx, verifiedAt);
+            }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
                 INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated)
