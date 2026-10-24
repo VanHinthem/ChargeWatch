@@ -4,9 +4,9 @@
 \timing on
 BEGIN;
 -- The base CI fixtures have IDs 1. Generate 20k extra EVSE and 8k locations.
-INSERT INTO charging_location(id)
+INSERT INTO charging_location(id) OVERRIDING SYSTEM VALUE
 SELECT g FROM generate_series(100000,107999) AS g;
-INSERT INTO evse(id,location_id,status)
+INSERT INTO evse(id,location_id,status) OVERRIDING SYSTEM VALUE
 SELECT g,100000+((g-200000)%8000),
   CASE g%5 WHEN 0 THEN 'AVAILABLE' WHEN 1 THEN 'CHARGING'
     WHEN 2 THEN 'BLOCKED' WHEN 3 THEN 'INOPERATIVE' ELSE 'UNKNOWN' END
