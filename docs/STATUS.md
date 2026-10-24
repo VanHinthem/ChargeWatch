@@ -1,3 +1,9 @@
+## Overdracht — Android-contract dataversheid (24 oktober 2026)
+
+**Implementatie:** locatiezoekresultaten en locatiedetails bevatten naast het bestaande `sourceUpdatedAt` en `isStale` nu `feedLastObservedAt` en `feedIsStale`. De eerste twee beschrijven de leeftijd van het **bronwijzigingsmoment**; de laatste twee beschrijven de laatste landelijk geaccepteerde snapshotpoll en de algemene feed-versheid. Een landelijke poll is **geen bewijs dat iedere individuele EVSE-status opnieuw is bevestigd**. Android mag dus 'Feed gecontroleerd' tonen met de juiste nuance, niet 'Deze laadpaal is gecontroleerd'. Bij onbekende poll is de feed stale. Bestaande velden blijven voor compatibiliteit behouden.
+
+**Tests en werkwijze:** gerichte API-selftest controleert dat JSON de twee onafhankelijk invulbare indicatoren bevat. API build en PostgreSQL read-only contract moeten in PR-CI groen zijn. Volgende stap na expliciet merge-/deploymentakkoord: nieuwe API-only image uitrollen en op NAS beide endpoints inclusief velden controleren; bestaande collector, schema en lokale favorieten blijven onaangeroerd. Verdere Android-app/widget is vervolgwerk. Featurebranch `feature/android-freshness-contract`.
+
 ## Overdracht — API-datakwaliteit (24 oktober 2026)
 
 **Werk:** `feature/api-data-quality`; API-kwaliteit na geslaagde interne live endpointtests. Exacte zoekplaats heeft nu voorrang boven substringmatches, `data-status` rapporteert naast `lastSuccessfulImportAt` een `lastObservedPollAt` op basis van `snapshot_poll_checkpoint` en gebruikt dit voor algemene ouderdom/stale-status. Bron-`sourceUpdatedAt` en locatie-`isStale` blijven bronleeftijd, geen oordeel over succesvolle polls. Beschikbaarheidskans is expliciet `null` zolang de landelijke statistiek volgens `docs/SPRINT3_PUBLICATION_POLICY.md` niet geschikt voor publicatie is. Samples blijven diagnostisch beschikbaar. Ruwe OCPI-tariefdetails blijven ongewijzigd; er wordt geen btw-/consumentenprijs geconstrueerd.
