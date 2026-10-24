@@ -8,6 +8,7 @@ if (args.Length == 1 && args[0] == "--statistics-selftest")
     var hourResult = StatisticsHourAccumulator.SelfTest();
     if (hourResult != 0)
         return hourResult;
+    await SnapshotPendingDownloadJournal.SelfTest();
     await WatchRunner.SelfTestHttp();
     return CompactSnapshotStatistics.SelfTest();
 }
