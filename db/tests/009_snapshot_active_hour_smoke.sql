@@ -35,6 +35,27 @@ BEGIN
  IF claimed<>0 THEN RAISE EXCEPTION 'duplicate poll counted'; END IF;
 END $$;
 
+-- Reject an older poll after the newest accepted point, including a different ID.
+DO $
+DECLARE claimed integer;
+BEGIN
+ WITH attempt AS (
+ INSERT INTO snapshot_poll_checkpoint(source_name,last_poll_id,last_observed_at,last_quality)
+ VALUES ('ndw-locations-ci','old-poll','2026-10-24 07:04Z','unchanged_feed')
+ ON CONFLICT (source_name) DO UPDATE SET
+  last_poll_id=excluded.last_poll_id,
+  last_observed_at=excluded.last_observed_at,
+  accepted_poll_count=snapshot_poll_checkpoint.accepted_poll_count+1
+ WHERE excluded.last_observed_at>snapshot_poll_checkpoint.last_observed_at
+ RETURNING 1
+ ) SELECT count(*) INTO claimed FROM attempt;
+ IF claimed<>0 THEN RAISE EXCEPTION 'older poll counted'; END IF;
+ IF (SELECT accepted_poll_count FROM snapshot_poll_checkpoint
+     WHERE source_name='ndw-locations-ci')<>1 THEN
+  RAISE EXCEPTION 'checkpoint mutated by replay or older poll';
+ END IF;
+END $;
+
 WITH target AS (SELECT id FROM evse ORDER BY id LIMIT 1)
 INSERT INTO evse_snapshot_active_hour(evse_id,hour_start_utc,category_counts,changed_count)
 SELECT id,'2026-10-24 07:00Z',ARRAY[1,0,0,0,0,0,0,0,0],1 FROM target
