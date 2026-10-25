@@ -38,6 +38,16 @@ class NdwEvseValidationTests(unittest.TestCase):
         self.assertEqual(1, stats["multi_sum_matches"])
         self.assertEqual(1, stats["multi_max_differs"])
 
+    def test_status_timing_mismatch_does_not_invalidate_total_count(self):
+        geo = {"features": [{"id": "NL-ABC-loc3", "properties": {"country": "NLD",
+            "availabilities": [{"available": 1, "total": 2}]}}]}
+        ocpi = [{"country_code": "NL", "party_id": "ABC", "id": "loc3", "evses": [
+            {"uid": "a", "status": "CHARGING"}, {"uid": "b", "status": "CHARGING"}]}]
+        stats = module.compare(geo, ocpi)["stats"]
+        self.assertEqual(1, stats["sum_total_matches"])
+        self.assertEqual(1, stats["sum_total_matches_available_differs"])
+        self.assertEqual(1, stats["sum_differs"])
+
     def test_unknown_evse_status_never_counted_as_occupied(self):
         evses = module.count_unique_evses({"evses": [
             {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "UNKNOWN"}
