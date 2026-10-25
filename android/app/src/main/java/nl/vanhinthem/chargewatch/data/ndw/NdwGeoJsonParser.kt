@@ -37,30 +37,53 @@ class NdwGeoJsonParser(
                     ?.takeIf(String::isNotBlank)
                 ?: "Laadlocatie",
             lastUpdated = feature.properties.lastUpdated,
-            availability = summarize(feature.properties.availabilities)
+            availability = summarize(feature.properties.availabilities, feature.properties.cpoId, id)
         )
     }
 
-    internal fun summarize(rows: List<NdwAvailability>): AvailabilitySummary {
-        val validPairs = rows.mapNotNull { row ->
-            val available = row.available ?: return@mapNotNull null
-            val total = row.total ?: return@mapNotNull null
-            if (available < 0 || total <= 0 || available > total) return@mapNotNull null
+    internal fun summarize(
+        rows: List<NdwAvailability>,
+        cpoId: String? = null,
+        featureId: String? = null
+    ): AvailabilitySummary {
+        // Do not treat incomplete or malformed categories as a complete location.
+        if (rows.isEmpty()) return AvailabilitySummary(null, null, CountReliability.Ambiguous)
+        val pairs = rows.map { row ->
+            val available = row.available
+            val total = row.total
+            if (available == null || total == null ||
+                available < 0 || total <= 0 || available > total
+            ) return AvailabilitySummary(null, null, CountReliability.Ambiguous)
             available to total
         }
-
-        if (validPairs.isEmpty()) {
-            return AvailabilitySummary(null, null, CountReliability.Ambiguous)
+        if (pairs.size == 1) {
+            val (available, total) = pairs.single()
+            return AvailabilitySummary(available, total, CountReliability.Safe)
         }
 
-        return if (rows.size == 1 && validPairs.size == 1) {
-            val (available, total) = validPairs.single()
-            AvailabilitySummary(available, total, CountReliability.Safe)
+        // Validated against an NDW GeoJSON/OCPI snapshot in issue #38.
+        // FAS connector categories overlap; other parties usually partition
+        // EVSEs. This is an estimate, NOT a unique-EVSE guarantee.
+        val partyFromId = featureId?.split("-", limit = 3)?.takeIf { it.size == 3 }?.get(1)
+        val party = cpoId?.takeIf { it.isNotBlank() } ?: partyFromId
+        // Inconsistent/missing party identity must never select a counting rule.
+        if (party == null || (cpoId != null && partyFromId != null &&
+                !party.equals(partyFromId, ignoreCase = true))
+        ) return AvailabilitySummary(null, null, CountReliability.Ambiguous)
+
+        val selected = if (party.equals("FAS", ignoreCase = true)) {
+            // Use one coherent category pair: never independently combine the
+            // highest available and highest total from different categories.
+            pairs.maxWithOrNull(compareBy<Pair<Int, Int>> { it.second }.thenBy { it.first })!!
         } else {
-            // NDW rows describe connector categories, not proven unique EVSEs.
-            // Never add category totals: one EVSE can expose multiple connectors.
-            AvailabilitySummary(null, null, CountReliability.Ambiguous)
+            val available = pairs.sumOf { it.first.toLong() }
+            val total = pairs.sumOf { it.second.toLong() }
+            if (available > Int.MAX_VALUE || total > Int.MAX_VALUE) {
+                return AvailabilitySummary(null, null, CountReliability.Ambiguous)
+            }
+            available.toInt() to total.toInt()
         }
+        return AvailabilitySummary(selected.first, selected.second, CountReliability.Estimated)
     }
 
     companion object {
