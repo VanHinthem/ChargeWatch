@@ -18,8 +18,8 @@ class NdwEvseValidationTests(unittest.TestCase):
         self.assertEqual(1, module.count_unique_evses(loc)["total"])
 
     def test_same_category_pair_not_proof_of_unique_evse_total(self):
-        geo = {"features": [{"properties": {
-            "country_code": "NL", "party_id": "ABC", "source_id": "loc1",
+        geo = {"features": [{"id": "NL-ABC-loc1", "properties": {
+            "country": "NL",
             "availabilities": [{"available": 2, "total": 2}, {"available": 2, "total": 2}]
         }}]}
         ocpi = [{"country_code": "NL", "party_id": "ABC", "id": "loc1", "evses": [
@@ -35,6 +35,9 @@ class NdwEvseValidationTests(unittest.TestCase):
         ]})
         self.assertEqual(1, evses["unknown"])
         self.assertEqual(2, evses["total"])
+
+    def test_ndw_compound_identifier_preserves_hyphenated_location_id(self):
+        self.assertEqual(("NL", "EFL", "loc-123"), module.geo_key({"id": "NL-EFL-loc-123", "properties": {"country": "NL"}}))
 
     def test_unmatched_identity_not_fuzzy_matched(self):
         report = module.compare({"features": [{"id": "NL-ABC-loc1", "properties": {}}]}, [])
