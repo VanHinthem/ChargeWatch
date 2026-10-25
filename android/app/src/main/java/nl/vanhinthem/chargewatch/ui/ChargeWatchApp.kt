@@ -45,6 +45,7 @@ fun ChargeWatchApp() {
     val mapViewModel: MapViewModel = viewModel()
     val mapState by mapViewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
+    var detailOpen by remember { mutableStateOf(false) }
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
@@ -109,6 +110,7 @@ fun ChargeWatchApp() {
             if (selectedTab == 0) {
                 MapScreen(
                     viewModel = mapViewModel,
+                    onDetailVisibilityChanged = { detailOpen = it },
                     favorites = favorites,
                     onToggleFavorite = { location -> scope.launch { repository.toggle(location) } }
                 )
@@ -138,7 +140,7 @@ fun ChargeWatchApp() {
                 )
             }
         }
-        NavigationBar {
+        if (!detailOpen) NavigationBar {
             NavigationBarItem(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
