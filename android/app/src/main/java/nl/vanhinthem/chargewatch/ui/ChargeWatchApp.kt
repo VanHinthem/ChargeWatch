@@ -10,6 +10,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
+import nl.vanhinthem.chargewatch.ui.theme.ChargeWatchTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +41,17 @@ import nl.vanhinthem.chargewatch.ui.map.MapScreen
 @Composable
 fun ChargeWatchApp() {
     val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE) }
+    var themeChoice by remember { mutableStateOf(prefs.getString("theme", "system") ?: "system") }
+    val useDarkTheme = when (themeChoice) {
+        "dark" -> true
+        "light" -> false
+        else -> isSystemInDarkTheme()
+    }
+    val selectTheme: (String) -> Unit = { selected ->
+        themeChoice = selected
+        prefs.edit().putString("theme", selected).apply()
+    }
     val repository = remember(context) { FavoritesRepository(context) }
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
@@ -105,11 +118,15 @@ fun ChargeWatchApp() {
     }
 
 
+    ChargeWatchTheme(darkTheme = useDarkTheme) {
     Column(Modifier.fillMaxSize()) {
         androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
             if (selectedTab == 0) {
                 MapScreen(
                     viewModel = mapViewModel,
+                    darkTheme = useDarkTheme,
+                    themeChoice = themeChoice,
+                    onThemeChoice = selectTheme,
                     onDetailVisibilityChanged = { detailOpen = it },
                     favorites = favorites,
                     onToggleFavorite = { location -> scope.launch { repository.toggle(location) } }
@@ -154,5 +171,6 @@ fun ChargeWatchApp() {
                 label = { Text("Favorieten") }
             )
         }
+    }
     }
 }
