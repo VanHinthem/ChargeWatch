@@ -22,7 +22,7 @@ class NdwGeoJsonParserTest {
     }
 
     @Test
-    fun repeatedIdenticalCategoryCountsAreAmbiguousWithoutEvseIds() {
+    fun repeatedIdenticalCategoryCountsAreSummedOutsideFas() {
         val location = parser.parse(featureCollection(
             """[
                 {"available":2,"total":4,"connector_type":"IEC_62196_T2"},
@@ -30,13 +30,13 @@ class NdwGeoJsonParserTest {
             ]"""
         )).single()
 
-        assertNull(location.availability.available)
-        assertNull(location.availability.total)
-        assertEquals(CountReliability.Ambiguous, location.availability.reliability)
+        assertEquals(4, location.availability.available)
+        assertEquals(8, location.availability.total)
+        assertEquals(CountReliability.Estimated, location.availability.reliability)
     }
 
     @Test
-    fun differingConnectorCategoryCountsBecomeUnknownInsteadOfDoubleCounted() {
+    fun differingConnectorCategoryCountsAreSummedOutsideFas() {
         val location = parser.parse(featureCollection(
             """[
                 {"available":1,"total":2,"connector_type":"IEC_62196_T2"},
@@ -44,11 +44,42 @@ class NdwGeoJsonParserTest {
             ]"""
         )).single()
 
-        assertEquals("?", location.availability.label)
-        assertEquals(CountReliability.Ambiguous, location.availability.reliability)
-        assertEquals(AvailabilityStatus.Unknown, location.availability.status)
-        assertNull(location.availability.available)
-        assertNull(location.availability.total)
+        assertEquals("2/3", location.availability.label)
+        assertEquals(CountReliability.Estimated, location.availability.reliability)
+        assertEquals(AvailabilityStatus.Available, location.availability.status)
+    }
+
+    @Test
+    fun fasUsesHighestTotalCategoryInsteadOfSum() {
+        val summary = parser.summarize(
+            listOf(
+                NdwAvailability(available = 5, total = 8),
+                NdwAvailability(available = 1, total = 2)
+            ),
+            cpoId = "FAS",
+            featureId = "NL-FAS-50757"
+        )
+        assertEquals("5/8", summary.label)
+        assertEquals(CountReliability.Estimated, summary.reliability)
+    }
+
+    @Test
+    fun inconsistentPartyIdentificationKeepsUnknown() {
+        val summary = parser.summarize(
+            listOf(NdwAvailability(1, 2), NdwAvailability(1, 2)),
+            cpoId = "FAS", featureId = "NL-NUO-123"
+        )
+        assertEquals("?", summary.label)
+        assertEquals(CountReliability.Ambiguous, summary.reliability)
+    }
+
+    @Test
+    fun invalidCategoryDoesNotProducePartialCount() {
+        val summary = parser.summarize(
+            listOf(NdwAvailability(1, 2), NdwAvailability(null, 2)),
+            cpoId = "NUO", featureId = "NL-NUO-123"
+        )
+        assertEquals(CountReliability.Ambiguous, summary.reliability)
     }
 
     @Test

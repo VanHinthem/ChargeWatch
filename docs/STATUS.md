@@ -1,3 +1,21 @@
+**Reviewgate PR #40 afgerond (25 oktober 2026):** actuele Android CI én Read-only API CI op commit `35c60b3` zijn **geslaagd**. Gebruiker heeft de opnieuw gebouwde app op toestel beoordeeld en bevestigd: **'ja ziet er goed uit'** na het verwijderen van de zichtbare `~` voor de EVSE-telling. Daarmee is de UI-smoketest op dit onderdeel akkoord. Beperking blijft: neutrale `…`-clusters, indicatieve providerbewuste bronberekening en geen garantie buiten de getoetste snapshot. **PR #40 gereed voor expliciet merge-akkoord; nog niet gemerged of gedeployed.**
+
+**UX-besluit PR #40 (25 oktober 2026):** gebruiker heeft op toestel FAS/Fastned `~0/8` gezien en met Allego (0/10 connectoren bij De Gagel; 3/10 bij Ganzenven) vergeleken. ChargeWatch blijft unieke EVSE-/gelijktijdige laadposities tonen in plaats van connectortotalen; meer connectoren dan EVSE's betekent niet automatisch meer gelijktijdig ladende auto's. Op expliciet gebruikersverzoek **vervalt de zichtbare `~`**: individuele marker toont eenvoudig `x/y`, terwijl `CountReliability.Estimated` intern behouden blijft en onbetrouwbare records `?` blijven. Clusterweergave blijft `…`. Tests zijn aangepast; nieuwe Android CI/build en hernieuwde APK-smoketest zijn inmiddels bevestigd in de meest recente reviewgate bovenaan.
+
+**CI-verificatie PR #40 (25 oktober 2026):** Android workflow run [#40181598427](https://github.com/VanHinthem/ChargeWatch/actions/runs/40181598427) geslaagd: `testDebugUnitTest`, `assembleDebug` en upload debug-APK geslaagd. Read-only API-workflow voor dezelfde PR-head geslaagd. Dit betreft de **eerste** CI-build; de latere APK-smoketest en CI zijn bevestigd in de reviewgate bovenaan. Geen merge/deploy vóór expliciete goedkeuring.
+
+## Android — providerbewuste NDW-countindicatie (25 oktober 2026)
+
+Featurebranch `feature/android-ndw-evse-count-indication` vanaf `main` na de merge van PR #39. De vorige Android-parser markeerde elke locatie met meerdere connectorcategorieën onbekend, omdat een categorie niet altijd uniek een EVSE beschrijft. Op basis van de met OCPI vergeleken NDW-snapshot (76.892/76.897 capaciteitsmatches onder de onderzochte hybride telregel) is een **conservatieve indicatie** toegevoegd:
+
+- Eén geldige categorie toont bestaande `x/y`.
+- Meerdere volledig geldige categorieën: `FAS` (Fastned) gebruikt het `(available,total)`-paar van de categorie met hoogste **totaal**; overige CPO's tellen categorieën op. Deze aannames zijn uitsluitend empirisch voor één NDW-snapshot, geen broncontract; op de kaart staat voor zulke schattingen `x/y`.
+- Ongeldige/missing categorieën, ontbrekende of strijdige party-identiteit en overflow blijven **grijs `?`**; geen gedeeltelijke of gefingeerde telling.
+- Statuskleur gebruikt de geldige indicatie; **visuele clusters blijven grijs met `…`**, zonder een onbetrouwbare groepssom.
+- Gerichte Android unit tests bijgewerkt voor FAS, overige parties, schattingslabel en fail-closed.
+
+**Afgerond volgens actuele reviewgate bovenaan:** Android CI/tests/build en toestelcontrole van de gewijzigde markerweergave. App gebruikt bij kaartmarkers nog steeds alleen live NDW GeoJSON, niet live OCPI-uid-tellingen. Locatiedetails, interactie, navigatie en fallback horen niet in deze PR. Vóór merge `docs/STATUS.md` definitief bijwerken met daadwerkelijke CI-/toestelresultaten. **Niet mergen of deployen zonder expliciet akkoord.**
+
 ## Issue #38 — hybride telhypothese daadwerkelijk gevalideerd (25 oktober 2026)
 
 Gebruiker draaide `scripts/validate_ndw_evse.py` op het lokaal gedownloade NDW GeoJSON/OCPI-paar, met als uitkomst:
