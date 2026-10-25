@@ -31,9 +31,9 @@ class NdwGeoJsonParser(
             featureId = id,
             longitude = longitude,
             latitude = latitude,
-            title = feature.properties.operatorName
+            title = feature.properties.address
                 ?.takeIf(String::isNotBlank)
-                ?: feature.properties.address
+                ?: feature.properties.operatorName
                     ?.takeIf(String::isNotBlank)
                 ?: "Laadlocatie",
             address = feature.properties.address?.takeIf(String::isNotBlank),
