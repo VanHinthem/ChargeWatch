@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -552,44 +554,81 @@ private fun AvailabilityText(location: MapLocation) {
 private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Terug")
                 }
-                Text(
-                    text = "Locatiedetails",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Text("Locatiedetails", style = MaterialTheme.typography.titleLarge)
             }
             Text(location.title, style = MaterialTheme.typography.headlineMedium)
-            location.operatorName
-                ?.takeIf { it != location.title }
-                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-            location.address
-                ?.takeIf { it != location.title }
-                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-            AvailabilityText(location)
-            location.lastUpdated?.let {
+            location.operatorName?.takeIf { it != location.title }?.let {
+                Text(it, style = MaterialTheme.typography.bodyLarge)
+            }
+            location.address?.takeIf { it != location.title }?.let {
+                Text(it, style = MaterialTheme.typography.bodyLarge)
+            }
+
+            Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 2.dp) {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text("Beschikbaarheid volgens NDW", style = MaterialTheme.typography.titleMedium)
+                    AvailabilityText(location)
+                    Text(
+                        "Laatst bekende status, geen garantie op actuele beschikbaarheid.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    location.lastUpdated?.let {
+                        Text("Bronupdate: $it", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+            if (location.connectorCategories.isEmpty()) {
+                Text("Geen aansluitingsgegevens beschikbaar.")
+            } else {
                 Text(
-                    text = "Bron bijgewerkt: " + it,
-                    style = MaterialTheme.typography.bodyMedium,
+                    "NDW-categorieën; categorieën kunnen dezelfde laadpunten omvatten en zijn niet afzonderlijk optelbaar.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                location.connectorCategories.forEach { category ->
+                    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                            val name = listOfNotNull(
+                                category.connectorType?.takeIf { it.isNotBlank() },
+                                category.powerType?.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ").ifEmpty { "Type onbekend" }
+                            Text(name, style = MaterialTheme.typography.titleMedium)
+                            category.powerMax?.takeIf { it > 0 }?.let {
+                                Text("Maximaal ${it} kW", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            val count = if (category.available != null && category.total != null &&
+                                category.available >= 0 && category.total > 0 &&
+                                category.available <= category.total) "${category.available}/${category.total}"
+                                else "?"
+                            Text("$count volgens NDW-categorie", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
             }
+
             HorizontalDivider()
+            Text("Tarieven", style = MaterialTheme.typography.titleLarge)
+            Text("Nog geen gevalideerde actuele tariefinformatie gekoppeld.")
+            HorizontalDivider()
+            Text("Populaire laadtijden", style = MaterialTheme.typography.titleLarge)
+            Text("Nog geen gevalideerde historische gegevens voor deze locatie gekoppeld.")
             Text(
-                text = "NDW-locatie: " + location.featureId,
+                "NDW-locatie: " + location.featureId,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -597,21 +636,16 @@ private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { openNavigation(context, location) },
-                    modifier = Modifier.weight(1f)
-                ) {
+                Button(onClick = { openNavigation(context, location) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Navigation, contentDescription = null)
                     Text(" Navigeren")
                 }
-                OutlinedButton(
-                    onClick = { openStreetView(context, location) },
-                    modifier = Modifier.weight(1f)
-                ) {
+                OutlinedButton(onClick = { openStreetView(context, location) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Streetview, contentDescription = null)
                     Text(" Street View")
                 }
             }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
