@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
@@ -238,8 +239,8 @@ private fun configureStyle(
 }
 
 // MapLibre native annotations render reliably on the tested device, unlike the
-// previous custom GeoJSON source/layers. Clustering is visual only and NEVER
-// aggregates connector or EVSE totals.
+// previous custom GeoJSON source/layers. Clusters only aggregate EVSE estimates
+// when all grouped locations are valid; otherwise show number of locations.
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
@@ -305,14 +306,21 @@ private fun renderNativeMarkers(
     clusters.forEach { group ->
         val isCluster = group.size > 1
         val location = group.first()
-        val label = if (isCluster) "…" else location.availability.label
-        val color = if (isCluster) UNKNOWN_COLOR else when (location.availability.status) {
+        val aggregate = if (isCluster) summarizeCluster(group) else null
+        val label = aggregate?.label ?: location.availability.label
+        val displayStatus = aggregate?.status ?: location.availability.status
+        val color = when (displayStatus) {
             AvailabilityStatus.Available -> AVAILABLE_COLOR
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val key = "$color:$label"
-        val icon = icons.getOrPut(key) { iconFactory.fromBitmap(createMarkerBitmap(color, label)) }
+        val key = "$isCluster:$color:$label"
+        val icon = icons.getOrPut(key) {
+            iconFactory.fromBitmap(
+                if (isCluster) createClusterBitmap(color, label)
+                else createMarkerBitmap(color, label)
+            )
+        }
         val latitude = group.map { it.latitude }.average()
         val longitude = group.map { it.longitude }.average()
         map.addMarker(
@@ -337,6 +345,29 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 29f else 34f
     canvas.drawText(label, 56f, 68f, paint)
+    return bitmap
+}
+
+// A cluster uses the same EVSE status color and label as a station, with an
+// additional outline ring. No badge or location count is shown.
+private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
+    val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = Color.WHITE
+    canvas.drawCircle(70f, 76f, 63f, paint)
+    paint.color = Color.parseColor(colorHex)
+    canvas.drawCircle(70f, 76f, 57f, paint)
+    paint.color = Color.WHITE
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 3f
+    canvas.drawCircle(70f, 76f, 49f, paint)
+    paint.style = Paint.Style.FILL
+    paint.textAlign = Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    paint.textSize = if (label.length > 4) 30f else 36f
+    canvas.drawText(label, 70f, 88f, paint)
+
     return bitmap
 }
 
