@@ -12,6 +12,16 @@ class ConnectorPresentationTest {
         assertNull(formatChargingPower(null))
         assertNull(formatChargingPower(-1.0))
     }
+    @Test fun availabilitySummaryDoesNotMisrepresentEstimatedOrUnknownCounts() {
+        assertEquals("1 van 2 laadpunten vrij",
+            availabilityDescription(AvailabilitySummary(1, 2, CountReliability.Safe)))
+        assertEquals("0 van 2 laadpunten vrij",
+            availabilityDescription(AvailabilitySummary(0, 2, CountReliability.Safe)))
+        assertEquals("Naar schatting 1 van 2 vrij",
+            availabilityDescription(AvailabilitySummary(1, 2, CountReliability.Estimated)))
+        assertEquals("Beschikbaarheid onbekend",
+            availabilityDescription(AvailabilitySummary(1, 2, CountReliability.Ambiguous)))
+    }
     @Test fun connectorNamesAreHumanReadable() {
         assertEquals("Type 2", connectorDisplayName("IEC_62196_T2"))
         assertEquals("CCS", connectorDisplayName("IEC_62196_T2_COMBO"))
