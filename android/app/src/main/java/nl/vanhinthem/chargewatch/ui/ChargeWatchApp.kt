@@ -29,6 +29,7 @@ import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
 import nl.vanhinthem.chargewatch.data.favorites.favoriteAvailability
 import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
+import nl.vanhinthem.chargewatch.data.favorites.favoritesNeedingFetch
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
 import nl.vanhinthem.chargewatch.data.ndw.CountReliability
@@ -47,6 +48,7 @@ fun ChargeWatchApp() {
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
+    var favoriteFetchedAt by remember { mutableStateOf<Instant?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
     var statusCheckedAt by remember { mutableStateOf(Instant.now()) }
@@ -56,19 +58,35 @@ fun ChargeWatchApp() {
         val observed = latestStatuses[favorite.featureId] ?: mapStatuses[favorite.featureId]
         favorite.featureId to favoriteAvailability(observed, statusCheckedAt)
     }
-    suspend fun refresh() {
+    suspend fun refresh(force: Boolean = false) {
+        val currentTime = Instant.now()
+        val needed = if (force) favorites else favoritesNeedingFetch(
+            favorites = favorites,
+            mapLocations = mapStatuses,
+            mapFetchedAt = mapState.fetchedAt,
+            favoriteLocations = latestStatuses,
+            favoriteFetchedAt = favoriteFetchedAt,
+            now = currentTime
+        )
+        if (needed.isEmpty()) {
+            refreshMessage = null
+            return
+        }
         refreshing = true
         refreshMessage = null
         try {
-            when (val result = availabilityClient.refresh(favorites)) {
-                is FavoriteRefreshResult.Success -> latestStatuses = result.locations
+            when (val result = availabilityClient.refresh(needed)) {
+                is FavoriteRefreshResult.Success -> {
+                    latestStatuses = latestStatuses + result.locations
+                    favoriteFetchedAt = Instant.now()
+                }
                 is FavoriteRefreshResult.Partial -> {
-                    latestStatuses = result.locations
+                    latestStatuses = latestStatuses + result.locations
                     refreshMessage = result.warning
+                    // Partial responses are not considered fully checked, so retry is possible.
                 }
             }
         } catch (_: Exception) {
-            latestStatuses = emptyMap()
             refreshMessage = "Beschikbaarheid kon niet worden opgehaald."
         } finally {
             statusCheckedAt = Instant.now()
@@ -100,7 +118,7 @@ fun ChargeWatchApp() {
                     availability = statusView,
                     refreshing = refreshing,
                     refreshMessage = refreshMessage,
-                    onRefresh = { scope.launch { refresh() } },
+                    onRefresh = { scope.launch { refresh(force = true) } },
                     onRename = { id, name -> scope.launch { repository.rename(id, name) } },
                     onMove = { id, offset -> scope.launch { repository.move(id, offset) } },
                     onRemove = { item ->
