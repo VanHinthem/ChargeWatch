@@ -65,7 +65,10 @@ internal sealed record TariffDetail(
     string SourceId,
     string? Currency,
     JsonElement Details,
-    DateTimeOffset? SourceUpdatedAt);
+    DateTimeOffset? SourceUpdatedAt)
+{
+    public TariffPresentation Presentation => OcpiTariffPresentation.Parse(Details, Currency);
+}
 
 internal sealed record AvailabilitySlot(
     int IsoWeekday,
