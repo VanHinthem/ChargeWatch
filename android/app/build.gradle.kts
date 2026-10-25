@@ -15,10 +15,21 @@ android {
         applicationId = "nl.vanhinthem.chargewatch"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // CI run numbers increase monotonically across PR builds for install-over-update.
+        versionCode = 100000 + (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0)
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Public development-only signing key: never reuse for production releases.
+            storeFile = rootProject.file("debug-signing/chargewatch-dev-debug.keystore")
+            storePassword = "chargewatch-debug-only"
+            keyAlias = "chargewatch-debug"
+            keyPassword = "chargewatch-debug-only"
+        }
     }
 
     buildFeatures {
