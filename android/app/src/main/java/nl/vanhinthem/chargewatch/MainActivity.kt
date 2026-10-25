@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import nl.vanhinthem.chargewatch.ui.ChargeWatchApp
-import nl.vanhinthem.chargewatch.ui.theme.ChargeWatchTheme
 import org.maplibre.android.MapLibre
 
 class MainActivity : ComponentActivity() {
@@ -13,9 +12,7 @@ class MainActivity : ComponentActivity() {
         MapLibre.getInstance(this)
 
         setContent {
-            ChargeWatchTheme {
-                ChargeWatchApp()
-            }
+            ChargeWatchApp()
         }
     }
 }
