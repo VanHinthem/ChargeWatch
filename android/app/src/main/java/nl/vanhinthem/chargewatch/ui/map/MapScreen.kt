@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -28,7 +30,12 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,11 +45,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +65,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color as ComposeColor
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -61,6 +79,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.ndw.formatChargingPower
+import nl.vanhinthem.chargewatch.data.ndw.availabilityDescription
+import nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName
+import nl.vanhinthem.chargewatch.data.ndw.connectorSymbol
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
 import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
@@ -76,12 +98,15 @@ import org.maplibre.android.maps.MapView
 fun MapScreen(
     favorites: List<FavoriteLocation> = emptyList(),
     onToggleFavorite: (MapLocation) -> Unit = {},
+    onDetailVisibilityChanged: (Boolean) -> Unit = {},
+    darkTheme: Boolean = false,
+    themeChoice: String = "system",
+    onThemeChoice: (String) -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val darkTheme = isSystemInDarkTheme()
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
-    var detailLocation by remember { mutableStateOf<MapLocation?>(null) }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
@@ -95,7 +120,10 @@ fun MapScreen(
         SearchHeader(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            themeChoice = themeChoice,
+            onThemeChoice = onThemeChoice
         )
 
         if (state.loading) {
@@ -128,25 +156,17 @@ fun MapScreen(
             locations = selectedLocations,
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
-            onDetails = {
-                detailLocation = it
-                selectedLocations = emptyList()
-            },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
             onToggleFavorite = onToggleFavorite
         )
     }
 
-    detailLocation?.let { location ->
-        LocationDetailScreen(
-            location = location,
-            onBack = { detailLocation = null }
-        )
-    }
+
 }
 
 @Composable
-private fun SearchHeader(modifier: Modifier = Modifier) {
+private fun SearchHeader(modifier: Modifier = Modifier, themeChoice: String, onThemeChoice: (String) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -165,6 +185,19 @@ private fun SearchHeader(modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Default.Brightness6, contentDescription = "Weergavethema")
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    listOf("system" to "Systeem", "light" to "Licht", "dark" to "Donker").forEach { (value, label) ->
+                        DropdownMenuItem(
+                            text = { Text(if (themeChoice == value) "✓ $label" else label) },
+                            onClick = { onThemeChoice(value); menuOpen = false }
+                        )
+                    }
+                }
+            }
             Icon(Icons.Default.FilterList, contentDescription = "Filters")
         }
     }
@@ -187,9 +220,11 @@ private fun ChargeMap(
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
-    val mapView = remember(context, darkTheme) {
+    val mapView = remember(context) {
         MapView(context).apply { onCreate(Bundle()) }
     }
+
+    var currentStyleUri by remember(mapView) { mutableStateOf<String?>(null) }
 
     DisposableEffect(lifecycleOwner, mapView) {
         val observer = object : DefaultLifecycleObserver {
@@ -238,6 +273,7 @@ private fun ChargeMap(
                         false
                     }
 
+                    currentStyleUri = styleUri
                     configureStyle(
                         map = map,
                         styleUri = styleUri,
@@ -274,7 +310,12 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle {
+                if (currentStyleUri != styleUri) {
+                    currentStyleUri = styleUri
+                    map.setStyle(styleUri) {
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
+                    }
+                } else map.getStyle {
                     renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
                 }
             }
@@ -412,12 +453,14 @@ private fun LocationSelectionSheet(
     locations: List<MapLocation>,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
-    onDetails: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
     onToggleFavorite: (MapLocation) -> Unit
 ) {
     val context = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val expanded = sheetState.currentValue == SheetValue.Expanded
+    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.93f
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -465,64 +508,95 @@ private fun LocationSelectionSheet(
             }
         } else {
             val location = locations.single()
+            val statusColor = when (location.availability.status) {
+                AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
+                AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
+                AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                Modifier.fillMaxWidth().heightIn(min = minSheetHeight)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(location.title, style = MaterialTheme.typography.headlineSmall)
-                location.operatorName
-                    ?.takeIf { it != location.title }
-                    ?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                location.address
-                    ?.takeIf { it != location.title }
-                    ?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                AvailabilityText(location)
-                OutlinedButton(onClick = { onToggleFavorite(location) }) {
-                    Icon(if (isFavorite(location)) Icons.Filled.Star else Icons.Outlined.StarBorder, contentDescription = null)
-                    Text(if (isFavorite(location)) " Verwijder favoriet" else " Voeg toe aan favorieten")
-                }
-
+                location.operatorName?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
-                    Button(
-                        onClick = { openNavigation(context, location) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Navigation, contentDescription = null)
-                        Text(" Navigeren")
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { openNavigation(context, location) }) {
+                            Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
+                        }
                     }
-                    OutlinedButton(
-                        onClick = { openStreetView(context, location) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Streetview, contentDescription = null)
-                        Text(" Street View")
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { openStreetView(context, location) }) {
+                            Icon(Icons.Default.Streetview, contentDescription = "Street View")
+                        }
+                    }
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { onToggleFavorite(location) }) {
+                            Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                        }
                     }
                 }
-                OutlinedButton(
-                    onClick = { onDetails(location) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null)
-                    Text(" Details")
+                Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text("BESCHIKBAARHEID", style = MaterialTheme.typography.labelMedium)
+                            Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
+                            Text(availabilityDescription(location.availability), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
+                if (expanded) {
+                    Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+                    if (location.connectorCategories.isEmpty()) {
+                        Text("Geen aansluitgegevens beschikbaar")
+                    } else {
+                        location.connectorCategories.forEach { category ->
+                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
+                                Row(Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    ConnectorSocketIcon(category.connectorType)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
+                                        val attributes = listOfNotNull(
+                                            category.powerType?.uppercase()?.takeIf { it == "AC" || it == "DC" },
+                                            formatChargingPower(category.powerMax)
+                                        ).joinToString(" · ")
+                                        if (attributes.isNotEmpty()) Text(attributes,
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    val count = if (category.available != null && category.total != null &&
+                                        category.available >= 0 && category.total > 0 && category.available <= category.total)
+                                        "${category.available}/${category.total}" else "?"
+                                    Text(count, style = MaterialTheme.typography.titleLarge)
+                                }
+                            }
+                        }
+                    }
+                    val updated = remember(location.lastUpdated) {
+                        location.lastUpdated?.let { raw ->
+                            runCatching { DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))
+                                .withZone(ZoneId.systemDefault()).format(Instant.parse(raw)) }.getOrNull()
+                        }
+                    }
+                    updated?.let { Text("NDW · bijgewerkt $it",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else {
+                    Text("Veeg omhoog voor aansluitingen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -548,73 +622,6 @@ private fun AvailabilityText(location: MapLocation) {
     }
 }
 
-@Composable
-private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
-    val context = LocalContext.current
-    BackHandler(onBack = onBack)
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Terug")
-                }
-                Text(
-                    text = "Locatiedetails",
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
-            Text(location.title, style = MaterialTheme.typography.headlineMedium)
-            location.operatorName
-                ?.takeIf { it != location.title }
-                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-            location.address
-                ?.takeIf { it != location.title }
-                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-            AvailabilityText(location)
-            location.lastUpdated?.let {
-                Text(
-                    text = "Bron bijgewerkt: " + it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            HorizontalDivider()
-            Text(
-                text = "NDW-locatie: " + location.featureId,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { openNavigation(context, location) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Navigation, contentDescription = null)
-                    Text(" Navigeren")
-                }
-                OutlinedButton(
-                    onClick = { openStreetView(context, location) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Streetview, contentDescription = null)
-                    Text(" Street View")
-                }
-            }
-        }
-    }
-}
 
 private fun openNavigation(context: Context, location: MapLocation) {
     val label = Uri.encode(location.address ?: location.title)

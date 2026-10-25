@@ -17,6 +17,7 @@ class NdwGeoJsonParserTest {
         )).single()
 
         assertEquals("1/2", location.availability.label)
+        assertEquals("IEC_62196_T2", location.connectorCategories.single().connectorType)
         assertEquals(CountReliability.Safe, location.availability.reliability)
         assertEquals(AvailabilityStatus.Available, location.availability.status)
     }

@@ -50,7 +50,8 @@ data class MapLocation(
     val lastUpdated: String?,
     val availability: AvailabilitySummary,
     val address: String? = null,
-    val operatorName: String? = null
+    val operatorName: String? = null,
+    val connectorCategories: List<NdwAvailability> = emptyList()
 )
 
 data class AvailabilitySummary(
