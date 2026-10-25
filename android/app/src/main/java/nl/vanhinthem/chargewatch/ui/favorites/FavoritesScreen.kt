@@ -15,6 +15,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -28,10 +30,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteAvailability
+import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 
 @Composable
 fun FavoritesScreen(
     favorites: List<FavoriteLocation>,
+    availability: Map<String, FavoriteAvailability>,
+    refreshing: Boolean,
+    refreshMessage: String?,
+    onRefresh: () -> Unit,
     onRename: (String, String) -> Unit,
     onMove: (String, Int) -> Unit,
     onRemove: (FavoriteLocation) -> Unit
@@ -44,6 +52,9 @@ fun FavoritesScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Favorieten", style = MaterialTheme.typography.headlineMedium)
+        Button(onClick = onRefresh, enabled = !refreshing && favorites.isNotEmpty()) { Text(if (refreshing) "Verversen…" else "Beschikbaarheid verversen") }
+        if (refreshing) CircularProgressIndicator()
+        refreshMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (favorites.isEmpty()) {
             Text("Nog geen favorieten. Tik op een laadlocatie op de kaart en kies Voeg toe aan favorieten.")
         }
@@ -56,8 +67,9 @@ fun FavoritesScreen(
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(favorite.displayName, style = MaterialTheme.typography.titleMedium)
                     favorite.address?.takeIf { it != favorite.displayName }?.let { Text(it) }
+                    val current = availability[favorite.featureId]
                     Text(
-                        "Laatst opgeslagen locatie · beschikbaarheid niet live gecontroleerd",
+                        if (current == null) "? · Niet gecontroleerd" else "${current.label} · ${current.description}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
