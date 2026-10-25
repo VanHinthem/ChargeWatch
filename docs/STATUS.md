@@ -1,3 +1,15 @@
+## Android — providerbewuste NDW-countindicatie (25 oktober 2026)
+
+Featurebranch `feature/android-ndw-evse-count-indication` vanaf `main` na de merge van PR #39. De vorige Android-parser markeerde elke locatie met meerdere connectorcategorieën onbekend, omdat een categorie niet altijd uniek een EVSE beschrijft. Op basis van de met OCPI vergeleken NDW-snapshot (76.892/76.897 capaciteitsmatches onder de onderzochte hybride telregel) is een **conservatieve indicatie** toegevoegd:
+
+- Eén geldige categorie toont bestaande `x/y`.
+- Meerdere volledig geldige categorieën: `FAS` (Fastned) gebruikt het `(available,total)`-paar van de categorie met hoogste **totaal**; overige CPO's tellen categorieën op. Deze aannames zijn uitsluitend empirisch voor één NDW-snapshot, geen broncontract; op de kaart staat voor zulke schattingen expliciet `~x/y`.
+- Ongeldige/missing categorieën, ontbrekende of strijdige party-identiteit en overflow blijven **grijs `?`**; geen gedeeltelijke of gefingeerde telling.
+- Statuskleur gebruikt de geldige indicatie; **visuele clusters blijven grijs met `…`**, zonder een onbetrouwbare groepssom.
+- Gerichte Android unit tests bijgewerkt voor FAS, overige parties, schattingslabel en fail-closed.
+
+**Nog te verifiëren:** Android CI/tests/build op deze branch, vervolgens fysiek toestel (o.a. FAS en een andere CPO, markerlabelweergave en cluster). App gebruikt bij kaartmarkers nog steeds alleen live NDW GeoJSON, niet live OCPI-uid-tellingen. Locatiedetails, interactie, navigatie en fallback horen niet in deze PR. Vóór merge `docs/STATUS.md` definitief bijwerken met daadwerkelijke CI-/toestelresultaten. **Niet mergen of deployen zonder expliciet akkoord.**
+
 ## Issue #38 — hybride telhypothese daadwerkelijk gevalideerd (25 oktober 2026)
 
 Gebruiker draaide `scripts/validate_ndw_evse.py` op het lokaal gedownloade NDW GeoJSON/OCPI-paar, met als uitkomst:
