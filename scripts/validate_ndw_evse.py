@@ -125,6 +125,13 @@ def compare(geojson, ocpi):
         summed = (sum(a for a, _ in pairs), sum(t for _, t in pairs))
         maximum = (max(a for a, _ in pairs), max(t for _, t in pairs))
         expected = (evses["available"], evses["total"])
+        # Research-only party hypothesis. Do not treat this as an Android rule.
+        hybrid = maximum if k[1] == "FAS" else summed
+        stats["hybrid_total_matches" if hybrid[1] == expected[1] else "hybrid_total_differs"] += 1
+        stats["hybrid_pair_matches" if hybrid == expected else "hybrid_pair_differs"] += 1
+        if hybrid[1] == expected[1] and hybrid[0] != expected[0]:
+            stats["hybrid_available_only_differs"] += 1
+
         if summed[1] == expected[1]:
             stats["sum_total_matches"] += 1
             if summed[0] != expected[0]:
