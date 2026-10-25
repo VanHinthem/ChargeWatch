@@ -386,11 +386,11 @@ private fun renderNativeMarkers(
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val isFavorite = !isCluster && location.featureId in favoriteIds
+        val isFavorite = group.any { it.featureId in favoriteIds }
         val key = isCluster.toString() + ":" + color + ":" + label + ":" + isFavorite
         val icon = icons.getOrPut(key) {
             iconFactory.fromBitmap(
-                if (isCluster) createClusterBitmap(color, label)
+                if (isCluster) createClusterBitmap(color, label, isFavorite)
                 else createMarkerBitmap(color, label, isFavorite)
             )
         }
@@ -659,15 +659,11 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 29f else 34f
     canvas.drawText(label, 56f, 68f, paint)
-    if (isFavorite) {
-        paint.color = Color.parseColor("#F3AF25")
-        paint.textSize = 34f
-        canvas.drawText("★", 91f, 31f, paint)
-    }
+    if (isFavorite) drawFavoriteStar(canvas, 91f, 26f)
     return bitmap
 }
 
-private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
+private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
     val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -684,7 +680,26 @@ private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 30f else 36f
     canvas.drawText(label, 70f, 88f, paint)
+    if (isFavorite) drawFavoriteStar(canvas, 120f, 35f)
     return bitmap
+}
+
+
+// Large, outlined star stays legible on both light/dark tiles without covering the EVSE ratio.
+private fun drawFavoriteStar(canvas: Canvas, centerX: Float, centerY: Float) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+        textSize = 49f
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+        strokeJoin = Paint.Join.ROUND
+        color = Color.parseColor("#26313A")
+    }
+    canvas.drawText("★", centerX, centerY + 17f, paint)
+    paint.style = Paint.Style.FILL
+    paint.color = Color.parseColor("#F3AF25")
+    canvas.drawText("★", centerX, centerY + 17f, paint)
 }
 
 private const val CLUSTER_DISTANCE_PX = 144.0
