@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Streetview
@@ -56,6 +58,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
@@ -70,7 +73,11 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
 @Composable
-fun MapScreen(viewModel: MapViewModel = viewModel()) {
+fun MapScreen(
+    favorites: List<FavoriteLocation> = emptyList(),
+    onToggleFavorite: (MapLocation) -> Unit = {},
+    viewModel: MapViewModel = viewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
@@ -81,7 +88,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             locations = state.locations,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
-            onLocationsSelected = { selectedLocations = it }
+            onLocationsSelected = { selectedLocations = it },
+            favoriteIds = favorites.map { it.featureId }.toSet()
         )
 
         SearchHeader(
@@ -123,7 +131,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onDetails = {
                 detailLocation = it
                 selectedLocations = emptyList()
-            }
+            },
+            isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
+            onToggleFavorite = onToggleFavorite
         )
     }
 
@@ -165,12 +175,14 @@ private fun ChargeMap(
     locations: List<MapLocation>,
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit,
-    onLocationsSelected: (List<MapLocation>) -> Unit
+    onLocationsSelected: (List<MapLocation>) -> Unit,
+    favoriteIds: Set<String>
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
     val currentLocations = rememberUpdatedState(locations)
+    val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
@@ -233,7 +245,8 @@ private fun ChargeMap(
                         onViewportChanged = onViewportChanged,
                         context = context,
                         iconCache = iconCache,
-                        markerGroups = markerGroups
+                        markerGroups = markerGroups,
+                        favoriteIds = currentFavoriteIds.value
                     )
                     map.getStyle {
                         renderNativeMarkers(
@@ -241,7 +254,8 @@ private fun ChargeMap(
                             currentLocations.value,
                             iconCache,
                             context,
-                            markerGroups
+                            markerGroups,
+                            currentFavoriteIds.value
                         )
                     }
                     map.addOnCameraIdleListener {
@@ -250,7 +264,8 @@ private fun ChargeMap(
                             currentLocations.value,
                             iconCache,
                             context,
-                            markerGroups
+                            markerGroups,
+                            currentFavoriteIds.value
                         )
                         requestViewport(map, onViewportChanged)
                     }
@@ -260,7 +275,7 @@ private fun ChargeMap(
         update = { view ->
             view.getMapAsync { map ->
                 map.getStyle {
-                    renderNativeMarkers(map, locations, iconCache, context, markerGroups)
+                    renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
                 }
             }
         }
@@ -274,10 +289,11 @@ private fun configureStyle(
     onViewportChanged: (NdwViewport) -> Unit,
     context: Context,
     iconCache: MutableMap<String, Icon>,
-    markerGroups: MutableMap<Long, List<MapLocation>>
+    markerGroups: MutableMap<Long, List<MapLocation>>,
+    favoriteIds: Set<String>
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, iconCache, context, markerGroups)
+        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
         requestViewport(map, onViewportChanged)
     }
 }
@@ -303,7 +319,8 @@ private fun renderNativeMarkers(
     locations: List<MapLocation>,
     icons: MutableMap<String, Icon>,
     context: Context,
-    markerGroups: MutableMap<Long, List<MapLocation>>
+    markerGroups: MutableMap<Long, List<MapLocation>>,
+    favoriteIds: Set<String>
 ) {
     map.clear()
     markerGroups.clear()
@@ -369,11 +386,12 @@ private fun renderNativeMarkers(
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val key = isCluster.toString() + ":" + color + ":" + label
+        val isFavorite = !isCluster && location.featureId in favoriteIds
+        val key = isCluster.toString() + ":" + color + ":" + label + ":" + isFavorite
         val icon = icons.getOrPut(key) {
             iconFactory.fromBitmap(
                 if (isCluster) createClusterBitmap(color, label)
-                else createMarkerBitmap(color, label)
+                else createMarkerBitmap(color, label, isFavorite)
             )
         }
         val latitude = group.map { it.latitude }.average()
@@ -394,7 +412,9 @@ private fun LocationSelectionSheet(
     locations: List<MapLocation>,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
-    onDetails: (MapLocation) -> Unit
+    onDetails: (MapLocation) -> Unit,
+    isFavorite: (MapLocation) -> Boolean,
+    onToggleFavorite: (MapLocation) -> Unit
 ) {
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -471,6 +491,10 @@ private fun LocationSelectionSheet(
                         )
                     }
                 AvailabilityText(location)
+                OutlinedButton(onClick = { onToggleFavorite(location) }) {
+                    Icon(if (isFavorite(location)) Icons.Filled.Star else Icons.Outlined.StarBorder, contentDescription = null)
+                    Text(if (isFavorite(location)) " Verwijder favoriet" else " Voeg toe aan favorieten")
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -622,7 +646,7 @@ private fun openStreetView(context: Context, location: MapLocation) {
     context.startActivity(browserFallback)
 }
 
-private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
+private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
     val bitmap = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -635,6 +659,11 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 29f else 34f
     canvas.drawText(label, 56f, 68f, paint)
+    if (isFavorite) {
+        paint.color = Color.parseColor("#F3AF25")
+        paint.textSize = 34f
+        canvas.drawText("★", 91f, 31f, paint)
+    }
     return bitmap
 }
 
