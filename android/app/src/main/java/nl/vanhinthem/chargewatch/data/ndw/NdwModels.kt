@@ -61,7 +61,7 @@ data class AvailabilitySummary(
 
     val status: AvailabilityStatus
         get() = when {
-            reliability != CountReliability.Safe -> AvailabilityStatus.Unknown
+            reliability == CountReliability.Ambiguous -> AvailabilityStatus.Unknown
             available == null || total == null -> AvailabilityStatus.Unknown
             available > 0 -> AvailabilityStatus.Available
             total > 0 -> AvailabilityStatus.NoneAvailable
@@ -71,6 +71,7 @@ data class AvailabilitySummary(
 
 enum class CountReliability {
     Safe,
+    Estimated,
     Ambiguous
 }
 
