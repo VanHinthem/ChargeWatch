@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,7 +120,8 @@ fun MapScreen(
         SearchHeader(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             themeChoice = themeChoice,
             onThemeChoice = onThemeChoice
         )
@@ -218,9 +220,11 @@ private fun ChargeMap(
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
-    val mapView = remember(context, darkTheme) {
+    val mapView = remember(context) {
         MapView(context).apply { onCreate(Bundle()) }
     }
+
+    var currentStyleUri by remember(mapView) { mutableStateOf<String?>(null) }
 
     DisposableEffect(lifecycleOwner, mapView) {
         val observer = object : DefaultLifecycleObserver {
@@ -269,6 +273,7 @@ private fun ChargeMap(
                         false
                     }
 
+                    currentStyleUri = styleUri
                     configureStyle(
                         map = map,
                         styleUri = styleUri,
@@ -305,7 +310,12 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle {
+                if (currentStyleUri != styleUri) {
+                    currentStyleUri = styleUri
+                    map.setStyle(styleUri) {
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
+                    }
+                } else map.getStyle {
                     renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
                 }
             }
