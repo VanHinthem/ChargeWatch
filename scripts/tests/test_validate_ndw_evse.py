@@ -59,6 +59,23 @@ class NdwEvseValidationTests(unittest.TestCase):
         self.assertEqual(1, report["comparison_by_party"]["ABC"]["multi_sum_total_differs"])
         self.assertEqual(1, report["comparison_by_party"]["ABC"]["multi_max_total_matches"])
 
+    def test_research_hybrid_applies_maximum_only_to_fas(self):
+        geo = {"features": [
+            {"id": "NL-FAS-loc5", "properties": {"country": "NLD",
+                "availabilities": [{"available": 2, "total": 2}, {"available": 1, "total": 1}]}},
+            {"id": "NL-EFL-loc6", "properties": {"country": "NLD",
+                "availabilities": [{"available": 1, "total": 1}, {"available": 1, "total": 1}]}}
+        ]}
+        ocpi = [
+            {"country_code": "NL", "party_id": "FAS", "id": "loc5",
+             "evses": [{"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "AVAILABLE"}]},
+            {"country_code": "NL", "party_id": "EFL", "id": "loc6",
+             "evses": [{"uid": "c", "status": "AVAILABLE"}, {"uid": "d", "status": "AVAILABLE"}]},
+        ]
+        stats = module.compare(geo, ocpi)["stats"]
+        self.assertEqual(2, stats["hybrid_total_matches"])
+        self.assertEqual(2, stats["hybrid_pair_matches"])
+
     def test_unknown_evse_status_never_counted_as_occupied(self):
         evses = module.count_unique_evses({"evses": [
             {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "UNKNOWN"}
