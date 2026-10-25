@@ -121,6 +121,19 @@ def compare(geojson, ocpi):
         summed = (sum(a for a, _ in pairs), sum(t for _, t in pairs))
         maximum = (max(a for a, _ in pairs), max(t for _, t in pairs))
         expected = (evses["available"], evses["total"])
+        if summed[1] == expected[1]:
+            stats["sum_total_matches"] += 1
+            if summed[0] != expected[0]:
+                stats["sum_total_matches_available_differs"] += 1
+        else:
+            stats["sum_total_differs"] += 1
+        if len(pairs) > 1:
+            if summed[1] == expected[1]:
+                stats["multi_sum_total_matches"] += 1
+                if summed[0] != expected[0]:
+                    stats["multi_sum_total_matches_available_differs"] += 1
+            else:
+                stats["multi_sum_total_differs"] += 1
         stats["sum_matches" if summed == expected else "sum_differs"] += 1
         stats["max_matches" if maximum == expected else "max_differs"] += 1
         if len(pairs) > 1:
