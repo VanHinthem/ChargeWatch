@@ -1,3 +1,13 @@
+## Issue #38 — hybride telhypothese daadwerkelijk gevalideerd (25 oktober 2026)
+
+Gebruiker draaide `scripts/validate_ndw_evse.py` op het lokaal gedownloade NDW GeoJSON/OCPI-paar, met als uitkomst:
+- `hybrid_total_matches=76892`, `hybrid_total_differs=5`: **76.892 / 76.897 = 99,9935%** van de vergelijkbare locaties heeft een overeenkomend EVSE-totaal bij **FAS: maximum** en **overige parties: som**.
+- `hybrid_pair_matches=76876`, `hybrid_pair_differs=21`: **76.876 / 76.897 = 99,9727%** heeft ook hetzelfde vrij/totaal-paar.
+- `hybrid_available_only_differs=16`: bij 16 locaties is het totaal gelijk, maar de vrije EVSE-telling verschillend.
+- **Let op**: deze 76.897 zijn alleen gematchte locaties met geldige categorieën, geïdentificeerde EVSE's en zonder onbekende OCPI-status; eerder vielen 3.844 matched locaties af vanwege onbekende status en 122 waren unmatched. Snapshotgelijktijdigheid en representativiteit over toekomstige updates zijn niet bevestigd. De vijf capaciteitsverschillen blijven. De hybride regel is empirisch sterk maar **nog geen broncontract/garantie**, en stelt niet vast dat een EVSE gelijkstaat aan één gelijktijdig ladende auto bij bijzondere hardwareconfiguraties.
+
+**Advies voor afronding #38:** leg de onderzochte telhypothese en beperkingen vast, stop de onderzoeks-PR met testscript/fixtures en wees expliciet dat de Android-gebruikersinterface voorlopig conservatief blijft. Een afzonderlijke Android-feature kan een providerbewuste indicatie introduceren, na passende tests en UX-besluit, zonder live OCPI als bewezen referentie te suggereren. Draft PR #39 blijft open, **geen merge/deployment zonder expliciet gebruikersakkoord**.
+
 ## Issue #38 / draft PR #39 — landelijke aanbiedervergelijking bevestigd (25 oktober 2026)
 
 Gebruiker heeft volledige landelijke `evse-validation.json` uit één paar NDW-downloads aangeleverd. **76.897 vergelijkbare locaties** van 80.741 matches. Capaciteitsafwijkingen bij categorielijksommen: **172**, alle **overtellingen** (103× +2, 32× +1, 22× +3, 7× +5, 5× +4, 3× +6). Verdeling parties: **FAS 167, BLK 2, ENE 1, WAT 1, LNT 1**. Per-party-analyse FAS: **181 vergelijkbaar**, **167 met meerdere categorieën**, **maximumcapaciteit 181/181 correct**, **somcapaciteit 14/181 correct**; volledige vrij/totaal-combinatie bij maximum **180/181** correct. Andere partijen tellen meestal correct met som, onder meer EFL 7.418/7.418, NUO 21.289/21.289 en ALL 8.591/8.591 capaciteit correct.
