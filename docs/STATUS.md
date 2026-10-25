@@ -1,3 +1,5 @@
+**CI-verificatie PR #40 (25 oktober 2026):** Android workflow run [#40181598427](https://github.com/VanHinthem/ChargeWatch/actions/runs/40181598427) geslaagd: `testDebugUnitTest`, `assembleDebug` en upload debug-APK geslaagd. Read-only API-workflow voor dezelfde PR-head geslaagd. **Toesteltest nog niet uitgevoerd**; reviewgate voor de gebruiker is APK op Android, vooral `~x/y` op locaties met meerdere categorieën, FAS, enkelvoudige locaties, grijze `?` en neutrale `…`-clusters. Geen merge/deploy vóór expliciete goedkeuring.
+
 ## Android — providerbewuste NDW-countindicatie (25 oktober 2026)
 
 Featurebranch `feature/android-ndw-evse-count-indication` vanaf `main` na de merge van PR #39. De vorige Android-parser markeerde elke locatie met meerdere connectorcategorieën onbekend, omdat een categorie niet altijd uniek een EVSE beschrijft. Op basis van de met OCPI vergeleken NDW-snapshot (76.892/76.897 capaciteitsmatches onder de onderzochte hybride telregel) is een **conservatieve indicatie** toegevoegd:
