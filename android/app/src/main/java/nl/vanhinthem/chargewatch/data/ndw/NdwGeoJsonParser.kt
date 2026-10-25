@@ -31,11 +31,13 @@ class NdwGeoJsonParser(
             featureId = id,
             longitude = longitude,
             latitude = latitude,
-            title = feature.properties.address
+            title = feature.properties.operatorName
                 ?.takeIf(String::isNotBlank)
-                ?: feature.properties.operatorName
+                ?: feature.properties.address
                     ?.takeIf(String::isNotBlank)
                 ?: "Laadlocatie",
+            address = feature.properties.address?.takeIf(String::isNotBlank),
+            operatorName = feature.properties.operatorName?.takeIf(String::isNotBlank),
             lastUpdated = feature.properties.lastUpdated,
             availability = summarize(feature.properties.availabilities, feature.properties.cpoId, id)
         )
