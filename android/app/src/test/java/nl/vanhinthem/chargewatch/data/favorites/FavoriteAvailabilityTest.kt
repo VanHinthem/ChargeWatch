@@ -20,10 +20,10 @@ class FavoriteAvailabilityTest {
     }
 
     @Test fun oldTimestampKeepsKnownRatioButLabelsAge() {
-        val result = favoriteAvailability(location("2026-10-25T10:44:59Z"), now)
+        val result = favoriteAvailability(location("2026-10-25T10:27:00Z"), now)
         assertEquals("1/2", result.label)
         assertEquals(AvailabilityStatus.Available, result.status)
-        org.junit.Assert.assertTrue(result.description.contains("16 min"))
+        org.junit.Assert.assertTrue(result.description.contains("33 min"))
     }
 
     @Test fun missingTimestampAndUnreliableStatusesAreUnknown() {
