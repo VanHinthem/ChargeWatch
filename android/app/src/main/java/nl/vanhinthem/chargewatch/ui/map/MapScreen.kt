@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
@@ -238,8 +239,8 @@ private fun configureStyle(
 }
 
 // MapLibre native annotations render reliably on the tested device, unlike the
-// previous custom GeoJSON source/layers. Clustering is visual only and NEVER
-// aggregates connector or EVSE totals.
+// previous custom GeoJSON source/layers. Clusters only aggregate EVSE estimates
+// when all grouped locations are valid; otherwise show number of locations.
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
@@ -305,8 +306,10 @@ private fun renderNativeMarkers(
     clusters.forEach { group ->
         val isCluster = group.size > 1
         val location = group.first()
-        val label = if (isCluster) "…" else location.availability.label
-        val color = if (isCluster) UNKNOWN_COLOR else when (location.availability.status) {
+        val aggregate = if (isCluster) summarizeCluster(group) else null
+        val label = aggregate?.label ?: location.availability.label
+        val displayStatus = aggregate?.status ?: location.availability.status
+        val color = when (displayStatus) {
             AvailabilityStatus.Available -> AVAILABLE_COLOR
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
