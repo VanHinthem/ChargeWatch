@@ -34,7 +34,7 @@ class ClusterAvailabilityTest {
             location(1, 2, CountReliability.Safe),
             location(null, null, CountReliability.Ambiguous)
         ))
-        assertEquals("2", result.label)
+        assertEquals("?", result.label)
         assertEquals(AvailabilityStatus.Unknown, result.status)
     }
 
@@ -44,12 +44,12 @@ class ClusterAvailabilityTest {
             location(1, 2, CountReliability.Safe),
             location(3, 2, CountReliability.Safe)
         ))
-        assertEquals("2", invalid.label)
+        assertEquals("?", invalid.label)
         val overflow = summarizeCluster(listOf(
             location(Int.MAX_VALUE, Int.MAX_VALUE, CountReliability.Safe),
             location(1, 1, CountReliability.Safe)
         ))
-        assertEquals("2", overflow.label)
+        assertEquals("?", overflow.label)
         assertEquals(AvailabilityStatus.Unknown, overflow.status)
     }
 }
