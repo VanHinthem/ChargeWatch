@@ -48,6 +48,15 @@ class NdwEvseValidationTests(unittest.TestCase):
         self.assertEqual(1, stats["sum_total_matches_available_differs"])
         self.assertEqual(1, stats["sum_differs"])
 
+    def test_capacity_delta_reports_overcount(self):
+        geo = {"features": [{"id": "NL-ABC-loc4", "properties": {"country": "NLD",
+            "availabilities": [{"available": 1, "total": 2}, {"available": 1, "total": 2}]}}]}
+        ocpi = [{"country_code": "NL", "party_id": "ABC", "id": "loc4", "evses": [
+            {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "AVAILABLE"}]}]
+        report = module.compare(geo, ocpi)
+        self.assertEqual(1, report["capacity_difference_by_delta"]["2"])
+        self.assertEqual(1, report["capacity_difference_by_party"]["ABC"])
+
     def test_unknown_evse_status_never_counted_as_occupied(self):
         evses = module.count_unique_evses({"evses": [
             {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "UNKNOWN"}
