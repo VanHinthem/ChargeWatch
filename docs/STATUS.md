@@ -1,3 +1,9 @@
+## Issue #38 — eerste echte landelijke NDW/OCPI-matching geslaagd (25 oktober 2026)
+
+Gebruiker heeft twee lokale NDW-snapshots vergeleken: **80.741 van 80.863 GeoJSON-locaties gekoppeld (99,85%)**. De initiële comparator vond 75.994 consistente categorieparen tegenover unieke EVSE-aantallen, 3.844 locaties met onbekende OCPI-status, 653 met verschillende categorieparen en 250 met een afwijkend categoriepaar; 122 waren niet gekoppeld. Deze categorieën zijn de exclusieve padverdeling van de **oude comparator**, geen bewijs voor een algoritme. Voorbeelden tonen dat het **optellen** van meerdere connectorcategorieën soms exact bij het unieke EVSE-aantal uitkomt (bijv. twee rijen 1/1 tegenover twee beschikbare EVSE's), terwijl één categoriegetal of max dan tekortschiet. Er is tevens minstens één inconsistente statusvergelijking die mogelijk door verschillende feedtijdstippen komt.
+
+Daarom is de comparator in draft PR #39 uitgebreid met afzonderlijke aggregaatresultaten voor **som** versus **maximum** van categorieparen, met aparte tellers voor locaties met meerdere categorieën, en een unit test. **Nog géén conclusie** dat sommen altijd veilig is; eerst echte totale afwijkingspercentages en datatijdstippen verifiëren. Android-weergave ongewijzigd. Geen merge/deploy.
+
 ## Issue #38 — nul matches door ISO-3 landcodefilter (25 oktober 2026)
 
 Gebruiker bevestigde lokaal dat de nieuwste branch en parser actief zijn. GeoJSON-feature-ID `NL-EFL-672e052a98865f14efaf9429`, `cpo_id=EFL`, maar `country=NLD`; OCPI gebruikt `country_code=NL` en `party_id`. De matcher wees daardoor alle records voortijdig af door de foutieve directe vergelijking `NLD != NL`. Dit is gecorrigeerd met expliciete ISO-2/ISO-3-aliases en een unit test. Of de samengestelde feature-ID overeenkomt met de OCPI-ID is **nog niet vastgesteld**; opnieuw draaien en matchstatistieken inspecteren. PR #39 blijft draft, geen merge/deploy.
