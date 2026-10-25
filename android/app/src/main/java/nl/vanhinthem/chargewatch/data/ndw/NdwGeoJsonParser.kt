@@ -39,7 +39,8 @@ class NdwGeoJsonParser(
             address = feature.properties.address?.takeIf(String::isNotBlank),
             operatorName = feature.properties.operatorName?.takeIf(String::isNotBlank),
             lastUpdated = feature.properties.lastUpdated,
-            availability = summarize(feature.properties.availabilities, feature.properties.cpoId, id)
+            availability = summarize(feature.properties.availabilities, feature.properties.cpoId, id),
+            connectorCategories = feature.properties.availabilities
         )
     }
 
