@@ -21,6 +21,18 @@ class NdwGeoJsonParserTest {
         assertEquals(AvailabilityStatus.Available, location.availability.status)
     }
 
+
+    @Test
+    fun preservesOperatorAndAddressForMapSelection() {
+        val location = parser.parse(featureCollection(
+            """[{"available":1,"total":2}]"""
+        )).single()
+
+        assertEquals("Schietspoel 18, Oss", location.title)
+        assertEquals("Vattenfall InCharge", location.operatorName)
+        assertEquals("Schietspoel 18, Oss", location.address)
+    }
+
     @Test
     fun repeatedIdenticalCategoryCountsAreSummedOutsideFas() {
         val location = parser.parse(featureCollection(

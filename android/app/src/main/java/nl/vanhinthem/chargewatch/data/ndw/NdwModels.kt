@@ -48,7 +48,9 @@ data class MapLocation(
     val latitude: Double,
     val title: String,
     val lastUpdated: String?,
-    val availability: AvailabilitySummary
+    val availability: AvailabilitySummary,
+    val address: String? = null,
+    val operatorName: String? = null
 )
 
 data class AvailabilitySummary(

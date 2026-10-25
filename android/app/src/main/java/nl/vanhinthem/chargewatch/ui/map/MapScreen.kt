@@ -1,32 +1,51 @@
 package nl.vanhinthem.chargewatch.ui.map
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Streetview
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,49 +58,30 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
-import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
-import org.maplibre.android.annotations.MarkerOptions
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.MapView
-import org.maplibre.android.maps.MapLibreMap
-import org.maplibre.android.maps.Style
+import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
-import org.maplibre.android.style.expressions.Expression.all
-import org.maplibre.android.style.expressions.Expression.eq
-import org.maplibre.android.style.expressions.Expression.get
-import org.maplibre.android.style.expressions.Expression.has
-import org.maplibre.android.style.expressions.Expression.literal
-import org.maplibre.android.style.expressions.Expression.not
-import org.maplibre.android.style.layers.CircleLayer
-import org.maplibre.android.style.layers.PropertyFactory.circleColor
-import org.maplibre.android.style.layers.PropertyFactory.circleRadius
-import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
-import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
-import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
-import org.maplibre.android.style.layers.PropertyFactory.textColor
-import org.maplibre.android.style.layers.PropertyFactory.textField
-import org.maplibre.android.style.layers.PropertyFactory.textIgnorePlacement
-import org.maplibre.android.style.layers.PropertyFactory.textSize
-import org.maplibre.android.style.layers.SymbolLayer
-import org.maplibre.android.style.sources.GeoJsonOptions
-import org.maplibre.android.style.sources.GeoJsonSource
-import org.maplibre.geojson.Feature
-import org.maplibre.geojson.FeatureCollection
-import org.maplibre.geojson.Point
+import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
 
 @Composable
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
+    var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
+    var detailLocation by remember { mutableStateOf<MapLocation?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
             locations = state.locations,
             darkTheme = darkTheme,
-            onViewportChanged = viewModel::onViewportChanged
+            onViewportChanged = viewModel::onViewportChanged,
+            onLocationsSelected = { selectedLocations = it }
         )
 
         SearchHeader(
@@ -89,7 +89,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .align(Alignment.TopCenter)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         )
-
 
         if (state.loading) {
             CircularProgressIndicator(
@@ -114,6 +113,25 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 )
             }
         }
+    }
+
+    if (selectedLocations.isNotEmpty()) {
+        LocationSelectionSheet(
+            locations = selectedLocations,
+            onDismiss = { selectedLocations = emptyList() },
+            onLocationSelected = { selectedLocations = listOf(it) },
+            onDetails = {
+                detailLocation = it
+                selectedLocations = emptyList()
+            }
+        )
+    }
+
+    detailLocation?.let { location ->
+        LocationDetailScreen(
+            location = location,
+            onBack = { detailLocation = null }
+        )
     }
 }
 
@@ -146,13 +164,16 @@ private fun SearchHeader(modifier: Modifier = Modifier) {
 private fun ChargeMap(
     locations: List<MapLocation>,
     darkTheme: Boolean,
-    onViewportChanged: (NdwViewport) -> Unit
+    onViewportChanged: (NdwViewport) -> Unit,
+    onLocationsSelected: (List<MapLocation>) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
     val currentLocations = rememberUpdatedState(locations)
+    val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val iconCache = remember { mutableMapOf<String, Icon>() }
+    val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
     val mapView = remember(context, darkTheme) {
         MapView(context).apply { onCreate(Bundle()) }
@@ -167,9 +188,7 @@ private fun ChargeMap(
             override fun onDestroy(owner: LifecycleOwner) = mapView.onDestroy()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     AndroidView(
@@ -181,30 +200,68 @@ private fun ChargeMap(
                         .target(LatLng(51.765, 5.525))
                         .zoom(12.0)
                         .build()
-                    configureStyle(map, styleUri, currentLocations.value, onViewportChanged, context, iconCache)
-                    map.getStyle { renderNativeMarkers(map, currentLocations.value, iconCache, context) }
-                    map.addOnCameraIdleListener {
-                        renderNativeMarkers(map, currentLocations.value, iconCache, context)
-                        val bounds = map.projection.visibleRegion.latLngBounds
-                        if (bounds.longitudeWest < bounds.longitudeEast &&
-                            bounds.latitudeSouth < bounds.latitudeNorth
-                        ) {
-                            onViewportChanged(
-                                NdwViewport(
-                                    minLongitude = bounds.longitudeWest,
-                                    minLatitude = bounds.latitudeSouth,
-                                    maxLongitude = bounds.longitudeEast,
-                                    maxLatitude = bounds.latitudeNorth
+
+                    map.setOnMarkerClickListener { marker ->
+                        val group = markerGroups[marker.id] ?: return@setOnMarkerClickListener false
+                        when (markerTapAction(group.size, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM)) {
+                            MarkerTapAction.SelectLocation,
+                            MarkerTapAction.SelectClusterLocations -> currentSelectionHandler.value(group)
+                            MarkerTapAction.ZoomCluster -> {
+                                val latitude = group.map { it.latitude }.average()
+                                val longitude = group.map { it.longitude }.average()
+                                val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
+                                    .coerceAtMost(MAX_CLUSTER_ZOOM)
+                                map.animateCamera(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(latitude, longitude),
+                                        targetZoom
+                                    )
                                 )
-                            )
+                            }
                         }
+                        true
+                    }
+                    map.addOnMapClickListener {
+                        currentSelectionHandler.value(emptyList())
+                        false
+                    }
+
+                    configureStyle(
+                        map = map,
+                        styleUri = styleUri,
+                        locations = currentLocations.value,
+                        onViewportChanged = onViewportChanged,
+                        context = context,
+                        iconCache = iconCache,
+                        markerGroups = markerGroups
+                    )
+                    map.getStyle {
+                        renderNativeMarkers(
+                            map,
+                            currentLocations.value,
+                            iconCache,
+                            context,
+                            markerGroups
+                        )
+                    }
+                    map.addOnCameraIdleListener {
+                        renderNativeMarkers(
+                            map,
+                            currentLocations.value,
+                            iconCache,
+                            context,
+                            markerGroups
+                        )
+                        requestViewport(map, onViewportChanged)
                     }
                 }
             }
         },
         update = { view ->
             view.getMapAsync { map ->
-                map.getStyle { renderNativeMarkers(map, locations, iconCache, context) }
+                map.getStyle {
+                    renderNativeMarkers(map, locations, iconCache, context, markerGroups)
+                }
             }
         }
     )
@@ -216,42 +273,42 @@ private fun configureStyle(
     locations: List<MapLocation>,
     onViewportChanged: (NdwViewport) -> Unit,
     context: Context,
-    iconCache: MutableMap<String, Icon>
+    iconCache: MutableMap<String, Icon>,
+    markerGroups: MutableMap<Long, List<MapLocation>>
 ) {
-    map.setStyle(styleUri) { style ->
-        renderNativeMarkers(map, locations, iconCache, context)
-        // Camera-idle events are not guaranteed to fire on the initial map load.
-        // Explicitly request the initial visible viewport once the map is ready.
-        val bounds = map.projection.visibleRegion.latLngBounds
-        if (bounds.longitudeWest < bounds.longitudeEast &&
-            bounds.latitudeSouth < bounds.latitudeNorth
-        ) {
-            onViewportChanged(
-                NdwViewport(
-                    minLongitude = bounds.longitudeWest,
-                    minLatitude = bounds.latitudeSouth,
-                    maxLongitude = bounds.longitudeEast,
-                    maxLatitude = bounds.latitudeNorth
-                )
-            )
-        }
+    map.setStyle(styleUri) {
+        renderNativeMarkers(map, locations, iconCache, context, markerGroups)
+        requestViewport(map, onViewportChanged)
     }
 }
 
-// MapLibre native annotations render reliably on the tested device, unlike the
-// previous custom GeoJSON source/layers. Clusters only aggregate EVSE estimates
-// when all grouped locations are valid; otherwise show number of locations.
+private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -> Unit) {
+    val bounds = map.projection.visibleRegion.latLngBounds
+    if (bounds.longitudeWest < bounds.longitudeEast &&
+        bounds.latitudeSouth < bounds.latitudeNorth
+    ) {
+        onViewportChanged(
+            NdwViewport(
+                minLongitude = bounds.longitudeWest,
+                minLatitude = bounds.latitudeSouth,
+                maxLongitude = bounds.longitudeEast,
+                maxLatitude = bounds.latitudeNorth
+            )
+        )
+    }
+}
+
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
     icons: MutableMap<String, Icon>,
-    context: Context
+    context: Context,
+    markerGroups: MutableMap<Long, List<MapLocation>>
 ) {
     map.clear()
+    markerGroups.clear()
     if (locations.isEmpty()) return
 
-    // Merge locations by actual on-screen distance, not 64-pixel grid cells.
-    // A marker bitmap is 112 pixels wide, so keep group centers separated.
     val clusters = mutableListOf<MutableList<MapLocation>>()
     val positions = locations.associateWith { location ->
         map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
@@ -279,8 +336,6 @@ private fun renderNativeMarkers(
         }
     }
 
-    // Joining points changes the centroid; merge adjacent final clusters again
-    // to avoid the leftover marker-on-marker overlap seen on the device.
     var merged: Boolean
     do {
         merged = false
@@ -314,7 +369,7 @@ private fun renderNativeMarkers(
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val key = "$isCluster:$color:$label"
+        val key = isCluster.toString() + ":" + color + ":" + label
         val icon = icons.getOrPut(key) {
             iconFactory.fromBitmap(
                 if (isCluster) createClusterBitmap(color, label)
@@ -323,13 +378,248 @@ private fun renderNativeMarkers(
         }
         val latitude = group.map { it.latitude }.average()
         val longitude = group.map { it.longitude }.average()
-        map.addMarker(
+        val marker = map.addMarker(
             MarkerOptions()
                 .position(LatLng(latitude, longitude))
                 .icon(icon)
-                .title(if (isCluster) "${group.size} laadlocaties" else location.title)
+                .title(if (isCluster) group.size.toString() + " laadlocaties" else location.title)
+        )
+        markerGroups[marker.id] = group.toList()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocationSelectionSheet(
+    locations: List<MapLocation>,
+    onDismiss: () -> Unit,
+    onLocationSelected: (MapLocation) -> Unit,
+    onDetails: (MapLocation) -> Unit
+) {
+    val context = LocalContext.current
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        if (locations.size > 1) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = locations.size.toString() + " laadlocaties",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "Kies een locatie",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                locations.forEachIndexed { index, location ->
+                    if (index > 0) HorizontalDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLocationSelected(location) }
+                            .padding(vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(location.title, style = MaterialTheme.typography.titleMedium)
+                            location.address
+                                ?.takeIf { it != location.title }
+                                ?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                        }
+                        Text(
+                            location.availability.label,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        } else {
+            val location = locations.single()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                location.operatorName
+                    ?.takeIf { it != location.title }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                location.address
+                    ?.takeIf { it != location.title }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                AvailabilityText(location)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { openNavigation(context, location) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Navigation, contentDescription = null)
+                        Text(" Navigeren")
+                    }
+                    OutlinedButton(
+                        onClick = { openStreetView(context, location) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Streetview, contentDescription = null)
+                        Text(" Street View")
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onDetails(location) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null)
+                    Text(" Details")
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvailabilityText(location: MapLocation) {
+    val statusText = when (location.availability.status) {
+        AvailabilityStatus.Available -> "Beschikbaar"
+        AvailabilityStatus.NoneAvailable -> "Geen vrije aansluiting"
+        AvailabilityStatus.Unknown -> "Beschikbaarheid onbekend"
+    }
+    Column {
+        Text(
+            text = location.availability.label,
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+@Composable
+private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
+    val context = LocalContext.current
+    BackHandler(onBack = onBack)
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Terug")
+                }
+                Text(
+                    text = "Locatiedetails",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            Text(location.title, style = MaterialTheme.typography.headlineMedium)
+            location.operatorName
+                ?.takeIf { it != location.title }
+                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            location.address
+                ?.takeIf { it != location.title }
+                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            AvailabilityText(location)
+            location.lastUpdated?.let {
+                Text(
+                    text = "Bron bijgewerkt: " + it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            HorizontalDivider()
+            Text(
+                text = "NDW-locatie: " + location.featureId,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { openNavigation(context, location) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Navigation, contentDescription = null)
+                    Text(" Navigeren")
+                }
+                OutlinedButton(
+                    onClick = { openStreetView(context, location) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Streetview, contentDescription = null)
+                    Text(" Street View")
+                }
+            }
+        }
+    }
+}
+
+private fun openNavigation(context: Context, location: MapLocation) {
+    val label = Uri.encode(location.address ?: location.title)
+    val uri = Uri.parse(
+        "geo:0,0?q=" + location.latitude + "," + location.longitude + "(" + label + ")"
+    )
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+    context.startActivity(Intent.createChooser(intent, "Navigeren met"))
+}
+
+private fun openStreetView(context: Context, location: MapLocation) {
+    val streetView = Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse("google.streetview:cbll=" + location.latitude + "," + location.longitude)
+    ).setPackage(GOOGLE_MAPS_PACKAGE)
+
+    if (streetView.resolveActivity(context.packageManager) != null) {
+        context.startActivity(streetView)
+        return
+    }
+
+    val browserFallback = Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse(
+            "https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" +
+                location.latitude + "," + location.longitude
+        )
+    )
+    context.startActivity(browserFallback)
 }
 
 private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
@@ -348,8 +638,6 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     return bitmap
 }
 
-// A cluster uses the same EVSE status color and label as a station, with an
-// additional outline ring. No badge or location count is shown.
 private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
     val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
@@ -367,21 +655,15 @@ private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 30f else 36f
     canvas.drawText(label, 70f, 88f, paint)
-
     return bitmap
 }
 
 private const val CLUSTER_DISTANCE_PX = 144.0
+private const val CLUSTER_ZOOM_STEP = 2.0
+private const val MAX_CLUSTER_ZOOM = 18.0
+private const val GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps"
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
-private const val SOURCE_ID = "chargewatch-locations"
-private const val BASE_LAYER = "chargewatch-base-diagnostics"
-private const val CLUSTER_LAYER = "chargewatch-clusters"
-private const val AVAILABLE_LAYER = "chargewatch-available"
-private const val NONE_AVAILABLE_LAYER = "chargewatch-none-available"
-private const val UNKNOWN_LAYER = "chargewatch-unknown"
-private const val CLUSTER_LABEL_LAYER = "chargewatch-cluster-label"
-private const val LABEL_LAYER = "chargewatch-labels"
 private const val AVAILABLE_COLOR = "#168653"
 private const val NONE_AVAILABLE_COLOR = "#D43B3B"
 private const val UNKNOWN_COLOR = "#818D96"
