@@ -453,6 +453,15 @@ private fun LocationSelectionSheet(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                location.operatorName
+                    ?.takeIf { it != location.title }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 location.address
                     ?.takeIf { it != location.title }
                     ?.let {
@@ -541,7 +550,12 @@ private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
                 )
             }
             Text(location.title, style = MaterialTheme.typography.headlineMedium)
-            location.address?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            location.operatorName
+                ?.takeIf { it != location.title }
+                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            location.address
+                ?.takeIf { it != location.title }
+                ?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
             AvailabilityText(location)
             location.lastUpdated?.let {
                 Text(
