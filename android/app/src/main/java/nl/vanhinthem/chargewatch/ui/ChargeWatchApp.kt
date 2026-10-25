@@ -17,6 +17,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.vanhinthem.chargewatch.ui.map.MapViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
@@ -39,6 +41,8 @@ fun ChargeWatchApp() {
     val repository = remember(context) { FavoritesRepository(context) }
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    val mapViewModel: MapViewModel = viewModel()
+    val mapState by mapViewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
@@ -46,8 +50,11 @@ fun ChargeWatchApp() {
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
     var statusCheckedAt by remember { mutableStateOf(Instant.now()) }
+    val mapStatuses = mapState.locations.associateBy { it.featureId }
     val statusView = favorites.associate { favorite ->
-        favorite.featureId to favoriteAvailability(latestStatuses[favorite.featureId], statusCheckedAt)
+        // Reuse current map observations immediately, while NDW fetches a refresh.
+        val observed = latestStatuses[favorite.featureId] ?: mapStatuses[favorite.featureId]
+        favorite.featureId to favoriteAvailability(observed, statusCheckedAt)
     }
     suspend fun refresh() {
         refreshing = true
@@ -83,6 +90,7 @@ fun ChargeWatchApp() {
         androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
             if (selectedTab == 0) {
                 MapScreen(
+                    viewModel = mapViewModel,
                     favorites = favorites,
                     onToggleFavorite = { location -> scope.launch { repository.toggle(location) } }
                 )
