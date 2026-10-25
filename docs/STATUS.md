@@ -4,7 +4,7 @@
 
 De lijst toont alleen de EVSE-ratio `vrij/totaal` wanneer de bronstatus betrouwbaar is en de timestamp maximaal 15 minuten oud is. Anders verschijnt `?` met toelichting voor verouderde, ontbrekende, onbetrouwbare of niet ontvangen informatie. Mislukte NDW-aanroepen en rate limits leiden tot een waarschuwing, niet tot verzonnen live-statussen. Historische grafieken en widgetverversing blijven aparte features.
 
-**Verificatie:** unit-tests voor verse data, verouderde data, onbetrouwbare status en ontbrekende/onjuiste timestamp toegevoegd. CI-uitkomsten en toestelreview worden na de definitieve commit bevestigd. **Review:** testen of favorieten bij openen en via de knop status tonen; bij NDW-uitval of oude brongegevens `?`; eigen namen en volgorde onveranderd. Geen merge of deployment zonder expliciet akkoord.
+**Verificatie:** unit-tests voor verse data, verouderde data, onbetrouwbare status en ontbrekende/onjuiste timestamp geslaagd. Android workflow run `40189211352` op codecommit `6ea9d92` is groen: `testDebugUnitTest`, `assembleDebug` en APK-upload. Een al geopend favorietenscherm herbeoordeelt de leeftijd iedere minuut zonder extra NDW-verzoeken. Fysieke toestelreview blijft nodig. **Review:** testen of favorieten bij openen en via de knop status tonen; bij NDW-uitval of oude brongegevens `?`; eigen namen en volgorde onveranderd. Geen merge of deployment zonder expliciet akkoord.
 
 ## Android lokale favorieten — PR #43 (25 oktober 2026)
 
