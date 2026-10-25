@@ -1,3 +1,5 @@
+**Toestelreview PR #41 (25 oktober 2026):** gebruiker bevestigt dat cluster-tellingen en groen/rood/grijs-status correct werken, maar dat clusters onvoldoende visueel te onderscheiden zijn van afzonderlijke laadlocaties. Daarom hebben clusters nu een **grotere dubbele ring** met een klein **badge rechtsboven met het aantal samengevoegde locaties**; de centrale tekst blijft EVSE `x/y`, of neutraal locatieaantal bij onbekende brongegevens. Individuele markers ongewijzigd. Nieuwe Android CI en hernieuwde toestelcheck van de clusterstijl nog nodig. Niet mergen zonder expliciet akkoord.
+
 ## Android clusterbeschikbaarheid — featurebranch (25 oktober 2026)
 
 **Branch:** `feature/android-cluster-availability` vanaf de naar `main` gemergede PR #40 (mergecommit `ac4d21cbd2edfdcb12fa74441b0dadcd910b8947`). PR #40 was door gebruiker op toestel goedgekeurd; de oudere vermeldingen hieronder dat PR #40 *nog niet gemerged* zou zijn beschrijven de historische PR-fase, niet de huidige status.
