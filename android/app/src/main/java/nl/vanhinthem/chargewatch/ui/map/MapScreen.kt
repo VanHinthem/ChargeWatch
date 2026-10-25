@@ -57,7 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -575,8 +575,8 @@ private fun LocationDetailScreen(
     val context = LocalContext.current
     BackHandler(onBack = onBack)
     val statusColor = when (location.availability.status) {
-        AvailabilityStatus.Available -> Color(0xFF2FA76B)
-        AvailabilityStatus.NoneAvailable -> Color(0xFFE35D5B)
+        AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
+        AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
         AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val updated = remember(location.lastUpdated) {
@@ -665,7 +665,7 @@ private fun LocationDetailScreen(
                             val count = if (valid) "${category.available}/${category.total}" else "?"
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(count, style = MaterialTheme.typography.titleLarge,
-                                    color = if (valid && category.available!! > 0) Color(0xFF2FA76B) else MaterialTheme.colorScheme.onSurface)
+                                    color = if (valid && category.available!! > 0) ComposeColor(0xFF2FA76B) else MaterialTheme.colorScheme.onSurface)
                                 Text("vrij", style = MaterialTheme.typography.labelSmall)
                             }
                         }
