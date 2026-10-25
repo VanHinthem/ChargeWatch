@@ -52,7 +52,9 @@ def geo_key(feature):
     if len(components) != 3:
         return None
     country, party, location = components
-    if properties.get("country") and properties["country"].upper() != country.upper():
+    country_value = properties.get("country")
+    aliases = {"NL": {"NL", "NLD"}, "BE": {"BE", "BEL"}, "DE": {"DE", "DEU"}}
+    if country_value and country_value.upper() not in aliases.get(country.upper(), {country.upper()}):
         return None
     return key(country, party, location)
 
