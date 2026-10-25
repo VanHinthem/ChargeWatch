@@ -77,6 +77,7 @@ import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.formatChargingPower
+import nl.vanhinthem.chargewatch.data.ndw.availabilityDescription
 import nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName
 import nl.vanhinthem.chargewatch.data.ndw.connectorSymbol
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
