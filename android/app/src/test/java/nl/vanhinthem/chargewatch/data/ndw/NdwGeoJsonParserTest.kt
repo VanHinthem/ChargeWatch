@@ -28,7 +28,7 @@ class NdwGeoJsonParserTest {
             """[{"available":1,"total":2}]"""
         )).single()
 
-        assertEquals("Vattenfall InCharge", location.title)
+        assertEquals("Schietspoel 18, Oss", location.title)
         assertEquals("Vattenfall InCharge", location.operatorName)
         assertEquals("Schietspoel 18, Oss", location.address)
     }
