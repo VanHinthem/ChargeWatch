@@ -100,6 +100,9 @@ def compare(geojson, ocpi):
             ocpi_by_key[k] = loc
     stats = Counter()
     examples = []
+    capacity_examples = []
+    capacity_delta = Counter()
+    capacity_by_party = Counter()
     for feature in geojson.get("features", []):
         k = geo_key(feature)
         if not k or k not in ocpi_by_key:
@@ -127,6 +130,17 @@ def compare(geojson, ocpi):
                 stats["sum_total_matches_available_differs"] += 1
         else:
             stats["sum_total_differs"] += 1
+            delta = summed[1] - expected[1]
+            capacity_delta[str(delta)] += 1
+            capacity_by_party[k[1]] += 1
+            if len(capacity_examples) < 30:
+                capacity_examples.append({
+                    "key": list(k),
+                    "category_pairs": [list(pair) for pair in pairs],
+                    "sum_pair": list(summed),
+                    "unique_evses": evses,
+                    "difference_total": delta,
+                })
         if len(pairs) > 1:
             if summed[1] == expected[1]:
                 stats["multi_sum_total_matches"] += 1
@@ -155,7 +169,13 @@ def compare(geojson, ocpi):
                     "max_pair": list(maximum),
                     "unique_evses": evses,
                 })
-    return {"stats": dict(stats), "mismatches_sample": examples}
+    return {
+        "stats": dict(stats),
+        "capacity_difference_by_delta": dict(capacity_delta),
+        "capacity_difference_by_party": dict(capacity_by_party),
+        "capacity_mismatches_sample": capacity_examples,
+        "mismatches_sample": examples,
+    }
 
 
 def main():
