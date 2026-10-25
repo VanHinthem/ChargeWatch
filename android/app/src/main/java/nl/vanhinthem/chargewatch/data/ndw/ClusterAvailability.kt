@@ -11,7 +11,7 @@ data class ClusterAvailability(
     val locationCount: Int
 ) {
     val label: String
-        get() = if (available != null && total != null) "$available/$total" else "$locationCount"
+        get() = if (available != null && total != null) "$available/$total" else "?"
 
     val status: AvailabilityStatus
         get() = when {
