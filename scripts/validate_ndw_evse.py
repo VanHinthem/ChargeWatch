@@ -117,6 +117,16 @@ def compare(geojson, ocpi):
         if evses["unknown"]:
             stats["ocpi_unknown_status"] += 1
             continue
+        # Compare hypotheses; snapshot agreement does not prove a general rule.
+        summed = (sum(a for a, _ in pairs), sum(t for _, t in pairs))
+        maximum = (max(a for a, _ in pairs), max(t for _, t in pairs))
+        expected = (evses["available"], evses["total"])
+        stats["sum_matches" if summed == expected else "sum_differs"] += 1
+        stats["max_matches" if maximum == expected else "max_differs"] += 1
+        if len(pairs) > 1:
+            stats["multi_category_locations"] += 1
+            stats["multi_sum_matches" if summed == expected else "multi_sum_differs"] += 1
+            stats["multi_max_matches" if maximum == expected else "multi_max_differs"] += 1
         candidate = pairs[0] if len(set(pairs)) == 1 else None
         if candidate is None:
             stats["ambiguous_category_counts"] += 1
@@ -128,6 +138,8 @@ def compare(geojson, ocpi):
                 examples.append({
                     "key": list(k),
                     "category_pairs": [list(pair) for pair in pairs],
+                    "sum_pair": list(summed),
+                    "max_pair": list(maximum),
                     "unique_evses": evses,
                 })
     return {"stats": dict(stats), "mismatches_sample": examples}
