@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwClient
 import nl.vanhinthem.chargewatch.data.ndw.NdwResult
@@ -51,6 +52,7 @@ class MapViewModel(
             is NdwResult.Success -> {
                 _uiState.value = MapUiState(
                     locations = result.locations,
+                    fetchedAt = Instant.now(),
                     loading = false,
                     message = if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null
                 )
@@ -85,6 +87,7 @@ class MapViewModel(
 
 data class MapUiState(
     val locations: List<MapLocation> = emptyList(),
+    val fetchedAt: Instant? = null,
     val loading: Boolean = false,
     val message: String? = "Zoom verder in om laadlocaties te laden.",
     val rateLimited: Boolean = false
