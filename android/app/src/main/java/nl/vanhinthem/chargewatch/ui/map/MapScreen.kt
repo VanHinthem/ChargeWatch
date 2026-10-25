@@ -204,21 +204,21 @@ private fun ChargeMap(
 
                     map.addOnMarkerClickListener { marker ->
                         val group = markerGroups[marker.id] ?: return@addOnMarkerClickListener false
-                        if (group.size == 1) {
-                            currentSelectionHandler.value(group)
-                        } else if (map.cameraPosition.zoom < MAX_CLUSTER_ZOOM) {
-                            val latitude = group.map { it.latitude }.average()
-                            val longitude = group.map { it.longitude }.average()
-                            val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
-                                .coerceAtMost(MAX_CLUSTER_ZOOM)
-                            map.animateCamera(
-                                CameraUpdateFactory.newLatLngZoom(
-                                    LatLng(latitude, longitude),
-                                    targetZoom
+                        when (markerTapAction(group.size, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM)) {
+                            MarkerTapAction.SelectLocation,
+                            MarkerTapAction.SelectClusterLocations -> currentSelectionHandler.value(group)
+                            MarkerTapAction.ZoomCluster -> {
+                                val latitude = group.map { it.latitude }.average()
+                                val longitude = group.map { it.longitude }.average()
+                                val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
+                                    .coerceAtMost(MAX_CLUSTER_ZOOM)
+                                map.animateCamera(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(latitude, longitude),
+                                        targetZoom
+                                    )
                                 )
-                            )
-                        } else {
-                            currentSelectionHandler.value(group)
+                            }
                         }
                         true
                     }
