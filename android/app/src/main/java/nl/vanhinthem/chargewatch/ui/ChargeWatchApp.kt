@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
@@ -65,6 +66,12 @@ fun ChargeWatchApp() {
         } finally {
             statusCheckedAt = Instant.now()
             refreshing = false
+        }
+    }
+    LaunchedEffect(selectedTab) {
+        while (selectedTab == 1) {
+            delay(60_000)
+            statusCheckedAt = Instant.now()
         }
     }
     LaunchedEffect(selectedTab, favorites.map { it.featureId }) {
