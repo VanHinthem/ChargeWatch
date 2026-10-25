@@ -15,11 +15,17 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
+import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
+import nl.vanhinthem.chargewatch.data.favorites.favoriteAvailability
+import androidx.compose.runtime.mutableStateOf
+import java.time.Instant
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
 import nl.vanhinthem.chargewatch.data.ndw.CountReliability
@@ -34,6 +40,38 @@ fun ChargeWatchApp() {
     val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
 
+    val availabilityClient = remember { FavoritesAvailabilityClient() }
+    var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
+    var refreshing by remember { mutableStateOf(false) }
+    var refreshMessage by remember { mutableStateOf<String?>(null) }
+    var statusCheckedAt by remember { mutableStateOf(Instant.now()) }
+    val statusView = favorites.associate { favorite ->
+        favorite.featureId to favoriteAvailability(latestStatuses[favorite.featureId], statusCheckedAt)
+    }
+    suspend fun refresh() {
+        refreshing = true
+        refreshMessage = null
+        try {
+            when (val result = availabilityClient.refresh(favorites)) {
+                is FavoriteRefreshResult.Success -> latestStatuses = result.locations
+                is FavoriteRefreshResult.Partial -> {
+                    latestStatuses = result.locations
+                    refreshMessage = result.warning
+                }
+            }
+        } catch (_: Exception) {
+            latestStatuses = emptyMap()
+            refreshMessage = "Beschikbaarheid kon niet worden opgehaald."
+        } finally {
+            statusCheckedAt = Instant.now()
+            refreshing = false
+        }
+    }
+    LaunchedEffect(selectedTab, favorites.map { it.featureId }) {
+        if (selectedTab == 1 && favorites.isNotEmpty()) refresh()
+    }
+
+
     Column(Modifier.fillMaxSize()) {
         androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
             if (selectedTab == 0) {
@@ -44,6 +82,10 @@ fun ChargeWatchApp() {
             } else {
                 FavoritesScreen(
                     favorites = favorites,
+                    availability = statusView,
+                    refreshing = refreshing,
+                    refreshMessage = refreshMessage,
+                    onRefresh = { scope.launch { refresh() } },
                     onRename = { id, name -> scope.launch { repository.rename(id, name) } },
                     onMove = { id, offset -> scope.launch { repository.move(id, offset) } },
                     onRemove = { item ->
