@@ -103,6 +103,7 @@ def compare(geojson, ocpi):
     capacity_examples = []
     capacity_delta = Counter()
     capacity_by_party = Counter()
+    by_party = defaultdict(Counter)
     for feature in geojson.get("features", []):
         k = geo_key(feature)
         if not k or k not in ocpi_by_key:
@@ -148,6 +149,16 @@ def compare(geojson, ocpi):
                     stats["multi_sum_total_matches_available_differs"] += 1
             else:
                 stats["multi_sum_total_differs"] += 1
+        per_party = by_party[k[1]]
+        per_party["comparable"] += 1
+        per_party["sum_matches" if summed == expected else "sum_differs"] += 1
+        per_party["max_matches" if maximum == expected else "max_differs"] += 1
+        per_party["sum_total_matches" if summed[1] == expected[1] else "sum_total_differs"] += 1
+        per_party["max_total_matches" if maximum[1] == expected[1] else "max_total_differs"] += 1
+        if len(pairs) > 1:
+            per_party["multi_category"] += 1
+            per_party["multi_sum_total_matches" if summed[1] == expected[1] else "multi_sum_total_differs"] += 1
+            per_party["multi_max_total_matches" if maximum[1] == expected[1] else "multi_max_total_differs"] += 1
         stats["sum_matches" if summed == expected else "sum_differs"] += 1
         stats["max_matches" if maximum == expected else "max_differs"] += 1
         if len(pairs) > 1:
@@ -173,6 +184,7 @@ def compare(geojson, ocpi):
         "stats": dict(stats),
         "capacity_difference_by_delta": dict(capacity_delta),
         "capacity_difference_by_party": dict(capacity_by_party),
+        "comparison_by_party": {party: dict(counts) for party, counts in sorted(by_party.items())},
         "capacity_mismatches_sample": capacity_examples,
         "mismatches_sample": examples,
     }
