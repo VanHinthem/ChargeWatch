@@ -42,6 +42,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -95,8 +99,7 @@ fun MapScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
-    var detailLocation by remember { mutableStateOf<MapLocation?>(null) }
-    LaunchedEffect(detailLocation) { onDetailVisibilityChanged(detailLocation != null) }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
@@ -143,23 +146,12 @@ fun MapScreen(
             locations = selectedLocations,
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
-            onDetails = {
-                detailLocation = it
-                selectedLocations = emptyList()
-            },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
             onToggleFavorite = onToggleFavorite
         )
     }
 
-    detailLocation?.let { location ->
-        LocationDetailScreen(
-            location = location,
-            isFavorite = favorites.any { it.featureId == location.featureId },
-            onFavorite = { onToggleFavorite(location) },
-            onBack = { detailLocation = null }
-        )
-    }
+
 }
 
 @Composable
@@ -429,12 +421,14 @@ private fun LocationSelectionSheet(
     locations: List<MapLocation>,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
-    onDetails: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
     onToggleFavorite: (MapLocation) -> Unit
 ) {
     val context = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val expanded = sheetState.currentValue == SheetValue.Expanded
+    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.53f
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -482,64 +476,90 @@ private fun LocationSelectionSheet(
             }
         } else {
             val location = locations.single()
+            val statusColor = when (location.availability.status) {
+                AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
+                AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
+                AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                Modifier.fillMaxWidth().heightIn(min = minSheetHeight)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(location.title, style = MaterialTheme.typography.headlineSmall)
-                location.operatorName
-                    ?.takeIf { it != location.title }
-                    ?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                location.operatorName?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { openNavigation(context, location) }) {
+                        Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
                     }
-                location.address
-                    ?.takeIf { it != location.title }
-                    ?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    OutlinedButton(onClick = { openStreetView(context, location) }) {
+                        Icon(Icons.Default.Streetview, contentDescription = "Street View")
                     }
-                AvailabilityText(location)
-                OutlinedButton(onClick = { onToggleFavorite(location) }) {
-                    Icon(if (isFavorite(location)) Icons.Filled.Star else Icons.Outlined.StarBorder, contentDescription = null)
-                    Text(if (isFavorite(location)) " Verwijder favoriet" else " Voeg toe aan favorieten")
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { openNavigation(context, location) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Navigation, contentDescription = null)
-                        Text(" Navigeren")
-                    }
-                    OutlinedButton(
-                        onClick = { openStreetView(context, location) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Streetview, contentDescription = null)
-                        Text(" Street View")
+                    OutlinedButton(onClick = { onToggleFavorite(location) }) {
+                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
                     }
                 }
-                OutlinedButton(
-                    onClick = { onDetails(location) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null)
-                    Text(" Details")
+                Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text("BESCHIKBAARHEID", style = MaterialTheme.typography.labelMedium)
+                            Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
+                            Text(when (location.availability.status) {
+                                AvailabilityStatus.Available -> "vrije laadpunten"
+                                AvailabilityStatus.NoneAvailable -> "geen vrije laadpunten"
+                                AvailabilityStatus.Unknown -> "status onbekend"
+                            }, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
+                if (expanded) {
+                    Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+                    if (location.connectorCategories.isEmpty()) {
+                        Text("Geen aansluitgegevens beschikbaar")
+                    } else {
+                        location.connectorCategories.forEach { category ->
+                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
+                                Row(Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Icon(Icons.Default.Bolt, contentDescription = null)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
+                                        val attributes = listOfNotNull(
+                                            category.powerType?.uppercase()?.takeIf { it == "AC" || it == "DC" },
+                                            formatChargingPower(category.powerMax)
+                                        ).joinToString(" · ")
+                                        if (attributes.isNotEmpty()) Text(attributes,
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    val count = if (category.available != null && category.total != null &&
+                                        category.available >= 0 && category.total > 0 && category.available <= category.total)
+                                        "${category.available}/${category.total}" else "?"
+                                    Text(count, style = MaterialTheme.typography.titleLarge)
+                                }
+                            }
+                        }
+                    }
+                    val updated = remember(location.lastUpdated) {
+                        location.lastUpdated?.let { raw ->
+                            runCatching { DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))
+                                .withZone(ZoneId.systemDefault()).format(Instant.parse(raw)) }.getOrNull()
+                        }
+                    }
+                    updated?.let { Text("NDW · bijgewerkt $it",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else {
+                    Text("Veeg omhoog voor aansluitingen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -565,121 +585,6 @@ private fun AvailabilityText(location: MapLocation) {
     }
 }
 
-@Composable
-private fun LocationDetailScreen(
-    location: MapLocation,
-    isFavorite: Boolean,
-    onFavorite: () -> Unit,
-    onBack: () -> Unit
-) {
-    val context = LocalContext.current
-    BackHandler(onBack = onBack)
-    val statusColor = when (location.availability.status) {
-        AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
-        AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
-        AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val updated = remember(location.lastUpdated) {
-        location.lastUpdated?.let { raw ->
-            runCatching {
-                DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))
-                    .withZone(ZoneId.systemDefault()).format(Instant.parse(raw))
-            }.getOrNull()
-        }
-    }
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Terug")
-                }
-                Text("Laadlocatie", style = MaterialTheme.typography.titleMedium)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(location.title, style = MaterialTheme.typography.headlineMedium)
-                location.operatorName?.takeIf { it != location.title }?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                location.address?.takeIf { it != location.title }?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { openNavigation(context, location) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Navigation, contentDescription = null)
-                    Text(" Navigeren")
-                }
-                OutlinedButton(onClick = { openStreetView(context, location) }) {
-                    Icon(Icons.Default.Streetview, contentDescription = "Street View")
-                }
-                OutlinedButton(onClick = onFavorite) {
-                    Icon(if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                        contentDescription = if (isFavorite) "Verwijder favoriet" else "Voeg favoriet toe")
-                }
-            }
-            Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
-                Row(Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("BESCHIKBAAR", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
-                        Text(when (location.availability.status) {
-                            AvailabilityStatus.Available -> "vrije laadpunten"
-                            AvailabilityStatus.NoneAvailable -> "geen vrije laadpunten"
-                            AvailabilityStatus.Unknown -> "status onbekend"
-                        }, style = MaterialTheme.typography.bodyMedium)
-                        updated?.let { Text("NDW · bijgewerkt $it", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                    Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
-                }
-            }
-            Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
-            if (location.connectorCategories.isEmpty()) {
-                Text("Aansluitgegevens niet beschikbaar", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                location.connectorCategories.forEach { category ->
-                    Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Column(Modifier.weight(1f)) {
-                                Text(connectorDisplayName(category.connectorType),
-                                    style = MaterialTheme.typography.titleMedium)
-                                val line = listOfNotNull(
-                                    category.powerType?.uppercase()?.takeIf { it == "AC" || it == "DC" },
-                                    formatChargingPower(category.powerMax)
-                                ).joinToString(" · ")
-                                if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            val valid = category.available != null && category.total != null &&
-                                category.available >= 0 && category.total > 0 && category.available <= category.total
-                            val count = if (valid) "${category.available}/${category.total}" else "?"
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(count, style = MaterialTheme.typography.titleLarge,
-                                    color = if (valid && category.available!! > 0) ComposeColor(0xFF2FA76B) else MaterialTheme.colorScheme.onSurface)
-                                Text("vrij", style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
-                }
-                if (location.connectorCategories.size > 1) Text(
-                    "Tellingen per stekkertype kunnen overlappen",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
 
 private fun openNavigation(context: Context, location: MapLocation) {
     val label = Uri.encode(location.address ?: location.title)
