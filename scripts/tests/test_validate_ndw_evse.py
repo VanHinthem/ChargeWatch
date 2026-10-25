@@ -39,6 +39,9 @@ class NdwEvseValidationTests(unittest.TestCase):
     def test_ndw_compound_identifier_preserves_hyphenated_location_id(self):
         self.assertEqual(("NL", "EFL", "loc-123"), module.geo_key({"id": "NL-EFL-loc-123", "properties": {"country": "NL"}}))
 
+    def test_iso3_country_and_ocpi_country_id_match(self):
+        self.assertEqual(("NL", "EFL", "672e052a98865f14efaf9429"), module.geo_key({"id": "NL-EFL-672e052a98865f14efaf9429", "properties": {"country": "NLD", "cpo_id": "EFL"}}))
+
     def test_unmatched_identity_not_fuzzy_matched(self):
         report = module.compare({"features": [{"id": "NL-ABC-loc1", "properties": {}}]}, [])
         self.assertEqual(1, report["stats"]["unmatched_geojson"])
