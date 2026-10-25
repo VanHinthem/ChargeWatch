@@ -43,13 +43,18 @@ def ocpi_key(loc):
 
 def geo_key(feature):
     properties = feature.get("properties") or {}
-    # NDW feature id may be a compound identifier; require explicit identity
-    # fields before attempting a comparison to avoid a false positive match.
-    return key(
-        properties.get("country_code") or properties.get("country"),
-        properties.get("party_id"),
-        properties.get("source_id") or properties.get("location_id"),
-    )
+    # NDW GeoJSON has no standalone party_id or source_id. The feature id
+    # appears to be country-party-location; validate against a real pair.
+    feature_id = feature.get("id")
+    if not isinstance(feature_id, str):
+        return None
+    components = feature_id.split("-", 2)
+    if len(components) != 3:
+        return None
+    country, party, location = components
+    if properties.get("country") and properties["country"].upper() != country.upper():
+        return None
+    return key(country, party, location)
 
 
 def count_unique_evses(location):
