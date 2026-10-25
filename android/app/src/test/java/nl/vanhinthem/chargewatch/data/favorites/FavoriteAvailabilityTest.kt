@@ -19,16 +19,17 @@ class FavoriteAvailabilityTest {
         assertEquals(AvailabilityStatus.Available, result.status)
     }
 
-    @Test fun staleStatusIsNeverPresentedAsLive() {
+    @Test fun oldTimestampKeepsKnownRatioButLabelsAge() {
         val result = favoriteAvailability(location("2026-10-25T10:44:59Z"), now)
-        assertEquals("?", result.label)
-        assertEquals(AvailabilityStatus.Unknown, result.status)
+        assertEquals("1/2", result.label)
+        assertEquals(AvailabilityStatus.Available, result.status)
+        org.junit.Assert.assertTrue(result.description.contains("16 min"))
     }
 
     @Test fun missingTimestampAndUnreliableStatusesAreUnknown() {
-        assertEquals("?", favoriteAvailability(location(null), now).label)
+        assertEquals("1/2", favoriteAvailability(location(null), now).label)
         assertEquals("?", favoriteAvailability(location("2026-10-25T10:58:00Z", CountReliability.Ambiguous), now).label)
-        assertEquals("?", favoriteAvailability(location("bad"), now).label)
+        assertEquals("1/2", favoriteAvailability(location("bad"), now).label)
         assertEquals("?", favoriteAvailability(null, now).label)
     }
 }
