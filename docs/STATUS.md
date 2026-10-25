@@ -1,3 +1,9 @@
+## Issue #38 / draft PR #39 — sample-afwijkingen wijzen op aanbiederafhankelijk overlap (25 oktober 2026)
+
+Gebruiker leverde `capacity_mismatches_sample` met 30 getoonde afwijkende locaties. Analyse: **28/30 zijn FAS**, daarnaast ENE (1) en BLK (1); bij alle 30 is de somcapaciteit groter dan unieke OCPI-EVSE-capaciteit. **Maximumcapaciteit klopt bij 28/30**; dit is een geselecteerde afwijkingensteekproef en dus nadrukkelijk **geen landelijke zekerheid** dat voor FAS altijd maximum juist is. Bij meerdere andere aanbieders klopt juist de som, blijkens eerdere nationale analyse.
+
+Comparator uitgebreid met `comparison_by_party`: per OCPI-party aantal vergelijkbare locaties, som-/maximum-overeenkomsten voor volledige (beschikbaar+totaal) EVSE-waarden, en separate totaal-overeenkomsten bij locaties met meerdere connectorcategorieën. Gerichte regressietest toegevoegd. Eerst op gehele lokale snapshot per-party-dekking en afwijkingen verifiëren; **geen aanbiederafhankelijke Android-heuristiek implementeren voor deze uitkomsten bekend zijn**. PR blijft draft, geen merge/deploy.
+
 ## Issue #38 — gerichte diagnose capaciteitsoverlap (25 oktober 2026)
 
 Op basis van de landelijke validatie (76.725 juiste somtotalen, 172 afwijkende totalen waarvan 169 op meer-categorielocaties) is de comparator uitgebreid met `capacity_difference_by_delta` (positief = GeoJSON-som telt meer dan unieke OCPI-EVSE's; negatief = minder), `capacity_difference_by_party` en `capacity_mismatches_sample` (maximaal 30). Er is een gerichte synthetische test voor overcount toegevoegd. De resultaten op de werkelijke NDW-snapshots moeten nog lokaal worden gedraaid; er is dus **nog geen vastgestelde verdeling naar boven-/ondertelling of aanbieder**. Draft PR #39 blijft open, Android-weergave onveranderd, geen merge/deploy.
