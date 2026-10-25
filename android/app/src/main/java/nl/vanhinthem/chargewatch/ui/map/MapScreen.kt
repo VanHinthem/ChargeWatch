@@ -314,8 +314,13 @@ private fun renderNativeMarkers(
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val key = "$color:$label"
-        val icon = icons.getOrPut(key) { iconFactory.fromBitmap(createMarkerBitmap(color, label)) }
+        val key = "$isCluster:$color:$label:${group.size}"
+        val icon = icons.getOrPut(key) {
+            iconFactory.fromBitmap(
+                if (isCluster) createClusterBitmap(color, label, group.size)
+                else createMarkerBitmap(color, label)
+            )
+        }
         val latitude = group.map { it.latitude }.average()
         val longitude = group.map { it.longitude }.average()
         map.addMarker(
@@ -340,6 +345,37 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     paint.textSize = if (label.length > 4) 29f else 34f
     canvas.drawText(label, 56f, 68f, paint)
+    return bitmap
+}
+
+// A cluster has a larger double-ring marker and a small count badge. The main
+// number is still EVSE availability (or location count when unknown).
+private fun createClusterBitmap(colorHex: String, label: String, locationCount: Int): Bitmap {
+    val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = Color.WHITE
+    canvas.drawCircle(70f, 76f, 63f, paint)
+    paint.color = Color.parseColor(colorHex)
+    canvas.drawCircle(70f, 76f, 57f, paint)
+    paint.color = Color.WHITE
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 3f
+    canvas.drawCircle(70f, 76f, 49f, paint)
+    paint.style = Paint.Style.FILL
+    paint.textAlign = Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    paint.textSize = if (label.length > 4) 30f else 36f
+    canvas.drawText(label, 70f, 88f, paint)
+
+    // The top-right badge explicitly identifies the number of grouped stations.
+    paint.color = Color.WHITE
+    canvas.drawCircle(117f, 28f, 25f, paint)
+    paint.color = Color.parseColor("#334155")
+    canvas.drawCircle(117f, 28f, 21f, paint)
+    paint.color = Color.WHITE
+    paint.textSize = if (locationCount >= 100) 16f else 20f
+    canvas.drawText(locationCount.toString(), 117f, 35f, paint)
     return bitmap
 }
 
