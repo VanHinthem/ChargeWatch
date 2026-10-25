@@ -26,3 +26,12 @@ fun connectorSymbol(type: String?): String = when (type?.uppercase(Locale.ROOT))
     "IEC_62196_T2_COMBO", "CCS", "CCS2", "CHADEMO" -> "⚡"
     else -> "🔌"
 }
+
+/** Human-readable availability without presenting unknown/estimated counts as certain. */
+fun availabilityDescription(summary: AvailabilitySummary): String {
+    if (summary.reliability == CountReliability.Ambiguous ||
+        summary.available == null || summary.total == null) return "Beschikbaarheid onbekend"
+    return if (summary.reliability == CountReliability.Estimated)
+        "Naar schatting ${summary.available} van ${summary.total} vrij"
+    else "${summary.available} van ${summary.total} laadpunten vrij"
+}
