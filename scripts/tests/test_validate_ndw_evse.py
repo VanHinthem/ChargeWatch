@@ -56,6 +56,8 @@ class NdwEvseValidationTests(unittest.TestCase):
         report = module.compare(geo, ocpi)
         self.assertEqual(1, report["capacity_difference_by_delta"]["2"])
         self.assertEqual(1, report["capacity_difference_by_party"]["ABC"])
+        self.assertEqual(1, report["comparison_by_party"]["ABC"]["multi_sum_total_differs"])
+        self.assertEqual(1, report["comparison_by_party"]["ABC"]["multi_max_total_matches"])
 
     def test_unknown_evse_status_never_counted_as_occupied(self):
         evses = module.count_unique_evses({"evses": [
