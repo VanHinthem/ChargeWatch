@@ -47,6 +47,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -489,30 +490,35 @@ private fun LocationSelectionSheet(
             ) {
                 Text(location.title, style = MaterialTheme.typography.headlineSmall)
                 location.operatorName?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = { openNavigation(context, location) }) {
-                        Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { openNavigation(context, location) }) {
+                            Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
+                        }
                     }
-                    OutlinedButton(onClick = { openStreetView(context, location) }) {
-                        Icon(Icons.Default.Streetview, contentDescription = "Street View")
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { openStreetView(context, location) }) {
+                            Icon(Icons.Default.Streetview, contentDescription = "Street View")
+                        }
                     }
-                    OutlinedButton(onClick = { onToggleFavorite(location) }) {
-                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
-                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                        IconButton(onClick = { onToggleFavorite(location) }) {
+                            Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                        }
                     }
                 }
                 Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp),
+                    Row(Modifier.fillMaxWidth().padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text("BESCHIKBAARHEID", style = MaterialTheme.typography.labelMedium)
                             Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
-                            Text(when (location.availability.status) {
-                                AvailabilityStatus.Available -> "vrije laadpunten"
-                                AvailabilityStatus.NoneAvailable -> "geen vrije laadpunten"
-                                AvailabilityStatus.Unknown -> "status onbekend"
-                            }, style = MaterialTheme.typography.bodyMedium)
+                            Text(availabilityDescription(location.availability), style = MaterialTheme.typography.bodyMedium)
                         }
                         Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
                     }
@@ -527,7 +533,7 @@ private fun LocationSelectionSheet(
                                 Row(Modifier.fillMaxWidth().padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Icon(Icons.Default.Bolt, contentDescription = null)
+                                    ConnectorSocketIcon(category.connectorType)
                                     Column(Modifier.weight(1f)) {
                                         Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
                                         val attributes = listOfNotNull(
