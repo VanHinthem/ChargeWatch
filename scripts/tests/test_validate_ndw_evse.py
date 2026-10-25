@@ -29,6 +29,15 @@ class NdwEvseValidationTests(unittest.TestCase):
         report = module.compare(geo, ocpi)
         self.assertEqual(1, report["stats"]["pair_differs_from_unique_evses"])
 
+    def test_summed_categories_can_match_unique_evses_while_max_does_not(self):
+        geo = {"features": [{"id": "NL-ABC-loc2", "properties": {"country": "NLD",
+            "availabilities": [{"available": 1, "total": 1}, {"available": 1, "total": 1}]}}]}
+        ocpi = [{"country_code": "NL", "party_id": "ABC", "id": "loc2", "evses": [
+            {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "AVAILABLE"}]}]
+        stats = module.compare(geo, ocpi)["stats"]
+        self.assertEqual(1, stats["multi_sum_matches"])
+        self.assertEqual(1, stats["multi_max_differs"])
+
     def test_unknown_evse_status_never_counted_as_occupied(self):
         evses = module.count_unique_evses({"evses": [
             {"uid": "a", "status": "AVAILABLE"}, {"uid": "b", "status": "UNKNOWN"}
