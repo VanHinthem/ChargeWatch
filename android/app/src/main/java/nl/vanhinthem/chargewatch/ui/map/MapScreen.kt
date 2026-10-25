@@ -63,6 +63,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.ndw.formatChargingPower
+import nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName
+import nl.vanhinthem.chargewatch.data.ndw.connectorSymbol
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
 import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
@@ -578,10 +581,10 @@ private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
 
             Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 2.dp) {
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Text("Beschikbaarheid volgens NDW", style = MaterialTheme.typography.titleMedium)
+                    Text("Beschikbaarheid", style = MaterialTheme.typography.titleMedium)
                     AvailabilityText(location)
                     Text(
-                        "Laatst bekende status, geen garantie op actuele beschikbaarheid.",
+                        "Laatst bekende bronstatus",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -596,26 +599,28 @@ private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
                 Text("Geen aansluitingsgegevens beschikbaar.")
             } else {
                 Text(
-                    "NDW-categorieën; categorieën kunnen dezelfde laadpunten omvatten en zijn niet afzonderlijk optelbaar.",
+                    "Aantallen per aansluitingstype kunnen overlappen.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 location.connectorCategories.forEach { category ->
                     Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
-                        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                            val name = listOfNotNull(
-                                category.connectorType?.takeIf { it.isNotBlank() },
-                                category.powerType?.takeIf { it.isNotBlank() }
-                            ).joinToString(" · ").ifEmpty { "Type onbekend" }
-                            Text(name, style = MaterialTheme.typography.titleMedium)
-                            category.powerMax?.takeIf { it > 0 }?.let {
-                                Text("Maximaal ${it} kW", style = MaterialTheme.typography.bodyMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(connectorSymbol(category.connectorType), style = MaterialTheme.typography.headlineSmall)
+                            Column(Modifier.weight(1f)) {
+                                Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
+                                val power = formatChargingPower(category.powerMax)
+                                if (power != null) Text(power, style = MaterialTheme.typography.bodyMedium)
                             }
                             val count = if (category.available != null && category.total != null &&
                                 category.available >= 0 && category.total > 0 &&
                                 category.available <= category.total) "${category.available}/${category.total}"
                                 else "?"
-                            Text("$count volgens NDW-categorie", style = MaterialTheme.typography.bodyMedium)
+                            Text(count, style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
@@ -623,10 +628,10 @@ private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
 
             HorizontalDivider()
             Text("Tarieven", style = MaterialTheme.typography.titleLarge)
-            Text("Nog geen gevalideerde actuele tariefinformatie gekoppeld.")
+            Text("Tarieven nog niet beschikbaar.")
             HorizontalDivider()
             Text("Populaire laadtijden", style = MaterialTheme.typography.titleLarge)
-            Text("Nog geen gevalideerde historische gegevens voor deze locatie gekoppeld.")
+            Text("Statistieken nog niet beschikbaar.")
             Text(
                 "NDW-locatie: " + location.featureId,
                 style = MaterialTheme.typography.bodySmall,
