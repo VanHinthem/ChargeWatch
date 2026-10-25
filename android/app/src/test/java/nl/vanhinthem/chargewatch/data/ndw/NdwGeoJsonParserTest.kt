@@ -44,7 +44,7 @@ class NdwGeoJsonParserTest {
             ]"""
         )).single()
 
-        assertEquals("~2/3", location.availability.label)
+        assertEquals("2/3", location.availability.label)
         assertEquals(CountReliability.Estimated, location.availability.reliability)
         assertEquals(AvailabilityStatus.Available, location.availability.status)
     }
@@ -59,7 +59,7 @@ class NdwGeoJsonParserTest {
             cpoId = "FAS",
             featureId = "NL-FAS-50757"
         )
-        assertEquals("~5/8", summary.label)
+        assertEquals("5/8", summary.label)
         assertEquals(CountReliability.Estimated, summary.reliability)
     }
 
