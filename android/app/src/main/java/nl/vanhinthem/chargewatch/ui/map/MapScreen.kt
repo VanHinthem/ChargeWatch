@@ -314,10 +314,10 @@ private fun renderNativeMarkers(
             AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
             AvailabilityStatus.Unknown -> UNKNOWN_COLOR
         }
-        val key = "$isCluster:$color:$label:${group.size}"
+        val key = "$isCluster:$color:$label"
         val icon = icons.getOrPut(key) {
             iconFactory.fromBitmap(
-                if (isCluster) createClusterBitmap(color, label, group.size)
+                if (isCluster) createClusterBitmap(color, label)
                 else createMarkerBitmap(color, label)
             )
         }
@@ -348,9 +348,9 @@ private fun createMarkerBitmap(colorHex: String, label: String): Bitmap {
     return bitmap
 }
 
-// A cluster has a larger double-ring marker and a small count badge. The main
-// number is still EVSE availability (or location count when unknown).
-private fun createClusterBitmap(colorHex: String, label: String, locationCount: Int): Bitmap {
+// A cluster uses the same EVSE status color and label as a station, with an
+// additional outline ring. No badge or location count is shown.
+private fun createClusterBitmap(colorHex: String, label: String): Bitmap {
     val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -368,14 +368,6 @@ private fun createClusterBitmap(colorHex: String, label: String, locationCount: 
     paint.textSize = if (label.length > 4) 30f else 36f
     canvas.drawText(label, 70f, 88f, paint)
 
-    // The top-right badge explicitly identifies the number of grouped stations.
-    paint.color = Color.WHITE
-    canvas.drawCircle(117f, 28f, 25f, paint)
-    paint.color = Color.parseColor("#334155")
-    canvas.drawCircle(117f, 28f, 21f, paint)
-    paint.color = Color.WHITE
-    paint.textSize = if (locationCount >= 100) 16f else 20f
-    canvas.drawText(locationCount.toString(), 117f, 35f, paint)
     return bitmap
 }
 
