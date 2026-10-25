@@ -47,6 +47,8 @@ data class MapLocation(
     val longitude: Double,
     val latitude: Double,
     val title: String,
+    val address: String?,
+    val operatorName: String?,
     val lastUpdated: String?,
     val availability: AvailabilitySummary
 )
