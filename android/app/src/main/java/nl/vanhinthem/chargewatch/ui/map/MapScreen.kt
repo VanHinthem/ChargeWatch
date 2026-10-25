@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
@@ -45,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +57,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -81,12 +89,14 @@ import org.maplibre.android.maps.MapView
 fun MapScreen(
     favorites: List<FavoriteLocation> = emptyList(),
     onToggleFavorite: (MapLocation) -> Unit = {},
+    onDetailVisibilityChanged: (Boolean) -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var detailLocation by remember { mutableStateOf<MapLocation?>(null) }
+    LaunchedEffect(detailLocation) { onDetailVisibilityChanged(detailLocation != null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
@@ -145,6 +155,8 @@ fun MapScreen(
     detailLocation?.let { location ->
         LocationDetailScreen(
             location = location,
+            isFavorite = favorites.any { it.featureId == location.featureId },
+            onFavorite = { onToggleFavorite(location) },
             onBack = { detailLocation = null }
         )
     }
@@ -554,103 +566,117 @@ private fun AvailabilityText(location: MapLocation) {
 }
 
 @Composable
-private fun LocationDetailScreen(location: MapLocation, onBack: () -> Unit) {
+private fun LocationDetailScreen(
+    location: MapLocation,
+    isFavorite: Boolean,
+    onFavorite: () -> Unit,
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
+    val statusColor = when (location.availability.status) {
+        AvailabilityStatus.Available -> Color(0xFF2FA76B)
+        AvailabilityStatus.NoneAvailable -> Color(0xFFE35D5B)
+        AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val updated = remember(location.lastUpdated) {
+        location.lastUpdated?.let { raw ->
+            runCatching {
+                DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))
+                    .withZone(ZoneId.systemDefault()).format(Instant.parse(raw))
+            }.getOrNull()
+        }
+    }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Terug")
                 }
-                Text("Locatiedetails", style = MaterialTheme.typography.titleLarge)
+                Text("Laadlocatie", style = MaterialTheme.typography.titleMedium)
             }
-            Text(location.title, style = MaterialTheme.typography.headlineMedium)
-            location.operatorName?.takeIf { it != location.title }?.let {
-                Text(it, style = MaterialTheme.typography.bodyLarge)
-            }
-            location.address?.takeIf { it != location.title }?.let {
-                Text(it, style = MaterialTheme.typography.bodyLarge)
-            }
-
-            Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 2.dp) {
-                Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Text("Beschikbaarheid", style = MaterialTheme.typography.titleMedium)
-                    AvailabilityText(location)
-                    Text(
-                        "Laatst bekende bronstatus",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    location.lastUpdated?.let {
-                        Text("Bronupdate: $it", style = MaterialTheme.typography.bodySmall)
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(location.title, style = MaterialTheme.typography.headlineMedium)
+                location.operatorName?.takeIf { it != location.title }?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                location.address?.takeIf { it != location.title }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-
-            Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
-            if (location.connectorCategories.isEmpty()) {
-                Text("Geen aansluitingsgegevens beschikbaar.")
-            } else {
-                Text(
-                    "Aantallen per aansluitingstype kunnen overlappen.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                location.connectorCategories.forEach { category ->
-                    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(connectorSymbol(category.connectorType), style = MaterialTheme.typography.headlineSmall)
-                            Column(Modifier.weight(1f)) {
-                                Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
-                                val power = formatChargingPower(category.powerMax)
-                                if (power != null) Text(power, style = MaterialTheme.typography.bodyMedium)
-                            }
-                            val count = if (category.available != null && category.total != null &&
-                                category.available >= 0 && category.total > 0 &&
-                                category.available <= category.total) "${category.available}/${category.total}"
-                                else "?"
-                            Text(count, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider()
-            Text("Tarieven", style = MaterialTheme.typography.titleLarge)
-            Text("Tarieven nog niet beschikbaar.")
-            HorizontalDivider()
-            Text("Populaire laadtijden", style = MaterialTheme.typography.titleLarge)
-            Text("Statistieken nog niet beschikbaar.")
-            Text(
-                "NDW-locatie: " + location.featureId,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = { openNavigation(context, location) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Navigation, contentDescription = null)
                     Text(" Navigeren")
                 }
-                OutlinedButton(onClick = { openStreetView(context, location) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Streetview, contentDescription = null)
-                    Text(" Street View")
+                OutlinedButton(onClick = { openStreetView(context, location) }) {
+                    Icon(Icons.Default.Streetview, contentDescription = "Street View")
+                }
+                OutlinedButton(onClick = onFavorite) {
+                    Icon(if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                        contentDescription = if (isFavorite) "Verwijder favoriet" else "Voeg favoriet toe")
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
+                Row(Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("BESCHIKBAAR", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
+                        Text(when (location.availability.status) {
+                            AvailabilityStatus.Available -> "vrije laadpunten"
+                            AvailabilityStatus.NoneAvailable -> "geen vrije laadpunten"
+                            AvailabilityStatus.Unknown -> "status onbekend"
+                        }, style = MaterialTheme.typography.bodyMedium)
+                        updated?.let { Text("NDW · bijgewerkt $it", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                    Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                }
+            }
+            Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+            if (location.connectorCategories.isEmpty()) {
+                Text("Aansluitgegevens niet beschikbaar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                location.connectorCategories.forEach { category ->
+                    Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
+                                Text(connectorDisplayName(category.connectorType),
+                                    style = MaterialTheme.typography.titleMedium)
+                                val line = listOfNotNull(
+                                    category.powerType?.uppercase()?.takeIf { it == "AC" || it == "DC" },
+                                    formatChargingPower(category.powerMax)
+                                ).joinToString(" · ")
+                                if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            val valid = category.available != null && category.total != null &&
+                                category.available >= 0 && category.total > 0 && category.available <= category.total
+                            val count = if (valid) "${category.available}/${category.total}" else "?"
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(count, style = MaterialTheme.typography.titleLarge,
+                                    color = if (valid && category.available!! > 0) Color(0xFF2FA76B) else MaterialTheme.colorScheme.onSurface)
+                                Text("vrij", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+                if (location.connectorCategories.size > 1) Text(
+                    "Tellingen per stekkertype kunnen overlappen",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
