@@ -427,7 +427,7 @@ private fun LocationSelectionSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val expanded = sheetState.currentValue == SheetValue.Expanded
-    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.53f
+    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.93f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
