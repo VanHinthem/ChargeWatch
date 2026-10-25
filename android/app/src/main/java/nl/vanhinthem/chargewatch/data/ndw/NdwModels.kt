@@ -57,10 +57,7 @@ data class AvailabilitySummary(
     val reliability: CountReliability
 ) {
     val label: String
-        get() = if (available != null && total != null) {
-            val prefix = if (reliability == CountReliability.Estimated) "~" else ""
-            "$prefix$available/$total"
-        } else "?"
+        get() = if (available != null && total != null) "$available/$total" else "?"
 
     val status: AvailabilityStatus
         get() = when {
