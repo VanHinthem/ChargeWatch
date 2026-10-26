@@ -602,7 +602,10 @@ private fun LocationSelectionSheet(
                         is EnrichmentResult.Found -> {
                             if (result.value.tariffs.isEmpty()) Text("Geen betrouwbaar tarief beschikbaar.")
                             result.value.tariffs
-                                .distinctBy { listOf(it.type, it.inclusiveAmount, it.currency, it.vat, it.hasRestrictions, it.elementIndex) }
+                                .distinctBy { part ->
+                                    if (part.hasRestrictions) listOf(part.connectorId, part.tariffId, part.elementIndex.toString())
+                                    else listOf(part.type, part.inclusiveAmount, part.currency, part.vat.orEmpty(), "unrestricted")
+                                }
                                 .forEach { part ->
                                     val unit = when (part.type) {
                                         "ENERGY" -> "kWh"
