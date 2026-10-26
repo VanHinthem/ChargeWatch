@@ -96,8 +96,13 @@ fun parseEnrichment(raw: String): LocationEnrichment {
             val presentation = t["presentation"]?.jsonObject
             if (presentation == null) { complex = true; continue }
             val currency = presentation["currency"]?.jsonPrimitive?.contentOrNull
-            if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false ||
-                currency.isNullOrBlank()) {
+            if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false) {
+                // A tariff may contain usable components as well as rules that
+                // our parser cannot fully interpret. Keep usable components,
+                // while preserving the incomplete-tariff warning.
+                complex = true
+            }
+            if (currency.isNullOrBlank()) {
                 complex = true
                 continue
             }
