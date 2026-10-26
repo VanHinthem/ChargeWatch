@@ -130,6 +130,30 @@ fun MapScreen(
             onThemeChoice = onThemeChoice
         )
 
+        // Temporary comparison controls. Source remains NDW by default.
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+                .padding(top = 82.dp, start = 16.dp, end = 16.dp),
+            shape = RoundedCornerShape(18.dp),
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf("NDW", "ChargeWatch").forEach { source ->
+                    OutlinedButton(onClick = { selectedLocations = emptyList(); viewModel.setSource(source) }) {
+                        Text(if (state.source == source) "✓ $source" else source)
+                    }
+                }
+                Text(
+                    "${state.locations.size} · ${state.loadMillis?.let { "${it} ms" } ?: "—"}",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+
         if (state.loading) {
             CircularProgressIndicator(
                 modifier = Modifier
