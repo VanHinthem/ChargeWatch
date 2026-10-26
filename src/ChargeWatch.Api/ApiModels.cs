@@ -100,3 +100,12 @@ internal sealed record DataStatus(
     long EvseCount,
     long ConnectorCount,
     long TariffCount);
+
+internal sealed record MapConnectorCategory(
+    int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax);
+internal sealed record MapLocationItem(
+    string FeatureId, double Longitude, double Latitude, string Address,
+    string? OperatorName, DateTimeOffset? LastUpdated,
+    int AvailableCount, int TotalCount,
+    IReadOnlyList<MapConnectorCategory> ConnectorCategories);
+internal sealed record MapViewportResult(IReadOnlyList<MapLocationItem> Locations, bool Truncated);
