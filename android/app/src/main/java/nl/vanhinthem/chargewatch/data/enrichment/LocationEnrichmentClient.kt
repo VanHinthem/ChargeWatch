@@ -21,7 +21,7 @@ data class PricePart(val type: String, val amount: String, val currency: String,
         }
     val vatKnown: Boolean get() = vat != null
 }
-data class HourlyAvailability(val hour: Int, val share: Double, val samples: Int)
+data class HourlyAvailability(val isoWeekday: Int, val hour: Int, val share: Double, val samples: Int)
 data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean, val hourlyAvailability: List<HourlyAvailability> = emptyList())
 
 sealed interface EnrichmentResult {
@@ -96,8 +96,13 @@ fun parseEnrichment(raw: String): LocationEnrichment {
             val presentation = t["presentation"]?.jsonObject
             if (presentation == null) { complex = true; continue }
             val currency = presentation["currency"]?.jsonPrimitive?.contentOrNull
-            if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false ||
-                currency.isNullOrBlank()) {
+            if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false) {
+                // A tariff may contain usable components as well as rules that
+                // our parser cannot fully interpret. Keep usable components,
+                // while preserving the incomplete-tariff warning.
+                complex = true
+            }
+            if (currency.isNullOrBlank()) {
                 complex = true
                 continue
             }
@@ -127,7 +132,7 @@ fun parseEnrichment(raw: String): LocationEnrichment {
 
 /** Aggregate location slots by local hour for a compact exploratory preview.
  * Null, unsupported and explicitly nonexperimental server data are excluded.
- * Multiple weekdays are shown as their simple observed-slot average, not a forecast.
+ * Keep weekday-specific slots distinct; the UI selects an Amsterdam-local weekday.
  */
 fun parseHourlyAvailability(raw: String): List<HourlyAvailability> {
     if (raw.isBlank()) return emptyList()
@@ -139,12 +144,11 @@ fun parseHourlyAvailability(raw: String): List<HourlyAvailability> {
     return slots.mapNotNull { item ->
         val slot = item.jsonObject
         val hour = slot["hour"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+        val isoWeekday = slot["isoWeekday"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
         val share = slot["availableProbability"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
         val samples = slot["sampleCount"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-        if (hour !in 0..23 || !share.isFinite() || share !in 0.0..1.0 || samples <= 0)
+        if (isoWeekday !in 1..7 || hour !in 0..23 || !share.isFinite() || share !in 0.0..1.0 || samples <= 0)
             return@mapNotNull null
-        HourlyAvailability(hour, share, samples)
-    }.groupBy { it.hour }.map { (hour, items) ->
-        HourlyAvailability(hour, items.map { it.share }.average(), items.sumOf { it.samples })
-    }.sortedBy { it.hour }
+        HourlyAvailability(isoWeekday, hour, share, samples)
+    }.sortedWith(compareBy(HourlyAvailability::isoWeekday, HourlyAvailability::hour))
 }

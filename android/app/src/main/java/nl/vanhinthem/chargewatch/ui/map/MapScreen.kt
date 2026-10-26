@@ -10,6 +10,8 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
@@ -69,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -492,10 +496,48 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    val expanded = sheetState.currentValue == SheetValue.Expanded
-    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.93f
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    // The standard partial anchor is fixed around half the window.
+    // Explicit compact/expanded states let the initial sheet fit its content.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var expanded by remember(selectedId) { mutableStateOf(false) }
+    BackHandler(enabled = expanded) { expanded = false }
+    // Material 3 only provides a partially-expanded anchor if sheet content is
+    // taller than half the available screen. Keep that anchor stable while the
+    // expanded-only details are conditionally rendered.
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val expandedSheetMaxHeight = screenHeight * 0.86f
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.padding(top = screenHeight * 0.07f),
+        // A compact drag-handle slot avoids the large default handle area above details.
+        dragHandle = {
+            var dragAmount by remember { mutableStateOf(0f) }
+            Box(
+                Modifier.fillMaxWidth().height(24.dp)
+                    .pointerInput(selectedId, expanded) {
+                        detectVerticalDragGestures(
+                            onDragStart = { dragAmount = 0f },
+                            onVerticalDrag = { change, amount ->
+                                change.consume()
+                                dragAmount += amount
+                            },
+                            onDragEnd = {
+                                if (dragAmount < -25f) expanded = true
+                                if (dragAmount > 25f && expanded) expanded = false
+                            }
+                        )
+                    }
+                    .clickable { expanded = !expanded },
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    Modifier.padding(top = 8.dp).width(32.dp).height(4.dp)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
+                )
+            }
+        }
+    ) {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -549,54 +591,119 @@ private fun LocationSelectionSheet(
                 AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             Column(
-                Modifier.fillMaxWidth().heightIn(min = minSheetHeight)
+                Modifier.fillMaxWidth()
+                    .heightIn(max = expandedSheetMaxHeight)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(horizontal = 20.dp, vertical = 0.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(location.title, style = MaterialTheme.typography.headlineSmall)
-                location.operatorName?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-                ) {
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { openNavigation(context, location) }) {
-                            Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                        location.address?.takeIf { it != location.title }?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        location.operatorName?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { openStreetView(context, location) }) {
-                            Icon(Icons.Default.Streetview, contentDescription = "Street View")
-                        }
-                    }
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { onToggleFavorite(location) }) {
-                            Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
-                        }
+                    IconButton(onClick = { onToggleFavorite(location) }) {
+                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
                     }
                 }
-                Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Text("BESCHIKBAARHEID", style = MaterialTheme.typography.labelMedium)
-                            Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
-                            Text(availabilityDescription(location.availability), style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                    Text(location.availability.label, style = MaterialTheme.typography.titleLarge, color = statusColor)
+                    Text(availabilityDescription(location.availability),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // The summary is always visible, not only when the sheet is expanded.
+                // Never imply a single price when tariff components, VAT or conditions differ.
+                val connectors = location.connectorCategories
+                val singleConnector = connectors.singleOrNull()
+                val energyPrices = (enrichment as? EnrichmentResult.Found)?.value?.let { detail ->
+                    detail.tariffs.filter { it.type == "ENERGY" }
+                        .distinctBy { listOf(it.inclusiveAmount, it.currency, it.vat.orEmpty(), it.hasRestrictions.toString()) }
+                        .takeIf { prices ->
+                            prices?.size == 1 &&
+                                prices[0].vatKnown && !prices[0].hasRestrictions &&
+                                prices[0].currency == "EUR"
                         }
-                        Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                }
+                if (!expanded) {
+                // Show up to three actual connector categories per row; do not sum
+                // connector counts (multiple connectors may share one EVSE).
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    connectors.chunked(3).forEach { connectorRow ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            connectorRow.forEach { connector ->
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    tonalElevation = 2.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        ConnectorSocketIcon(connector.connectorType, sizeDp = 26)
+                                        Text(
+                                            formatChargingPower(connector.powerMax) ?: "— kW",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            connectorDisplayName(connector.connectorType),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                            repeat(3 - connectorRow.size) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    energyPrices?.singleOrNull()?.let { price ->
+                        Text(
+                            "€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
+                                if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
+                                    " · voorwaarden" else "",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+                }
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { openNavigation(context, location) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Navigation, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Navigeren")
+                    }
+                    OutlinedButton(onClick = { openStreetView(context, location) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Streetview, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Street View")
                     }
                 }
                 if (expanded) {
-                    Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+                    HorizontalDivider()
+                    Text("Aansluitingen", style = MaterialTheme.typography.titleMedium)
                     if (location.connectorCategories.isEmpty()) {
                         Text("Geen aansluitgegevens beschikbaar")
                     } else {
                         location.connectorCategories.forEach { category ->
-                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
-                                Row(Modifier.fillMaxWidth().padding(14.dp),
+                            Surface(shape = RoundedCornerShape(10.dp), tonalElevation = 1.dp) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     ConnectorSocketIcon(category.connectorType)
@@ -617,7 +724,8 @@ private fun LocationSelectionSheet(
                             }
                         }
                     }
-                    Text("Tarieven", style = MaterialTheme.typography.titleLarge)
+                    HorizontalDivider()
+                    Text("Tarieven", style = MaterialTheme.typography.titleMedium)
                     when (val result = enrichment) {
                         null -> Text("Tariefgegevens ophalen…")
                         EnrichmentResult.Unconfigured -> Text("Tarieven nog niet beschikbaar in deze testversie.")
@@ -643,49 +751,108 @@ private fun LocationSelectionSheet(
                                         else -> "Starttarief"
                                     }
                                     val taxNote = if (part.vatKnown) "incl. btw" else "btw niet opgegeven"
-                                    Text("$label · ${part.inclusiveAmount} ${part.currency} / $unit · $taxNote" +
-                                        if (part.hasRestrictions) " · voorwaarden" else "")
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                                            Text(taxNote + if (part.hasRestrictions) " · voorwaarden" else "",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text(if (part.currency == "EUR") "€ ${part.inclusiveAmount.replace('.', ',')}/$unit"
+                                             else "${part.inclusiveAmount} ${part.currency}/$unit",
+                                            style = MaterialTheme.typography.titleSmall)
+                                    }
                                 }
                             if (result.value.tariffs.isNotEmpty())
-                                Text("OCPI-prijscomponenten, geen gegarandeerde eindprijs. Als de bron geen btw-percentage opgeeft, voegen we niet zonder onderbouwing 21% toe.",
+                                Text("Prijscomponenten; je laadpasprovider kan een andere eindprijs berekenen.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (result.value.hasComplexTariffs)
                                 Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
                         }
                     }
-                    Text("Historische beschikbaarheid (experimenteel)",
-                        style = MaterialTheme.typography.titleLarge)
-                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
-                    if (historical.isEmpty()) {
-                        Text("Nog onvoldoende historische gegevens.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Text("Indicatie op basis van NDW-momentopnamen; geen voorspelling.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Row(Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.Bottom) {
-                            (0..23).forEach { hour ->
-                                val slot = historical.firstOrNull { it.hour == hour }
-                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier.fillMaxWidth().height(56.dp),
-                                        contentAlignment = Alignment.BottomCenter) {
-                                        if (slot != null) {
-                                            Box(Modifier.fillMaxWidth()
-                                                .height((slot.share * 56).coerceAtLeast(2.0).dp)
-                                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
-                                        }
-                                    }
-                                    if (hour % 6 == 0) Text(hour.toString(),
-                                        style = MaterialTheme.typography.labelSmall)
+                    HorizontalDivider()
+                    Text("Historisch minstens één laadpunt vrij",
+                        style = MaterialTheme.typography.titleMedium)
+                    val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
+                    var chosenWeekday by remember(selectedId) {
+                        mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        weekdays.forEachIndexed { index, label ->
+                            val weekday = index + 1
+                            val selected = chosenWeekday == weekday
+                            Surface(
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                    .clickable { chosenWeekday = weekday },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(label, style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold
+                                            else androidx.compose.ui.text.font.FontWeight.Normal)
                                 }
                             }
                         }
-                        Text("Gemiddelde historische beschikbaarheid per uur (lokale tijd). Onvoldoende gevalideerd voor beslissingen.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
+                        .filter { it.isoWeekday == chosenWeekday }
+                    var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
+                            horizontalAlignment = Alignment.End) {
+                            Text("100%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("50%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("0%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Row(Modifier.fillMaxWidth().height(88.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalAlignment = Alignment.Bottom) {
+                                (0..23).forEach { hour ->
+                                    val slot = historical.firstOrNull { it.hour == hour }
+                                    Box(Modifier.weight(1f).fillMaxSize()
+                                        .clickable { selectedHour = hour },
+                                        contentAlignment = Alignment.BottomCenter) {
+                                        if (slot == null) {
+                                            Box(Modifier.fillMaxWidth().height(88.dp)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant,
+                                                    RoundedCornerShape(2.dp)))
+                                        } else {
+                                            Box(Modifier.fillMaxWidth()
+                                                .height((slot.share * 88).coerceAtLeast(2.0).dp)
+                                                .background(MaterialTheme.colorScheme.primary,
+                                                    RoundedCornerShape(2.dp)))
+                                        }
+                                    }
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                listOf("00", "06", "12", "18", "24").forEach { label ->
+                                    Text(label, style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                    selectedHour?.let { hour ->
+                        val slot = historical.firstOrNull { it.hour == hour }
+                        val hourLabel = "%02d:00–%02d:00".format(Locale.forLanguageTag("nl-NL"), hour, hour + 1)
+                        Text(if (slot == null) "$hourLabel · Geen gegevens"
+                             else "$hourLabel · ${(slot.share * 100).toInt()}% historische beschikbaarheidsindicatie",
+                             style = MaterialTheme.typography.bodySmall)
                     }
                     val updated = remember(location.lastUpdated) {
                         location.lastUpdated?.let { raw ->
@@ -697,7 +864,7 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor aansluitingen",
+                    Text("Veeg omhoog voor meer details", modifier = Modifier.clickable { expanded = true },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

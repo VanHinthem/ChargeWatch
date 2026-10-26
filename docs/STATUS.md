@@ -1,3 +1,17 @@
+# ChargeWatch — actuele status (26 oktober 2026)
+
+## Android locatie-details — PR #55
+
+De Android locatie-detail-UI is heringericht, met een compacte inhoudsafhankelijke bottom sheet en een uitgebreide, scrollbare detailweergave. De compacte stand toont locatie, beschikbaarheid, maximaal drie connectorcategorieën per rij (26dp-icoon, vermogen, type), eenduidige energieprijs met relevante tariefvoorwaarden, favoriet en navigatie/Street View. De uitgebreide stand toont de aansluitingen met aantallen, afzonderlijke prijscomponenten in Nederlandse notatie en historische beschikbaarheid, zonder dubbele compacte tegels.
+
+Historische grafiek: maandag t/m zondag direct selecteerbaar, huidige Nederlandse weekdag als standaard; 24 uren met groene balken voor geldige waarnemingen, grijze balken voor ontbrekende waarden, 0/50/100%-schaal en aanraakbare uurwaarden. Huidige metriek betreft een historische EWMA-indicatie van ten minste één vrije EVSE, niet het gemiddeld aantal vrije EVSE's of een gevalideerde voorspelling.
+
+Techniek: alleen Android UI/parser en unit-tests aangepast; geen backend- of databasecontract gewijzigd. De parser behoudt geldige componenten van gedeeltelijk onbegrepen OCPI-tarieven en behoudt de waarschuwing. Bestaande ChargeWatch/NDW-bronkeuze en fallback blijven behouden.
+
+**Verificatie:** Android workflow #40333331763 en Read-only API workflow #40333331803 geslaagd voor commit `bde68b0999fe1d4b98b290e7af217d4ccbe6426e`. Eerdere Samsung-screenshots hebben kaart, tarieven, connectorindeling en bestaande sheetstanden gevalideerd. **Nog niet op Samsung bevestigd:** de allerlaatste inhoudsafhankelijke sheet/gesture-verandering (op-/neerwaarts vegen, sluiten/back), variërende schermformaten, grote tekst en rotatie. Dit blijft regressie-/acceptatiewerk, ondanks groene CI. Geen automatische deployment.
+
+**Volgende prioriteiten:** Android praktijkhertest van de laatste sheet-interactie; daarna [issue #56](https://github.com/VanHinthem/ChargeWatch/issues/56): naast de bestaande historische percentages zo snel mogelijk compacte historische gemiddelden van vrije EVSE-aantallen verzamelen per weekdag/uur, zonder ruwe historie. Latere Android-keuze van metriek apart bepalen. PR #54 over NDW-dekking is een afzonderlijke documentatie-PR.
+
 ## Praktijkvalidatie kaartbronnen — 26 oktober 2026
 
 **Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.

@@ -16,7 +16,7 @@ import java.util.Locale
  * They distinguish Type 2, CCS Combo 2, CHAdeMO and unknown connectors.
  */
 @Composable
-internal fun ConnectorSocketIcon(connectorType: String?) {
+internal fun ConnectorSocketIcon(connectorType: String?, sizeDp: Int = 40) {
     val ink = MaterialTheme.colorScheme.onSurface
     val kind = when (connectorType?.uppercase(Locale.ROOT)) {
         "IEC_62196_T2", "TYPE_2" -> 2
@@ -24,7 +24,7 @@ internal fun ConnectorSocketIcon(connectorType: String?) {
         "CHADEMO" -> 4
         else -> 0
     }
-    Canvas(Modifier.size(40.dp)) {
+    Canvas(Modifier.size(sizeDp.dp)) {
         val u = size.minDimension / 100f
         val stroke = 5.2f * u
         fun contact(x: Float, y: Float, radius: Float = 5.2f) {
