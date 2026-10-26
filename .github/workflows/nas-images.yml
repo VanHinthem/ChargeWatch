@@ -26,6 +26,17 @@ permissions:
   packages: write
 
 jobs:
+  release-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release shell scripts
+        run: |
+          sh -n deploy/nas/scripts/db-upgrade.sh
+          bash -n deploy/nas/tests/test-db-upgrade.sh
+      - name: Test release checkpoints and failure handling
+        run: sudo --preserve-env=CW_IMAGE_TAG bash deploy/nas/tests/test-db-upgrade.sh
+
   publish:
     runs-on: ubuntu-latest
     strategy:
