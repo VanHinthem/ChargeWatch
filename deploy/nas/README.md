@@ -1,12 +1,30 @@
 # NAS deployment — prebuilt images (no Git checkout on NAS)
 
-**Do not use `git clone` or `docker compose build` on the NAS.** GitHub Actions builds three linux/amd64 GHCR images at an identical immutable commit tag:
+## Eén-tag NAS-upgrade (voorgesteld; pas actief na kopiëren naar HINNAS)
+
+Alle vier images (`db`, `maintenance`, `collector`, `api`) gebruiken **uitsluitend** `CW_IMAGE_TAG`. Verwijder de oude `CW_API_IMAGE_TAG` uit de NAS-`.env` bij de eenmalige omschakeling. **Wijzig nooit databasewachtwoorden of het bestaande bind-adres `192.168.2.48:5088` bij het overnemen van een repositoryvoorbeeld.** De effectieve NAS-Compose staat op `/volume2/docker/chargewatch/docker-compose.yaml`; het repositoryvoorbeeld bindt de API aan localhost en mag niet blind worden overschreven.
+
+Kopieer eenmalig de bijgewerkte Compose-inhoud met behoud van de lokale wijzigingen en het script `deploy/nas/upgrade.sh` naar `/volume2/docker/chargewatch/upgrade.sh`. Daarna is één nieuwe **gepubliceerde** volledige SHA-tag in `.env` genoeg; start de begeleide upgrade met:
+
+```sh
+cd /volume2/docker/chargewatch
+sudo sh ./upgrade.sh
+```
+
+**Niet `docker compose up -d` rechtstreeks gebruiken om schemawijzigende releases uit te rollen**: Compose kent geen verplichte, gevalideerde back-upgate vóór een migratie. Het script doet: configuratie/tagverificatie → alle vier images ophalen → collector stoppen → verplichte `pg_dump`-back-up met `pg_restore --list`-archiefcontrole → DB-image bijwerken en wachten op health → ontbrekende SQL-migraties via maintenance toepassen → collector + API bijwerken. De volledige back-up staat buiten de databasevolume in `CW_NAS_BACKUP_DIR`, met tijdstempel. Zonder goede back-up **geen migratie en geen release**. Bij een fout blijft de collector gestopt en is handmatige diagnose nodig; het script doet geen automatische database-rollback en verwijdert nooit oude back-ups. De oude API kan vóór de migratie actief blijven; de read-only databasegebruiker kan niets wijzigen. Omdat het schema evolueert, moet iedere release de API compatibel houden tijdens het korte updatevenster of de API apart stoppen.
+
+Let op: een gevalideerde archieflijst is nog geen succesvolle volledige restore. Blijf een geïsoleerde hersteltest periodiek uitvoeren. `upgrade.sh` is bewust een **expliciete** goedgekeurde releasehandeling, geen automatische GitHub-trigger of Watchtower-pull. De image-tag aanpassen zonder dit commando installeert niets.
+
+
+**Do not use `git clone` or `docker compose build` on the NAS.** GitHub Actions builds four linux/amd64 GHCR images at an identical immutable commit tag:
 
 - `ghcr.io/vanhinthem/chargewatch-db:sha-<main-commit>`: PostGIS 18 + bundled initial schema and DB role creation.
 - `ghcr.io/vanhinthem/chargewatch-maintenance:sha-<main-commit>`: PostgreSQL 18 client + SQL migrations + backup scripts.
 - `ghcr.io/vanhinthem/chargewatch-collector:sha-<main-commit>`: .NET 10 NDW collector.
 
-Workflow: `.github/workflows/nas-images.yml`, running on relevant main changes and manually through GitHub Actions. Use **only tags actually published successfully by the workflow**. Never substitute a PR-branch SHA or assume publication succeeded. For private GHCR images, authorize once using `docker login ghcr.io` with a read:packages token, not a token in Compose.
+Workflow: `.github/workflows/nas-images.yml`, running on relevant main changes and manually through GitHub Actions. - `ghcr.io/vanhinthem/chargewatch-api:sha-<main-commit>`: read-only HTTP API.
+
+Use **only tags actually published successfully by the workflow**. Never substitute a PR-branch SHA or assume publication succeeded. For private GHCR images, authorize once using `docker login ghcr.io` with a read:packages token, not a token in Compose.
 
 ## NAS files
 
