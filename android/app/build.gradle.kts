@@ -1,5 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// Internal testing only. Do not embed credentials or enable public API access from an APK.
+val enrichmentApiBaseUrl = providers.gradleProperty("chargewatchApiBaseUrl").orElse("").get()
+require(enrichmentApiBaseUrl.isBlank() || Regex("""https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?/?""").matches(enrichmentApiBaseUrl)) {
+    "chargewatchApiBaseUrl must be an HTTPS origin without path or credentials"
+}
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -18,6 +24,7 @@ android {
         // CI run numbers increase monotonically across PR builds for install-over-update.
         versionCode = 100000 + (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0)
         versionName = "0.1.0"
+        buildConfigField("String", "CHARGEWATCH_API_BASE_URL", "\"$enrichmentApiBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
