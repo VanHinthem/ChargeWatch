@@ -715,7 +715,7 @@ private fun LocationSelectionSheet(
                         }
                     }
                     HorizontalDivider()
-                    Text("Historische beschikbaarheid",
+                    Text("Historisch minstens één laadpunt vrij",
                         style = MaterialTheme.typography.titleMedium)
                     val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
                     var chosenWeekday by remember(selectedId) {
