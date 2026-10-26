@@ -51,4 +51,22 @@ log=$(dc logs --no-color db-upgrade)
 echo "$log" | grep -q 'Recorded successfully applied release'
 count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
 [ "$count" -eq 2 ] || { echo "New tag did not create mandatory backup" >&2; exit 1; }
+# Full-project re-deploy: simulate the supported NAS sequence by stopping the
+# entire stack before switching the immutable image tag. Verify the gate even
+# when Compose creates the DB and application containers in one invocation.
+dc stop
+export CW_IMAGE_TAG=sha-123456789abcdef0123456789abcdef012345678
+for service in db maintenance collector api; do
+  docker tag "ghcr.io/vanhinthem/chargewatch-${service}:sha-0123456789abcdef0123456789abcdef01234567" \
+    "ghcr.io/vanhinthem/chargewatch-${service}:${CW_IMAGE_TAG}"
+done
+dc up -d --no-build
+wait_upgrade
+log=$(dc logs --no-color db-upgrade)
+echo "$log" | grep -q 'Recorded successfully applied release'
+count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
+[ "$count" -eq 3 ] || { echo "Full-stack redeploy failed to back up: $count" >&2; exit 1; }
+docker inspect "$(dc ps -q collector)" --format '{{.State.Running}}' | grep -qx true
+docker inspect "$(dc ps -q api)" --format '{{.State.Running}}' | grep -qx true
+echo 'Full-stack release redeploy integration test passed'
 echo 'PostgreSQL release integration test passed'
