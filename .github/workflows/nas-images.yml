@@ -64,6 +64,18 @@ jobs:
           print('NAS Compose release wiring validated')
           PY
 
+  integration-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test database and maintenance images
+        run: |
+          set -eu
+          docker build -f deploy/nas/Dockerfile.db -t ghcr.io/vanhinthem/chargewatch-db:sha-0123456789abcdef0123456789abcdef01234567 .
+          docker build -f deploy/nas/Dockerfile.maintenance -t ghcr.io/vanhinthem/chargewatch-maintenance:sha-0123456789abcdef0123456789abcdef01234567 .
+      - name: Integration test with PostgreSQL 18
+        run: bash deploy/nas/tests/integration-db-upgrade.sh
+
   publish:
     runs-on: ubuntu-latest
     strategy:
