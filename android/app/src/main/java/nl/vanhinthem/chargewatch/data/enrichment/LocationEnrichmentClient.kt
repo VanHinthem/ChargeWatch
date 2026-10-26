@@ -17,7 +17,7 @@ data class PricePart(val type: String, val amount: String, val currency: String,
             val net = amount.toBigDecimalOrNull() ?: return amount
             val rate = vat?.toBigDecimalOrNull() ?: return amount
             return net.multiply(BigDecimal.ONE.add(rate.divide(BigDecimal("100"))))
-                .setScale(3, RoundingMode.HALF_UP).toPlainString()
+                .setScale(2, RoundingMode.HALF_UP).toPlainString()
         }
     val vatKnown: Boolean get() = vat != null
 }
