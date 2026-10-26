@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -715,9 +716,30 @@ private fun LocationSelectionSheet(
                     HorizontalDivider()
                     Text("Historische beschikbaarheid",
                         style = MaterialTheme.typography.titleMedium)
+                    val weekdays = listOf("Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag")
+                    var chosenWeekday by remember(selectedId) {
+                        mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
+                    }
+                    var weekdayMenuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(onClick = { weekdayMenuOpen = true }) {
+                            Text(weekdays[chosenWeekday - 1])
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.ArrowBack, contentDescription = null)
+                        }
+                        DropdownMenu(expanded = weekdayMenuOpen, onDismissRequest = { weekdayMenuOpen = false }) {
+                            weekdays.forEachIndexed { index, label ->
+                                DropdownMenuItem(text = { Text(label) }, onClick = {
+                                    chosenWeekday = index + 1
+                                    weekdayMenuOpen = false
+                                })
+                            }
+                        }
+                    }
                     val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
+                        .filter { it.isoWeekday == chosenWeekday }
                     if (historical.isEmpty()) {
-                        Text("Nog onvoldoende historische gegevens.",
+                        Text("Geen historische gegevens voor deze dag.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         Row(Modifier.fillMaxWidth(),
@@ -743,7 +765,7 @@ private fun LocationSelectionSheet(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        Text("Historische indicatie (lokale tijd), geen voorspelling.",
+                        Text("Historische beschikbaarheid per uur (lokale tijd).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
