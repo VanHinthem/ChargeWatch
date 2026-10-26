@@ -75,6 +75,21 @@ app.MapGet("/api/v1/locations", async (
     }
 });
 
+
+// Full-map coverage is required for an honest benchmark. On overflow ask the
+// Android client to zoom in; do not return a partial map as if complete.
+app.MapGet("/api/v1/map/viewport", async (string? bbox, ApiDatabase database) =>
+{
+    if (!ApiOptions.TryParseBbox(bbox, out var parsed))
+        return Results.BadRequest(new { error = "Valid bbox is required." });
+    if ((parsed.MaxLon-parsed.MinLon)*(parsed.MaxLat-parsed.MinLat) > 1.0)
+        return Results.BadRequest(new { error = "Zoom further in." });
+    var result = await database.GetMapViewport(parsed);
+    return result.Truncated
+        ? Results.Json(new { error = "Viewport exceeds 999 locations; zoom in." }, statusCode: 413)
+        : Results.Ok(result);
+});
+
 app.MapGet("/api/v1/locations/{id:long}", async (long id,ApiDatabase database) =>
 {
     var result = await database.GetLocation(id);
