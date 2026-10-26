@@ -103,7 +103,7 @@ fun parseEnrichment(raw: String): LocationEnrichment {
             }
             for ((elementIndex, element) in presentation["elements"]?.jsonArray.orEmpty().withIndex()) {
                 val obj = element.jsonObject
-                val restrictions = obj["restrictions"]?.let { it !is JsonNull } == true
+                val restrictions = obj["restrictions"]?.let { raw -> raw is JsonObject && raw.any { (key, value) -> key != "start_date" && value !is JsonNull } } == true
                 for (component in obj["components"]?.jsonArray.orEmpty()) {
                     val c = component.jsonObject
                     val type = c["type"]?.jsonPrimitive?.contentOrNull
