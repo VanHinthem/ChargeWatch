@@ -504,7 +504,16 @@ private fun LocationSelectionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.padding(top = screenHeight * 0.07f)
+        modifier = Modifier.padding(top = screenHeight * 0.07f),
+        // A compact drag-handle slot avoids the large default handle area above details.
+        dragHandle = {
+            Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.TopCenter) {
+                Box(
+                    Modifier.padding(top = 8.dp).width(32.dp).height(4.dp)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
+                )
+            }
+        }
     ) {
         if (locations.size > 1) {
             Column(
