@@ -1,3 +1,11 @@
+## Productie HTTPS API-hostname en extern bereik — afgerond in code (26 oktober 2026)
+
+**Definitieve hostname:** `https://chargewatch-api.vanhinthem.nl`. De gebruiker heeft vanaf Samsung via mobiel internet bevestigd dat Nginx Proxy Manager de bestaande read-only API via geldig HTTPS-certificaat en upstream `192.168.2.48:5088` bereikt. Ook is op NAS de Docker-binding beperkt tot `192.168.2.48:5088->8080`, zonder IPv6/all-interface-binding; rechtstreekse externe toegang tot 5088 is volgens gebruiker niet mogelijk. NPM Force SSL en Block Common Exploits zijn bevestigd. De bestaande collector en PostgreSQL zijn niet gewijzigd.
+
+**Android:** de vaste HTTPS-origin is de standaard Gradlewaarde, zonder een API-secret in de APK. Bij geopende locatiedetails haalt Android tarieven en experimentele statistieken on demand op, dankzij samenvoeging met de statistiekimplementatie van PR #48. `availableProbability` blijft nadrukkelijk een niet-gekalibreerde NDW-EWMA-indicatie en geen gevalideerde voorspelling. De NDW-kaartfallback via onze API is nog niet geïmplementeerd.
+
+**Documentatie:** `deploy/nas/API_PUBLICATION.md` bevat de HTTPS/DNS/proxy-runbook, veiligheidscontrole en rollback. Nog open: effectieve X-Forwarded-For/trusted-proxyconfig en rate limiting onder een extern adres aantonen; beschermende limieten en Play Integrity vóór brede publieke distributie; de gepubliceerde actuele **main**-API-image op NAS updaten na afzonderlijk deploymentakkoord en daarna echte tarieven en historie op Samsung valideren. GitHub-merge voert geen NAS-deployment uit.
+
 ## Experimentele historische beschikbaarheid — geïmplementeerd (26 oktober 2026)
 
 **Besluit gebruiker:** toon een eerste versie van `availableProbability` op basis van de reeds opgebouwde compacte statistieken, zodat de grafiek in Android beoordeeld kan worden. Dit is een bewuste **experimentele preview**, geen validatie of definitieve publicatie van voorspellende kansen.
