@@ -66,7 +66,8 @@ fun parseEnrichment(raw: String): LocationEnrichment {
     for (evse in evses) for (connector in evse.jsonObject["connectors"]?.jsonArray.orEmpty()) {
         for (tariff in connector.jsonObject["tariffs"]?.jsonArray.orEmpty()) {
             val t = tariff.jsonObject
-            val presentation = t["presentation"]?.jsonObject ?: run { complex = true; continue }
+            val presentation = t["presentation"]?.jsonObject
+            if (presentation == null) { complex = true; continue }
             val currency = presentation["currency"]?.jsonPrimitive?.contentOrNull
             if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false ||
                 currency.isNullOrBlank()) {
