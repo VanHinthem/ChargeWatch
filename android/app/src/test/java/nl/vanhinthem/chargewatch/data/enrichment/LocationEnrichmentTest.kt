@@ -59,17 +59,21 @@ class LocationEnrichmentTest {
         assertFalse(part.hasRestrictions)
         assertEquals("0.33", part.inclusiveAmount)
     }
-    @Test fun experimentalStatisticsPreserveMissingSlots() {
+    @Test fun experimentalStatisticsRemainSeparatedByWeekday() {
         val raw = """{"isExperimental":true,"probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA","slots":[
-          {"hour":8,"availableProbability":0.25,"sampleCount":5},
-          {"hour":8,"availableProbability":0.75,"sampleCount":3},
-          {"hour":9,"availableProbability":null,"sampleCount":8},
-          {"hour":10,"availableProbability":1.2,"sampleCount":9}
+          {"isoWeekday":1,"hour":8,"availableProbability":0.25,"sampleCount":5},
+          {"isoWeekday":6,"hour":8,"availableProbability":0.75,"sampleCount":3},
+          {"isoWeekday":1,"hour":9,"availableProbability":null,"sampleCount":8},
+          {"isoWeekday":1,"hour":10,"availableProbability":1.2,"sampleCount":9},
+          {"hour":11,"availableProbability":0.4,"sampleCount":9}
         ]}"""
         val hourly = parseHourlyAvailability(raw)
-        assertEquals(1, hourly.size)
-        assertEquals(8, hourly.single().hour)
-        assertEquals(0.5, hourly.single().share, 0.0001)
+        assertEquals(2, hourly.size)
+        assertEquals(1, hourly[0].isoWeekday)
+        assertEquals(6, hourly[1].isoWeekday)
+        assertEquals(8, hourly[0].hour)
+        assertEquals(0.25, hourly[0].share, 0.0001)
+        assertEquals(0.75, hourly[1].share, 0.0001)
     }
 
     @Test fun nonExperimentalDataIsNotRendered() {
