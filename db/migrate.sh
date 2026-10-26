@@ -20,11 +20,11 @@ for file do
     printf '%s\n' 'BEGIN;' 'SELECT pg_advisory_xact_lock(752567001);'
     printf "SELECT CASE WHEN EXISTS (SELECT 1 FROM schema_migration WHERE version = '%s') THEN 'false' ELSE 'true' END AS apply_migration \\gset\n" "$version"
     printf '%s\n' '\if :apply_migration'
-    printf '\echo Applying %s\n' "$version"
+    printf '%s\n' "\\echo Applying $version"
     cat "$file"
     printf '\n'
     printf '%s\n' '\else'
-    printf '\echo Already applied\n' '\endif' 'COMMIT;'
+    printf '%s\n' '\echo Already applied' '\endif' 'COMMIT;'
   } > "$script"
   if ! psql -X -v ON_ERROR_STOP=1 -q -f "$script"; then
     rm -f "$script"
