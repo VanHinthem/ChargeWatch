@@ -18,14 +18,12 @@ assert_collector_stopped() {
   fi
 }
 assert_collector_stopped
-psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
-CREATE TABLE IF NOT EXISTS chargewatch_release_checkpoint (
-    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
-    image_tag text NOT NULL,
-    upgraded_at timestamptz NOT NULL DEFAULT now()
-);
-SQL
-applied=$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT image_tag FROM chargewatch_release_checkpoint WHERE singleton = true')
+checkpoint_exists=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT to_regclass('public.chargewatch_release_checkpoint') IS NOT NULL")
+if [ "$checkpoint_exists" = t ]; then
+  applied=$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT image_tag FROM chargewatch_release_checkpoint WHERE singleton = true')
+else
+  applied=""
+fi
 if [ "$applied" = "$CW_IMAGE_TAG" ]; then
   echo "Release $CW_IMAGE_TAG already applied; no backup/migration required."
   exit 0
@@ -38,6 +36,13 @@ assert_collector_stopped
 echo "Applying pending migrations..."
 /scripts/migrate.sh
 # Called only after a successful migration pass; errors must never mark release complete.
+psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
+CREATE TABLE IF NOT EXISTS chargewatch_release_checkpoint (
+    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+    image_tag text NOT NULL,
+    upgraded_at timestamptz NOT NULL DEFAULT now()
+);
+SQL
 psql -X -v ON_ERROR_STOP=1 -v new_tag="$CW_IMAGE_TAG" <<'SQL'
 INSERT INTO chargewatch_release_checkpoint(singleton, image_tag, upgraded_at)
 VALUES (true, :'new_tag', now())
