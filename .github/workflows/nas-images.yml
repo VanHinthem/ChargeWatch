@@ -45,7 +45,7 @@ jobs:
           CW_NAS_BACKUP_DIR: /tmp/chargewatch-test-backups
         run: |
           docker compose -f deploy/nas/compose.yaml config --quiet
-          docker compose -f deploy/nas/compose.yaml config --format json > /tmp/chargewatch-compose.json
+          docker compose --profile maintenance -f deploy/nas/compose.yaml config --format json > /tmp/chargewatch-compose.json
           python3 - <<'PY'
           import json
           with open('/tmp/chargewatch-compose.json') as fp:
