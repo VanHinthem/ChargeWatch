@@ -499,7 +499,9 @@ private fun LocationSelectionSheet(
     // Material 3 only provides a partially-expanded anchor if sheet content is
     // taller than half the available screen. Keep that anchor stable while the
     // expanded-only details are conditionally rendered.
-    val compactSheetMinHeight = LocalConfiguration.current.screenHeightDp.dp * 0.52f
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val compactSheetMinHeight = screenHeight * 0.52f
+    val expandedSheetMaxHeight = screenHeight * 0.89f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
@@ -555,7 +557,7 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(min = compactSheetMinHeight)
+                    .heightIn(min = compactSheetMinHeight, max = expandedSheetMaxHeight)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
