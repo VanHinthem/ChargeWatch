@@ -36,6 +36,33 @@ jobs:
           bash -n deploy/nas/tests/test-db-upgrade.sh
       - name: Test release checkpoints and failure handling
         run: sudo --preserve-env=CW_IMAGE_TAG bash deploy/nas/tests/test-db-upgrade.sh
+      - name: Validate Compose release wiring
+        env:
+          CW_IMAGE_TAG: sha-0123456789abcdef0123456789abcdef01234567
+          CW_DB_OWNER_PASSWORD: test-owner
+          CW_IMPORT_PASSWORD: test-import
+          CW_READ_PASSWORD: test-read
+          CW_NAS_BACKUP_DIR: /tmp/chargewatch-test-backups
+        run: |
+          docker compose -f deploy/nas/compose.yaml config --quiet
+          docker compose -f deploy/nas/compose.yaml config --format json > /tmp/chargewatch-compose.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/chargewatch-compose.json') as fp:
+              services = json.load(fp)['services']
+          tag = 'sha-0123456789abcdef0123456789abcdef01234567'
+          for name in ('db', 'collector', 'api', 'maintenance', 'db-upgrade'):
+              assert services[name]['image'].endswith(':' + tag), name
+          for name in ('collector', 'api'):
+              depends = services[name]['depends_on']
+              assert depends['db-upgrade']['condition'] == 'service_completed_successfully'
+          job = services['db-upgrade']
+          assert job['restart'] == 'no'
+          assert job['environment']['CW_IMAGE_TAG'] == tag
+          assert job['volumes'][0]['target'] == '/backups'
+          assert job['volumes'][0]['source'] == '/tmp/chargewatch-test-backups'
+          print('NAS Compose release wiring validated')
+          PY
 
   publish:
     runs-on: ubuntu-latest
