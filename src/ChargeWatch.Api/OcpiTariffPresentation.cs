@@ -2,7 +2,7 @@ using System.Text.Json;
 
 // A display-safe interpretation of OCPI tariff elements. Every element is kept
 // separate; no component is ever advertised as a complete charging-session price.
-internal sealed record TariffPriceComponent(string Type, decimal Price, int? StepSize);
+internal sealed record TariffPriceComponent(string Type, decimal Price, int? StepSize, decimal? Vat);
 internal sealed record TariffElementPresentation(
     IReadOnlyList<TariffPriceComponent> Components,
     JsonElement? Restrictions);
@@ -65,7 +65,19 @@ internal static class OcpiTariffPresentation
                     }
                     stepSize = parsedStep;
                 }
-                components.Add(new(type, price, stepSize));
+                decimal? vat = null;
+                if (component.TryGetProperty("vat", out var vatJson))
+                {
+                    if (vatJson.ValueKind != JsonValueKind.Number ||
+                        !vatJson.TryGetDecimal(out var parsedVat) ||
+                        parsedVat < 0 || parsedVat > 100)
+                    {
+                        unsupported = true;
+                        continue;
+                    }
+                    vat = parsedVat;
+                }
+                components.Add(new(type, price, stepSize, vat));
             }
             JsonElement? restrictions = null;
             if (element.TryGetProperty("restrictions", out var rawRestrictions))
@@ -86,7 +98,7 @@ internal static class OcpiTariffPresentation
     {
         using var example = JsonDocument.Parse("""
             {"elements":[
-              {"price_components":[{"type":"ENERGY","price":0.49,"step_size":1}],
+              {"price_components":[{"type":"ENERGY","price":0.49,"step_size":1,"vat":21}],
                "restrictions":{"start_time":"08:00","end_time":"20:00"}},
               {"price_components":[{"type":"PARKING_TIME","price":0.10}]}
             ]}
@@ -94,6 +106,7 @@ internal static class OcpiTariffPresentation
         var parsed = Parse(example.RootElement, "EUR");
         if (parsed.HasUnsupportedData || parsed.Elements.Count != 2 ||
             parsed.Elements[0].Components[0].Price != 0.49m ||
+            parsed.Elements[0].Components[0].Vat != 21m ||
             parsed.Elements[0].Restrictions is null ||
             parsed.Elements[1].Components[0].Type != "PARKING_TIME")
             throw new InvalidOperationException("Tariff presentation selftest failed: separate priced elements and restrictions.");

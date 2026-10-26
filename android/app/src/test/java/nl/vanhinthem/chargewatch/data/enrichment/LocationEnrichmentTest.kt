@@ -45,6 +45,20 @@ class LocationEnrichmentTest {
         assertEquals(setOf("T-A", "T-B"), result.tariffs.map { it.tariffId }.toSet())
         assertEquals(setOf("1", "2"), result.tariffs.map { it.connectorId }.toSet())
     }
+
+    @Test fun ocpiVatComponentIsConvertedForDisplay() {
+        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.2691,"vat":21}]}]}}]}]}]}"""
+        val part = parseEnrichment(raw).tariffs.single()
+        assertEquals("0.33", part.inclusiveAmount)
+        assertTrue(part.vatKnown)
+    }
+
+    @Test fun startDateAloneIsNotPresentedAsPriceCondition() {
+        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"restrictions":{"start_date":"2026-01-01","end_date":null,"min_kwh":null},"components":[{"type":"ENERGY","price":0.2691,"vat":21}]}]}}]}]}]}"""
+        val part = parseEnrichment(raw).tariffs.single()
+        assertFalse(part.hasRestrictions)
+        assertEquals("0.33", part.inclusiveAmount)
+    }
     @Test fun experimentalStatisticsPreserveMissingSlots() {
         val raw = """{"isExperimental":true,"probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA","slots":[
           {"hour":8,"availableProbability":0.25,"sampleCount":5},
