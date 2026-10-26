@@ -1,5 +1,16 @@
 # ChargeWatch — actuele status (26 oktober 2026)
 
+## Automatische databasemigraties — PR #57 (26 oktober 2026)
+
+De backend-Compose bevat een eenmalige `migrate`-service, die na de PostgreSQL-healthcheck alle ontbrekende genummerde SQL-migraties onder transactionele advisory lock toepast, met `schema_migration` als versiebron. Het script `db/migrate.sh` is idempotent en stopt bij fouten zonder gedeeltelijke wijzigingen in de lopende migratie. De PostgreSQL 18-CI-test op commit `3b249295` is **groen**, inclusief herhaalde uitvoering en een opzettelijk falende migratie met rollback. Deploymentcontract en back-upgate staan in `docs/AUTOMATED_DB_MIGRATIONS.md`. Omdat collector en API niet in deze repo-Compose staan, moet hun afzonderlijke NAS-deployment op succesvolle afronding van de migrator wachten. De daadwerkelijke productie-installatie is niet uitgevoerd; afzonderlijk deployakkoord blijft vereist.
+
+## Historische vrije-EVSE-aantallen — issue #56 (featurebranch, 26 oktober 2026)
+
+**Branch:** `feature/56-historical-free-evse-count-ewma`. De additieve migratie `014_location_free_evse_ewma`, gewijzigde transactionele locatiestatusaggregatie, API-uitbreiding en gerichte SQL-test zijn opgesteld voor review. Bestaande percentage-EWMA blijft behouden. Nieuwe beschikbare en actieve EVSE-gemiddelden gebruiken dezelfde 90-daagse EWMA-halfwaardetijd, per ISO-weekdag/uur, uitsluitend volledig bekende snapshots. Defecten tellen in capaciteit; PLANNED/REMOVED niet; UNKNOWN wordt uitgesloten en als kwaliteit geteld. Geen terugvulling van historische aantallen en geen Android-wijziging.
+
+**Verificatie:** GitHub Actions op implementatiecommit `a0fc820e`: `Compact Statistics Database` (PostgreSQL 18, inclusief migratie 014/regressie), `Compact Statistics Watch Integration`, `Read-only API` en `NAS Images` geslaagd. `Compact National Import Benchmark` is eveneens geslaagd op implementatiecommit `69d5eb7f` (synthetisch nationaal profiel: 80.777 locaties / 203.114 EVSE's; 22 s bulkimport, 19 s HTTP-200-import). Aanvullende 304-capaciteit/idempotentietest toegevoegd op commit `523a345a`; PostgreSQL-statistiek-CI en Read-only API zijn daarop geslaagd. Overige workflows opnieuw controleren voor definitieve PR-review. Geen lokale PostgreSQL/NAS-migratie uitgevoerd. Voor productie vereist: afzonderlijk migratie- en deploymentakkoord, database-back-up en controle van API-image en collectiecadans. PR #55 is reeds op main; het laatste gesturegedrag van de inhoudsafhankelijke bottom sheet wacht nog Samsung-validatie. PR #54 blijft los. **Volgende stap:** CI-review en eventueel correcties op de featurebranch, daarna expliciete PR-goedkeuring; niet automatisch mergen/deployen.
+
+
 ## Android locatie-details — PR #55
 
 De Android locatie-detail-UI is heringericht, met een compacte inhoudsafhankelijke bottom sheet en een uitgebreide, scrollbare detailweergave. De compacte stand toont locatie, beschikbaarheid, maximaal drie connectorcategorieën per rij (26dp-icoon, vermogen, type), eenduidige energieprijs met relevante tariefvoorwaarden, favoriet en navigatie/Street View. De uitgebreide stand toont de aansluitingen met aantallen, afzonderlijke prijscomponenten in Nederlandse notatie en historische beschikbaarheid, zonder dubbele compacte tegels.

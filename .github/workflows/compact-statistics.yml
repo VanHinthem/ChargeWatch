@@ -8,6 +8,11 @@ on:
       - 'db/migrations/011_snapshot_unchanged_hour.sql'
       - 'db/migrations/012_snapshot_unchanged_flush.sql'
       - 'db/migrations/013_snapshot_changed_hour.sql'
+      - 'db/migrations/014_location_free_evse_ewma.sql'
+      - 'db/migrate.sh'
+      - 'docker-compose.yml'
+      - 'db/tests/019_location_free_evse_ewma_smoke.sql'
+      - 'db/tests/020_location_free_evse_304_capacity.sql'
       - 'db/tests/013_snapshot_changed_hour_smoke.sql'
       - 'db/tests/014_snapshot_transition_rollback_smoke.sql'
       - 'db/tests/015_snapshot_restart_setup.sql'
@@ -111,8 +116,36 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f db/tests/012_snapshot_unchanged_flush_smoke.sql
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/013_snapshot_changed_hour.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/013_snapshot_changed_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/014_location_free_evse_ewma.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/019_location_free_evse_ewma_smoke.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/020_location_free_evse_304_capacity.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/014_snapshot_transition_rollback_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/017_poll_replay_guard.sql
+      - name: Verify migration runner skip, serialization and rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/cw-migration-fixtures"
+          mkdir -p "$d"
+          cat > "$d/901_ci_migration_fixture.sql" <<'SQL'
+          CREATE TABLE migration_ci_probe (id int PRIMARY KEY);
+          INSERT INTO migration_ci_probe VALUES (1);
+          INSERT INTO schema_migration(version) VALUES ('901_ci_migration_fixture') ON CONFLICT DO NOTHING;
+          SQL
+          CW_MIGRATIONS_DIR="$d" sh db/migrate.sh
+          CW_MIGRATIONS_DIR="$d" sh db/migrate.sh
+          test "$(psql -Atqc 'SELECT count(*) FROM migration_ci_probe')" = 1
+          cat > "$d/902_ci_rollback_fixture.sql" <<'SQL'
+          INSERT INTO migration_ci_probe VALUES (2);
+          SELECT 1 / 0;
+          INSERT INTO schema_migration(version) VALUES ('902_ci_rollback_fixture');
+          SQL
+          if CW_MIGRATIONS_DIR="$d" sh db/migrate.sh; then
+            echo 'Expected migration failure did not occur' >&2
+            exit 1
+          fi
+          test "$(psql -Atqc 'SELECT count(*) FROM migration_ci_probe')" = 1
+          test "$(psql -Atqc "SELECT count(*) FROM schema_migration WHERE version='902_ci_rollback_fixture'")" = 0
       - name: Persist and consume compact buffer across DB sessions
         run: |
           psql -v ON_ERROR_STOP=1 -f db/tests/015_snapshot_restart_setup.sql

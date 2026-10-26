@@ -77,7 +77,11 @@ internal sealed record AvailabilitySlot(
     int SampleCount,
     int ChangedFeedCount,
     int UnchangedFeedCount,
-    DateTimeOffset? LastSampleAt);
+    DateTimeOffset? LastSampleAt,
+    double? AverageAvailableEvses = null,
+    double? AverageActiveEvses = null,
+    int? AvailableEvseSampleCount = null,
+    int? ExcludedEvseSampleCount = null);
 
 internal sealed record EvseStatistics(long EvseId, IReadOnlyList<AvailabilitySlot> Slots);
 

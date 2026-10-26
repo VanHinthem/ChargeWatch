@@ -287,14 +287,15 @@ internal sealed class ApiDatabase(ApiOptions options)
 
         var locationSlots = new List<AvailabilitySlot>();
         await using (var command = new NpgsqlCommand("""
-            SELECT iso_weekday,category_ewma,sample_count,changed_feed_count,unchanged_feed_count,last_sample_at
+            SELECT iso_weekday,category_ewma,sample_count,changed_feed_count,unchanged_feed_count,last_sample_at,
+                   available_evse_ewma,active_evse_ewma,valid_count_samples,excluded_count_samples
             FROM location_snapshot_weekday_profile WHERE location_id=$1 ORDER BY iso_weekday
             """, connection))
         {
             command.Parameters.AddWithValue(locationId);
             await using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
-                AppendSlots(locationSlots, reader, categoryCount:5);
+                AppendSlots(locationSlots, reader, categoryCount:5, includeCounts:true);
         }
 
         var byEvse = new Dictionary<long,List<AvailabilitySlot>>();
@@ -341,7 +342,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5));
     }
 
-    private void AppendSlots(List<AvailabilitySlot> target, NpgsqlDataReader reader, int categoryCount, int offset=0)
+    private void AppendSlots(List<AvailabilitySlot> target, NpgsqlDataReader reader, int categoryCount, int offset=0, bool includeCounts=false)
     {
         var weekday=reader.GetInt16(offset);
         var ewma=reader.GetFieldValue<float?[]>(offset+1);
@@ -351,6 +352,12 @@ internal sealed class ApiDatabase(ApiOptions options)
         var last=NullableTimestamp(reader,offset+5);
         if (ewma.Length != categoryCount*24 || samples.Length != 24)
             throw new InvalidDataException("Unexpected compact statistics array shape.");
+        var freeEwma = includeCounts ? reader.GetFieldValue<float?[]>(offset+6) : null;
+        var capacityEwma = includeCounts ? reader.GetFieldValue<float?[]>(offset+7) : null;
+        var countSamples = includeCounts ? reader.GetFieldValue<int[]>(offset+8) : null;
+        var excludedSamples = includeCounts ? reader.GetFieldValue<int[]>(offset+9) : null;
+        if (includeCounts && (freeEwma!.Length!=24 || capacityEwma!.Length!=24 || countSamples!.Length!=24 || excludedSamples!.Length!=24))
+            throw new InvalidDataException("Unexpected free EVSE history array shape.");
         for (var hour=0; hour<24; hour++)
         {
             // Category 1 is AVAILABLE for both location (>= 1 EVSE free)
@@ -360,7 +367,11 @@ internal sealed class ApiDatabase(ApiOptions options)
             var available = ExperimentalAvailability.AvailableShare(
                 ewma[hour], samples[hour], changed[hour]);
             target.Add(new AvailabilitySlot(weekday,hour,available,
-                samples[hour],changed[hour],unchanged[hour],last));
+                samples[hour],changed[hour],unchanged[hour],last,
+                includeCounts && countSamples![hour]>0 ? freeEwma![hour] : null,
+                includeCounts && countSamples![hour]>0 ? capacityEwma![hour] : null,
+                includeCounts ? countSamples![hour] : null,
+                includeCounts ? excludedSamples![hour] : null));
         }
     }
 

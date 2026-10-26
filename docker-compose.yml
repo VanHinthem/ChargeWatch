@@ -17,5 +17,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+  migrate:
+    image: postgres:18
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: chargewatch
+      PGUSER: chargewatch_owner
+      PGPASSWORD: ${CW_DB_OWNER_PASSWORD:?Set CW_DB_OWNER_PASSWORD in .env}
+    volumes:
+      - ./db/migrations:/migrations:ro
+      - ./db/migrate.sh:/migrate.sh:ro
+    entrypoint: ["/bin/sh", "/migrate.sh"]
+    restart: "no"
 volumes:
   pgdata:
