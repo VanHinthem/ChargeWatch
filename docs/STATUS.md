@@ -1,5 +1,9 @@
 # ChargeWatch — actuele status (26 oktober 2026)
 
+## Automatische databasemigraties — PR #57 (26 oktober 2026)
+
+De backend-Compose bevat een eenmalige `migrate`-service, die na de PostgreSQL-healthcheck alle ontbrekende genummerde SQL-migraties onder transactionele advisory lock toepast, met `schema_migration` als versiebron. Het script `db/migrate.sh` is idempotent en stopt bij fouten zonder gedeeltelijke wijzigingen in de lopende migratie. De PostgreSQL 18-CI-test op commit `3b249295` is **groen**, inclusief herhaalde uitvoering en een opzettelijk falende migratie met rollback. Deploymentcontract en back-upgate staan in `docs/AUTOMATED_DB_MIGRATIONS.md`. Omdat collector en API niet in deze repo-Compose staan, moet hun afzonderlijke NAS-deployment op succesvolle afronding van de migrator wachten. De daadwerkelijke productie-installatie is niet uitgevoerd; afzonderlijk deployakkoord blijft vereist.
+
 ## Historische vrije-EVSE-aantallen — issue #56 (featurebranch, 26 oktober 2026)
 
 **Branch:** `feature/56-historical-free-evse-count-ewma`. De additieve migratie `014_location_free_evse_ewma`, gewijzigde transactionele locatiestatusaggregatie, API-uitbreiding en gerichte SQL-test zijn opgesteld voor review. Bestaande percentage-EWMA blijft behouden. Nieuwe beschikbare en actieve EVSE-gemiddelden gebruiken dezelfde 90-daagse EWMA-halfwaardetijd, per ISO-weekdag/uur, uitsluitend volledig bekende snapshots. Defecten tellen in capaciteit; PLANNED/REMOVED niet; UNKNOWN wordt uitgesloten en als kwaliteit geteld. Geen terugvulling van historische aantallen en geen Android-wijziging.
