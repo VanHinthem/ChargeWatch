@@ -1,4 +1,4 @@
-## Android kaartbronvergelijking — PR in ontwikkeling (26 oktober 2026)
+## Android kaartbronvergelijking — geïmplementeerd, praktijkvalidatie open (26 oktober 2026)
 
 **Doel:** op Samsung NDW-direct versus eigen ChargeWatch API testen voor hetzelfde kaartgebied; standaardbron blijft NDW. Tijdelijke schakelaar boven de kaart toont gebruikte bron, aantal locaties en totale netwerk-/parse-tijd in ms. Favorietensleutels blijven de samengestelde OCPI/NDW `NL-party-sourceId` identiteit; details blijven on-demand via ChargeWatch API.
 
@@ -6,7 +6,7 @@
 
 **Beperkingen/testplan:** connectorcategorieën zijn afgeleid van Postgres EVSE/connector-data en hoeven niet altijd exact gelijk te zijn aan de NDW-categorieclassificatie (zie FAS en overlappende connectorcategorieën); vergelijk aantallen, labels, vermogen, details en favorieten expliciet. Een te grote viewport vraagt inzoomen en schakelt niet ongemerkt terug naar NDW. Meet respons-/parse-tijden naast kaartvolledigheid; 120 requests/min per waargenomen proxy-IP blijft van kracht, vertrouwensinstellingen voor proxy X-Forwarded-For vereisen afzonderlijke verificatie. API-only mag pas standaard worden als parity, volumes en latency zijn gevalideerd.
 
-**Open:** CI en live Samsung-test, endpointrespons op NAS na goedgekeurde merge/deployment, grafiek/UI-aanpassingen daarna apart.
+**Validatie:** op implementatiecommit `e096e2dc` zijn Android-, Read-only API- en NAS Images-checks geslaagd; controleer CI opnieuw op deze statuscommit voor merge. Open na merge: afzonderlijk goedgekeurde NAS API-image-update, endpointrespons met productiegegevens, vergelijking van NDW en ChargeWatch op Samsung (latency, kaartdekking, beschikbaarheid, connectoren, favorieten), controle van proxy/rate-limit; grafiek/UI-aanpassingen blijven een aparte vervolgfase.
 
 ## Tarieven inclusief btw en API-only kaartbenchmark — in ontwikkeling (26 oktober 2026)
 
