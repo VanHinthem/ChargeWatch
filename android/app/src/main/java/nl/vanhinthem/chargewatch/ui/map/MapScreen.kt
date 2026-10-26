@@ -626,11 +626,11 @@ private fun LocationSelectionSheet(
                                     tonalElevation = 2.dp
                                 ) {
                                     Column(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 7.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(3.dp)
                                     ) {
-                                        ConnectorSocketIcon(connector.connectorType)
+                                        ConnectorSocketIcon(connector.connectorType, sizeDp = 26)
                                         Text(
                                             formatChargingPower(connector.powerMax) ?: "— kW",
                                             style = MaterialTheme.typography.labelMedium,
