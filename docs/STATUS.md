@@ -1,3 +1,13 @@
+## Android kaartbronvergelijking — PR in ontwikkeling (26 oktober 2026)
+
+**Doel:** op Samsung NDW-direct versus eigen ChargeWatch API testen voor hetzelfde kaartgebied; standaardbron blijft NDW. Tijdelijke schakelaar boven de kaart toont gebruikte bron, aantal locaties en totale netwerk-/parse-tijd in ms. Favorietensleutels blijven de samengestelde OCPI/NDW `NL-party-sourceId` identiteit; details blijven on-demand via ChargeWatch API.
+
+**Backend:** nieuw read-only `GET /api/v1/map/viewport?bbox=minLon,minLat,maxLon,maxLat`; maximaal 999 locaties per kaartgebied, HTTP 413 bij volledige grens zodat niet ongemerkt een onvolledige kaart wordt weergegeven; invalide bbox 400. Per locatie worden statuscounters en connectorcategorieën uit de database opgebouwd. Geen wijzigingen aan collector, databaseschema of historische statistieken. Deze route wordt pas bereikbaar na afzonderlijk akkoord op image-deployment.
+
+**Beperkingen/testplan:** connectorcategorieën zijn afgeleid van Postgres EVSE/connector-data en hoeven niet altijd exact gelijk te zijn aan de NDW-categorieclassificatie (zie FAS en overlappende connectorcategorieën); vergelijk aantallen, labels, vermogen, details en favorieten expliciet. Een te grote viewport vraagt inzoomen en schakelt niet ongemerkt terug naar NDW. Meet respons-/parse-tijden naast kaartvolledigheid; 120 requests/min per waargenomen proxy-IP blijft van kracht, vertrouwensinstellingen voor proxy X-Forwarded-For vereisen afzonderlijke verificatie. API-only mag pas standaard worden als parity, volumes en latency zijn gevalideerd.
+
+**Open:** CI en live Samsung-test, endpointrespons op NAS na goedgekeurde merge/deployment, grafiek/UI-aanpassingen daarna apart.
+
 ## Tarieven inclusief btw en API-only kaartbenchmark — in ontwikkeling (26 oktober 2026)
 
 **Gebruikersfeedback Samsung:** de eerste tarieven worden als exclusief btw getoond, terwijl de overeengekomen presentatie inclusief btw moet zijn. De detailweergave toont bovendien technische connector-/tarief-ID's dubbel. Als onafhankelijke prestatieproef wil gebruiker de Android-kaart tijdelijk uitsluitend via de eigen ChargeWatch API laden en vergelijken met NDW-direct.
