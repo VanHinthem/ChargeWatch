@@ -47,10 +47,12 @@ class LocationEnrichmentClient(
                             val statisticsRequest = Request.Builder()
                                 .url(base + path + "/statistics")
                                 .header("Accept", "application/json").build()
-                            val stats = httpClient.newCall(statisticsRequest).execute().use { statsResponse ->
-                                if (!statsResponse.isSuccessful) emptyList()
-                                else parseHourlyAvailability(statsResponse.body?.string().orEmpty())
-                            }
+                            val stats = runCatching {
+                                httpClient.newCall(statisticsRequest).execute().use { statsResponse ->
+                                    if (!statsResponse.isSuccessful) emptyList()
+                                    else parseHourlyAvailability(statsResponse.body?.string().orEmpty())
+                                }
+                            }.getOrDefault(emptyList())
                             EnrichmentResult.Found(detail.copy(
                                 statisticsAvailable = stats.isNotEmpty(),
                                 hourlyAvailability = stats))
