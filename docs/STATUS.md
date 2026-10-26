@@ -10,6 +10,8 @@
 
 **Open UI-punt:** compacte sheet gebruikt nog standaard Material 3 half-screen-anker van circa 50%, met resterende lege ruimte. Gewenste inhoudsafhankelijke compacthoogte vraagt eigen sheet/ankers; dit is nog niet geïmplementeerd en moet vóór definitieve acceptatie worden opgelost. CI en Samsung-hertest van laatste code nog controleren.
 
+**Grafiekverbetering:** alle 24 uren worden altijd getoond; ontbrekende uren als grijze volle kolom, gemeten nulwaarde als korte groene kolom. Links staat 0/50/100%-schaal; tik op uur toont het tijdvak met de indicatiewaarde of 'Geen gegevens'. Geen verzonnen uren/waarden of backendwijziging. UI-build en Samsung-hertest van de laatste wijziging nog open.
+
 ## Praktijkvalidatie kaartbronnen — 26 oktober 2026
 
 **Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
