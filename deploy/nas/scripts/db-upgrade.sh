@@ -30,10 +30,10 @@ fi
 echo "Database release change: ${applied:-unrecorded} -> $CW_IMAGE_TAG"
 assert_collector_stopped
 echo "Creating mandatory pre-migration backup..."
-/scripts/backup.sh
+sh /scripts/backup.sh
 assert_collector_stopped
 echo "Applying pending migrations..."
-/scripts/migrate.sh
+sh /scripts/migrate.sh
 # Called only after a successful migration pass; errors must never mark release complete.
 psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE TABLE IF NOT EXISTS chargewatch_release_checkpoint (
