@@ -601,30 +601,26 @@ private fun LocationSelectionSheet(
                         EnrichmentResult.Unavailable -> Text("Tariefgegevens konden niet worden opgehaald.")
                         is EnrichmentResult.Found -> {
                             if (result.value.tariffs.isEmpty()) Text("Geen betrouwbaar tarief beschikbaar.")
-                            result.value.tariffs.forEach { part ->
-                                val unit = when (part.type) {
-                                    "ENERGY" -> "kWh"
-                                    "TIME", "PARKING_TIME" -> "uur"
-                                    else -> "keer"
+                            result.value.tariffs
+                                .distinctBy { listOf(it.type, it.inclusiveAmount, it.currency, it.vat, it.hasRestrictions, it.elementIndex) }
+                                .forEach { part ->
+                                    val unit = when (part.type) {
+                                        "ENERGY" -> "kWh"
+                                        "TIME", "PARKING_TIME" -> "uur"
+                                        else -> "keer"
+                                    }
+                                    val label = when (part.type) {
+                                        "ENERGY" -> "Energie"
+                                        "TIME" -> "Laadtijd"
+                                        "PARKING_TIME" -> "Parkeertijd"
+                                        else -> "Starttarief"
+                                    }
+                                    val taxNote = if (part.vatKnown) "incl. btw" else "btw niet opgegeven"
+                                    Text("$label · ${part.inclusiveAmount} ${part.currency} / $unit · $taxNote" +
+                                        if (part.hasRestrictions) " · voorwaarden" else "")
                                 }
-                                val label = when (part.type) {
-                                    "ENERGY" -> "Energie"
-                                    "TIME" -> "Laadtijd"
-                                    "PARKING_TIME" -> "Parkeertijd"
-                                    else -> "Starttarief"
-                                }
-                                val identifiers = listOfNotNull(
-                                    part.connectorId.takeIf { it.isNotBlank() }?.let { "Connector $it" },
-                                    part.tariffId.takeIf { it.isNotBlank() }?.let { "Tarief $it" }
-                                ).joinToString(" · ")
-                                if (identifiers.isNotEmpty()) Text(identifiers,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("$label · ${part.amount} ${part.currency} / $unit" +
-                                    if (part.hasRestrictions) " · voorwaarden" else "")
-                            }
                             if (result.value.tariffs.isNotEmpty())
-                                Text("OCPI-prijscomponenten, geen gegarandeerde eindprijs of btw-inclusieve consumentenprijs.",
+                                Text("OCPI-prijscomponenten, geen gegarandeerde eindprijs. Als de bron geen btw-percentage opgeeft, voegen we niet zonder onderbouwing 21% toe.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (result.value.hasComplexTariffs)
