@@ -45,6 +45,13 @@ class LocationEnrichmentTest {
         assertEquals(setOf("T-A", "T-B"), result.tariffs.map { it.tariffId }.toSet())
         assertEquals(setOf("1", "2"), result.tariffs.map { it.connectorId }.toSet())
     }
+
+    @Test fun ocpiVatComponentIsConvertedForDisplay() {
+        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.2691,"vat":21}]}]}}]}]}]}"""
+        val part = parseEnrichment(raw).tariffs.single()
+        assertEquals("0.326", part.inclusiveAmount)
+        assertTrue(part.vatKnown)
+    }
     @Test fun experimentalStatisticsPreserveMissingSlots() {
         val raw = """{"isExperimental":true,"probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA","slots":[
           {"hour":8,"availableProbability":0.25,"sampleCount":5},
