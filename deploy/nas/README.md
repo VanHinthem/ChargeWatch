@@ -15,7 +15,7 @@ De gewenste eenmalige onderhoudsactie `db-upgrade` volgt deze beslisboom:
 
 **Nog te implementeren en valideren vóór merge:** de bestaande collector kan tijdens een UGREEN-herdeploy nog actief zijn; `depends_on: service_completed_successfully` stopt een reeds lopende collector niet. Ook moet bewezen worden dat UGREEN/Compose een job bij tagwijziging opnieuw uitvoert, en dat een restart niet onbedoeld de upgradejob opnieuw uitvoert. Een deployment waarbij de oude collector schrijft tijdens een schemawijziging is **niet veilig**. Daarom is de Compose-integratie nog niet releaseklaar.
 
-De huidige `deploy/nas/upgrade.sh` uit de eerste PR-versie was bedoeld voor SSH-bediening en is **niet de gekozen UX**; voer dit niet uit als standaard NAS-update. Geen NAS-productieconfiguratie wijzigen vóór UGREEN-herdeployvalidatie. Bestaande NAS-api-poortbinding op `192.168.2.48:5088` behouden (de repository-Compose gebruikt `127.0.0.1`).
+De eerdere CLI-upgradevariant is verwijderd. De UGREEN Docker-app blijft de beoogde beheerinterface. Geen NAS-productieconfiguratie wijzigen vóór UGREEN-herdeployvalidatie. Bestaande NAS-api-poortbinding op `192.168.2.48:5088` behouden (de repository-Compose gebruikt `127.0.0.1`).
 
 
 ## NAS files
