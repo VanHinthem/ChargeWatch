@@ -23,6 +23,7 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
 
         NdwLocationKey.SelfTest();
         OcpiTariffPresentation.SelfTest();
+        ExperimentalAvailability.SelfTest();
         Require(ParseLimit(null) == 100, "default limit");
         Require(ParseLimit(1) == 1, "minimum limit");
         Require(ParseLimit(999) == 200, "maximum limit");
