@@ -6,6 +6,10 @@
 
 **Vervolg:** CI controleren, Android APK op Samsung valideren, zo nodig corrigeren en PR afzonderlijk laten beoordelen. Geen merge/deployment zonder expliciet akkoord. PR #54 voor Geffen blijft onafhankelijk open.
 
+**Weekdagkeuze:** de API levert `isoWeekday` (1=maandag t/m 7=zondag) per 168-slotprofiel. Android bewaart deze dimensie nu bij het parsen in plaats van alle weekdagen samen te middelen. De grafiek opent op de huidige weekdag in tijdzone Europe/Amsterdam en biedt een keuzemenu voor alle zeven dagen; lege dag toont neutrale melding, zonder extra onzekerheidstekst. Regressietest voor twee weekdagen toegevoegd. Geen backend- of datacontractwijziging.
+
+**Open UI-punt:** compacte sheet gebruikt nog standaard Material 3 half-screen-anker van circa 50%, met resterende lege ruimte. Gewenste inhoudsafhankelijke compacthoogte vraagt eigen sheet/ankers; dit is nog niet geïmplementeerd en moet vóór definitieve acceptatie worden opgelost. CI en Samsung-hertest van laatste code nog controleren.
+
 ## Praktijkvalidatie kaartbronnen — 26 oktober 2026
 
 **Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
