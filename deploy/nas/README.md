@@ -24,7 +24,7 @@ De eerdere CLI-upgradevariant is verwijderd. De UGREEN Docker-app blijft de beoo
 
 UGREEN Docker → Project biedt bij deze installatie een YAML-editor, maar geen editor voor de bestaande `.env`. **Docker Compose kan geen YAML-anchor met een variabele suffix combineren**: een `x-release: &tag sha-...` kan dus niet automatisch als `ghcr.io/...:${tag}` worden gebruikt. De Compose-interpolatie `${CW_IMAGE_TAG}` wordt uitgevoerd vóór verwerking van YAML-anchors en leest waarden uit de projectomgeving of `.env`, niet uit een `x-`-veld.
 
-De huidige PR houdt daarom voorlopig **één echte releasevariabele** `CW_IMAGE_TAG` in `.env`. Voor bediening uitsluitend via de Docker-app is nog een keuze/UGREEN-validatie nodig: (a) het project laten verwijzen naar een via de UGREEN File Manager beheerde `.env`, of (b) de vijf image-regels in YAML bij een update tegelijk vervangen met één editoractie (zoeken/vervangen) en de versie van de `db-upgrade`-job vanuit haar eigen image-ref afleiden. Optie (b) is geen letterlijke één-tag-bron en is nog niet geïmplementeerd. **Niet** een fictieve YAML-anchor implementeren.
+De huidige PR houdt daarom voorlopig **één echte releasevariabele** `CW_IMAGE_TAG` in `.env`. **Gekozen werkwijze:** wijzig uitsluitend `CW_IMAGE_TAG` in de bestaande `.env` via UGREEN Bestandsbeheerder; beheer stoppen/starten van het project vanuit UGREEN Docker → Project. De bestaande lokale Compose-binding voor de API (`192.168.2.48:5088`) en alle wachtwoorden blijven ongewijzigd. De eerste herdeploy moet bevestigen dat UGOS de bijgewerkte `.env` in de Compose-interpolatie opnieuw inleest, de gewijzigde one-shot `db-upgrade` opnieuw uitvoert en de collector niet voortijdig start. Geen YAML-anchor of extra tagvariabele.
 
 
 ## NAS files
