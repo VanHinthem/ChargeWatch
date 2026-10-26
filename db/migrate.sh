@@ -6,7 +6,8 @@ set -eu
 : "${PGUSER:?PGUSER required}"
 : "${PGPASSWORD:?PGPASSWORD required}"
 export PGOPTIONS="-c statement_timeout=0"
-set -- /migrations/[0-9][0-9][0-9]_*.sql
+migration_dir="${CW_MIGRATIONS_DIR:-/migrations}"
+set -- "$migration_dir"/[0-9][0-9][0-9]_*.sql
 [ -f "$1" ] || { echo "No numbered SQL migrations found" >&2; exit 1; }
 for file do
   base="${file##*/}"
