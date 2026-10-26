@@ -747,36 +747,53 @@ private fun LocationSelectionSheet(
                     }
                     val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
                         .filter { it.isoWeekday == chosenWeekday }
-                    if (historical.isEmpty()) {
-                        Text("Geen historische gegevens voor deze dag.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Row(Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.Bottom) {
-                            (0..23).forEach { hour ->
-                                val slot = historical.firstOrNull { it.hour == hour }
-                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier.fillMaxWidth().height(56.dp),
+                    var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
+                            horizontalAlignment = Alignment.End) {
+                            Text("100%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("50%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("0%", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Row(Modifier.fillMaxWidth().height(88.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalAlignment = Alignment.Bottom) {
+                                (0..23).forEach { hour ->
+                                    val slot = historical.firstOrNull { it.hour == hour }
+                                    Box(Modifier.weight(1f).fillMaxSize()
+                                        .clickable { selectedHour = hour },
                                         contentAlignment = Alignment.BottomCenter) {
-                                        if (slot != null) {
+                                        if (slot == null) {
+                                            Box(Modifier.fillMaxWidth().height(88.dp)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant,
+                                                    RoundedCornerShape(2.dp)))
+                                        } else {
                                             Box(Modifier.fillMaxWidth()
-                                                .height((slot.share * 56).coerceAtLeast(2.0).dp)
-                                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
+                                                .height((slot.share * 88).coerceAtLeast(2.0).dp)
+                                                .background(MaterialTheme.colorScheme.primary,
+                                                    RoundedCornerShape(2.dp)))
                                         }
                                     }
                                 }
                             }
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            listOf("00", "06", "12", "18", "24").forEach { label ->
-                                Text(label, style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                listOf("00", "06", "12", "18", "24").forEach { label ->
+                                    Text(label, style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
-                        Text("Historische beschikbaarheid per uur (lokale tijd).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    selectedHour?.let { hour ->
+                        val slot = historical.firstOrNull { it.hour == hour }
+                        val hourLabel = "%02d:00–%02d:00".format(Locale.forLanguageTag("nl-NL"), hour, hour + 1)
+                        Text(if (slot == null) "$hourLabel · Geen gegevens"
+                             else "$hourLabel · ${(slot.share * 100).toInt()}% historische beschikbaarheidsindicatie",
+                             style = MaterialTheme.typography.bodySmall)
                     }
                     val updated = remember(location.lastUpdated) {
                         location.lastUpdated?.let { raw ->
