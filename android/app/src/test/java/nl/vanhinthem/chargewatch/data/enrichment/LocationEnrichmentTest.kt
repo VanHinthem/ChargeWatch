@@ -35,6 +35,16 @@ class LocationEnrichmentTest {
         assertTrue(result.tariffs.isEmpty())
     }
 
+    @Test fun identicalComponentsOnDifferentConnectorsRemainDistinct() {
+        val data = """{"evses":[{"connectors":[
+          {"sourceId":"1","tariffs":[{"sourceId":"T-A","presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.40}]}]}}]},
+          {"sourceId":"2","tariffs":[{"sourceId":"T-B","presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.40}]}]}}]}
+        ]}]}"""
+        val result = parseEnrichment(data)
+        assertEquals(2, result.tariffs.size)
+        assertEquals(setOf("T-A", "T-B"), result.tariffs.map { it.tariffId }.toSet())
+        assertEquals(setOf("1", "2"), result.tariffs.map { it.connectorId }.toSet())
+    }
     @Test(expected = IllegalStateException::class)
     fun missingEvseContractIsNotInterpretedAsEmptyLocation() {
         parseEnrichment("""{"other":"value"}""")
