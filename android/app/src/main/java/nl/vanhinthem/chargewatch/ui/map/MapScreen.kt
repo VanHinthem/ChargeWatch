@@ -502,7 +502,11 @@ private fun LocationSelectionSheet(
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val compactSheetMinHeight = screenHeight * 0.52f
     val expandedSheetMaxHeight = screenHeight * 0.89f
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.heightIn(max = expandedSheetMaxHeight)
+    ) {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -596,33 +600,33 @@ private fun LocationSelectionSheet(
                     detail.tariffs.filter { it.type == "ENERGY" }
                         .distinctBy { listOf(it.inclusiveAmount, it.currency, it.vat.orEmpty(), it.hasRestrictions.toString()) }
                         .takeIf { prices ->
-                            !detail.hasComplexTariffs && prices?.size == 1 &&
+                            prices?.size == 1 &&
                                 prices[0].vatKnown && !prices[0].hasRestrictions &&
                                 prices[0].currency == "EUR"
                         }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    if (singleConnector != null) {
-                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                            Text(connectorDisplayName(singleConnector.connectorType),
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelMedium)
-                        }
-                        formatChargingPower(singleConnector.powerMax)?.let { power ->
+                // Wrap connector summaries rather than replacing multiple categories with a count.
+                // Each category is a reported connector category, not a unique EVSE.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        connectors.forEach { connector ->
+                            val label = listOfNotNull(
+                                connectorDisplayName(connector.connectorType),
+                                formatChargingPower(connector.powerMax)
+                            ).joinToString(" · ")
                             Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                                Text(power, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                Text(label, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                     style = MaterialTheme.typography.labelMedium)
                             }
                         }
-                    } else if (connectors.isNotEmpty()) {
-                        Text("${connectors.size} typen aansluitingen", style = MaterialTheme.typography.bodySmall)
-                    }
-                    energyPrices?.singleOrNull()?.let { price ->
-                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                            Text("€ ${price.inclusiveAmount}/kWh",
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelMedium)
+                        energyPrices?.singleOrNull()?.let { price ->
+                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                                Text("€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
+                                    if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
+                                        " · voorwaarden" else "",
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
