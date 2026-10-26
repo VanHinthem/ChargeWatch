@@ -505,7 +505,7 @@ private fun LocationSelectionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.heightIn(max = expandedSheetMaxHeight)
+        modifier = Modifier.padding(top = screenHeight * 0.09f)
     ) {
         if (locations.size > 1) {
             Column(
@@ -607,9 +607,10 @@ private fun LocationSelectionSheet(
                 }
                 // Wrap connector summaries rather than replacing multiple categories with a count.
                 // Each category is a reported connector category, not a unique EVSE.
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        connectors.forEach { connector ->
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    connectors.chunked(2).forEach { connectorRow ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            connectorRow.forEach { connector ->
                             val label = listOfNotNull(
                                 connectorDisplayName(connector.connectorType),
                                 formatChargingPower(connector.powerMax)
@@ -618,8 +619,10 @@ private fun LocationSelectionSheet(
                                 Text(label, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                     style = MaterialTheme.typography.labelMedium)
                             }
+                            }
                         }
-                        energyPrices?.singleOrNull()?.let { price ->
+                    }
+                    energyPrices?.singleOrNull()?.let { price ->
                             Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
                                 Text("€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
                                     if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
@@ -628,7 +631,6 @@ private fun LocationSelectionSheet(
                                     style = MaterialTheme.typography.labelMedium)
                             }
                         }
-                    }
                 }
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
