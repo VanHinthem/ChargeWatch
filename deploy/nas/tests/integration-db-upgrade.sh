@@ -13,8 +13,17 @@ dc() { docker compose -p "$PROJECT" -f deploy/nas/compose.yaml "$@"; }
 cleanup() { dc down -v --remove-orphans || :; rm -rf "$CW_NAS_BACKUP_DIR"; }
 trap cleanup EXIT
 
+wait_upgrade() {
+  # Compose up -d returns after START, not after this one-shot job has exited.
+  container_id=$(dc ps -a -q db-upgrade)
+  [ -n "$container_id" ] || { echo "db-upgrade container missing" >&2; exit 1; }
+  exit_code=$(docker wait "$container_id")
+  dc logs --no-color db-upgrade
+  [ "$exit_code" = 0 ] || { echo "db-upgrade exited with $exit_code" >&2; exit 1; }
+}
 dc up -d db
 dc up -d db-upgrade
+wait_upgrade
 log=$(dc logs --no-color db-upgrade)
 printf '%s\n' "$log"
 echo "$log" | grep -q 'Recorded successfully applied release'
@@ -24,6 +33,7 @@ count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
 # Test the UGREEN-like ordinary restart using an explicitly recreated one-shot
 # container, which is stricter than a simple Docker restart.
 dc up -d --no-deps --force-recreate db-upgrade
+wait_upgrade
 log=$(dc logs --no-color db-upgrade)
 echo "$log" | grep -q 'already applied; no backup/migration required'
 count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
@@ -36,6 +46,7 @@ export CW_IMAGE_TAG=sha-abcdef0123456789abcdef0123456789abcdef01
 docker tag ghcr.io/vanhinthem/chargewatch-maintenance:sha-0123456789abcdef0123456789abcdef01234567 \
   ghcr.io/vanhinthem/chargewatch-maintenance:"$CW_IMAGE_TAG"
 dc up -d --no-deps --force-recreate db-upgrade
+wait_upgrade
 log=$(dc logs --no-color db-upgrade)
 echo "$log" | grep -q 'Recorded successfully applied release'
 count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
