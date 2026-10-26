@@ -1,5 +1,12 @@
 # ChargeWatch — actuele status (26 oktober 2026)
 
+## Historische vrije-EVSE-aantallen — issue #56 (featurebranch, 26 oktober 2026)
+
+**Branch:** `feature/56-historical-free-evse-count-ewma`. De additieve migratie `014_location_free_evse_ewma`, gewijzigde transactionele locatiestatusaggregatie, API-uitbreiding en gerichte SQL-test zijn opgesteld voor review. Bestaande percentage-EWMA blijft behouden. Nieuwe beschikbare en actieve EVSE-gemiddelden gebruiken dezelfde 90-daagse EWMA-halfwaardetijd, per ISO-weekdag/uur, uitsluitend volledig bekende snapshots. Defecten tellen in capaciteit; PLANNED/REMOVED niet; UNKNOWN wordt uitgesloten en als kwaliteit geteld. Geen terugvulling van historische aantallen en geen Android-wijziging.
+
+**Verificatie:** GitHub Actions voor de nieuwe PR nog af te wachten/controleren; geen lokale PostgreSQL/NAS-migratie uitgevoerd. Voor productie vereist: afzonderlijk migratie- en deploymentakkoord, database-back-up en controle van API-image en collectiecadans. PR #55 is reeds op main; het laatste gesturegedrag van de inhoudsafhankelijke bottom sheet wacht nog Samsung-validatie. PR #54 blijft los. **Volgende stap:** CI-review en eventueel correcties op de featurebranch, daarna expliciete PR-goedkeuring; niet automatisch mergen/deployen.
+
+
 ## Android locatie-details — PR #55
 
 De Android locatie-detail-UI is heringericht, met een compacte inhoudsafhankelijke bottom sheet en een uitgebreide, scrollbare detailweergave. De compacte stand toont locatie, beschikbaarheid, maximaal drie connectorcategorieën per rij (26dp-icoon, vermogen, type), eenduidige energieprijs met relevante tariefvoorwaarden, favoriet en navigatie/Street View. De uitgebreide stand toont de aansluitingen met aantallen, afzonderlijke prijscomponenten in Nederlandse notatie en historische beschikbaarheid, zonder dubbele compacte tegels.
