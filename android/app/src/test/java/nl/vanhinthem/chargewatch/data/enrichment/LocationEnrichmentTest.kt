@@ -23,7 +23,7 @@ class LocationEnrichmentTest {
         assertFalse(result.statisticsAvailable)
     }
 
-    @Test fun missingOrUnsupportedTariffDoesNotYieldFictionalPrice() {
+    @Test fun partiallyUnsupportedTariffKeepsComponentWithoutInventingTotal() {
         val result = parseEnrichment("""
             {"evses":[{"connectors":[{"tariffs":[
               {"presentation":{"currency":"EUR","hasUnsupportedData":true,
@@ -32,7 +32,10 @@ class LocationEnrichmentTest {
             ]}]}]}
         """.trimIndent())
         assertTrue(result.hasComplexTariffs)
-        assertTrue(result.tariffs.isEmpty())
+        assertEquals(1, result.tariffs.size)
+        assertEquals("ENERGY", result.tariffs.single().type)
+        assertEquals("1", result.tariffs.single().inclusiveAmount)
+        assertFalse(result.tariffs.single().vatKnown)
     }
 
     @Test fun identicalComponentsOnDifferentConnectorsRemainDistinct() {
