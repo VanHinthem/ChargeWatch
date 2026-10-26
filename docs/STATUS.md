@@ -1,3 +1,13 @@
+## Tarieven inclusief btw en API-only kaartbenchmark — in ontwikkeling (26 oktober 2026)
+
+**Gebruikersfeedback Samsung:** de eerste tarieven worden als exclusief btw getoond, terwijl de overeengekomen presentatie inclusief btw moet zijn. De detailweergave toont bovendien technische connector-/tarief-ID's dubbel. Als onafhankelijke prestatieproef wil gebruiker de Android-kaart tijdelijk uitsluitend via de eigen ChargeWatch API laden en vergelijken met NDW-direct.
+
+**PR scope — btw:** OCPI 2.2.1 `price` is exclusief btw, `vat` staat optioneel op iedere prijscomponent. Server geeft dit percentage expliciet door in `presentation.elements.components[].vat`; Android toont berekende prijs incl. btw zodra `vat` opgegeven is, groepeert gelijke prijscomponenten en verwijdert technische ID's uit consumentenweergave. Als de bron geen btw-percentage opgeeft, wordt het ontbreken gemeld; niet stilzwijgend een tariefpercentage verzinnen. Dit behoeft verificatie met echte tariefpayloads; in Nederland kan toepasselijke btw meestal 21% zijn, maar de bronspecificatie bepaalt of dit geldt. Alle componenten blijven voorlopige deelprijzen, geen garantie op uiteindelijke pas-/providerprijs.
+
+**API-only kaartbenchmark — vereist extra contract:** huidige API `GET /api/v1/locations?bbox=...` heeft max. 200 locaties en levert geen gegarandeerde NDW-feature-ID of NDW-connectorcategorieën in het kaartcontract. Alleen van URL wisselen breekt dekking, bottom sheet en favorieten. Maak voor de snelheidsvergelijking een testschakelaar NDW/ChargeWatch met gepagineerde viewport-data, getrouwe status-/connectorsemantiek en stabiele sleutel voor detail/favoriet; toon bron en laadtijd. Niet standaard API-only activeren voordat functionele parity en NAS-verzoekvolume gevalideerd zijn. Dit is een vervolgtaak, niet klaar in deze tarief-PR.
+
+**Open:** unit/API/Android CI, btw-percentage van live Bernhardlaan-tarief controleren, Samsung dark/light, proxy X-Forwarded-For en per-client throttling.
+
 ## Productie HTTPS API-hostname en extern bereik — afgerond in code (26 oktober 2026)
 
 **Definitieve hostname:** `https://chargewatch-api.vanhinthem.nl`. De gebruiker heeft vanaf Samsung via mobiel internet bevestigd dat Nginx Proxy Manager de bestaande read-only API via geldig HTTPS-certificaat en upstream `192.168.2.48:5088` bereikt. Ook is op NAS de Docker-binding beperkt tot `192.168.2.48:5088->8080`, zonder IPv6/all-interface-binding; rechtstreekse externe toegang tot 5088 is volgens gebruiker niet mogelijk. NPM Force SSL en Block Common Exploits zijn bevestigd. De bestaande collector en PostgreSQL zijn niet gewijzigd.
