@@ -605,7 +605,20 @@ private fun LocationSelectionSheet(
                                     "TIME", "PARKING_TIME" -> "uur"
                                     else -> "keer"
                                 }
-                                Text(part.type + " · " + part.amount + " " + part.currency + " / " + unit +
+                                val label = when (part.type) {
+                                    "ENERGY" -> "Energie"
+                                    "TIME" -> "Laadtijd"
+                                    "PARKING_TIME" -> "Parkeertijd"
+                                    else -> "Starttarief"
+                                }
+                                val identifiers = listOfNotNull(
+                                    part.connectorId.takeIf { it.isNotBlank() }?.let { "Connector $it" },
+                                    part.tariffId.takeIf { it.isNotBlank() }?.let { "Tarief $it" }
+                                ).joinToString(" · ")
+                                if (identifiers.isNotEmpty()) Text(identifiers,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$label · ${part.amount} ${part.currency} / $unit" +
                                     if (part.hasRestrictions) " · voorwaarden" else "")
                             }
                             if (result.value.tariffs.isNotEmpty())
