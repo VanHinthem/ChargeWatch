@@ -7,9 +7,20 @@ import nl.vanhinthem.chargewatch.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
 
-data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean, val tariffId: String = "", val connectorId: String = "", val elementIndex: Int = 0)
+data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean, val tariffId: String = "", val connectorId: String = "", val elementIndex: Int = 0, val vat: String? = null) {
+    val inclusiveAmount: String
+        get() {
+            val net = amount.toBigDecimalOrNull() ?: return amount
+            val rate = vat?.toBigDecimalOrNull() ?: return amount
+            return net.multiply(BigDecimal.ONE.add(rate.divide(BigDecimal("100"))))
+                .setScale(3, RoundingMode.HALF_UP).toPlainString()
+        }
+    val vatKnown: Boolean get() = vat != null
+}
 data class HourlyAvailability(val hour: Int, val share: Double, val samples: Int)
 data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean, val hourlyAvailability: List<HourlyAvailability> = emptyList())
 
@@ -97,14 +108,15 @@ fun parseEnrichment(raw: String): LocationEnrichment {
                     val c = component.jsonObject
                     val type = c["type"]?.jsonPrimitive?.contentOrNull
                     val amount = c["price"]?.jsonPrimitive?.contentOrNull
+                    val vat = c["vat"]?.jsonPrimitive?.contentOrNull
                     if (type == null || amount == null || type !in listOf("ENERGY","TIME","PARKING_TIME","FLAT")) {
                         complex = true
                         continue
                     }
-                    val key = listOf(connectorId, tariffId, elementIndex.toString(), type, amount, currency, restrictions.toString(),
+                    val key = listOf(connectorId, tariffId, elementIndex.toString(), type, amount, vat, currency, restrictions.toString(),
                         obj["restrictions"]?.toString().orEmpty(),
                         c["stepSize"]?.toString().orEmpty()).joinToString("|")
-                    prices.putIfAbsent(key, PricePart(type, amount, currency, restrictions, tariffId, connectorId, elementIndex))
+                    prices.putIfAbsent(key, PricePart(type, amount, currency, restrictions, tariffId, connectorId, elementIndex, vat))
                 }
             }
         }
