@@ -494,7 +494,6 @@ private fun LocationSelectionSheet(
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val expanded = sheetState.currentValue == SheetValue.Expanded
-    val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.93f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
@@ -549,13 +548,28 @@ private fun LocationSelectionSheet(
                 AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             Column(
-                Modifier.fillMaxWidth().heightIn(min = minSheetHeight)
+                Modifier.fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(location.title, style = MaterialTheme.typography.headlineSmall)
-                location.operatorName?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                        location.address?.takeIf { it != location.title }?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        location.operatorName?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    IconButton(onClick = { onToggleFavorite(location) }) {
+                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
@@ -570,33 +584,25 @@ private fun LocationSelectionSheet(
                             Icon(Icons.Default.Streetview, contentDescription = "Street View")
                         }
                     }
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { onToggleFavorite(location) }) {
-                            Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
-                        }
-                    }
                 }
-                Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Text("BESCHIKBAARHEID", style = MaterialTheme.typography.labelMedium)
-                            Text(location.availability.label, style = MaterialTheme.typography.displaySmall, color = statusColor)
-                            Text(availabilityDescription(location.availability), style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
-                    }
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
+                    Text(location.availability.label, style = MaterialTheme.typography.titleLarge, color = statusColor)
+                    Text(availabilityDescription(location.availability),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (expanded) {
-                    Text("Aansluitingen", style = MaterialTheme.typography.titleLarge)
+                    HorizontalDivider()
+                    Text("Aansluitingen", style = MaterialTheme.typography.titleMedium)
                     if (location.connectorCategories.isEmpty()) {
                         Text("Geen aansluitgegevens beschikbaar")
                     } else {
                         location.connectorCategories.forEach { category ->
-                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 1.dp) {
-                                Row(Modifier.fillMaxWidth().padding(14.dp),
+                            Surface(shape = RoundedCornerShape(10.dp), tonalElevation = 1.dp) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     ConnectorSocketIcon(category.connectorType)
@@ -617,7 +623,8 @@ private fun LocationSelectionSheet(
                             }
                         }
                     }
-                    Text("Tarieven", style = MaterialTheme.typography.titleLarge)
+                    HorizontalDivider()
+                    Text("Tarieven", style = MaterialTheme.typography.titleMedium)
                     when (val result = enrichment) {
                         null -> Text("Tariefgegevens ophalen…")
                         EnrichmentResult.Unconfigured -> Text("Tarieven nog niet beschikbaar in deze testversie.")
@@ -643,27 +650,35 @@ private fun LocationSelectionSheet(
                                         else -> "Starttarief"
                                     }
                                     val taxNote = if (part.vatKnown) "incl. btw" else "btw niet opgegeven"
-                                    Text("$label · ${part.inclusiveAmount} ${part.currency} / $unit · $taxNote" +
-                                        if (part.hasRestrictions) " · voorwaarden" else "")
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                                            Text(taxNote + if (part.hasRestrictions) " · voorwaarden" else "",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text("${part.inclusiveAmount} ${part.currency} / $unit",
+                                            style = MaterialTheme.typography.titleSmall)
+                                    }
                                 }
                             if (result.value.tariffs.isNotEmpty())
-                                Text("OCPI-prijscomponenten, geen gegarandeerde eindprijs. Als de bron geen btw-percentage opgeeft, voegen we niet zonder onderbouwing 21% toe.",
+                                Text("Prijscomponenten; je laadpasprovider kan een andere eindprijs berekenen.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (result.value.hasComplexTariffs)
                                 Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
                         }
                     }
-                    Text("Historische beschikbaarheid (experimenteel)",
-                        style = MaterialTheme.typography.titleLarge)
+                    HorizontalDivider()
+                    Text("Historische beschikbaarheid",
+                        style = MaterialTheme.typography.titleMedium)
                     val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
                     if (historical.isEmpty()) {
                         Text("Nog onvoldoende historische gegevens.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Text("Indicatie op basis van NDW-momentopnamen; geen voorspelling.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(3.dp),
                             verticalAlignment = Alignment.Bottom) {
@@ -678,12 +693,16 @@ private fun LocationSelectionSheet(
                                                 .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
                                         }
                                     }
-                                    if (hour % 6 == 0) Text(hour.toString(),
-                                        style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
-                        Text("Gemiddelde historische beschikbaarheid per uur (lokale tijd). Onvoldoende gevalideerd voor beslissingen.",
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            listOf("00", "06", "12", "18", "24").forEach { label ->
+                                Text(label, style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Text("Historische indicatie (lokale tijd), geen voorspelling.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -697,7 +716,7 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor aansluitingen",
+                    Text("Veeg omhoog voor aansluitingen, tarieven en statistieken",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
