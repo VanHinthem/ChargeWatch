@@ -6,7 +6,7 @@
 
 **Vervolg:** CI controleren, Android APK op Samsung valideren, zo nodig corrigeren en PR afzonderlijk laten beoordelen. Geen merge/deployment zonder expliciet akkoord. PR #54 voor Geffen blijft onafhankelijk open.
 
-**Weekdagkeuze:** de API levert `isoWeekday` (1=maandag t/m 7=zondag) per 168-slotprofiel. Android bewaart deze dimensie nu bij het parsen in plaats van alle weekdagen samen te middelen. De grafiek opent op de huidige weekdag in tijdzone Europe/Amsterdam en biedt een keuzemenu voor alle zeven dagen; lege dag toont neutrale melding, zonder extra onzekerheidstekst. Regressietest voor twee weekdagen toegevoegd. Geen backend- of datacontractwijziging.
+**Weekdagkeuze:** de API levert `isoWeekday` (1=maandag t/m 7=zondag) per 168-slotprofiel. Android bewaart deze dimensie nu bij het parsen in plaats van alle weekdagen samen te middelen. De grafiek opent op de huidige weekdag in tijdzone Europe/Amsterdam en toont boven de grafiek zeven direct aanklikbare dagtabs (Ma/Di/Wo/Do/Vr/Za/Zo) met contrasterende geselecteerde dag; lege dag toont neutrale melding, zonder extra onzekerheidstekst. Regressietest voor twee weekdagen toegevoegd. Geen backend- of datacontractwijziging.
 
 **Open UI-punt:** compacte sheet gebruikt nog standaard Material 3 half-screen-anker van circa 50%, met resterende lege ruimte. Gewenste inhoudsafhankelijke compacthoogte vraagt eigen sheet/ankers; dit is nog niet geïmplementeerd en moet vóór definitieve acceptatie worden opgelost. CI en Samsung-hertest van laatste code nog controleren.
 
