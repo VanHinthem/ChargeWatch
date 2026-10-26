@@ -20,6 +20,13 @@ De gewenste eenmalige onderhoudsactie `db-upgrade` volgt deze beslisboom:
 De eerdere CLI-upgradevariant is verwijderd. De UGREEN Docker-app blijft de beoogde beheerinterface. Geen NAS-productieconfiguratie wijzigen vóór UGREEN-herdeployvalidatie. Bestaande NAS-api-poortbinding op `192.168.2.48:5088` behouden (de repository-Compose gebruikt `127.0.0.1`).
 
 
+### Release-tag bewerken vanuit de UGREEN Docker-app
+
+UGREEN Docker → Project biedt bij deze installatie een YAML-editor, maar geen editor voor de bestaande `.env`. **Docker Compose kan geen YAML-anchor met een variabele suffix combineren**: een `x-release: &tag sha-...` kan dus niet automatisch als `ghcr.io/...:${tag}` worden gebruikt. De Compose-interpolatie `${CW_IMAGE_TAG}` wordt uitgevoerd vóór verwerking van YAML-anchors en leest waarden uit de projectomgeving of `.env`, niet uit een `x-`-veld.
+
+De huidige PR houdt daarom voorlopig **één echte releasevariabele** `CW_IMAGE_TAG` in `.env`. Voor bediening uitsluitend via de Docker-app is nog een keuze/UGREEN-validatie nodig: (a) het project laten verwijzen naar een via de UGREEN File Manager beheerde `.env`, of (b) de vijf image-regels in YAML bij een update tegelijk vervangen met één editoractie (zoeken/vervangen) en de versie van de `db-upgrade`-job vanuit haar eigen image-ref afleiden. Optie (b) is geen letterlijke één-tag-bron en is nog niet geïmplementeerd. **Niet** een fictieve YAML-anchor implementeren.
+
+
 ## NAS files
 
 Only these local configuration files need to be copied to the NAS (e.g. via SCP from Windows, not Git on the NAS):
