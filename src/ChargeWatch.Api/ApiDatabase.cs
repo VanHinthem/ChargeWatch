@@ -110,6 +110,75 @@ internal sealed class ApiDatabase(ApiOptions options)
         return result;
     }
 
+
+    // A dedicated map path: a bounded, read-only viewport query. Never return
+    // a deceptively complete partial result when the viewport exceeds the cap.
+    public async Task<MapViewportResult> GetMapViewport(Bbox bbox)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            WITH selected AS (
+                SELECT id,country_code,party_id,source_id,address,operator_name,
+                       longitude,latitude,source_last_updated
+                FROM charging_location
+                WHERE position IS NOT NULL
+                  AND ST_Intersects(position, ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)
+                ORDER BY id LIMIT 1000
+            )
+            SELECT l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
+                   l.longitude,l.latitude,
+                   GREATEST(l.source_last_updated,max(e.source_last_updated)) AS updated_at,
+                   count(DISTINCT e.id) FILTER (WHERE upper(e.status)='AVAILABLE')::int AS available_count,
+                   count(DISTINCT e.id)::int AS total_count,
+                   COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
+                       'available', CASE WHEN upper(e.status)='AVAILABLE' THEN 1 ELSE 0 END,
+                       'status',upper(e.status),
+                       'evseId',e.id,
+                       'connectorType',c.standard,
+                       'powerType',c.power_type,
+                       'powerMax',c.max_electric_power
+                   )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
+            FROM selected l
+            LEFT JOIN evse e ON e.location_id=l.id
+            LEFT JOIN connector c ON c.evse_id=e.id
+            GROUP BY l.id,l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
+                     l.longitude,l.latitude,l.source_last_updated
+            ORDER BY l.id
+            """, connection);
+        command.Parameters.AddWithValue(bbox.MinLon);
+        command.Parameters.AddWithValue(bbox.MinLat);
+        command.Parameters.AddWithValue(bbox.MaxLon);
+        command.Parameters.AddWithValue(bbox.MaxLat);
+        var locations = new List<MapLocationItem>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var id = $"{reader.GetString(0)}-{reader.GetString(1)}-{reader.GetString(2)}";
+            using var raw = JsonDocument.Parse(reader.GetString(10));
+            var categoryRows = raw.RootElement.EnumerateArray()
+                .Select(x => new {
+                    EvseId = x.GetProperty("evseId").GetInt64(),
+                    Available = x.GetProperty("available").GetInt32(),
+                    Type = x.GetProperty("connectorType").ValueKind == JsonValueKind.Null
+                        ? (string?)null : x.GetProperty("connectorType").GetString(),
+                    PowerType = x.GetProperty("powerType").ValueKind == JsonValueKind.Null
+                        ? (string?)null : x.GetProperty("powerType").GetString(),
+                    PowerMax = x.GetProperty("powerMax").ValueKind == JsonValueKind.Null
+                        ? (int?)null : x.GetProperty("powerMax").GetInt32()
+                }).ToArray();
+            var categories = categoryRows.GroupBy(x => (x.Type,x.PowerType,x.PowerMax))
+                .Select(g => new MapConnectorCategory(
+                    g.Where(x => x.Available == 1).Select(x => x.EvseId).Distinct().Count(),
+                    g.Select(x => x.EvseId).Distinct().Count(),g.Key.Type,g.Key.PowerType,g.Key.PowerMax))
+                .ToArray();
+            locations.Add(new MapLocationItem(id,reader.GetDouble(5),reader.GetDouble(6),
+                reader.GetString(3),NullableString(reader,4),NullableTimestamp(reader,7),
+                reader.GetInt32(8),reader.GetInt32(9),categories));
+        }
+        return new MapViewportResult(locations,locations.Count >= 1000);
+    }
+
     // Resolve by the compound OCPI key. Never infer identity from nearby coordinates.
     public async Task<long?> FindLocationId(NdwLocationKey key)
     {
