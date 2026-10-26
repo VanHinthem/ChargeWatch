@@ -283,7 +283,16 @@ internal sealed class ApiDatabase(ApiOptions options)
         if (ewma.Length != categoryCount*24 || samples.Length != 24)
             throw new InvalidDataException("Unexpected compact statistics array shape.");
         for (var hour=0; hour<24; hour++)
-            target.Add(new AvailabilitySlot(weekday,hour,null,samples[hour],changed[hour],unchanged[hour],last));
+        {
+            // Category 1 is AVAILABLE for both location (>= 1 EVSE free)
+            // and EVSE (status AVAILABLE). Arrays are category-major, hour-minor.
+            // An EWMA is only an experimental observed-feed share, NOT a
+            // calibrated prediction or an occupancy promise.
+            var available = ExperimentalAvailability.AvailableShare(
+                ewma[hour], samples[hour], changed[hour]);
+            target.Add(new AvailabilitySlot(weekday,hour,available,
+                samples[hour],changed[hour],unchanged[hour],last));
+        }
     }
 
     private static async Task<DateTimeOffset?> GetFeedLastObservedAt(NpgsqlConnection connection)
