@@ -27,6 +27,23 @@ UGREEN Docker → Project biedt bij deze installatie een YAML-editor, maar geen 
 De huidige PR houdt daarom voorlopig **één echte releasevariabele** `CW_IMAGE_TAG` in `.env`. **Gekozen werkwijze:** wijzig uitsluitend `CW_IMAGE_TAG` in de bestaande `.env` via UGREEN Bestandsbeheerder; beheer stoppen/starten van het project vanuit UGREEN Docker → Project. De bestaande lokale Compose-binding voor de API (`192.168.2.48:5088`) en alle wachtwoorden blijven ongewijzigd. De eerste herdeploy moet bevestigen dat UGOS de bijgewerkte `.env` in de Compose-interpolatie opnieuw inleest, de gewijzigde one-shot `db-upgrade` opnieuw uitvoert en de collector niet voortijdig start. Geen YAML-anchor of extra tagvariabele.
 
 
+## Productie-upgrade via UGREEN (één tag, geen SSH)
+
+**Vereiste eenmalige ingebruikname van deze PR:** voeg de service `db-upgrade` en diens `depends_on`-gates toe aan de bestaande Compose-configuratie in **Docker → Project → ChargeWatch → Bewerken**. Gebruik de inhoud van `deploy/nas/compose.yaml` als referentie, **vervang de productieconfiguratie niet blind**: behoud bestaande `192.168.2.48:5088:8080` voor de API, volumes, geheimen en lokale instellingen. De actuele NAS Compose staat in `/volume2/docker/chargewatch/docker-compose.yaml`; de bijbehorende `.env` staat ernaast. Maak vóór de eerste toepassing een kopie van zowel Compose als `.env` en controleer dat een recente backup buiten de database-volume aanwezig is.
+
+**Belangrijk:** de eerste ingebruikname heeft nog geen database-releasecheckpoint. Daarom voert de job bij de eerste start bewust *één* verplichte backup/migratiepass uit, zelfs bij dezelfde reeds draaiende tag. Bewaar de bestaande gecontroleerde backup ook.
+
+**Iedere volgende release:**
+
+1. Controleer dat de vier GHCR-images bestaan onder dezelfde `sha-<main-commit>`-tag. Gebruik uitsluitend een **gepubliceerde main-tag**, nooit een PR-commit.
+2. Stop het **hele** ChargeWatch-project via UGREEN Docker → Project (niet alleen de API of collector); wacht totdat de bestaande collector is gestopt. Verwijder geen project, containers of volumes.
+3. Pas via Bestandsbeheer uitsluitend `CW_IMAGE_TAG` aan in `/volume2/docker/chargewatch/.env`. De legacy `CW_API_IMAGE_TAG` wordt na deze Compose-aanpassing genegeerd en kan daarna worden verwijderd.
+4. Klik in UGREEN Docker op **Redeploy** met **Altijd images vernieuwen** aangevinkt. UGREEN leest de gewijzigde `.env` bij Redeploy opnieuw in (door beheerder bevestigd). **Niet** uitsluitend op **Start** klikken: starten van bestaande containers is niet hetzelfde als recreëren naar een nieuwe image-tag.
+5. Controleer of `db-upgrade` met exitcode **0** eindigt, dat de back-up op de NAS in `CW_NAS_BACKUP_DIR` staat en dat collector/API **pas daarna** draaien. Controleer daarna de API via de bestaande reverse proxy en de collectorlogs.
+6. Bij een mislukte back-up of migratie: **niet** geforceerd collector of API starten en **niet** de oude containers tegen een mogelijk gewijzigd schema opnieuw activeren. Onderzoek logs en herstel gecontroleerd vanaf een bewezen back-up.
+
+De backup is een custom-format `pg_dump` waarvan de archiefindex met `pg_restore --list` is gevalideerd; dit is géén gegarandeerde volledige restore. De image-database kan bij Compose Redeploy technisch vóór `db-upgrade` vervangen worden. Dat is voor PostgreSQL 18 patch-releases met een bestaand volume normaal, maar dit releasepad ondersteunt **geen** ongecontroleerde PostgreSQL-major-upgrade of destructieve bootstrap. De verplichte databackup gaat vóór de migraties, niet noodzakelijk vóór het opnieuw opstarten van de DB-container. De full-stack integratietest bootst Compose stop→tagwissel→up na, maar is niet identiek aan de eigen implementatie van UGREEN.
+
 ## NAS files
 
 Only these local configuration files need to be copied to the NAS (e.g. via SCP from Windows, not Git on the NAS):
