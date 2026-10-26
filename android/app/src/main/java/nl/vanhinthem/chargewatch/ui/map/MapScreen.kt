@@ -505,7 +505,7 @@ private fun LocationSelectionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.padding(top = screenHeight * 0.09f)
+        modifier = Modifier.padding(top = screenHeight * 0.07f)
     ) {
         if (locations.size > 1) {
             Column(
@@ -563,8 +563,8 @@ private fun LocationSelectionSheet(
                 Modifier.fillMaxWidth()
                     .heightIn(min = compactSheetMinHeight, max = expandedSheetMaxHeight)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -605,32 +605,49 @@ private fun LocationSelectionSheet(
                                 prices[0].currency == "EUR"
                         }
                 }
-                // Wrap connector summaries rather than replacing multiple categories with a count.
-                // Each category is a reported connector category, not a unique EVSE.
+                // Show up to three actual connector categories per row; do not sum
+                // connector counts (multiple connectors may share one EVSE).
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    connectors.chunked(2).forEach { connectorRow ->
+                    connectors.chunked(3).forEach { connectorRow ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             connectorRow.forEach { connector ->
-                            val label = listOfNotNull(
-                                connectorDisplayName(connector.connectorType),
-                                formatChargingPower(connector.powerMax)
-                            ).joinToString(" · ")
-                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                                Text(label, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.labelMedium)
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    tonalElevation = 2.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 7.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        ConnectorSocketIcon(connector.connectorType)
+                                        Text(
+                                            formatChargingPower(connector.powerMax) ?: "— kW",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            connectorDisplayName(connector.connectorType),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                             }
+                            repeat(3 - connectorRow.size) {
+                                Spacer(Modifier.weight(1f))
                             }
                         }
                     }
                     energyPrices?.singleOrNull()?.let { price ->
-                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                                Text("€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
-                                    if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
-                                        " · voorwaarden" else "",
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.labelMedium)
-                            }
-                        }
+                        Text(
+                            "€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
+                                if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
+                                    " · voorwaarden" else "",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
