@@ -9,7 +9,7 @@ import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean)
+data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean, val tariffId: String = "", val connectorId: String = "", val elementIndex: Int = 0)
 data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean)
 
 sealed interface EnrichmentResult {
@@ -64,8 +64,10 @@ fun parseEnrichment(raw: String): LocationEnrichment {
     val prices = linkedMapOf<String, PricePart>()
     var complex = false
     for (evse in evses) for (connector in evse.jsonObject["connectors"]?.jsonArray.orEmpty()) {
+        val connectorId = connector.jsonObject["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
         for (tariff in connector.jsonObject["tariffs"]?.jsonArray.orEmpty()) {
             val t = tariff.jsonObject
+            val tariffId = t["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
             val presentation = t["presentation"]?.jsonObject
             if (presentation == null) { complex = true; continue }
             val currency = presentation["currency"]?.jsonPrimitive?.contentOrNull
@@ -74,7 +76,7 @@ fun parseEnrichment(raw: String): LocationEnrichment {
                 complex = true
                 continue
             }
-            for (element in presentation["elements"]?.jsonArray.orEmpty()) {
+            for ((elementIndex, element) in presentation["elements"]?.jsonArray.orEmpty().withIndex()) {
                 val obj = element.jsonObject
                 val restrictions = obj["restrictions"]?.let { it !is JsonNull } == true
                 for (component in obj["components"]?.jsonArray.orEmpty()) {
@@ -85,10 +87,10 @@ fun parseEnrichment(raw: String): LocationEnrichment {
                         complex = true
                         continue
                     }
-                    val key = listOf(type, amount, currency, restrictions.toString(),
+                    val key = listOf(connectorId, tariffId, elementIndex.toString(), type, amount, currency, restrictions.toString(),
                         obj["restrictions"]?.toString().orEmpty(),
                         c["stepSize"]?.toString().orEmpty()).joinToString("|")
-                    prices.putIfAbsent(key, PricePart(type, amount, currency, restrictions))
+                    prices.putIfAbsent(key, PricePart(type, amount, currency, restrictions, tariffId, connectorId, elementIndex))
                 }
             }
         }
