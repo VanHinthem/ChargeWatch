@@ -15,6 +15,7 @@ for file do
   echo "Checking migration: $version"
   # One psql connection holds a transaction-scoped advisory lock through the
   # version check and script execution. A failed script rolls back everything.
+  script="$(mktemp)"
   {
     printf '%s\n' 'BEGIN;' 'SELECT pg_advisory_xact_lock(752567001);'
     printf "SELECT CASE WHEN EXISTS (SELECT 1 FROM schema_migration WHERE version = '%s') THEN 'false' ELSE 'true' END AS apply_migration \\gset\n" "$version"
@@ -23,6 +24,11 @@ for file do
     printf '\i %s\n' "$file"
     printf '%s\n' '\else'
     printf '\echo Already applied\n' '\endif' 'COMMIT;'
-  } | psql -X -v ON_ERROR_STOP=1 -q
+  } > "$script"
+  if ! psql -X -v ON_ERROR_STOP=1 -q -f "$script"; then
+    rm -f "$script"
+    exit 1
+  fi
+  rm -f "$script"
 done
 echo "Database migrations checked successfully."
