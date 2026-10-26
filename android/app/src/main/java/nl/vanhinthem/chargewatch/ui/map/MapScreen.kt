@@ -9,12 +9,14 @@ import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -629,9 +631,39 @@ private fun LocationSelectionSheet(
                                 Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
                         }
                     }
-                    Text("Historische statistieken", style = MaterialTheme.typography.titleLarge)
-                    Text("Nog onvoldoende historische gegevens.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Historische beschikbaarheid (experimenteel)",
+                        style = MaterialTheme.typography.titleLarge)
+                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
+                    if (historical.isEmpty()) {
+                        Text("Nog onvoldoende historische gegevens.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text("Indicatie op basis van NDW-momentopnamen; geen voorspelling.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalAlignment = Alignment.Bottom) {
+                            (0..23).forEach { hour ->
+                                val slot = historical.firstOrNull { it.hour == hour }
+                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Box(Modifier.fillMaxWidth().height(56.dp),
+                                        contentAlignment = Alignment.BottomCenter) {
+                                        if (slot != null) {
+                                            Box(Modifier.fillMaxWidth()
+                                                .height((slot.share * 56).coerceAtLeast(2.0).dp)
+                                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
+                                        }
+                                    }
+                                    if (hour % 6 == 0) Text(hour.toString(),
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        Text("Gemiddelde historische beschikbaarheid per uur (lokale tijd). Onvoldoende gevalideerd voor beslissingen.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     val updated = remember(location.lastUpdated) {
                         location.lastUpdated?.let { raw ->
                             runCatching { DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))

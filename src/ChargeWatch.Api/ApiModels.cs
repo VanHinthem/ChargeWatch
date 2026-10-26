@@ -84,7 +84,11 @@ internal sealed record EvseStatistics(long EvseId, IReadOnlyList<AvailabilitySlo
 internal sealed record LocationStatistics(
     long LocationId,
     IReadOnlyList<AvailabilitySlot> Slots,
-    IReadOnlyList<EvseStatistics> Evses);
+    IReadOnlyList<EvseStatistics> Evses)
+{
+    public bool IsExperimental => true;
+    public string ProbabilityInterpretation => "UNVALIDATED_SNAPSHOT_EWMA";
+}
 
 internal sealed record DataStatus(
     DateTimeOffset? LastSuccessfulImportAt,

@@ -45,6 +45,23 @@ class LocationEnrichmentTest {
         assertEquals(setOf("T-A", "T-B"), result.tariffs.map { it.tariffId }.toSet())
         assertEquals(setOf("1", "2"), result.tariffs.map { it.connectorId }.toSet())
     }
+    @Test fun experimentalStatisticsPreserveMissingSlots() {
+        val raw = """{"isExperimental":true,"probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA","slots":[
+          {"hour":8,"availableProbability":0.25,"sampleCount":5},
+          {"hour":8,"availableProbability":0.75,"sampleCount":3},
+          {"hour":9,"availableProbability":null,"sampleCount":8},
+          {"hour":10,"availableProbability":1.2,"sampleCount":9}
+        ]}"""
+        val hourly = parseHourlyAvailability(raw)
+        assertEquals(1, hourly.size)
+        assertEquals(8, hourly.single().hour)
+        assertEquals(0.5, hourly.single().share, 0.0001)
+    }
+
+    @Test fun nonExperimentalDataIsNotRendered() {
+        val raw = """{"isExperimental":false,"slots":[{"hour":8,"availableProbability":0.9,"sampleCount":9}]}"""
+        assertTrue(parseHourlyAvailability(raw).isEmpty())
+    }
     @Test(expected = IllegalStateException::class)
     fun missingEvseContractIsNotInterpretedAsEmptyLocation() {
         parseEnrichment("""{"other":"value"}""")
