@@ -8,6 +8,8 @@ on:
       - 'db/migrations/011_snapshot_unchanged_hour.sql'
       - 'db/migrations/012_snapshot_unchanged_flush.sql'
       - 'db/migrations/013_snapshot_changed_hour.sql'
+      - 'db/migrations/014_location_free_evse_ewma.sql'
+      - 'db/tests/019_location_free_evse_ewma_smoke.sql'
       - 'db/tests/013_snapshot_changed_hour_smoke.sql'
       - 'db/tests/014_snapshot_transition_rollback_smoke.sql'
       - 'db/tests/015_snapshot_restart_setup.sql'
@@ -111,6 +113,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f db/tests/012_snapshot_unchanged_flush_smoke.sql
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/013_snapshot_changed_hour.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/013_snapshot_changed_hour_smoke.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/014_location_free_evse_ewma.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/019_location_free_evse_ewma_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/014_snapshot_transition_rollback_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/017_poll_replay_guard.sql
       - name: Persist and consume compact buffer across DB sessions
