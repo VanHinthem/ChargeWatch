@@ -65,7 +65,18 @@ class MapViewModel(
         val source = _uiState.value.source
         _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false)
         val started = System.nanoTime()
-        val result = if (source == "ChargeWatch") chargeWatchClient.load(viewport) else client.load(viewport)
+        val primaryResult = if (source == "ChargeWatch") chargeWatchClient.load(viewport) else client.load(viewport)
+        // Only fall back for a genuine API failure, not for a capped viewport:
+        // NDW may reject large viewports independently, and silently hiding
+        // the cap would make parity testing misleading.
+        val fallbackEligible = source == "ChargeWatch" && when (primaryResult) {
+            is NdwResult.RateLimited -> true
+            is NdwResult.Unavailable -> !primaryResult.message.startsWith("Meer dan 999 locaties")
+            is NdwResult.Success -> false
+        }
+        val result = if (fallbackEligible && requestId == requestSequence && _uiState.value.source == source)
+            client.load(viewport) else primaryResult
+        val usedFallback = fallbackEligible && result !== primaryResult
         val elapsed = (System.nanoTime() - started) / 1_000_000
         // A response from an earlier source selection must never overwrite a newer choice.
         if (requestId != requestSequence || _uiState.value.source != source) return
@@ -75,7 +86,7 @@ class MapViewModel(
                     locations = result.locations,
                     fetchedAt = Instant.now(),
                     loading = false,
-                    message = if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
+                    message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."\n                        else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
                     source = source, loadMillis = elapsed
                 )
             }
@@ -112,6 +123,6 @@ data class MapUiState(
     val loading: Boolean = false,
     val message: String? = "Zoom verder in om laadlocaties te laden.",
     val rateLimited: Boolean = false,
-    val source: String = "NDW",
+    val source: String = "ChargeWatch",
     val loadMillis: Long? = null
 )
