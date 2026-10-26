@@ -1,3 +1,7 @@
+## Datadekking NDW — Rijksweg 38D, Geffen (26 oktober 2026)
+
+Gebruiker ziet in Allego een afzonderlijke laadlocatie bij Rijksweg 38D naast Fastned De Geffense Barrière A59 en bp pulse A59. Zoekopdrachten op de ChargeWatch API (`q=Geffen`, `q=Rijksweg`), een regionale NDW GeoJSON-adreszoekactie en een adres-/plaatsfilter op het volledige NDW OCPI-locatiebestand leverden geen vermelding van Rijksweg 38D op. De bp pulse-locatie `99002` is expliciet uitgesloten als match. **Conclusie voorlopig:** waarschijnlijk een NDW-dekkingsverschil, geen aangetoonde fout in Android of collector. Adresfilter bewijst niet dat de locatie ook niet onder een afwijkend adres/coördinaat voorkomt; geografische bronvergelijking is nog niet uitgevoerd. Geen extra provider of databasewijziging op basis van dit ene geval. Onderwerp blijft een bekende datadekkingsbeperking; UI/UX-fase kan doorgaan.
+
 ## Praktijkvalidatie kaartbronnen — 26 oktober 2026
 
 **Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
