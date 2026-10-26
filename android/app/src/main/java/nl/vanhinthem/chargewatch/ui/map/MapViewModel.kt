@@ -86,7 +86,8 @@ class MapViewModel(
                     locations = result.locations,
                     fetchedAt = Instant.now(),
                     loading = false,
-                    message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."\n                        else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
+                    message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."
+                        else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
                     source = source, loadMillis = elapsed
                 )
             }
