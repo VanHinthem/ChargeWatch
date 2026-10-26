@@ -21,7 +21,8 @@ for file do
     printf "SELECT CASE WHEN EXISTS (SELECT 1 FROM schema_migration WHERE version = '%s') THEN 'false' ELSE 'true' END AS apply_migration \\gset\n" "$version"
     printf '%s\n' '\if :apply_migration'
     printf '\echo Applying %s\n' "$version"
-    printf '\i %s\n' "$file"
+    cat "$file"
+    printf '\n'
     printf '%s\n' '\else'
     printf '\echo Already applied\n' '\endif' 'COMMIT;'
   } > "$script"
