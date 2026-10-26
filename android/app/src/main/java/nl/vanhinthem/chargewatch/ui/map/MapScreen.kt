@@ -76,6 +76,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
+import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
@@ -457,6 +459,13 @@ private fun LocationSelectionSheet(
     onToggleFavorite: (MapLocation) -> Unit
 ) {
     val context = LocalContext.current
+    val enrichmentClient = remember { LocationEnrichmentClient() }
+    val selectedId = locations.singleOrNull()?.featureId
+    var enrichment by remember(selectedId) { mutableStateOf<EnrichmentResult?>(null) }
+    LaunchedEffect(selectedId) {
+        enrichment = null
+        if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val expanded = sheetState.currentValue == SheetValue.Expanded
     val minSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.93f
@@ -582,6 +591,47 @@ private fun LocationSelectionSheet(
                             }
                         }
                     }
+                    Text("Tarieven", style = MaterialTheme.typography.titleLarge)
+                    when (val result = enrichment) {
+                        null -> Text("Tariefgegevens ophalen…")
+                        EnrichmentResult.Unconfigured -> Text("Tarieven nog niet beschikbaar in deze testversie.")
+                        EnrichmentResult.NotFound -> Text("Geen aanvullende tarieven voor deze locatie.")
+                        EnrichmentResult.Unavailable -> Text("Tariefgegevens konden niet worden opgehaald.")
+                        is EnrichmentResult.Found -> {
+                            if (result.value.tariffs.isEmpty()) Text("Geen betrouwbaar tarief beschikbaar.")
+                            result.value.tariffs.forEach { part ->
+                                val unit = when (part.type) {
+                                    "ENERGY" -> "kWh"
+                                    "TIME", "PARKING_TIME" -> "uur"
+                                    else -> "keer"
+                                }
+                                val label = when (part.type) {
+                                    "ENERGY" -> "Energie"
+                                    "TIME" -> "Laadtijd"
+                                    "PARKING_TIME" -> "Parkeertijd"
+                                    else -> "Starttarief"
+                                }
+                                val identifiers = listOfNotNull(
+                                    part.connectorId.takeIf { it.isNotBlank() }?.let { "Connector $it" },
+                                    part.tariffId.takeIf { it.isNotBlank() }?.let { "Tarief $it" }
+                                ).joinToString(" · ")
+                                if (identifiers.isNotEmpty()) Text(identifiers,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$label · ${part.amount} ${part.currency} / $unit" +
+                                    if (part.hasRestrictions) " · voorwaarden" else "")
+                            }
+                            if (result.value.tariffs.isNotEmpty())
+                                Text("OCPI-prijscomponenten, geen gegarandeerde eindprijs of btw-inclusieve consumentenprijs.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (result.value.hasComplexTariffs)
+                                Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
+                        }
+                    }
+                    Text("Historische statistieken", style = MaterialTheme.typography.titleLarge)
+                    Text("Nog onvoldoende historische gegevens.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val updated = remember(location.lastUpdated) {
                         location.lastUpdated?.let { raw ->
                             runCatching { DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))
