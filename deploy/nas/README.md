@@ -1,30 +1,22 @@
 # NAS deployment — prebuilt images (no Git checkout on NAS)
 
-## Eén-tag NAS-upgrade (voorgesteld; pas actief na kopiëren naar HINNAS)
+## UGREEN Docker Project — releasebeleid (ontwerp in review)
 
-Alle vier images (`db`, `maintenance`, `collector`, `api`) gebruiken **uitsluitend** `CW_IMAGE_TAG`. Verwijder de oude `CW_API_IMAGE_TAG` uit de NAS-`.env` bij de eenmalige omschakeling. **Wijzig nooit databasewachtwoorden of het bestaande bind-adres `192.168.2.48:5088` bij het overnemen van een repositoryvoorbeeld.** De effectieve NAS-Compose staat op `/volume2/docker/chargewatch/docker-compose.yaml`; het repositoryvoorbeeld bindt de API aan localhost en mag niet blind worden overschreven.
+**Besluit 26 oktober 2026:** beheer van ChargeWatch verloopt vanuit de standaard Docker-app van de UGREEN DXP2800, zonder handmatige SSH-updatecommando's. Alle vier images verwijzen naar één en dezelfde immutable `CW_IMAGE_TAG`; de oudere `CW_API_IMAGE_TAG` vervalt.
 
-Kopieer eenmalig de bijgewerkte Compose-inhoud met behoud van de lokale wijzigingen en het script `deploy/nas/upgrade.sh` naar `/volume2/docker/chargewatch/upgrade.sh`. Daarna is één nieuwe **gepubliceerde** volledige SHA-tag in `.env` genoeg; start de begeleide upgrade met:
+De gewenste eenmalige onderhoudsactie `db-upgrade` volgt deze beslisboom:
 
-```sh
-cd /volume2/docker/chargewatch
-sudo sh ./upgrade.sh
-```
+1. Lees de **laatst succesvol toegepaste release-tag** uit een persistente database-registratie (niet uitsluitend containernaam, image-id of een Compose-vlag).
+2. Komt deze overeen met de gewenste image-tag? **Geen back-up of migraties**, normale start.
+3. Is de gewenste tag nieuw? Maak eerst één verplichte PostgreSQL custom-format-back-up op de bestaande NAS-hostmap. Valideer het archief; bij een fout direct stoppen.
+4. Pas alleen ontbrekende migraties toe. Bij een fout geen release-tag registreren.
+5. Registreer de nieuwe release-tag **alleen nadat** alle migraties zijn geslaagd; latere NAS-/Docker-herstart herhaalt daardoor geen back-up.
+6. Collector en API mogen pas starten als het onderhoud succesvol is afgerond.
 
-**Niet `docker compose up -d` rechtstreeks gebruiken om schemawijzigende releases uit te rollen**: Compose kent geen verplichte, gevalideerde back-upgate vóór een migratie. Het script doet: configuratie/tagverificatie → alle vier images ophalen → collector stoppen → verplichte `pg_dump`-back-up met `pg_restore --list`-archiefcontrole → DB-image bijwerken en wachten op health → ontbrekende SQL-migraties via maintenance toepassen → collector + API bijwerken. De volledige back-up staat buiten de databasevolume in `CW_NAS_BACKUP_DIR`, met tijdstempel. Zonder goede back-up **geen migratie en geen release**. Bij een fout blijft de collector gestopt en is handmatige diagnose nodig; het script doet geen automatische database-rollback en verwijdert nooit oude back-ups. De oude API kan vóór de migratie actief blijven; de read-only databasegebruiker kan niets wijzigen. Omdat het schema evolueert, moet iedere release de API compatibel houden tijdens het korte updatevenster of de API apart stoppen.
+**Nog te implementeren en valideren vóór merge:** de bestaande collector kan tijdens een UGREEN-herdeploy nog actief zijn; `depends_on: service_completed_successfully` stopt een reeds lopende collector niet. Ook moet bewezen worden dat UGREEN/Compose een job bij tagwijziging opnieuw uitvoert, en dat een restart niet onbedoeld de upgradejob opnieuw uitvoert. Een deployment waarbij de oude collector schrijft tijdens een schemawijziging is **niet veilig**. Daarom is de Compose-integratie nog niet releaseklaar.
 
-Let op: een gevalideerde archieflijst is nog geen succesvolle volledige restore. Blijf een geïsoleerde hersteltest periodiek uitvoeren. `upgrade.sh` is bewust een **expliciete** goedgekeurde releasehandeling, geen automatische GitHub-trigger of Watchtower-pull. De image-tag aanpassen zonder dit commando installeert niets.
+De huidige `deploy/nas/upgrade.sh` uit de eerste PR-versie was bedoeld voor SSH-bediening en is **niet de gekozen UX**; voer dit niet uit als standaard NAS-update. Geen NAS-productieconfiguratie wijzigen vóór UGREEN-herdeployvalidatie. Bestaande NAS-api-poortbinding op `192.168.2.48:5088` behouden (de repository-Compose gebruikt `127.0.0.1`).
 
-
-**Do not use `git clone` or `docker compose build` on the NAS.** GitHub Actions builds four linux/amd64 GHCR images at an identical immutable commit tag:
-
-- `ghcr.io/vanhinthem/chargewatch-db:sha-<main-commit>`: PostGIS 18 + bundled initial schema and DB role creation.
-- `ghcr.io/vanhinthem/chargewatch-maintenance:sha-<main-commit>`: PostgreSQL 18 client + SQL migrations + backup scripts.
-- `ghcr.io/vanhinthem/chargewatch-collector:sha-<main-commit>`: .NET 10 NDW collector.
-
-Workflow: `.github/workflows/nas-images.yml`, running on relevant main changes and manually through GitHub Actions. - `ghcr.io/vanhinthem/chargewatch-api:sha-<main-commit>`: read-only HTTP API.
-
-Use **only tags actually published successfully by the workflow**. Never substitute a PR-branch SHA or assume publication succeeded. For private GHCR images, authorize once using `docker login ghcr.io` with a read:packages token, not a token in Compose.
 
 ## NAS files
 
