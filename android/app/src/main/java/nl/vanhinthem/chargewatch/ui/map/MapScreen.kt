@@ -10,6 +10,8 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -494,20 +496,41 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    val expanded = sheetState.currentValue == SheetValue.Expanded
+    // The standard partial anchor is fixed around half the window.
+    // Explicit compact/expanded states let the initial sheet fit its content.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var expanded by remember(selectedId) { mutableStateOf(false) }
+    BackHandler(enabled = expanded) { expanded = false }
     // Material 3 only provides a partially-expanded anchor if sheet content is
     // taller than half the available screen. Keep that anchor stable while the
     // expanded-only details are conditionally rendered.
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val compactSheetMinHeight = screenHeight * 0.52f
+    val expandedSheetMaxHeight = screenHeight * 0.86f
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         modifier = Modifier.padding(top = screenHeight * 0.07f),
         // A compact drag-handle slot avoids the large default handle area above details.
         dragHandle = {
-            Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.TopCenter) {
+            var dragAmount by remember { mutableStateOf(0f) }
+            Box(
+                Modifier.fillMaxWidth().height(24.dp)
+                    .pointerInput(selectedId, expanded) {
+                        detectVerticalDragGestures(
+                            onDragStart = { dragAmount = 0f },
+                            onVerticalDrag = { change, amount ->
+                                change.consume()
+                                dragAmount += amount
+                            },
+                            onDragEnd = {
+                                if (dragAmount < -25f) expanded = true
+                                if (dragAmount > 25f && expanded) expanded = false
+                            }
+                        )
+                    }
+                    .clickable { expanded = !expanded },
+                contentAlignment = Alignment.TopCenter
+            ) {
                 Box(
                     Modifier.padding(top = 8.dp).width(32.dp).height(4.dp)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
@@ -569,7 +592,7 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(min = compactSheetMinHeight)
+                    .heightIn(max = expandedSheetMaxHeight)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -841,7 +864,7 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor meer details",
+                    Text("Veeg omhoog voor meer details", modifier = Modifier.clickable { expanded = true },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
