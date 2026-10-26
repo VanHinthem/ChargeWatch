@@ -1,3 +1,11 @@
+## Android detailweergave — compacte UI/UX-herindeling (26 oktober 2026)
+
+**Scope:** vernieuwde weergave in de bestaande locatie-bottom-sheet: geen geforceerde minimale hoogte van 93% van het scherm, compacte locatie-identiteit met adres/operator en favorietster, compacte beschikbaarheidsregel en connectorrijen, overzichtelijke tariefcomponenten met BTW-kenmerk, korte consumentenwaarschuwing en afzonderlijke vijfdelige tijdas voor historische grafiek. Kaart, NDW/API-fallback, favorietenopslag, backend en datacontracten ongewijzigd. Bestaande gedeeltelijk/volledig open sheet blijft behouden.
+
+**Verificatie:** broncode gewijzigd op featurebranch; builds en UI-tests nog te bevestigen via GitHub Actions en praktijkproef op Samsung. Controlepunten: half-open/volledige sheet, swipen en sluiten; favoriet, navigatie, Street View; tarieven met/zonder btw of voorwaarden; lege statistieken; light/dark en grote font-/kleine scherminstellingen.
+
+**Vervolg:** CI controleren, Android APK op Samsung valideren, zo nodig corrigeren en PR afzonderlijk laten beoordelen. Geen merge/deployment zonder expliciet akkoord. PR #54 voor Geffen blijft onafhankelijk open.
+
 ## Praktijkvalidatie kaartbronnen — 26 oktober 2026
 
 **Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
