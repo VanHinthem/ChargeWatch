@@ -497,7 +497,7 @@ private fun LocationSelectionSheet(
     // Material 3 only provides a partially-expanded anchor if sheet content is
     // taller than half the available screen. Keep that anchor stable while the
     // expanded-only details are conditionally rendered.
-    val compactSheetMinHeight = LocalConfiguration.current.screenHeightDp.dp * 0.60f
+    val compactSheetMinHeight = LocalConfiguration.current.screenHeightDp.dp * 0.52f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (locations.size > 1) {
             Column(
@@ -575,29 +575,65 @@ private fun LocationSelectionSheet(
                             contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-                ) {
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { openNavigation(context, location) }) {
-                            Icon(Icons.Default.Navigation, contentDescription = "Navigeren")
-                        }
-                    }
-                    Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                        IconButton(onClick = { openStreetView(context, location) }) {
-                            Icon(Icons.Default.Streetview, contentDescription = "Street View")
-                        }
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
                     Text(location.availability.label, style = MaterialTheme.typography.titleLarge, color = statusColor)
                     Text(availabilityDescription(location.availability),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // The summary is always visible, not only when the sheet is expanded.
+                // Never imply a single price when tariff components, VAT or conditions differ.
+                val connectors = location.connectorCategories
+                val singleConnector = connectors.singleOrNull()
+                val energyPrices = (enrichment as? EnrichmentResult.Found)?.value?.let { detail ->
+                    detail.tariffs.filter { it.type == "ENERGY" }
+                        .distinctBy { listOf(it.inclusiveAmount, it.currency, it.vat.orEmpty(), it.hasRestrictions.toString()) }
+                        .takeIf { prices ->
+                            !detail.hasComplexTariffs && prices?.size == 1 &&
+                                prices[0].vatKnown && !prices[0].hasRestrictions &&
+                                prices[0].currency == "EUR"
+                        }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    if (singleConnector != null) {
+                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                            Text(connectorDisplayName(singleConnector.connectorType),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium)
+                        }
+                        formatChargingPower(singleConnector.powerMax)?.let { power ->
+                            Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                                Text(power, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    } else if (connectors.isNotEmpty()) {
+                        Text("${connectors.size} typen aansluitingen", style = MaterialTheme.typography.bodySmall)
+                    }
+                    energyPrices?.singleOrNull()?.let { price ->
+                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                            Text("€ ${price.inclusiveAmount}/kWh",
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { openNavigation(context, location) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Navigation, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Navigeren")
+                    }
+                    OutlinedButton(onClick = { openStreetView(context, location) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Streetview, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Street View")
+                    }
                 }
                 if (expanded) {
                     HorizontalDivider()
@@ -721,7 +757,7 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor aansluitingen, tarieven en statistieken",
+                    Text("Veeg omhoog voor meer details",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
