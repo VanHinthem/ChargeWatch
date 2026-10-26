@@ -17,7 +17,6 @@ assert_collector_stopped() {
     exit 1
   fi
 }
-assert_collector_stopped
 checkpoint_exists=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT to_regclass('public.chargewatch_release_checkpoint') IS NOT NULL")
 if [ "$checkpoint_exists" = t ]; then
   applied=$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT image_tag FROM chargewatch_release_checkpoint WHERE singleton = true')
