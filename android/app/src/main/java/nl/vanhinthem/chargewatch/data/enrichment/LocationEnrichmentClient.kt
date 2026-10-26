@@ -10,7 +10,8 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean, val tariffId: String = "", val connectorId: String = "", val elementIndex: Int = 0)
-data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean)
+data class HourlyAvailability(val hour: Int, val share: Double, val samples: Int)
+data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean, val hourlyAvailability: List<HourlyAvailability> = emptyList())
 
 sealed interface EnrichmentResult {
     data class Found(val value: LocationEnrichment) : EnrichmentResult
@@ -41,8 +42,19 @@ class LocationEnrichmentClient(
                     !response.isSuccessful -> EnrichmentResult.Unavailable
                     else -> {
                         val body = response.body?.string() ?: return@use EnrichmentResult.Unavailable
-                        runCatching { EnrichmentResult.Found(parseEnrichment(body)) }
-                            .getOrDefault(EnrichmentResult.Unavailable)
+                        runCatching {
+                            val detail = parseEnrichment(body)
+                            val statisticsRequest = Request.Builder()
+                                .url(base + path + "/statistics")
+                                .header("Accept", "application/json").build()
+                            val stats = httpClient.newCall(statisticsRequest).execute().use { statsResponse ->
+                                if (!statsResponse.isSuccessful) emptyList()
+                                else parseHourlyAvailability(statsResponse.body?.string().orEmpty())
+                            }
+                            EnrichmentResult.Found(detail.copy(
+                                statisticsAvailable = stats.isNotEmpty(),
+                                hourlyAvailability = stats))
+                        }.getOrDefault(EnrichmentResult.Unavailable)
                     }
                 }
             }
@@ -97,4 +109,28 @@ fun parseEnrichment(raw: String): LocationEnrichment {
     }
     // Statistic percentages remain gated by server policy; this response never invents them.
     return LocationEnrichment(prices.values.toList(), complex, false)
+}
+
+/** Aggregate location slots by local hour for a compact exploratory preview.
+ * Null, unsupported and explicitly nonexperimental server data are excluded.
+ * Multiple weekdays are shown as their simple observed-slot average, not a forecast.
+ */
+fun parseHourlyAvailability(raw: String): List<HourlyAvailability> {
+    if (raw.isBlank()) return emptyList()
+    val root = Json.parseToJsonElement(raw).jsonObject
+    if (root["isExperimental"]?.jsonPrimitive?.booleanOrNull != true ||
+        root["probabilityInterpretation"]?.jsonPrimitive?.contentOrNull != "UNVALIDATED_SNAPSHOT_EWMA")
+        return emptyList()
+    val slots = root["slots"]?.jsonArray ?: return emptyList()
+    return slots.mapNotNull { item ->
+        val slot = item.jsonObject
+        val hour = slot["hour"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+        val share = slot["availableProbability"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+        val samples = slot["sampleCount"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+        if (hour !in 0..23 || !share.isFinite() || share !in 0.0..1.0 || samples <= 0)
+            return@mapNotNull null
+        HourlyAvailability(hour, share, samples)
+    }.groupBy { it.hour }.map { (hour, items) ->
+        HourlyAvailability(hour, items.map { it.share }.average(), items.sumOf { it.samples })
+    }.sortedBy { it.hour }
 }
