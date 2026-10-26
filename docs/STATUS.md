@@ -1,3 +1,13 @@
+## Praktijkvalidatie kaartbronnen — 26 oktober 2026
+
+**Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
+
+**Fastned Ganzenven (NL-FAS-50689):** eerst NDW 4/8 versus ChargeWatch-kaart 5/8; latere API-detailmeting bevat vier AVAILABLE en vier CHARGING, kaartviewport gaf ook 4/8, lastUpdated=2026-10-26T10:38:42Z. Er is op dat moment dus geen reproduceerbaar verschil tussen de twee eigen endpoints. Een tijdelijke statuswijziging of verschil in NDW-categorieprojectie blijft mogelijk. Andere Fastned-locatie nog apart controleren.
+
+**Besluit voor PR #53:** ChargeWatch API wordt de standaardkaartbron bij appstart. Bij onbereikbare API, HTTP-fouten of rate-limit wordt NDW direct geprobeerd; een overschreden API-viewportlimiet (HTTP 413) blijft expliciet zichtbaar en wordt niet verborgen met een fallback. Handmatige NDW-keuze blijft mogelijk voor diagnostiek. Bij werkende fallback meldt de app duidelijk dat NDW tijdelijk gebruikt wordt. NAS/API zelf hoeft hiervoor niet opnieuw geïnstalleerd te worden, alleen de Android-app.
+
+**Correctie voor bronschakeling:** verworpen oude kaartaanvragen mogen een later bron- of viewportresultaat niet overschrijven. ChargeWatch wordt de standaard met NDW-fallback als voorlopig besluit; extra koud/warmmetingen, ID/status/connectorpariteit en NAS-belastingscontrole blijven open. HTTP 413 bij >999 locaties behoeft een nette UX-afhandeling; geen verborgen truncatie. Volledige UI/UX-fase volgt hierna.
+
 ## Android kaartbronvergelijking — geïmplementeerd, praktijkvalidatie open (26 oktober 2026)
 
 **Doel:** op Samsung NDW-direct versus eigen ChargeWatch API testen voor hetzelfde kaartgebied; standaardbron blijft NDW. Tijdelijke schakelaar boven de kaart toont gebruikte bron, aantal locaties en totale netwerk-/parse-tijd in ms. Favorietensleutels blijven de samengestelde OCPI/NDW `NL-party-sourceId` identiteit; details blijven on-demand via ChargeWatch API.

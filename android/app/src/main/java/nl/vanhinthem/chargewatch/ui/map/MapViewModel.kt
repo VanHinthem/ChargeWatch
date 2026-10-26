@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
-import kotlin.system.measureTimeMillis
 import nl.vanhinthem.chargewatch.data.ndw.ChargeWatchMapClient
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwClient
@@ -23,6 +22,7 @@ class MapViewModel(
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
 
     private var lastRequestedViewport: NdwViewport? = null
+    private var requestSequence: Long = 0
     private val coordinator = ViewportRequestCoordinator(viewModelScope) { viewport ->
         load(viewport)
     }
@@ -30,6 +30,7 @@ class MapViewModel(
     fun onViewportChanged(viewport: NdwViewport) {
         if (viewport.areaSquareDegrees > MAX_VIEWPORT_AREA) {
             coordinator.cancel()
+            requestSequence++
             _uiState.value = _uiState.value.copy(
                 locations = emptyList(),
                 loading = false,
@@ -45,7 +46,12 @@ class MapViewModel(
 
     fun setSource(source: String) {
         if (source !in listOf("NDW", "ChargeWatch") || source == _uiState.value.source) return
-        _uiState.value = _uiState.value.copy(source = source, locations = emptyList(), message = null)
+        // Invalidate all in-flight loads before changing the source.
+        requestSequence++
+        coordinator.cancel()
+        _uiState.value = _uiState.value.copy(
+            source = source, locations = emptyList(), message = null, loadMillis = null
+        )
         retry()
     }
 
@@ -55,20 +61,33 @@ class MapViewModel(
     }
 
     private suspend fun load(viewport: NdwViewport) {
+        val requestId = ++requestSequence
         val source = _uiState.value.source
         _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false)
         val started = System.nanoTime()
-        val result = if (source == "ChargeWatch") chargeWatchClient.load(viewport) else client.load(viewport)
+        val primaryResult = if (source == "ChargeWatch") chargeWatchClient.load(viewport) else client.load(viewport)
+        // Only fall back for a genuine API failure, not for a capped viewport:
+        // NDW may reject large viewports independently, and silently hiding
+        // the cap would make parity testing misleading.
+        val fallbackEligible = source == "ChargeWatch" && when (primaryResult) {
+            is NdwResult.RateLimited -> true
+            is NdwResult.Unavailable -> !primaryResult.message.startsWith("Meer dan 999 locaties")
+            is NdwResult.Success -> false
+        }
+        val result = if (fallbackEligible && requestId == requestSequence && _uiState.value.source == source)
+            client.load(viewport) else primaryResult
+        val usedFallback = fallbackEligible && result !== primaryResult
         val elapsed = (System.nanoTime() - started) / 1_000_000
         // A response from an earlier source selection must never overwrite a newer choice.
-        if (_uiState.value.source != source) return
+        if (requestId != requestSequence || _uiState.value.source != source) return
         when (result) {
             is NdwResult.Success -> {
                 _uiState.value = MapUiState(
                     locations = result.locations,
                     fetchedAt = Instant.now(),
                     loading = false,
-                    message = if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
+                    message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."
+                        else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
                     source = source, loadMillis = elapsed
                 )
             }
@@ -105,6 +124,6 @@ data class MapUiState(
     val loading: Boolean = false,
     val message: String? = "Zoom verder in om laadlocaties te laden.",
     val rateLimited: Boolean = false,
-    val source: String = "NDW",
+    val source: String = "ChargeWatch",
     val loadMillis: Long? = null
 )
