@@ -8,7 +8,7 @@ plugins {
 }
 
 // Internal testing only. Do not embed credentials or enable public API access from an APK.
-val enrichmentApiBaseUrl = providers.gradleProperty("chargewatchApiBaseUrl").orElse("").get()
+val enrichmentApiBaseUrl = providers.gradleProperty("chargewatchApiBaseUrl").orElse("https://chargewatch-api.vanhinthem.nl").get()
 require(enrichmentApiBaseUrl.isBlank() || Regex("""https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?/?""").matches(enrichmentApiBaseUrl)) {
     "chargewatchApiBaseUrl must be an HTTPS origin without path or credentials"
 }
