@@ -4,7 +4,9 @@
 
 **Fastned Ganzenven (NL-FAS-50689):** eerst NDW 4/8 versus ChargeWatch-kaart 5/8; latere API-detailmeting bevat vier AVAILABLE en vier CHARGING, kaartviewport gaf ook 4/8, lastUpdated=2026-10-26T10:38:42Z. Er is op dat moment dus geen reproduceerbaar verschil tussen de twee eigen endpoints. Een tijdelijke statuswijziging of verschil in NDW-categorieprojectie blijft mogelijk. Andere Fastned-locatie nog apart controleren.
 
-**Correctie voor bronschakeling:** verworpen oude kaartaanvragen mogen een later bron- of viewportresultaat niet overschrijven. NDW blijft standaard; pas na meer koud/warmmetingen, ID/status/connectorpariteit en NAS-belastingscontrole besluiten over ChargeWatch als primaire kaartbron. HTTP 413 bij >999 locaties behoeft een nette UX-afhandeling; geen verborgen truncatie. Volledige UI/UX-fase volgt hierna.
+**Besluit voor PR #53:** ChargeWatch API wordt de standaardkaartbron bij appstart. Bij onbereikbare API, HTTP-fouten of rate-limit wordt NDW direct geprobeerd; een overschreden API-viewportlimiet (HTTP 413) blijft expliciet zichtbaar en wordt niet verborgen met een fallback. Handmatige NDW-keuze blijft mogelijk voor diagnostiek. Bij werkende fallback meldt de app duidelijk dat NDW tijdelijk gebruikt wordt. NAS/API zelf hoeft hiervoor niet opnieuw geïnstalleerd te worden, alleen de Android-app.
+
+**Correctie voor bronschakeling:** verworpen oude kaartaanvragen mogen een later bron- of viewportresultaat niet overschrijven. ChargeWatch wordt de standaard met NDW-fallback als voorlopig besluit; extra koud/warmmetingen, ID/status/connectorpariteit en NAS-belastingscontrole blijven open. HTTP 413 bij >999 locaties behoeft een nette UX-afhandeling; geen verborgen truncatie. Volledige UI/UX-fase volgt hierna.
 
 ## Android kaartbronvergelijking — geïmplementeerd, praktijkvalidatie open (26 oktober 2026)
 
