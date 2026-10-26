@@ -501,7 +501,6 @@ private fun LocationSelectionSheet(
     // expanded-only details are conditionally rendered.
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val compactSheetMinHeight = screenHeight * 0.52f
-    val expandedSheetMaxHeight = screenHeight * 0.89f
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -561,9 +560,9 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(min = compactSheetMinHeight, max = expandedSheetMaxHeight)
+                    .heightIn(min = compactSheetMinHeight)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                    .padding(horizontal = 20.dp, vertical = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -727,7 +726,8 @@ private fun LocationSelectionSheet(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
-                                        Text("${part.inclusiveAmount} ${part.currency} / $unit",
+                                        Text(if (part.currency == "EUR") "€ ${part.inclusiveAmount.replace('.', ',')}/$unit"
+                                             else "${part.inclusiveAmount} ${part.currency}/$unit",
                                             style = MaterialTheme.typography.titleSmall)
                                     }
                                 }
