@@ -62,24 +62,20 @@ BEGIN
     GROUP BY l.id
   )
   INSERT INTO location_snapshot_active_hour
-   (location_id,hour_start_utc,category_counts,changed_count,unchanged_count,free_evse_sum,active_evse_sum,valid_count_samples,excluded_count_samples)
+   (location_id,hour_start_utc,category_counts,changed_count,unchanged_count)
   SELECT id,pending.hour_start_utc,
     ARRAY(SELECT CASE WHEN n=(
        CASE WHEN available>0 THEN 1 WHEN active=0 THEN 5
          WHEN unknown>0 THEN 3 WHEN defects=active THEN 4 ELSE 2 END)
        THEN pending.poll_count ELSE 0 END
        FROM generate_series(1,5) n ORDER BY n),
-    0,pending.poll_count,CASE WHEN unknown=0 AND active>0 THEN available*pending.poll_count ELSE 0 END,CASE WHEN unknown=0 AND active>0 THEN active*pending.poll_count ELSE 0 END,CASE WHEN unknown=0 AND active>0 THEN pending.poll_count ELSE 0 END,CASE WHEN unknown=0 AND active>0 THEN 0 ELSE pending.poll_count END
+    0,pending.poll_count
   FROM categories
   ON CONFLICT(location_id) DO UPDATE SET
     category_counts=ARRAY(
       SELECT location_snapshot_active_hour.category_counts[n]+excluded.category_counts[n]
       FROM generate_series(1,5) n ORDER BY n),
-    unchanged_count=location_snapshot_active_hour.unchanged_count+excluded.unchanged_count,
- free_evse_sum=location_snapshot_active_hour.free_evse_sum+excluded.free_evse_sum,
- active_evse_sum=location_snapshot_active_hour.active_evse_sum+excluded.active_evse_sum,
- valid_count_samples=location_snapshot_active_hour.valid_count_samples+excluded.valid_count_samples,
- excluded_count_samples=location_snapshot_active_hour.excluded_count_samples+excluded.excluded_count_samples
+    unchanged_count=location_snapshot_active_hour.unchanged_count+excluded.unchanged_count
   WHERE location_snapshot_active_hour.hour_start_utc=excluded.hour_start_utc;
   GET DIAGNOSTICS location_rows=ROW_COUNT;
 
