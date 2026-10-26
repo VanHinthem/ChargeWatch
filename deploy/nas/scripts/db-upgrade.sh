@@ -7,6 +7,17 @@ case "$CW_IMAGE_TAG" in
   sha-????????????????????????????????????????) ;;
   *) echo "CW_IMAGE_TAG must be an immutable sha-<40 hex> release" >&2; exit 1 ;;
 esac
+# Fail closed when the previous collector still has database sessions.
+# When upgrading via UGREEN, stop the whole Compose project first.
+# This guard complements (but cannot replace) a production-tested stop/start sequence.
+assert_collector_stopped() {
+  connected=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM pg_stat_activity WHERE usename = 'chargewatch_import' AND pid <> pg_backend_pid()")
+  if [ "$connected" -ne 0 ]; then
+    echo "ERROR: $connected collector/import database connection(s) exist; stop the UGREEN project before updating" >&2
+    exit 1
+  fi
+}
+assert_collector_stopped
 psql -X -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE TABLE IF NOT EXISTS chargewatch_release_checkpoint (
     singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
@@ -20,8 +31,10 @@ if [ "$applied" = "$CW_IMAGE_TAG" ]; then
   exit 0
 fi
 echo "Database release change: ${applied:-unrecorded} -> $CW_IMAGE_TAG"
+assert_collector_stopped
 echo "Creating mandatory pre-migration backup..."
 /scripts/backup.sh
+assert_collector_stopped
 echo "Applying pending migrations..."
 /scripts/migrate.sh
 # Called only after a successful migration pass; errors must never mark release complete.
