@@ -38,7 +38,7 @@ services:
       - ndw-cache:/data/cache
 
   api:
-    image: ghcr.io/vanhinthem/chargewatch-api:${CW_API_IMAGE_TAG:?Set CW_API_IMAGE_TAG}
+    image: ghcr.io/vanhinthem/chargewatch-api:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       db:
