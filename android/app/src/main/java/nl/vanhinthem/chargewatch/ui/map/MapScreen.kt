@@ -717,23 +717,31 @@ private fun LocationSelectionSheet(
                     HorizontalDivider()
                     Text("Historische beschikbaarheid",
                         style = MaterialTheme.typography.titleMedium)
-                    val weekdays = listOf("Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag")
+                    val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
                     var chosenWeekday by remember(selectedId) {
                         mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
                     }
-                    var weekdayMenuOpen by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(onClick = { weekdayMenuOpen = true }) {
-                            Text(weekdays[chosenWeekday - 1])
-                            Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        }
-                        DropdownMenu(expanded = weekdayMenuOpen, onDismissRequest = { weekdayMenuOpen = false }) {
-                            weekdays.forEachIndexed { index, label ->
-                                DropdownMenuItem(text = { Text(label) }, onClick = {
-                                    chosenWeekday = index + 1
-                                    weekdayMenuOpen = false
-                                })
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        weekdays.forEachIndexed { index, label ->
+                            val weekday = index + 1
+                            val selected = chosenWeekday == weekday
+                            Surface(
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                    .clickable { chosenWeekday = weekday },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(label, style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold
+                                            else androidx.compose.ui.text.font.FontWeight.Normal)
+                                }
                             }
                         }
                     }
