@@ -1,4 +1,4 @@
-## Experimentele historische beschikbaarheid — PR in uitvoering (26 oktober 2026)
+## Experimentele historische beschikbaarheid — geïmplementeerd (26 oktober 2026)
 
 **Besluit gebruiker:** toon een eerste versie van `availableProbability` op basis van de reeds opgebouwde compacte statistieken, zodat de grafiek in Android beoordeeld kan worden. Dit is een bewuste **experimentele preview**, geen validatie of definitieve publicatie van voorspellende kansen.
 
@@ -6,7 +6,7 @@
 
 **Android:** pas na openen van een individuele locatiedetail de bestaande statistiekroute opvragen; toon een compacte 24-uurs staafgrafiek als *Experimentele historische beschikbaarheid* en bij onvoldoende data een neutrale melding. Uurwaarden zijn een eenvoudig gemiddelde van beschikbare weekdag-EWMA-slots, **niet** een gekalibreerd dagprofiel. Tarieven blijven beschikbaar bij statistiekfouten. Zonder geconfigureerde backend-HTTPS-origin blijven tarieven en statistieken niet beschikbaar. Definitieve hostname: `chargewatch-api.vanhinthem.nl`; het extern ontsluiten van de echte API (reverse proxy, rate limits, beveiligingsgate, geen DB-poort publiek) is nog **niet** uitgevoerd.
 
-**Reviewgates:** API/Android CI, statische beoordeling semantiek en eventuele uitzonderingen, en Samsung-test in licht/donker met echte profieldata zodra de definitieve API beveiligd bereikbaar is. Niet deployen of mergen zonder afzonderlijk akkoord.
+**Verificatie:** Android CI, Read-only API CI en NAS Images CI geslaagd op implementatiecommit `ae8c6bc`. Na deze documentatiecommit opnieuw CI controleren. De historische indicatie blijft experimenteel; Samsung-test met echte profieldata en afzonderlijke API-image-deployment blijven open. Geen automatische deployment. Na samenvoegen van de API-origin-wijzigingen uit PR #49 de gecombineerde main controleren.
 
 ## Android on-demand locatieverrijking — implementatie (26 oktober 2026)
 
