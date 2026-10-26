@@ -604,6 +604,7 @@ private fun LocationSelectionSheet(
                                 prices[0].currency == "EUR"
                         }
                 }
+                if (!expanded) {
                 // Show up to three actual connector categories per row; do not sum
                 // connector counts (multiple connectors may share one EVSE).
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -647,6 +648,7 @@ private fun LocationSelectionSheet(
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
+                }
                 }
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
