@@ -73,6 +73,8 @@ jobs:
           set -eu
           docker build -f deploy/nas/Dockerfile.db -t ghcr.io/vanhinthem/chargewatch-db:sha-0123456789abcdef0123456789abcdef01234567 .
           docker build -f deploy/nas/Dockerfile.maintenance -t ghcr.io/vanhinthem/chargewatch-maintenance:sha-0123456789abcdef0123456789abcdef01234567 .
+          docker build -f deploy/nas/Dockerfile -t ghcr.io/vanhinthem/chargewatch-collector:sha-0123456789abcdef0123456789abcdef01234567 .
+          docker build -f deploy/nas/Dockerfile.api -t ghcr.io/vanhinthem/chargewatch-api:sha-0123456789abcdef0123456789abcdef01234567 .
       - name: Integration test with PostgreSQL 18
         run: bash deploy/nas/tests/integration-db-upgrade.sh
 
