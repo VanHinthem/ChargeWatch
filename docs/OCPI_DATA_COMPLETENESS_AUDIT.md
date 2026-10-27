@@ -182,3 +182,11 @@ Op basis van 770 ontbrekende unieke tarief-ID's uit de database en vers gedownlo
 | NUO | afwezig | aanwezig | 32 |
 
 766 van de 770 zijn uitsluitend als string in Locations gevonden. Dit is een sterke aanwijzing voor inconsistente bronverwijzingen, **nog geen gestructureerde OCPI-identiteitsvalidatie**. De drie EFL-ID's die in beide exports voorkomen, moeten als eerste met samengestelde OCPI-sleutel op collector-/importverlies worden onderzocht; de ene afwezige EFL-ID kan verouderd zijn. Geen automatische reparatie en geen inferentie van prijzen uit vergelijkbare aansluitingen.
+
+## Verklaring EFL-versieverschil — 27 oktober 2026
+
+De drie EFL-objecten die in de handmatig opgehaalde Tariffs-export wel aanwezig waren, ontbreken nog in de productiedatabase. Onderzoek van `WatchRunner.cs` toont standaard 5-minutencontrole voor Locations en 60-minutencontrole voor Tariffs; een nieuwe Locations-versie kan een bulkimport met de bestaande Tariffs-cache triggeren. `BulkImporter.cs` importeert de verstrekte tariefobjecten via staging en upsert.
+
+NAS-status: Tariffs-cache `tariffs.json.gz` gewijzigd 27 oktober 05:20 UTC, state `LastModified` 05:01 UTC, laatste succesvolle tariefcontrole 10:33 UTC, ETag `"401503-65ecb5527e7f0"`. NDW HTTP HEAD kort daarna: nieuwe Tariffs-versie `Last-Modified: 11:02 UTC`, ETag `"4045e0-65ed060304060"`. De drie EFL-objecten in die nieuwere export hadden `last_updated` 09:56–11:00 UTC. De dataset van de collector liep dus achter op de handmatig verkregen snapshot. Verwachting: reguliere volgende tariefcontrole haalt de nieuwe export binnen; **niet nagecontroleerd op verzoek van gebruiker**. Er is geen collectorbug vastgesteld.
+
+Vervolgontwerp: exposeer afzonderlijk per feed de laatste succesvolle controle, feitelijke contentversie (ETag/Last-Modified), succesvolle download en succesvolle import; `import_run` alleen is onvoldoende om Tariffs-actualiteit te beoordelen. Blijf NDW ontbrekende bronobjecten onderscheiden van tijdelijke snapshotverschillen. Geen productie-ingreep gedaan.
