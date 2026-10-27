@@ -172,7 +172,7 @@ internal static class BulkImporter
             }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
-                INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated,is_active)
+                INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated,is_active,source_data)
                 SELECT payload->>'country',payload->>'party',payload->>'id',
                        COALESCE(payload->'data'->>'address',''), COALESCE(payload->'data'->>'city',''),
                        payload->'data'->'operator'->>'name',
@@ -183,14 +183,16 @@ internal static class BulkImporter
                             THEN ST_SetSRID(ST_MakePoint(
                                    (payload->'data'->'coordinates'->>'longitude')::double precision,
                                    (payload->'data'->'coordinates'->>'latitude')::double precision),4326)::geography END,
-                       NULLIF(payload->'data'->>'last_updated','')::timestamptz, true
+                       NULLIF(payload->'data'->>'last_updated','')::timestamptz, true,
+                       payload->'data' - 'evses'
                 FROM stage_loc WHERE true
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
                   latitude=excluded.latitude, longitude=excluded.longitude, position=excluded.position,
-                  source_last_updated=excluded.source_last_updated
-                WHERE (charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated)
-                    IS DISTINCT FROM (excluded.address,excluded.city,excluded.operator_name,excluded.latitude,excluded.longitude,excluded.position,excluded.source_last_updated);
+                  source_last_updated=excluded.source_last_updated,
+                  source_data=excluded.source_data
+                WHERE (charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated,charging_location.source_data)
+                    IS DISTINCT FROM (excluded.address,excluded.city,excluded.operator_name,excluded.latitude,excluded.longitude,excluded.position,excluded.source_last_updated,excluded.source_data);
                 """);
             if (verifiedLocationsFetchedAtUtc is not null)
             {
@@ -214,25 +216,28 @@ internal static class BulkImporter
                     """);
             }
             await Exec(db, tx, """
-                INSERT INTO evse(location_id,source_uid,external_evse_id,status,source_last_updated)
+                INSERT INTO evse(location_id,source_uid,external_evse_id,status,source_last_updated,source_data)
                 SELECT l.id, s.payload->>'uid', s.payload->'data'->>'evse_id',
                        s.payload->'data'->>'status',
-                       NULLIF(s.payload->'data'->>'last_updated','')::timestamptz
+                       NULLIF(s.payload->'data'->>'last_updated','')::timestamptz,
+                       s.payload->'data' - 'connectors'
                 FROM stage_evse s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                       AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
                 WHERE true
                 ON CONFLICT(location_id,source_uid) DO UPDATE SET
                   external_evse_id=excluded.external_evse_id, status=excluded.status,
-                  source_last_updated=excluded.source_last_updated
-                WHERE (evse.external_evse_id,evse.status,evse.source_last_updated)
-                    IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated);
+                  source_last_updated=excluded.source_last_updated,
+                  source_data=excluded.source_data
+                WHERE (evse.external_evse_id,evse.status,evse.source_last_updated,evse.source_data)
+                    IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated,excluded.source_data);
                 """);
             await Exec(db, tx, """
-                INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power)
+                INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data)
                 SELECT e.id,s.payload->>'connectorId',s.payload->'data'->>'standard',
                        s.payload->'data'->>'power_type',
-                       NULLIF(s.payload->'data'->>'max_electric_power','')::integer
+                       NULLIF(s.payload->'data'->>'max_electric_power','')::integer,
+                       s.payload->'data'
                 FROM stage_connector s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                    AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
@@ -240,9 +245,10 @@ internal static class BulkImporter
                 WHERE true
                 ON CONFLICT(evse_id,source_id) DO UPDATE SET
                    standard=excluded.standard,power_type=excluded.power_type,
-                   max_electric_power=excluded.max_electric_power
-                WHERE (connector.standard,connector.power_type,connector.max_electric_power)
-                    IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power);
+                   max_electric_power=excluded.max_electric_power,
+                   source_data=excluded.source_data
+                WHERE (connector.standard,connector.power_type,connector.max_electric_power,connector.source_data)
+                    IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power,excluded.source_data);
                 """);
             await Exec(db, tx, """
                 CREATE TEMP TABLE stage_connector_id ON COMMIT DROP AS
