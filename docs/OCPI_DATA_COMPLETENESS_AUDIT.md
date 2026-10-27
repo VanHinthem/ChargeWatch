@@ -151,3 +151,21 @@ Bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.pdf en http
 Voor toekomstige implementatie: bewaar OCPI-elementvolgorde en ruwe restricties, valideer locale tijdzone en daggrenzen, valideer aanvullende restricties per element, en selecteer prijscomponenten per dimensie. Controleer volledige connector-tariefkoppelingen, btw-status, feed-versheid en ontbrekende/ongeldige velden. Bereken nooit stilzwijgend een gegarandeerde laadpas-eindprijs. Bestaande Android-weergave uit PR #61 is niet geschikt om een reeks uurprijzen enkel als lijst van unieke bedragen samen te vatten.
 
 **Status:** onderzoeksresultaten en ontwerpafspraken gedocumenteerd; nog geen tariefevaluator geïmplementeerd, geen wijziging aan productie, geen database-migratie en geen merge.
+
+
+## NDW Ubitricity cross-feed controle — 27 oktober 2026
+
+Read-only productiequery: 5.078 onopgeloste connector-tariefrelaties; 3.706 daarvan betreffen NL/UB2, verspreid over zes unieke tarief-ID's. Geen van de ontbrekende ID's werd in de lokale database onder een andere party gevonden.
+
+Gebruiker downloadde **verse** `charging_point_tariffs_ocpi.json.gz` en `charging_point_locations_ocpi.json.gz` van NDW en zocht de exacte ID-strings in de gedecomprimeerde JSON. Voor alle zes UB2-ID's was het resultaat: **wel in Locations, niet in Tariffs**. Dit wijst sterk op een cross-feed referentiële inconsistentie in de bron; volledige structurele parsing en publicatiemomentvergelijking zijn nog nodig voor definitieve vaststelling.
+
+| UB2 tarief-ID | Getroffen connectoren | Locaties met die ID |
+| --- | ---: | ---: |
+| `e5588c60d6992238baaa0200a90e838d` | 1852 | 920 |
+| `58647f3817be3b2499cde83bf3b89246` | 1844 | 912 |
+| `35af75bf8b996e114825dcb66e06c4d6` | 4 | 2 |
+| `028760728f45ad70b3e343bb00399bd1` | 2 | 1 |
+| `4473587a5b74614ccc3a0ccec240ea51` | 2 | 1 |
+| `d9a8cf48d65c07cd86b3e8b9872ca1ac` | 2 | 1 |
+
+Ontwerpconsequenties: rapporteer onderscheid tussen ontbrekende koppeling, onopgeloste bronverwijzing en interpreteerbaar tarief. **Nooit** prijs afleiden uit andere connectoren of ongeverifieerde ID-matches. Monitor bronconsistentie; overweeg NDW-issue met geanonimiseerde voorbeelden. De aantallen zijn een momentopname, geen live-garantie.
