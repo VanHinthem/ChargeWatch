@@ -228,3 +228,17 @@ Ontwerpvoorstel, nog niet geïmplementeerd: bewaar OCPI `max_voltage` en `max_am
 ## Connector format en afronding onderzoek — 27 oktober 2026
 
 Volledige actuele NDW Locations-export met **204.211** connectoren bevat `format` voor elke connector: `SOCKET` **193.839** (94,9%) en `CABLE` **10.372** (5,1%). De bestaande DB/importer/API bewaren dit veld niet. Uit eerder onderzoek blijkt hetzelfde voor `max_voltage` en `max_amperage`; ze zijn wél in relevante NDW-connectoren aanwezig. Implementatie en eventuele theoretische AC-vermogensafleiding zijn uit het onderzoeks-PR gehaald naar **issue #64**: https://github.com/VanHinthem/ChargeWatch/issues/64 . Geen productie-aanpassing; afgeleid vermogen mag nooit onterecht als expliciete bronwaarde of daadwerkelijk gegarandeerd laadvermogen worden gepresenteerd.
+
+## Architectuurbesluit: hybride OCPI-opslag — 27 oktober 2026
+
+**Keuze:** complete actuele OCPI-broninformatie behouden als JSONB **naast** getypeerde, indexeerbare velden voor operationele query's. Niet uitsluitend JSONB en evenmin elk mogelijk OCPI-veld als losse relationele kolom.
+
+- **Bronbehoud:** bewaar bronvelden voor locaties, EVSE's en connectoren; voor tarieven bestaat reeds `tariff.details jsonb`. Voorkom waar mogelijk dubbele opslag van volledige geneste bomen op elk niveau (bijvoorbeeld een locatie-payload inclusief alle EVSE's én dezelfde EVSE-payloads apart). Leg precieze JSON-vorm en bronprovenance vast in implementatieontwerp.
+- **Querypaden:** gebruik getypeerde kolommen en geschikte indexen voor geografische viewport, connectorstandaard, AC/DC, (bron- of gevalideerd afgeleid) vermogen, status, tariefrelaties en toekomstig filteren op snelladers. JSONB is geen vervanging voor het prestatiekritische API-model.
+- **Power provenance:** onderscheid `max_electric_power` uit de bron van een optioneel afgeleid AC-vermogen. DC `voltage × amperage` niet als gegarandeerde laderspecificatie presenteren. Documenteer fase-/lijnspanningsaanname en validatie vóór berekening.
+- **Verversing:** de importer moet bron-JSONB en getypeerde velden atomair upserten. Na migratie is een gecontroleerde **eenmalige herimport** nodig: `WatchRunner` importeert bij gewijzigd bronbestand en een ongewijzigde HTTP 304 triggert niet vanzelf backfill.
+- **Historie:** bewaar de bestaande observatie- en statistiekhistorie, maar introduceer geen versiehistorie van elk OCPI-bronveld. Velden van niet meer gepubliceerde locaties zijn mogelijk niet vanuit de huidige bron te reconstrueren. Snapshot-inactivatie en historiekbehoud vallen onder issue #63.
+- **Meten vóór implementatie:** vergelijk opslag- en indexgrootte, WAL/schrijflast, importtijd en viewport-/filter-queryplannen voor en na toevoeging. Beperk benodigde JSONB-indexen; geen GIN-index op alle brondata zonder concreet querydoel.
+- **API:** geef de Android-app een stabiel, selectief contract. Stel niet de volledige ruwe bron-JSON als standaard API-respons beschikbaar.
+
+**Implementatievolgorde:** (1) opslagvorm/migratie/bron-JSON en minimale belangrijke kolommen ontwerpen en testen; (2) gecontroleerde herimport; (3) read-only API uitbreiden; (4) Android-presentatie/filters. Issue #64 (connectorvelden) moet op dit opslagbesluit aansluiten. Geen codewijziging in onderzoeks-PR #62.
