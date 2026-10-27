@@ -65,3 +65,7 @@ For AC_3_PHASE, source includes both 230 V and 400 V. OCPI prescribes phase-neut
 - Actual detail endpoint responses: location 1 explicit 22,000 W with powerSource=source; location 2 three-phase AC 230V/16A returned 11,040 W and derived_ac; location 548 CHAdeMO DC 920V/109A returned 100,280 W and dc_upper_bound, plus CCS Combo 920V/190A returned 174,800 W and dc_upper_bound. All observed values match the implemented formulas. Different connectors on the same site rightly have different bounds.
 
 Still pending: tests for inferred AC 400V line-to-line calculation, unexpected/outlier voltage/current values, API backwards compatibility across Android, automated regressions, second identical-import measurements, and Android presentation. No NAS deployment and no merge.
+
+### AC 400 V API verification
+
+Location 4180, five IEC_62196_T2 AC_3_PHASE connectors (400 V, 16 A, no explicit power): each yielded `effectivePowerWatts=11085` and `powerSource=derived_ac` through the running local API. This matches the assumed line-to-line three-phase formula, rounded to a whole watt. AC 400 V path confirmed in live local testing; the line-to-line interpretation remains an assumption for these nonconformant source fields.
