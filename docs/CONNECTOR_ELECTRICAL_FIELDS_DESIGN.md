@@ -37,3 +37,20 @@ Official connector spec: https://ocpi.github.io/openapi-specification/ocpi/2.2.1
 Grouped connector source JSONB results reveal dominant `AC_3_PHASE/230V/16A` (112,171; 48,314 missing explicit power), `AC_3_PHASE/230V/32A` (31,506; 9,280 missing), `AC_3_PHASE/230V/25A` (22,048; 1,973 missing), plus `AC_1_PHASE/230V/16A` (1,206; 1,027 missing). Also `AC_3_PHASE/400V/32A` (7,313; 54 missing) and `400V/16A` (1,494; 44 missing). The reported 400 V may represent line-to-line rather than OCPI's line-to-neutral three-phase convention; do not naively multiply 3×400×A and claim a charge point rating.
 
 **Initial conservative rule (pending outlier distribution audit):** only derive AC power at line-neutral voltage in the plausible 220–240 V band. For AC_1_PHASE use V×A, AC_3_PHASE use 3×V×A. If voltage outside this band, source/current nonpositive or invalid, or the type is ambiguous, report `unknown` without inventing a power rating. Source-provided positive power wins. Validate current ranges before choosing a fixed amperage guard. Do not label the derived number as guaranteed achievable charging speed.
+
+## Decision update — user approved informative DC upper bounds (27 October 2026)
+
+Local real-source results for connector rows with non-NULL source_data:
+
+| power_type | total | missing explicit power | positive source voltage and amperage |
+| --- | ---: | ---: | ---: |
+| AC_3_PHASE | 193536 | 61465 | 61465 |
+| AC_1_PHASE | 3013 | 2609 | 2609 |
+| DC | 7662 | 1121 | 1121 |
+| **Total** | **204211** | **65195** | **65195** |
+
+The user explicitly requests that available data should not be hidden by overly strict validation. **Updated presentation contract:** source power `22 kW`; derived AC nominal indication `≈ 22 kW`; DC theoretical maximum from independent voltage/current ratings `≤ 400 kW` (upper bound, **not guaranteed charger output**). Proposed provenance values `source`, `derived_ac`, `dc_upper_bound`, `unknown`.
+
+For AC_3_PHASE, source includes both 230 V and 400 V. OCPI prescribes phase-neutral voltage, but some feeds likely publish line-line: apply `3*V*I` for documented phase-neutral values (e.g. 230 V), and `sqrt(3)*V*I` only when voltage is confidently interpretable as line-line (e.g. nominal 400 V); retain assumption metadata and do not silently claim an exact source-rated output. Explicit `max_electric_power` always wins. Values should be checked for finite/positive/overflow, but avoid arbitrary tight ranges that hide otherwise useful data. Examine odd voltages before committing classifier.
+
+**Supersedes earlier conservative recommendation** not to display DC or 400 V derived estimates. Earlier sections above describe that initial proposal, not the final product decision. Automated tests must distinguish DC bound from nominal source power.
