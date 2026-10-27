@@ -202,3 +202,11 @@ Vervolg: analyseer Vattenfall InCharge en de groep met ontbrekende operatornaam 
 ## Vattenfall InCharge / NL-NUO: tariefverwijzingen (27 oktober 2026)
 
 Productiedatabase: 53.892 connectoren, 4.940 zonder connector_tariff (9,2%) en 48.952 met relatie. Zelfstandig geparde huidige NDW Locations-export, partij NL/NUO: 22.229 locaties; 53.753 connectoren, 4.908 zonder tariff_ids (9,1%) en 48.845 met tariff_ids. Kleine snapshotverschillen en nagenoeg identieke percentages. Geen aanwijzing voor grootschalig verlies van links in collector; individuele identiteit-reconciliatie niet uitgevoerd. Dit staat los van 572 NUO connectorrelaties naar 32 ontbrekende tariefobjecten.
+
+## Onderzoek verdwenen NL/AGO-locaties — 27 oktober 2026
+
+Database bevat voor NL/AGO 1.025 locaties: 92 met operatornaam (bronupdate 26-27 okt) en 933 zonder operatornaam (bronupdate 16 juni–25 okt). De actuele NDW Locations-export bevat 92 NL/AGO-locaties met samen 280 connectoren, alle met operatornaam en tariff_ids. In de database bevatten de 933 AGO-locaties zonder operatornaam 2.593 connectoren, zonder tariefrelatie.
+
+Vijf concrete NL/AGO source_id's uit de 933 oude records, allemaal afwezig in de actuele NDW Locations-export: 0811c848-427e-4896-b5ff-6698385d92b9; e4228f3f-7d5e-4921-a3df-9c13ab791b2b; 5b6aaffd-c4a0-4d26-914b-12118245817d; 2267f9f4-5d69-420b-8a68-05010117f9f0; b5098ea4-5ec9-4629-9545-30c7aae2b14f. Dit bevestigt verouderde productierecords voor deze vijf ID's. Nog niet alle 933 IDs individueel vergeleken.
+
+In BulkImporter.cs is upsert van locaties en verwijdering van verouderde connector-tariefrelaties zichtbaar, maar geen expliciete verwijdering van locaties die niet meer in een volledige NDW-snapshot voorkomen. Mogelijk blijven verdwenen locaties zichtbaar en tellen ze mee. Vervolg: ontwerp veilige snapshot-reconciliatie (actief/inactief of tombstone), met behoud van historische observaties/statistieken; pas na volledige bron-ID-controle, schema-impactonderzoek en tests implementeren. Geen productiegegevens gewijzigd.
