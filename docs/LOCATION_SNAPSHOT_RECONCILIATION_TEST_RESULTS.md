@@ -14,3 +14,9 @@ Reactivatie-identiteit `(NL,505,91106154)` kwam terug als bestaand DB-ID **134**
 **Aangetoond:** handmatige bulk deactiveert niet; geverifieerde volledige HTTP-200-snapshot deactiveert ontbrekende locaties; herpublicatie reactiveert bestaande identiteit met behoud van ID en gekoppelde rijen.
 
 **Nog niet aangetoond:** daadwerkelijke API-endpoints, historische statistiekwaarden vóór/na, fault/rollback- en gedeeltelijke-snapshotbescherming, CI-automatisering en performancebenchmark. Tests waren handmatige lokale runs, geen geautomatiseerde CI-tests. Geen merge of productie-deployment.
+
+## API-verificatie en gekoppelde records
+
+Gebruiker bouwde de API-image lokaal en draaide deze via het read-only account `chargewatch_read` op poort 18080. Resultaten: actief locatie-ID 134 `GET /api/v1/locations/134` **200**; inactief ID 139 `GET /api/v1/locations/139` **404**; NDW-lookup `NL-505-91106214` **404**. Viewport rondom inactieve locatie (bbox `4.732559,52.710611,4.742559,52.720611`) bevatte zes locaties, **nul** vermeldingen van `NL-505-91106214`.
+
+Bij 1.910 inactieve locaties bleven 7.397 EVSE's en 7.397 connectoren gekoppeld. Historische locatie-accumulator bevatte 106 rijen, maar geen enkele rij was gekoppeld aan de inactieve locaties. Beide `location_snapshot_*`-historietabellen hadden nul rijen. Dit bewijst geen dataretentie bij inactivering van een locatie mét historie: expliciete regressietest volgt. Rollback-faultinjectie en zoekendpoint staan eveneens nog open.
