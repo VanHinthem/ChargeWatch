@@ -56,6 +56,11 @@ internal sealed class ConnectorDetail
     public string? Standard { get; init; }
     public string? PowerType { get; init; }
     public int? MaxElectricPower { get; init; }
+    public string? Format { get; init; }
+    public int? MaxVoltage { get; init; }
+    public int? MaxAmperage { get; init; }
+    public long? EffectivePowerWatts => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Watts;
+    public string PowerSource => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Source;
     public List<TariffDetail> Tariffs { get; } = [];
 }
 
