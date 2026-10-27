@@ -198,3 +198,7 @@ Read-only DB-snapshot bevat 27.401 connectoren zonder `connector_tariff`-relatie
 Gebruiker heeft de vers gedownloade NDW Locations-export gestructureerd geparsed (location→EVSE→connector→`tariff_ids`) voor `NL/GFX`. NDW: 9.046 locaties, 19.087 connectoren, 487 mét en 18.600 zonder tarief-ID (97,4% ontbrekend). Productiedatabase: 19.373 connectoren, 489 mét en 18.884 zonder relatie (97,5% ontbrekend). Verschillende snapshots; bijna identieke percentages wijzen overtuigend op overwegend ontbrekende bronverwijzingen, niet op grootschalig importverlies. Geen per-connector volledige identiteit-reconciliatie uitgevoerd.
 
 Vervolg: analyseer Vattenfall InCharge en de groep met ontbrekende operatornaam apart. UI: `Tarief niet beschikbaar` als er geen betrouwbare relatie bestaat, nooit prijs gokken.
+
+## Vattenfall InCharge / NL-NUO: tariefverwijzingen (27 oktober 2026)
+
+Productiedatabase: 53.892 connectoren, 4.940 zonder connector_tariff (9,2%) en 48.952 met relatie. Zelfstandig geparde huidige NDW Locations-export, partij NL/NUO: 22.229 locaties; 53.753 connectoren, 4.908 zonder tariff_ids (9,1%) en 48.845 met tariff_ids. Kleine snapshotverschillen en nagenoeg identieke percentages. Geen aanwijzing voor grootschalig verlies van links in collector; individuele identiteit-reconciliatie niet uitgevoerd. Dit staat los van 572 NUO connectorrelaties naar 32 ontbrekende tariefobjecten.
