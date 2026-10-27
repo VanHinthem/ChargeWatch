@@ -31,3 +31,9 @@ OCPI 2.2.1 connector specification: max_voltage is volts line-to-neutral for AC_
 6. No NAS production change or merge without explicit approval.
 
 Official connector spec: https://ocpi.github.io/openapi-specification/ocpi/2.2.1/roles/cpo-interface.html
+
+## Source distribution observation — local snapshot 27 October 2026
+
+Grouped connector source JSONB results reveal dominant `AC_3_PHASE/230V/16A` (112,171; 48,314 missing explicit power), `AC_3_PHASE/230V/32A` (31,506; 9,280 missing), `AC_3_PHASE/230V/25A` (22,048; 1,973 missing), plus `AC_1_PHASE/230V/16A` (1,206; 1,027 missing). Also `AC_3_PHASE/400V/32A` (7,313; 54 missing) and `400V/16A` (1,494; 44 missing). The reported 400 V may represent line-to-line rather than OCPI's line-to-neutral three-phase convention; do not naively multiply 3×400×A and claim a charge point rating.
+
+**Initial conservative rule (pending outlier distribution audit):** only derive AC power at line-neutral voltage in the plausible 220–240 V band. For AC_1_PHASE use V×A, AC_3_PHASE use 3×V×A. If voltage outside this band, source/current nonpositive or invalid, or the type is ambiguous, report `unknown` without inventing a power rating. Source-provided positive power wins. Validate current ranges before choosing a fixed amperage guard. Do not label the derived number as guaranteed achievable charging speed.
