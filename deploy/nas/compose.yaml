@@ -22,6 +22,14 @@ services:
   db-upgrade:
     image: ghcr.io/vanhinthem/chargewatch-maintenance:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
     restart: "no"
+    # Remain running after successful upgrade; UGREEN counts all stopped
+    # containers as project errors, including exited(0) one-shot jobs.
+    # On failure, the shell exits nonzero and health is never achieved.
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/chargewatch-upgrade-ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
     depends_on:
       db:
         condition: service_healthy
@@ -34,7 +42,7 @@ services:
       PGPASSWORD: ${CW_DB_OWNER_PASSWORD:?Set CW_DB_OWNER_PASSWORD}
     volumes:
       - ${CW_NAS_BACKUP_DIR:?Set absolute NAS backup directory}:/backups
-    entrypoint: ["/bin/sh", "/scripts/db-upgrade.sh"]
+    entrypoint: ["/bin/sh", "-ec", "sh /scripts/db-upgrade.sh; touch /tmp/chargewatch-upgrade-ready; exec sleep infinity"]
 
   collector:
     image: ghcr.io/vanhinthem/chargewatch-collector:${CW_IMAGE_TAG:?Set CW_IMAGE_TAG}
@@ -43,7 +51,7 @@ services:
       db:
         condition: service_healthy
       db-upgrade:
-        condition: service_completed_successfully
+        condition: service_healthy
     environment:
       CW_IMPORT_CONNECTION: "Host=db;Port=5432;Database=chargewatch;Username=chargewatch_import;Password=${CW_IMPORT_PASSWORD:?Set CW_IMPORT_PASSWORD};Pooling=true;Timeout=30;Command Timeout=600"
       CW_NDW_CACHE_DIR: /data/cache
@@ -63,7 +71,7 @@ services:
       db:
         condition: service_healthy
       db-upgrade:
-        condition: service_completed_successfully
+        condition: service_healthy
     environment:
       CW_API_CONNECTION: "Host=db;Port=5432;Database=chargewatch;Username=chargewatch_read;Password=${CW_READ_PASSWORD:?Set CW_READ_PASSWORD};Pooling=true;Timeout=15;Command Timeout=30"
       CW_API_STALE_AFTER_MINUTES: ${CW_API_STALE_AFTER_MINUTES:-15}
