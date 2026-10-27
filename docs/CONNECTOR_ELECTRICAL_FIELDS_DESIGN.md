@@ -69,3 +69,7 @@ Still pending: tests for inferred AC 400V line-to-line calculation, unexpected/o
 ### AC 400 V API verification
 
 Location 4180, five IEC_62196_T2 AC_3_PHASE connectors (400 V, 16 A, no explicit power): each yielded `effectivePowerWatts=11085` and `powerSource=derived_ac` through the running local API. This matches the assumed line-to-line three-phase formula, rounded to a whole watt. AC 400 V path confirmed in live local testing; the line-to-line interpretation remains an assumption for these nonconformant source fields.
+
+## Release verification (27 October 2026)
+
+GitHub checks for PR #69 HEAD `7eb45b9a4ed26e46124fee4da4308df249a83b81`: Read-only API, Compact Statistics Watch Integration, Compact National Import Benchmark, Android, Compact Statistics Database, and NAS Images all completed successfully. The APK UI has not yet been tested against production API; the user's chosen sequence is to complete production NAS database/importer/API deployment and data validation first, then test Android. Production rollout must retain mandatory pre-migration backup and post-deployment verification.
