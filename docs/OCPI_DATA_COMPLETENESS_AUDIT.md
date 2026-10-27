@@ -129,3 +129,25 @@ COMMIT;
 4. Scheid exacte, afgeleide, geschatte en onbekende gegevens. Één connector is niet automatisch één afzonderlijk laadpunt.
 5. Maak pas daarna kleine implementatie-PR's: bronbehoud → rijker API-contract → Android-weergave en testen.
 6. Geen wijzigingen aan productie, geen database-migraties en geen merge zonder reviewakkoord.
+
+## Productieonderzoek: bevindingen 27 oktober 2026
+
+De volgende cijfers zijn verkregen met read-only SQL op de NAS en gelden voor de onderzochte momentopname.
+
+- Connectoren: 211.840. Hiervan 142.400 met vermogen tussen 1 en 500 kW, 69.413 zonder vermogen, 10 met nulwaarde, 6 tussen 500 en 1.000 kW en 11 boven 1.000 kW.
+- Uitschieters boven 500 kW: TotalEnergies 2 maal 120.000.000 W; Eneco 8 maal 7.360.000 W; Milence 1 maal 1.200.000 W; Fastned 4 maal 600.000 W; E-Flux 2 maal 500.400 W. Mogelijke bron- of eenheidsfouten vereisen verificatie. Hoge DC-vermogens zijn niet automatisch fout.
+- EVSE-verdeling: 210.437 met een connector, 676 met twee, 17 met drie. Totaal 211.130 EVSE's. Het tellen van unieke EVSE's blijft essentieel.
+- Veelvoorkomende tariefrestricties: start- en eindtijd circa 37 duizend voorkomens elk; startdatum 32.145; einddatum 28.619; weekdagen 9.094; minimumduur 3.486; maximumduur 2.817. Tellingen zijn per tariefelement, niet per uniek tarief.
+- Restrictiepatronen: 102.909 elementen zonder gevulde restricties; 27.392 met datum- en tijdvensters; 8.722 met weekdag en tijdvenster; 2.107 met minimum- en maximumduur.
+- Voor 26-27 oktober: EFL heeft 498 tarieven met samen 11.952 ENERGY-componenten, PFG 7 tarieven met 63 ENERGY-componenten. Eén EFL-tarief bevat 48 tijdsgebonden uurprijzen en een afsluitend element zonder restricties met ENERGY 0,529 EUR/kWh, FLAT 0 en TIME 0; btw-percentages zijn niet ingevuld. Over alle EFL-tarieven bevatten 523 records precies 48 tijdgebonden elementen en één algemeen element; 24 andere bevatten 48 tijdgebonden en in totaal 51 elementen.
+- Aanvullende metadata van dit EFL-tarief: geen alternatieve tarieftekst, URL, minimum- of maximumprijs, en geen algemene geldigheidsdatums. Dit beschrijft alleen dit ene voorbeeld.
+
+### Normatieve interpretatie en ontwerpvoorwaarden
+
+Volgens OCPI 2.2.1 Tariffs §11.3.1 is **volgorde bepalend binnen iedere afzonderlijke prijsdimensie**: selecteer het eerste element met een component van die dimensie waarvan de restricties voldoen. Een later onbeperkt element kan dienen als fallback. ENERGY, TIME, PARKING_TIME en FLAT worden apart beoordeeld en verschillende dimensies kunnen tegelijk van toepassing zijn. Dit betekent dat de onbeperkte ENERGY-component van het voorbeeld niet bij de toepasselijke uurprijs wordt opgeteld.
+
+Bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.pdf en https://ocpi.github.io/openapi-specification/ocpi/2.2.1/roles/cpo-interface.html
+
+Voor toekomstige implementatie: bewaar OCPI-elementvolgorde en ruwe restricties, valideer locale tijdzone en daggrenzen, valideer aanvullende restricties per element, en selecteer prijscomponenten per dimensie. Controleer volledige connector-tariefkoppelingen, btw-status, feed-versheid en ontbrekende/ongeldige velden. Bereken nooit stilzwijgend een gegarandeerde laadpas-eindprijs. Bestaande Android-weergave uit PR #61 is niet geschikt om een reeks uurprijzen enkel als lijst van unieke bedragen samen te vatten.
+
+**Status:** onderzoeksresultaten en ontwerpafspraken gedocumenteerd; nog geen tariefevaluator geïmplementeerd, geen wijziging aan productie, geen database-migratie en geen merge.
