@@ -190,3 +190,11 @@ De drie EFL-objecten die in de handmatig opgehaalde Tariffs-export wel aanwezig 
 NAS-status: Tariffs-cache `tariffs.json.gz` gewijzigd 27 oktober 05:20 UTC, state `LastModified` 05:01 UTC, laatste succesvolle tariefcontrole 10:33 UTC, ETag `"401503-65ecb5527e7f0"`. NDW HTTP HEAD kort daarna: nieuwe Tariffs-versie `Last-Modified: 11:02 UTC`, ETag `"4045e0-65ed060304060"`. De drie EFL-objecten in die nieuwere export hadden `last_updated` 09:56–11:00 UTC. De dataset van de collector liep dus achter op de handmatig verkregen snapshot. Verwachting: reguliere volgende tariefcontrole haalt de nieuwe export binnen; **niet nagecontroleerd op verzoek van gebruiker**. Er is geen collectorbug vastgesteld.
 
 Vervolgontwerp: exposeer afzonderlijk per feed de laatste succesvolle controle, feitelijke contentversie (ETag/Last-Modified), succesvolle download en succesvolle import; `import_run` alleen is onvoldoende om Tariffs-actualiteit te beoordelen. Blijf NDW ontbrekende bronobjecten onderscheiden van tijdelijke snapshotverschillen. Geen productie-ingreep gedaan.
+
+## Connectoren zonder tariefverwijzing — operatoranalyse (27 oktober 2026)
+
+Read-only DB-snapshot bevat 27.401 connectoren zonder `connector_tariff`-relatie uit 211.851 connectoren. Grootste groepen: TotalEnergies 18.884/19.373 (97,5%), Vattenfall InCharge 4.940/53.892 (9,2%), operator onbekend 2.720/5.778 (47,1%), Laadnet 497/6.046. Alle TotalEnergies-connectoren in deze snapshot vallen onder OCPI `NL/GFX`.
+
+Gebruiker heeft de vers gedownloade NDW Locations-export gestructureerd geparsed (location→EVSE→connector→`tariff_ids`) voor `NL/GFX`. NDW: 9.046 locaties, 19.087 connectoren, 487 mét en 18.600 zonder tarief-ID (97,4% ontbrekend). Productiedatabase: 19.373 connectoren, 489 mét en 18.884 zonder relatie (97,5% ontbrekend). Verschillende snapshots; bijna identieke percentages wijzen overtuigend op overwegend ontbrekende bronverwijzingen, niet op grootschalig importverlies. Geen per-connector volledige identiteit-reconciliatie uitgevoerd.
+
+Vervolg: analyseer Vattenfall InCharge en de groep met ontbrekende operatornaam apart. UI: `Tarief niet beschikbaar` als er geen betrouwbare relatie bestaat, nooit prijs gokken.
