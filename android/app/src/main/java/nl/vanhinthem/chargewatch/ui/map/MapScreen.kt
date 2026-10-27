@@ -86,6 +86,7 @@ import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
+import nl.vanhinthem.chargewatch.data.ndw.NdwAvailability
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.formatChargingPower
 import nl.vanhinthem.chargewatch.data.ndw.availabilityDescription
@@ -655,7 +656,7 @@ private fun LocationSelectionSheet(
                                     ) {
                                         ConnectorSocketIcon(connector.connectorType, sizeDp = 26)
                                         Text(
-                                            formatChargingPower(connector.powerMax) ?: "— kW",
+                                            connectorPowerLabel(connector) ?: "— kW",
                                             style = MaterialTheme.typography.labelMedium,
                                             maxLines = 1
                                         )
@@ -711,7 +712,7 @@ private fun LocationSelectionSheet(
                                         Text(connectorDisplayName(category.connectorType), style = MaterialTheme.typography.titleMedium)
                                         val attributes = listOfNotNull(
                                             category.powerType?.uppercase()?.takeIf { it == "AC" || it == "DC" },
-                                            formatChargingPower(category.powerMax)
+                                            connectorPowerLabel(category)
                                         ).joinToString(" · ")
                                         if (attributes.isNotEmpty()) Text(attributes,
                                             style = MaterialTheme.typography.bodySmall)
@@ -990,3 +991,14 @@ private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
 private const val AVAILABLE_COLOR = "#168653"
 private const val NONE_AVAILABLE_COLOR = "#D43B3B"
 private const val UNKNOWN_COLOR = "#818D96"
+
+/** Preserve NDW fallback behavior; mark API-derived values as estimates/bounds. */
+private fun connectorPowerLabel(connector: NdwAvailability): String? {
+    val effective = connector.effectivePowerWatts
+    val text = formatChargingPower(effective?.toDouble() ?: connector.powerMax) ?: return null
+    return when (connector.powerSource) {
+        "derived_ac" -> "≈ $text"
+        "dc_upper_bound" -> "≤ $text"
+        else -> text
+    }
+}
