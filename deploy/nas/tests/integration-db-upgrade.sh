@@ -14,12 +14,26 @@ cleanup() { dc down -v --remove-orphans || :; rm -rf "$CW_NAS_BACKUP_DIR"; }
 trap cleanup EXIT
 
 wait_upgrade() {
-  # Compose up -d returns after START, not after this one-shot job has exited.
+  # The UGREEN-compatible gate stays running when its release completed.
   container_id=$(dc ps -a -q db-upgrade)
   [ -n "$container_id" ] || { echo "db-upgrade container missing" >&2; exit 1; }
-  exit_code=$(docker wait "$container_id")
+  for _ in $(seq 1 120); do
+    status=$(docker inspect "$container_id" --format '{{.State.Status}}')
+    health=$(docker inspect "$container_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
+    if [ "$status" = "running" ] && [ "$health" = "healthy" ]; then
+      dc logs --no-color db-upgrade
+      return 0
+    fi
+    if [ "$status" = "exited" ] || [ "$status" = "dead" ]; then
+      dc logs --no-color db-upgrade
+      echo "db-upgrade exited unexpectedly" >&2
+      return 1
+    fi
+    sleep 1
+  done
   dc logs --no-color db-upgrade
-  [ "$exit_code" = 0 ] || { echo "db-upgrade exited with $exit_code" >&2; exit 1; }
+  echo "Timed out waiting for healthy db-upgrade" >&2
+  return 1
 }
 dc up -d db
 dc up -d db-upgrade
@@ -69,4 +83,5 @@ count=$(find "$CW_NAS_BACKUP_DIR" -name '*.dump' | wc -l)
 docker inspect "$(dc ps -q collector)" --format '{{.State.Running}}' | grep -qx true
 docker inspect "$(dc ps -q api)" --format '{{.State.Running}}' | grep -qx true
 echo 'Full-stack release redeploy integration test passed'
+[ "$(dc ps --services --filter status=running | wc -l)" -ge 4 ] || { echo "Expected all four services running" >&2; exit 1; }
 echo 'PostgreSQL release integration test passed'
