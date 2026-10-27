@@ -62,7 +62,8 @@ internal sealed class ApiDatabase(ApiOptions options)
                         ELSE ST_Distance(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography) END AS distance_meters
             FROM charging_location l
             LEFT JOIN evse e ON e.location_id=l.id
-            WHERE ($1::text IS NULL OR l.address ILIKE '%'||$1||'%' OR l.city ILIKE '%'||$1||'%'
+            WHERE l.is_active
+              AND ($1::text IS NULL OR l.address ILIKE '%'||$1||'%' OR l.city ILIKE '%'||$1||'%'
                    OR coalesce(l.operator_name,'') ILIKE '%'||$1||'%')
               AND ($2::double precision IS NULL OR
                    ST_Intersects(l.position,ST_MakeEnvelope($2,$3,$4,$5,4326)::geography))
@@ -122,7 +123,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                 SELECT id,country_code,party_id,source_id,address,operator_name,
                        longitude,latitude,source_last_updated
                 FROM charging_location
-                WHERE position IS NOT NULL
+                WHERE is_active AND position IS NOT NULL
                   AND ST_Intersects(position, ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)
                 ORDER BY id LIMIT 1000
             )
@@ -186,7 +187,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand("""
             SELECT id FROM charging_location
-            WHERE country_code=$1 AND party_id=$2 AND source_id=$3
+            WHERE country_code=$1 AND party_id=$2 AND source_id=$3 AND is_active
             """, connection);
         command.Parameters.AddWithValue(key.CountryCode);
         command.Parameters.AddWithValue(key.PartyId);
@@ -206,7 +207,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
                    l.latitude,l.longitude,GREATEST(l.source_last_updated,max(e.source_last_updated))
             FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id
-            WHERE l.id=$1 GROUP BY l.id
+            WHERE l.id=$1 AND l.is_active GROUP BY l.id
             """, connection))
         {
             command.Parameters.AddWithValue(id);
@@ -328,7 +329,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var command = new NpgsqlCommand("""
             SELECT (SELECT max(completed_at) FROM import_run WHERE status='completed'),
                    (SELECT max(last_observed_at) FROM snapshot_poll_checkpoint),
-                   (SELECT count(*) FROM charging_location),
+                   (SELECT count(*) FROM charging_location WHERE is_active),
                    (SELECT count(*) FROM evse),
                    (SELECT count(*) FROM connector),
                    (SELECT count(*) FROM tariff)
