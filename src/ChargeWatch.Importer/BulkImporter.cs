@@ -160,9 +160,19 @@ internal static class BulkImporter
             {
                 await SnapshotCatalogTransition.PrepareBeforeChangedCatalog(db, tx, verifiedAt);
             }
+            // Fail closed on suspicious national feed shrinkage before any catalog upsert.
+            if (verifiedLocationsFetchedAtUtc is not null)
+            {
+                await using var countCmd = new NpgsqlCommand(
+                    "SELECT count(*) FROM charging_location WHERE is_active", db, tx);
+                var activeBefore = (long)(await countCmd.ExecuteScalarAsync())!;
+                if (activeBefore >= minimum && locCount < activeBefore * 0.90)
+                    throw new InvalidDataException(
+                        $"Suspicious Locations snapshot shrinkage: {locCount} versus {activeBefore} active. Reconciliation refused.");
+            }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
-                INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated)
+                INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated,is_active)
                 SELECT payload->>'country',payload->>'party',payload->>'id',
                        COALESCE(payload->'data'->>'address',''), COALESCE(payload->'data'->>'city',''),
                        payload->'data'->'operator'->>'name',
@@ -173,7 +183,7 @@ internal static class BulkImporter
                             THEN ST_SetSRID(ST_MakePoint(
                                    (payload->'data'->'coordinates'->>'longitude')::double precision,
                                    (payload->'data'->'coordinates'->>'latitude')::double precision),4326)::geography END,
-                       NULLIF(payload->'data'->>'last_updated','')::timestamptz
+                       NULLIF(payload->'data'->>'last_updated','')::timestamptz, true
                 FROM stage_loc WHERE true
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
@@ -182,6 +192,27 @@ internal static class BulkImporter
                 WHERE (charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated)
                     IS DISTINCT FROM (excluded.address,excluded.city,excluded.operator_name,excluded.latitude,excluded.longitude,excluded.position,excluded.source_last_updated);
                 """);
+            if (verifiedLocationsFetchedAtUtc is not null)
+            {
+                await Exec(db, tx, """
+                    UPDATE charging_location l SET is_active=true
+                    WHERE NOT l.is_active
+                      AND EXISTS (
+                        SELECT 1 FROM stage_loc s
+                        WHERE s.payload->>'country'=l.country_code
+                          AND s.payload->>'party'=l.party_id
+                          AND s.payload->>'id'=l.source_id
+                      );
+                    UPDATE charging_location l SET is_active=false
+                    WHERE l.is_active
+                      AND NOT EXISTS (
+                        SELECT 1 FROM stage_loc s
+                        WHERE s.payload->>'country'=l.country_code
+                          AND s.payload->>'party'=l.party_id
+                          AND s.payload->>'id'=l.source_id
+                      );
+                    """);
+            }
             await Exec(db, tx, """
                 INSERT INTO evse(location_id,source_uid,external_evse_id,status,source_last_updated)
                 SELECT l.id, s.payload->>'uid', s.payload->'data'->>'evse_id',
