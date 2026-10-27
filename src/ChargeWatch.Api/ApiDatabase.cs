@@ -229,7 +229,8 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var details = new NpgsqlCommand("""
             SELECT e.id,e.source_uid,e.external_evse_id,e.status,e.source_last_updated,
                    c.id,c.source_id,c.standard,c.power_type,c.max_electric_power,
-                   t.country_code,t.party_id,t.source_id,t.currency,t.details::text,t.source_last_updated
+                   t.country_code,t.party_id,t.source_id,t.currency,t.details::text,t.source_last_updated,
+                   c.format,c.max_voltage,c.max_amperage
             FROM evse e
             LEFT JOIN connector c ON c.evse_id=e.id
             LEFT JOIN connector_tariff ct ON ct.connector_id=c.id
@@ -261,7 +262,10 @@ internal sealed class ApiDatabase(ApiOptions options)
                 connector = new ConnectorDetail
                 {
                     Id=connectorId, SourceId=detailReader.GetString(6), Standard=NullableString(detailReader,7),
-                    PowerType=NullableString(detailReader,8), MaxElectricPower=detailReader.IsDBNull(9)?null:detailReader.GetInt32(9)
+                    PowerType=NullableString(detailReader,8), MaxElectricPower=detailReader.IsDBNull(9)?null:detailReader.GetInt32(9),
+                    Format=NullableString(detailReader,16),
+                    MaxVoltage=detailReader.IsDBNull(17)?null:detailReader.GetInt32(17),
+                    MaxAmperage=detailReader.IsDBNull(18)?null:detailReader.GetInt32(18)
                 };
                 connectors.Add(connectorId, connector);
                 evse.Connectors.Add(connector);
