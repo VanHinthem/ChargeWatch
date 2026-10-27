@@ -169,3 +169,16 @@ Gebruiker downloadde **verse** `charging_point_tariffs_ocpi.json.gz` en `chargin
 | `d9a8cf48d65c07cd86b3e8b9872ca1ac` | 2 | 1 |
 
 Ontwerpconsequenties: rapporteer onderscheid tussen ontbrekende koppeling, onopgeloste bronverwijzing en interpreteerbaar tarief. **Nooit** prijs afleiden uit andere connectoren of ongeverifieerde ID-matches. Monitor bronconsistentie; overweeg NDW-issue met geanonimiseerde voorbeelden. De aantallen zijn een momentopname, geen live-garantie.
+
+## Kruiscontrole EFL/NUO NDW-export — 27 oktober 2026
+
+Op basis van 770 ontbrekende unieke tarief-ID's uit de database en vers gedownloade NDW Locations/Tariffs gzip-bestanden heeft de gebruiker een case-sensitive exacte-stringvergelijking uitgevoerd:
+
+| Party | Tariffs-string | Locations-string | Aantal unieke IDs |
+|---|---|---|---:|
+| EFL | afwezig | aanwezig | 734 |
+| EFL | aanwezig | aanwezig | 3 |
+| EFL | afwezig | afwezig | 1 |
+| NUO | afwezig | aanwezig | 32 |
+
+766 van de 770 zijn uitsluitend als string in Locations gevonden. Dit is een sterke aanwijzing voor inconsistente bronverwijzingen, **nog geen gestructureerde OCPI-identiteitsvalidatie**. De drie EFL-ID's die in beide exports voorkomen, moeten als eerste met samengestelde OCPI-sleutel op collector-/importverlies worden onderzocht; de ene afwezige EFL-ID kan verouderd zijn. Geen automatische reparatie en geen inferentie van prijzen uit vergelijkbare aansluitingen.
