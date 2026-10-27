@@ -188,13 +188,21 @@ internal static class BulkImporter
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
                   latitude=excluded.latitude, longitude=excluded.longitude, position=excluded.position,
-                  source_last_updated=excluded.source_last_updated, is_active=excluded.is_active
-                WHERE (charging_location.is_active=false OR charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated)
+                  source_last_updated=excluded.source_last_updated
+                WHERE (charging_location.address,charging_location.city,charging_location.operator_name,charging_location.latitude,charging_location.longitude,charging_location.position,charging_location.source_last_updated)
                     IS DISTINCT FROM (excluded.address,excluded.city,excluded.operator_name,excluded.latitude,excluded.longitude,excluded.position,excluded.source_last_updated);
                 """);
             if (verifiedLocationsFetchedAtUtc is not null)
             {
                 await Exec(db, tx, """
+                    UPDATE charging_location l SET is_active=true
+                    WHERE NOT l.is_active
+                      AND EXISTS (
+                        SELECT 1 FROM stage_loc s
+                        WHERE s.payload->>'country'=l.country_code
+                          AND s.payload->>'party'=l.party_id
+                          AND s.payload->>'id'=l.source_id
+                      );
                     UPDATE charging_location l SET is_active=false
                     WHERE l.is_active
                       AND NOT EXISTS (
