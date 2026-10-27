@@ -122,7 +122,7 @@ internal static class SnapshotPollCoverage
                 var rejected = (long)(await probe.ExecuteScalarAsync())!;
                 if (rejected > 0)
                     Console.Error.WriteLine(
-                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; undefined");
+                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; existing history preserved.");
             }
             await command.ExecuteNonQueryAsync();
         }
