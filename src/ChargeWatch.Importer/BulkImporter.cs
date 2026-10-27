@@ -184,7 +184,7 @@ internal static class BulkImporter
                                    (payload->'data'->'coordinates'->>'longitude')::double precision,
                                    (payload->'data'->'coordinates'->>'latitude')::double precision),4326)::geography END,
                        NULLIF(payload->'data'->>'last_updated','')::timestamptz, true,
-                       payload->'data' - 'evses'
+                       (payload->'data') - 'evses'
                 FROM stage_loc WHERE true
                 ON CONFLICT(country_code,party_id,source_id) DO UPDATE SET
                   address=excluded.address, city=excluded.city, operator_name=excluded.operator_name,
@@ -220,7 +220,7 @@ internal static class BulkImporter
                 SELECT l.id, s.payload->>'uid', s.payload->'data'->>'evse_id',
                        s.payload->'data'->>'status',
                        NULLIF(s.payload->'data'->>'last_updated','')::timestamptz,
-                       s.payload->'data' - 'connectors'
+                       (s.payload->'data') - 'connectors'
                 FROM stage_evse s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                       AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
