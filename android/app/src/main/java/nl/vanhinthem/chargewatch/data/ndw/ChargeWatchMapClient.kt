@@ -2,6 +2,7 @@ package nl.vanhinthem.chargewatch.data.ndw
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.*
 import nl.vanhinthem.chargewatch.BuildConfig
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -67,7 +68,9 @@ internal fun parseChargeWatchMap(raw: String): List<MapLocation> {
                 total = c["total"]?.jsonPrimitive?.intOrNull,
                 connectorType = c["connectorType"]?.jsonPrimitive?.contentOrNull,
                 powerType = c["powerType"]?.jsonPrimitive?.contentOrNull,
-                powerMax = c["powerMax"]?.jsonPrimitive?.doubleOrNull
+                powerMax = c["powerMax"]?.jsonPrimitive?.doubleOrNull,
+                effectivePowerWatts = c["effectivePowerWatts"]?.jsonPrimitive?.longOrNull,
+                powerSource = c["powerSource"]?.jsonPrimitive?.contentOrNull
             )
         }.orEmpty()
         MapLocation(

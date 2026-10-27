@@ -39,7 +39,9 @@ data class NdwAvailability(
     @SerialName("connector_type") val connectorType: String? = null,
     @SerialName("connector_format") val connectorFormat: String? = null,
     @SerialName("power_type") val powerType: String? = null,
-    @SerialName("power_max") val powerMax: Double? = null
+    @SerialName("power_max") val powerMax: Double? = null,
+    val effectivePowerWatts: Long? = null,
+    val powerSource: String? = null
 )
 
 data class MapLocation(

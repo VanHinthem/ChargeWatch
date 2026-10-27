@@ -56,6 +56,11 @@ internal sealed class ConnectorDetail
     public string? Standard { get; init; }
     public string? PowerType { get; init; }
     public int? MaxElectricPower { get; init; }
+    public string? Format { get; init; }
+    public int? MaxVoltage { get; init; }
+    public int? MaxAmperage { get; init; }
+    public long? EffectivePowerWatts => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Watts;
+    public string PowerSource => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Source;
     public List<TariffDetail> Tariffs { get; } = [];
 }
 
@@ -106,7 +111,8 @@ internal sealed record DataStatus(
     long TariffCount);
 
 internal sealed record MapConnectorCategory(
-    int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax);
+    int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax,
+    long? EffectivePowerWatts, string PowerSource);
 internal sealed record MapLocationItem(
     string FeatureId, double Longitude, double Latitude, string Address,
     string? OperatorName, DateTimeOffset? LastUpdated,

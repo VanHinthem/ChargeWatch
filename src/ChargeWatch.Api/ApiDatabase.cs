@@ -138,7 +138,9 @@ internal sealed class ApiDatabase(ApiOptions options)
                        'evseId',e.id,
                        'connectorType',c.standard,
                        'powerType',c.power_type,
-                       'powerMax',c.max_electric_power
+                       'powerMax',c.max_electric_power,
+                       'maxVoltage',c.max_voltage,
+                       'maxAmperage',c.max_amperage
                    )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
             FROM selected l
             LEFT JOIN evse e ON e.location_id=l.id
@@ -166,12 +168,20 @@ internal sealed class ApiDatabase(ApiOptions options)
                     PowerType = x.GetProperty("powerType").ValueKind == JsonValueKind.Null
                         ? (string?)null : x.GetProperty("powerType").GetString(),
                     PowerMax = x.GetProperty("powerMax").ValueKind == JsonValueKind.Null
-                        ? (int?)null : x.GetProperty("powerMax").GetInt32()
+                        ? (int?)null : x.GetProperty("powerMax").GetInt32(),
+                    Voltage = x.GetProperty("maxVoltage").ValueKind == JsonValueKind.Null
+                        ? (int?)null : x.GetProperty("maxVoltage").GetInt32(),
+                    Amperage = x.GetProperty("maxAmperage").ValueKind == JsonValueKind.Null
+                        ? (int?)null : x.GetProperty("maxAmperage").GetInt32()
                 }).ToArray();
-            var categories = categoryRows.GroupBy(x => (x.Type,x.PowerType,x.PowerMax))
+            var categories = categoryRows.Select(x => new {
+                    x.EvseId, x.Available, x.Type, x.PowerType, x.PowerMax,
+                    Estimate = ConnectorPower.Estimate(x.PowerType,x.PowerMax,x.Voltage,x.Amperage)
+                }).GroupBy(x => (x.Type,x.PowerType,x.PowerMax,x.Estimate.Watts,x.Estimate.Source))
                 .Select(g => new MapConnectorCategory(
                     g.Where(x => x.Available == 1).Select(x => x.EvseId).Distinct().Count(),
-                    g.Select(x => x.EvseId).Distinct().Count(),g.Key.Type,g.Key.PowerType,g.Key.PowerMax))
+                    g.Select(x => x.EvseId).Distinct().Count(),g.Key.Type,g.Key.PowerType,g.Key.PowerMax,
+                    g.Key.Watts,g.Key.Source))
                 .ToArray();
             locations.Add(new MapLocationItem(id,reader.GetDouble(5),reader.GetDouble(6),
                 reader.GetString(3),NullableString(reader,4),NullableTimestamp(reader,7),
@@ -229,7 +239,8 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var details = new NpgsqlCommand("""
             SELECT e.id,e.source_uid,e.external_evse_id,e.status,e.source_last_updated,
                    c.id,c.source_id,c.standard,c.power_type,c.max_electric_power,
-                   t.country_code,t.party_id,t.source_id,t.currency,t.details::text,t.source_last_updated
+                   t.country_code,t.party_id,t.source_id,t.currency,t.details::text,t.source_last_updated,
+                   c.format,c.max_voltage,c.max_amperage
             FROM evse e
             LEFT JOIN connector c ON c.evse_id=e.id
             LEFT JOIN connector_tariff ct ON ct.connector_id=c.id
@@ -261,7 +272,10 @@ internal sealed class ApiDatabase(ApiOptions options)
                 connector = new ConnectorDetail
                 {
                     Id=connectorId, SourceId=detailReader.GetString(6), Standard=NullableString(detailReader,7),
-                    PowerType=NullableString(detailReader,8), MaxElectricPower=detailReader.IsDBNull(9)?null:detailReader.GetInt32(9)
+                    PowerType=NullableString(detailReader,8), MaxElectricPower=detailReader.IsDBNull(9)?null:detailReader.GetInt32(9),
+                    Format=NullableString(detailReader,16),
+                    MaxVoltage=detailReader.IsDBNull(17)?null:detailReader.GetInt32(17),
+                    MaxAmperage=detailReader.IsDBNull(18)?null:detailReader.GetInt32(18)
                 };
                 connectors.Add(connectorId, connector);
                 evse.Connectors.Add(connector);
