@@ -111,7 +111,8 @@ internal sealed record DataStatus(
     long TariffCount);
 
 internal sealed record MapConnectorCategory(
-    int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax);
+    int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax,
+    long? EffectivePowerWatts, string PowerSource);
 internal sealed record MapLocationItem(
     string FeatureId, double Longitude, double Latitude, string Address,
     string? OperatorName, DateTimeOffset? LastUpdated,
