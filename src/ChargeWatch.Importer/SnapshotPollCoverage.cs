@@ -66,7 +66,7 @@ internal static class SnapshotPollCoverage
             AND evse_poll_hour_coverage.available_seconds + excluded.available_seconds <= 3600;
           -- Preserve existing history instead of clipping values to 3600.
           -- Intervals whose union cannot be proven from the existing aggregate
-          -- are NOT applied when they would overflow the hour; the caller logs
+          -- are NOT applied when they would overflow the hour. The caller logs
           -- the number rejected. We still advance the snapshot checkpoint,
           -- allowing the independent catalog import to commit.
 
@@ -122,7 +122,7 @@ internal static class SnapshotPollCoverage
                 var rejected = (long)(await probe.ExecuteScalarAsync())!;
                 if (rejected > 0)
                     Console.Error.WriteLine(
-                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; existing history preserved.");
+                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; undefined");
             }
             await command.ExecuteNonQueryAsync();
         }
