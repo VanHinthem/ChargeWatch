@@ -138,7 +138,9 @@ internal sealed class ApiDatabase(ApiOptions options)
                        'evseId',e.id,
                        'connectorType',c.standard,
                        'powerType',c.power_type,
-                       'powerMax',c.max_electric_power
+                       'powerMax',c.max_electric_power,
+                       'maxVoltage',c.max_voltage,
+                       'maxAmperage',c.max_amperage
                    )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
             FROM selected l
             LEFT JOIN evse e ON e.location_id=l.id
@@ -166,12 +168,20 @@ internal sealed class ApiDatabase(ApiOptions options)
                     PowerType = x.GetProperty("powerType").ValueKind == JsonValueKind.Null
                         ? (string?)null : x.GetProperty("powerType").GetString(),
                     PowerMax = x.GetProperty("powerMax").ValueKind == JsonValueKind.Null
-                        ? (int?)null : x.GetProperty("powerMax").GetInt32()
+                        ? (int?)null : x.GetProperty("powerMax").GetInt32(),
+                    Voltage = x.GetProperty("maxVoltage").ValueKind == JsonValueKind.Null
+                        ? (int?)null : x.GetProperty("maxVoltage").GetInt32(),
+                    Amperage = x.GetProperty("maxAmperage").ValueKind == JsonValueKind.Null
+                        ? (int?)null : x.GetProperty("maxAmperage").GetInt32()
                 }).ToArray();
-            var categories = categoryRows.GroupBy(x => (x.Type,x.PowerType,x.PowerMax))
+            var categories = categoryRows.Select(x => new {
+                    x.EvseId, x.Available, x.Type, x.PowerType, x.PowerMax,
+                    Estimate = ConnectorPower.Estimate(x.PowerType,x.PowerMax,x.Voltage,x.Amperage)
+                }).GroupBy(x => (x.Type,x.PowerType,x.PowerMax,x.Estimate.Watts,x.Estimate.Source))
                 .Select(g => new MapConnectorCategory(
                     g.Where(x => x.Available == 1).Select(x => x.EvseId).Distinct().Count(),
-                    g.Select(x => x.EvseId).Distinct().Count(),g.Key.Type,g.Key.PowerType,g.Key.PowerMax))
+                    g.Select(x => x.EvseId).Distinct().Count(),g.Key.Type,g.Key.PowerType,g.Key.PowerMax,
+                    g.Key.Watts,g.Key.Source))
                 .ToArray();
             locations.Add(new MapLocationItem(id,reader.GetDouble(5),reader.GetDouble(6),
                 reader.GetString(3),NullableString(reader,4),NullableTimestamp(reader,7),
