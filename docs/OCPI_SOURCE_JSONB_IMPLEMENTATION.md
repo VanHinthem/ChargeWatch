@@ -38,3 +38,7 @@ Run using isolated `chargewatch-s4test` PostgreSQL 18/PostGIS and local importer
 ### Remaining validation / caveats
 
 No automated regression tests or per-row exhaustive content comparison, WAL measurements, explain plans, API smoke test on this branch, or fault-injection test. Migration/backfill was tested locally only. The bulk import is transactional; its initial SQL failure resulted in rollback. No production deployment and no merge at the time of these measurements.
+
+## Connector field coverage (local query)
+
+Of 204,211 imported connector JSONB objects, 204,211 have non-empty `max_voltage`, 204,211 have non-empty `max_amperage`, and 139,016 (68.1%) have non-empty `max_electric_power`; the remaining 65,195 (31.9%) have no non-empty explicit power. This is **field presence**, not validation of numeric ranges or electrical semantics. Derived power is deferred to issue #64.
