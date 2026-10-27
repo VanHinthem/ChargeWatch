@@ -242,3 +242,26 @@ Volledige actuele NDW Locations-export met **204.211** connectoren bevat `format
 - **API:** geef de Android-app een stabiel, selectief contract. Stel niet de volledige ruwe bron-JSON als standaard API-respons beschikbaar.
 
 **Implementatievolgorde:** (1) opslagvorm/migratie/bron-JSON en minimale belangrijke kolommen ontwerpen en testen; (2) gecontroleerde herimport; (3) read-only API uitbreiden; (4) Android-presentatie/filters. Issue #64 (connectorvelden) moet op dit opslagbesluit aansluiten. Geen codewijziging in onderzoeks-PR #62.
+
+
+## Auditafronding en implementatiebacklog — 27 oktober 2026
+
+**Onderzoeksstatus:** de afgesproken scope voor datavolledigheid en tariefinterpretatie is afgerond. Productiecijfers zijn momentopnamen; bronvergelijkingen gebruikten het actuele NDW-bestand en een eerder geëxporteerde databaseversie. Niet alle verschillen zijn per individueel object gereconcilieerd. Onzekerheden staan bij de respectieve bevindingen. PR #62 is uitsluitend onderzoeks- en ontwerpdocumentatie: **geen code, migratie, productieaanpassing of merge**.
+
+| Prioriteit | Werkstroom | Resultaat | Vervolg |
+|---|---|---|---|
+| P1 | Locatie-snapshotreconciliatie | 80.925 actuele NDW-locaties allemaal in database, plus 1.949 database-only; oude bronnen blijven mogelijk zichtbaar | Issue [#63](https://github.com/VanHinthem/ChargeWatch/issues/63): transactioneel actief/inactief, kaartfilters en historiebehoud |
+| P1 | Verliesvrij OCPI-bronbehoud | Location/EVSE/Connector selectief geïmporteerd, tarief-JSONB al volledig | Issue [#65](https://github.com/VanHinthem/ChargeWatch/issues/65): hybride bron-JSONB + getypeerde/indexeerbare velden, met performance- en opslagmeting en eenmalige backfill |
+| P1 | Correcte tariefinterpretatie | Dynamische elementen, restricties en btw worden in Android onvoldoende beoordeeld | Issue [#66](https://github.com/VanHinthem/ChargeWatch/issues/66), ontwerp [OCPI_TARIFF_EVALUATOR_DESIGN.md](OCPI_TARIFF_EVALUATOR_DESIGN.md) |
+| P2 | Connectorvelden en vermogen | Max voltage/amperage/format aanwezig in bron maar niet in DB/API; bij veel partijen geen expliciet vermogen | Issue [#64](https://github.com/VanHinthem/ChargeWatch/issues/64): bronvelden behouden en veilige afgeleide AC-indicatie |
+| P2 | Feedactualiteit en tariefdekking | Verschil tussen Locations-/Tariffs-cache (5-/60-minutencontrole), onopgeloste NDW-tariefverwijzingen | Ontwerpmonitoring in #66 of apart klein observability-issue bij implementatie; geen aangetoonde parserbug |
+
+**Implementatievolgorde (voorstel, geen verplicht sequentiële blokkering):**
+1. #63 snapshot-reconciliatie veilig afronden (actuele kaartdata correct, historiek blijft).
+2. #65 opslagstrategie met backfill implementeren; #64 kan hierop aansluiten zodat velden niet dubbel worden gemigreerd.
+3. #66 tariefevaluator/API met tests, vervolgens Android-weergave coördineren met open PR #61.
+4. UI- en performance-regressie met echte snapshots na iedere werkstroom.
+
+**Open aandachtspunten / begrenzing:** deel van de brontarief-ID's ontbreekt ook in NDW Tariffs; aanname dat drie EFL-ID's na nieuwe tariefcache verschijnen is niet afzonderlijk nagecontroleerd (op verzoek niet afgewacht). Berekend AC-vermogen blijft een indicatie afhankelijk van OCPI-spanningssemantiek; DC-vermogen niet afleiden alsof gegarandeerd. Een actuele CPO-prijs is niet de uiteindelijke eMSP-laadpasprijs.
+
+**Besluit voor review:** PR #62 kan inhoudelijk worden gereviewd als audit; implementatie uitsluitend via de genoemde aparte issues/PR's. Merge vereist afzonderlijk akkoord.
