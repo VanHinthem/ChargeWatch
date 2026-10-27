@@ -55,9 +55,11 @@ jobs:
               assert services[name]['image'].endswith(':' + tag), name
           for name in ('collector', 'api'):
               depends = services[name]['depends_on']
-              assert depends['db-upgrade']['condition'] == 'service_completed_successfully'
+              assert depends['db-upgrade']['condition'] == 'service_healthy'
           job = services['db-upgrade']
           assert job['restart'] == 'no'
+          assert job['healthcheck']['test'][-1] == 'test -f /tmp/chargewatch-upgrade-ready'
+          assert 'sleep infinity' in job['entrypoint'][-1]
           assert job['environment']['CW_IMAGE_TAG'] == tag
           assert job['volumes'][0]['target'] == '/backups'
           assert job['volumes'][0]['source'] == '/tmp/chargewatch-test-backups'
