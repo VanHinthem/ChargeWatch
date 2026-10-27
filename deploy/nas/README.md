@@ -4,7 +4,7 @@
 
 **Besluit 26 oktober 2026:** beheer van ChargeWatch verloopt vanuit de standaard Docker-app van de UGREEN DXP2800, zonder handmatige SSH-updatecommando's. Alle vier images verwijzen naar één en dezelfde immutable `CW_IMAGE_TAG`; de oudere `CW_API_IMAGE_TAG` vervalt.
 
-De gewenste eenmalige onderhoudsactie `db-upgrade` volgt deze beslisboom:
+De releasecontrole `db-upgrade` volgt deze beslisboom. Vanaf de UGREEN-statusfix blijft de container na een geslaagde controle bewust gezond draaien (zonder periodiek migraties uit te voeren), zodat UGREEN **4/4 Running** kan tonen:
 
 1. Lees de **laatst succesvol toegepaste release-tag** uit een persistente database-registratie (niet uitsluitend containernaam, image-id of een Compose-vlag).
 2. Komt deze overeen met de gewenste image-tag? **Geen back-up of migraties**, normale start.
@@ -39,7 +39,7 @@ De huidige PR houdt daarom voorlopig **één echte releasevariabele** `CW_IMAGE_
 2. Stop het **hele** ChargeWatch-project via UGREEN Docker → Project (niet alleen de API of collector); wacht totdat de bestaande collector is gestopt. Verwijder geen project, containers of volumes.
 3. Pas via Bestandsbeheer uitsluitend `CW_IMAGE_TAG` aan in `/volume2/docker/chargewatch/.env`. De legacy `CW_API_IMAGE_TAG` wordt na deze Compose-aanpassing genegeerd en kan daarna worden verwijderd.
 4. Klik in UGREEN Docker op **Redeploy** met **Altijd images vernieuwen** aangevinkt. UGREEN leest de gewijzigde `.env` bij Redeploy opnieuw in (door beheerder bevestigd). **Niet** uitsluitend op **Start** klikken: starten van bestaande containers is niet hetzelfde als recreëren naar een nieuwe image-tag.
-5. Controleer of `db-upgrade` met exitcode **0** eindigt, dat de back-up op de NAS in `CW_NAS_BACKUP_DIR` staat en dat collector/API **pas daarna** draaien. Controleer daarna de API via de bestaande reverse proxy en de collectorlogs.
+5. Controleer of `db-upgrade` **Running / Healthy** is, dat de back-up op de NAS in `CW_NAS_BACKUP_DIR` staat en dat collector/API **pas daarna** draaien. De releasecheck voert eenmaal uit en blijft daarna zonder extra back-up/migratie wachten; bij een fout stopt de container en blijven API/collector geblokkeerd. Controleer daarna de API via de bestaande reverse proxy en de collectorlogs.
 6. Bij een mislukte back-up of migratie: **niet** geforceerd collector of API starten en **niet** de oude containers tegen een mogelijk gewijzigd schema opnieuw activeren. Onderzoek logs en herstel gecontroleerd vanaf een bewezen back-up.
 
 De backup is een custom-format `pg_dump` waarvan de archiefindex met `pg_restore --list` is gevalideerd; dit is géén gegarandeerde volledige restore. De image-database kan bij Compose Redeploy technisch vóór `db-upgrade` vervangen worden. Dat is voor PostgreSQL 18 patch-releases met een bestaand volume normaal, maar dit releasepad ondersteunt **geen** ongecontroleerde PostgreSQL-major-upgrade of destructieve bootstrap. De verplichte databackup gaat vóór de migraties, niet noodzakelijk vóór het opnieuw opstarten van de DB-container. De full-stack integratietest bootst Compose stop→tagwissel→up na, maar is niet identiek aan de eigen implementatie van UGREEN.
