@@ -233,11 +233,14 @@ internal static class BulkImporter
                     IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated,excluded.source_data);
                 """);
             await Exec(db, tx, """
-                INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data)
+                INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data,format,max_voltage,max_amperage)
                 SELECT e.id,s.payload->>'connectorId',s.payload->'data'->>'standard',
                        s.payload->'data'->>'power_type',
                        NULLIF(s.payload->'data'->>'max_electric_power','')::integer,
-                       s.payload->'data'
+                       s.payload->'data',
+                       s.payload->'data'->>'format',
+                       NULLIF(s.payload->'data'->>'max_voltage','')::integer,
+                       NULLIF(s.payload->'data'->>'max_amperage','')::integer
                 FROM stage_connector s
                 JOIN charging_location l ON l.country_code=s.payload->>'country'
                    AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
@@ -246,9 +249,10 @@ internal static class BulkImporter
                 ON CONFLICT(evse_id,source_id) DO UPDATE SET
                    standard=excluded.standard,power_type=excluded.power_type,
                    max_electric_power=excluded.max_electric_power,
-                   source_data=excluded.source_data
-                WHERE (connector.standard,connector.power_type,connector.max_electric_power,connector.source_data)
-                    IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power,excluded.source_data);
+                   source_data=excluded.source_data,
+                   format=excluded.format,max_voltage=excluded.max_voltage,max_amperage=excluded.max_amperage
+                WHERE (connector.standard,connector.power_type,connector.max_electric_power,connector.source_data,connector.format,connector.max_voltage,connector.max_amperage)
+                    IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power,excluded.source_data,excluded.format,excluded.max_voltage,excluded.max_amperage);
                 """);
             await Exec(db, tx, """
                 CREATE TEMP TABLE stage_connector_id ON COMMIT DROP AS
