@@ -54,3 +54,14 @@ The user explicitly requests that available data should not be hidden by overly 
 For AC_3_PHASE, source includes both 230 V and 400 V. OCPI prescribes phase-neutral voltage, but some feeds likely publish line-line: apply `3*V*I` for documented phase-neutral values (e.g. 230 V), and `sqrt(3)*V*I` only when voltage is confidently interpretable as line-line (e.g. nominal 400 V); retain assumption metadata and do not silently claim an exact source-rated output. Explicit `max_electric_power` always wins. Values should be checked for finite/positive/overflow, but avoid arbitrary tight ranges that hide otherwise useful data. Examine odd voltages before committing classifier.
 
 **Supersedes earlier conservative recommendation** not to display DC or 400 V derived estimates. Earlier sections above describe that initial proposal, not the final product decision. Automated tests must distinguish DC bound from nominal source power.
+
+## Local integration results — 27 October 2026
+
+- .NET 10 importer and API builds succeeded, plus Docker builds of both images.
+- Migration 017 succeeded on isolated PostgreSQL test database (three ALTER TABLE operations, migration registration).
+- Local bulk import committed 80,925 locations, 203,509 EVSEs, 204,211 connectors and 102,024 tariffs in 30.34 seconds.
+- All 204,211 current-source connector records have format, max_voltage and max_amperage; **0 mismatches** between typed columns and source_data JSONB.
+- Locally running API /api/v1/data-status returned HTTP 200.
+- Actual detail endpoint responses: location 1 explicit 22,000 W with powerSource=source; location 2 three-phase AC 230V/16A returned 11,040 W and derived_ac; location 548 CHAdeMO DC 920V/109A returned 100,280 W and dc_upper_bound, plus CCS Combo 920V/190A returned 174,800 W and dc_upper_bound. All observed values match the implemented formulas. Different connectors on the same site rightly have different bounds.
+
+Still pending: tests for inferred AC 400V line-to-line calculation, unexpected/outlier voltage/current values, API backwards compatibility across Android, automated regressions, second identical-import measurements, and Android presentation. No NAS deployment and no merge.
