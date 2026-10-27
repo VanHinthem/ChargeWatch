@@ -22,3 +22,19 @@
 
 ## Note
 The source JSONB makes a *snapshot of currently imported data*, not a historical version log. No automatic backfill of locations already absent from NDW.
+
+## Local integration test — 27 October 2026
+
+Run using isolated `chargewatch-s4test` PostgreSQL 18/PostGIS and local importer image; NAS production untouched.
+
+- Importer .NET build and Docker build succeeded. Migration 016 completed: 3 ALTER TABLE, 1 schema migration insert.
+- Initial `--bulk` invocation omitted required file arguments; rejected by CLI before import. The first correctly invoked bulk import failed on SQL operator ambiguity `payload->'data' - 'evses'` and rolled back. Fixed by parentheses around extraction, also for EVSE JSON.
+- Successful bulk import: 80,925 locations, 203,509 EVSEs, 204,211 connectors, 102,024 tariffs, **38.43 seconds**.
+- Stored JSON coverage: location 80,925/82,836, EVSE 203,509/210,988, connector 204,211/211,698. Historical rows absent from current source deliberately retain NULL.
+- No nested `evses` under location and no nested `connectors` under EVSE. All 204,211 imported connectors have JSON key `max_voltage`; field value validity not assessed here.
+- Database size baseline **672 MB** (location 56 MB, EVSE 69 MB, connector 31 MB); after import **935 MB** (145 MB, 151 MB, 122 MB respectively), total growth **263 MB**. These are rounded relation sizes, including indexes and TOAST.
+- Identical second bulk import succeeded in **28.82 seconds**; database remained **935 MB**, location **145 MB**, EVSE **151 MB**, connector **122 MB**. No measurable relation growth at this precision, consistent with no unnecessary rewritten rows; not independent proof of zero writes/WAL.
+
+### Remaining validation / caveats
+
+No automated regression tests or per-row exhaustive content comparison, WAL measurements, explain plans, API smoke test on this branch, or fault-injection test. Migration/backfill was tested locally only. The bulk import is transactional; its initial SQL failure resulted in rollback. No production deployment and no merge at the time of these measurements.
