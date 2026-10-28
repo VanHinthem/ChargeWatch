@@ -1,7 +1,6 @@
 \set ON_ERROR_STOP on
 BEGIN;
 -- The compact-statistics isolated schema intentionally starts minimal.
-ALTER TABLE charging_location ADD COLUMN is_active boolean NOT NULL DEFAULT true;
 INSERT INTO charging_location DEFAULT VALUES;
 UPDATE charging_location SET is_active=false WHERE id=(SELECT max(id) FROM charging_location);
 UPDATE evse SET location_id=(SELECT min(id) FROM charging_location),status='AVAILABLE';
