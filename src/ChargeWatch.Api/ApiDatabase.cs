@@ -61,7 +61,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    CASE WHEN $7::double precision IS NULL OR l.position IS NULL THEN NULL
                         ELSE ST_Distance(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography) END AS distance_meters
             FROM charging_location l
-            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active AND e.is_active
+            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             WHERE l.is_active
               AND ($1::text IS NULL OR l.address ILIKE '%'||$1||'%' OR l.city ILIKE '%'||$1||'%'
                    OR coalesce(l.operator_name,'') ILIKE '%'||$1||'%')
@@ -143,7 +143,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                        'maxAmperage',c.max_amperage
                    )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
             FROM selected l
-            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active AND e.is_active
+            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             LEFT JOIN connector c ON c.evse_id=e.id
             GROUP BY l.id,l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
                      l.longitude,l.latitude,l.source_last_updated
@@ -217,7 +217,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using (var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
                    l.latitude,l.longitude,GREATEST(l.source_last_updated,max(e.source_last_updated))
-            FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active AND e.is_active
+            FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             WHERE l.id=$1 AND l.is_active GROUP BY l.id
             """, connection))
         {
