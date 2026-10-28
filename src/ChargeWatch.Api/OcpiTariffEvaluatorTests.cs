@@ -33,6 +33,26 @@ internal static class OcpiTariffEvaluatorTests
             Assert(ndwMetadata.Limitations.Count == 0 && ndwMetadata.Currency == "EUR",
                 "real NDW null optional metadata does not produce invalid warnings");
         }
+        // Exact OCPI duration threshold: maximum exclusive, minimum inclusive.
+        const string parkingThreshold = """
+            {"elements":[
+              {"price_components":[{"type":"PARKING_TIME","price":0,"step_size":1}],
+               "restrictions":{"max_duration":3600,"start_date":null}},
+              {"price_components":[{"type":"PARKING_TIME","price":6,"step_size":1}],
+               "restrictions":{"min_duration":3600,"end_date":null}}]}
+            """;
+        foreach (var seconds in new long[] { 0, 3599, 3600, 3601 })
+        {
+            var result = Check(parkingThreshold,
+                session: new OcpiSessionContext(DurationSeconds: seconds));
+            Assert(result.Components.Count(x => x.Dimension == "PARKING_TIME") == 1 &&
+                   result.Components.Single(x => x.Dimension == "PARKING_TIME").Price ==
+                       (seconds < 3600 ? 0m : 6m) &&
+                   result.Components.Single(x => x.Dimension == "PARKING_TIME").Certainty ==
+                       TariffCertainty.Applicable &&
+                   !result.Limitations.Contains("SESSION_CONTEXT_REQUIRED"),
+                "NDW parking threshold at " + seconds + " seconds");
+        }
         const string efl = """
         {"elements":[
          {"price_components":[{"type":"ENERGY","price":0.31,"step_size":1}],"restrictions":{"start_time":"11:00","end_time":"12:00"}},
