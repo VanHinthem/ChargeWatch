@@ -13,9 +13,9 @@ Status: ontwerpvoorstel in PR #62, **niet geïmplementeerd**. Eerst review, daar
 
 Ontwerp een backend-domeinservice `OcpiTariffEvaluator` die de ruwe tarief-JSON interpreteert. Houd berekening en weergave gescheiden:
 
-1. `TariffRepository`: alle aan een connector gekoppelde tariefobjecten, plus locatie-tijdzone en feedversheid ophalen. Ontbrekende objecten expliciet signaleren.
+1. `TariffRepository`: alle aan een connector gekoppelde tariefobjecten en feedversheid ophalen. Ontbrekende objecten expliciet signaleren. Voor ChargeWatch is de evaluatietijdzone vast `Europe/Amsterdam`.
 2. `TariffParser`: tariefelementen inclusief bronvolgorde, prijsdimensie, restricties, `step_size`, VAT en geldigheidsinterval valideren; nooit stilzwijgend onbekende regels negeren.
-3. `TariffEvaluator`: evalueer voor een specifiek `asOfUtc`, locatie-tijdzone en optionele sessiecontext; produceer per dimensie toepasselijke/voorwaardelijke/onbekende componenten.
+3. `TariffEvaluator`: evalueer voor een specifiek `asOfUtc`, de vaste ChargeWatch-tijdzone `Europe/Amsterdam` en optionele sessiecontext; produceer per dimensie toepasselijke/voorwaardelijke/onbekende componenten.
 4. API vertaalt dat naar een stabiele prijsindicatie; Android presenteert, maar herimplementeert OCPI niet.
 
 Geen berekende prijs in de database opslaan: tarieven en tijdvakken veranderen; hoogstens latere metingen/caching na expliciete prestatieanalyse.
@@ -25,7 +25,7 @@ Geen berekende prijs in de database opslaan: tarieven en tijdvakken veranderen; 
 - Behoud originele elementvolgorde. Evalueer afzonderlijk per dimensie `ENERGY`, `TIME`, `PARKING_TIME`, `FLAT`; selecteer per dimensie het **eerste toepasselijke** element. Een onvoorwaardelijk element verderop is fallback voor dezelfde dimensie, niet een extra sompost.
 - Binnen één restrictieobject worden alle aanwezige voorwaarden met logische AND gecombineerd. Restricties hebben betrekking op het tijdssegment / actuele sessiestatus, niet noodzakelijk de hele laadsessie.
 - `start_date` inclusief; `end_date` exclusief. Lokale `start_time`/`end_time` en `day_of_week` interpreteren met de OCPI-locatietijdzone; behandel perioden over middernacht en DST expliciet. Geldigheid van top-level `start_date_time`/`end_date_time` in UTC apart beoordelen.
-- Zonder betrouwbare locatie-tijdzone kan een tijdsafhankelijke prijs niet als 'nu geldig' worden gegarandeerd. Geen impliciete `Europe/Amsterdam` voor alle locaties.
+- **Productbesluit 28-10-2026:** ChargeWatch ondersteunt uitsluitend Nederlandse laadlocaties. Alle OCPI-uurrestricties worden daarom bewust met de vaste IANA-zone `Europe/Amsterdam` geëvalueerd, inclusief DST. Geen land- of locatieafhankelijke tijdzoneselectie, geen nieuwe tijdzonekolommen en geen geografische tijdzonevalidatie voor tariefberekening. Afwijkende `time_zone` in de NDW-bron wordt niet gebruikt voor ChargeWatch-prijsselectie; originele NDW-bronwaarden blijven ongemoeid. Locaties buiten Nederlandse scope worden niet als internationale uitbreidingsscope geïnterpreteerd.
 - Gebruik een tri-state beoordeling voor voorwaarden: `MATCH`, `NO_MATCH`, `UNKNOWN`; onbekende sessiewaarden (`min_duration`, `min_kwh`, stroom, vermogen, reservering en dergelijke) worden niet als `false` of `true` gegokt. Bij `UNKNOWN` in een eerder element mag een later fallbackelement niet onvoorwaardelijk als definitief worden gekozen.
 - `step_size` is relevant voor sessiekosten en afronding; een prijs per kWh is niet automatisch de berekende totale kostenprijs. FLAT, TIME en PARKING_TIME nooit zonder context als vaste eindprijs samenvoegen.
 - Vat ontbreekt: `vatStatus=UNKNOWN`, bronbedrag ongewijzigd presenteren en geen ongegronde 'incl.' of 'excl.' claim. Rekenkundige btw-conversie alleen indien bronsemantiek en benodigde waarden bevestigd zijn.
@@ -130,3 +130,10 @@ Behoud `tariffs[].details` en `presentation` volledig backward-compatible. Voeg 
 **Kwaliteitsprincipe:** tolerant in het **innemen en bewaren** van niet-ideale brondata; strikt in **wat als zeker of compleet aan de gebruiker wordt geclaimd**. Geen productie-ingrepen, merge of schemawijzigingen zonder expliciet akkoord.
 
 Normatieve bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.pdf (tariffs, restricties, PriceComponent).
+
+
+## Actuele productafbakening (28 oktober 2026)
+- Alleen Nederlandse laadlocaties; `Europe/Amsterdam` is een **expliciete productregel**, geen geo-heuristiek.
+- De algemene pure evaluator behoudt zijn optionele tijdzoneparameter voor losse tests, maar de ChargeWatch-API roept hem altijd aan met `Europe/Amsterdam`.
+- API moet onderscheid maken tussen `NO_REFERENCE`, `SOURCE_MISSING` en bestaande maar niet definitief evalueerbare tarieven; bestaande `tariffs`-gegevens blijven voor compatibiliteit beschikbaar.
+- Datakwaliteitsdashboard en terugkerende rapportages zijn uitgesteld naar roadmap #79, buiten scope van issue #66.
