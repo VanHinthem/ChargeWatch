@@ -141,5 +141,30 @@ if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 
     await Scalar("SELECT count(*) FROM evse_poll_hour_coverage WHERE covered_microseconds IS NULL") != 1)
     throw new InvalidOperationException("Legacy hour must stay unchanged and unmarked as precise.");
 
+
+// Split an 800-ms observation across a UTC hour boundary.
+// Each 400-ms slice must be stored precisely even though both legacy second
+// projections legitimately remain zero.
+await Exec($"""
+    DELETE FROM evse_poll_hour_coverage;
+    UPDATE ndw_snapshot_checkpoint SET source_sha256='{oldHash}',
+      fetched_at='2026-10-25 08:59:59.600+00' WHERE source_name='ndw-locations';
+    UPDATE evse_poll_checkpoint SET observed_at='2026-10-25 08:59:59.600+00',
+      snapshot_sha256='{oldHash}',status_class='available',
+      source_updated_at='2026-10-25 08:59:00+00';
+    UPDATE stage_observation SET status_class='available',
+      source_updated_at='2026-10-25 09:00:00+00';
+    """);
+await SnapshotPollCoverage.Capture(db, tx,
+    DateTimeOffset.Parse("2026-10-25T09:00:00.400Z"), newHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
+if (await Scalar("""
+    SELECT count(*) FROM evse_poll_hour_coverage
+    WHERE covered_microseconds=400000 AND available_microseconds=400000
+      AND covered_seconds=0 AND available_seconds=0
+      AND hour_start_utc IN ('2026-10-25 08:00+00','2026-10-25 09:00+00')
+    """) != 2)
+    throw new InvalidOperationException("UTC hour split lost subsecond precision.");
+
 await tx.RollbackAsync();
 Console.WriteLine("PASS: real SnapshotPollCoverage.Capture: consecutive, replay, status change (rolled back).");
