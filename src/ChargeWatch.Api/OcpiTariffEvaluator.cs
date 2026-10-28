@@ -8,11 +8,14 @@ internal sealed record EvaluatedTariffComponent(
     string Dimension, decimal Price, int? StepSize, decimal? VatPercent,
     int ElementIndex, TariffCertainty Certainty);
 internal sealed record EvaluatedTariff(
-    IReadOnlyList<EvaluatedTariffComponent> Components, IReadOnlyList<string> Limitations);
+    IReadOnlyList<EvaluatedTariffComponent> Components, IReadOnlyList<string> Limitations,
+    string? SourceTariffType = null, TariffMatch TypeMatch = TariffMatch.Match);
 
 internal static class OcpiTariffEvaluator
 {
     private static readonly string[] Dimensions = ["ENERGY", "TIME", "PARKING_TIME", "FLAT"];
+    private static readonly HashSet<string> TariffTypes = new(StringComparer.Ordinal)
+    { "REGULAR", "AD_HOC_PAYMENT", "PROFILE_CHEAP", "PROFILE_FAST", "PROFILE_GREEN" };
     private static readonly HashSet<string> SupportedRestrictions = new(StringComparer.Ordinal)
     {
         "start_time", "end_time", "start_date", "end_date", "day_of_week",
@@ -21,7 +24,7 @@ internal static class OcpiTariffEvaluator
     };
 
     // Context-dependent restrictions are intentionally UNKNOWN until actual session context exists.
-    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone, OcpiSessionContext? session = null)
+    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone, OcpiSessionContext? session = null, string? requestedTariffType = null)
     {
         var limitations = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<EvaluatedTariffComponent>();
@@ -30,8 +33,45 @@ internal static class OcpiTariffEvaluator
             elements.ValueKind != JsonValueKind.Array)
             return new(result, ["INVALID_ELEMENTS"]);
 
+        // An omitted OCPI Tariff.type is valid for every charging profile.
+        // With no selection, an explicitly typed tariff is only a conditional option.
+        string? sourceType = null;
+        var typeMatch = TariffMatch.Match;
+        if (tariff.TryGetProperty("type", out var typeValue))
+        {
+            if (typeValue.ValueKind != JsonValueKind.String ||
+                !TariffTypes.Contains(typeValue.GetString()!))
+            {
+                limitations.Add("UNSUPPORTED_TARIFF_TYPE");
+                typeMatch = TariffMatch.Unknown;
+            }
+            else
+            {
+                sourceType = typeValue.GetString();
+                if (requestedTariffType is null)
+                {
+                    limitations.Add("TARIFF_TYPE_SELECTION_REQUIRED");
+                    typeMatch = TariffMatch.Unknown;
+                }
+                else if (TariffTypes.Contains(requestedTariffType))
+                    typeMatch = requestedTariffType == sourceType ? TariffMatch.Match : TariffMatch.NoMatch;
+                else
+                {
+                    limitations.Add("UNSUPPORTED_REQUESTED_TARIFF_TYPE");
+                    typeMatch = TariffMatch.Unknown;
+                }
+            }
+        }
+        else if (requestedTariffType is not null && !TariffTypes.Contains(requestedTariffType))
+        {
+            limitations.Add("UNSUPPORTED_REQUESTED_TARIFF_TYPE");
+            typeMatch = TariffMatch.Unknown;
+        }
+        if (typeMatch == TariffMatch.NoMatch)
+            return new(result, ["TARIFF_TYPE_MISMATCH"], sourceType, typeMatch);
+
         if (!WithinTopLevelValidity(tariff, asOfUtc, limitations))
-            return new(result, limitations.OrderBy(x => x).ToArray());
+            return new(result, limitations.OrderBy(x => x).ToArray(), sourceType, typeMatch);
 
         TimeZoneInfo? zone = null;
         if (!string.IsNullOrWhiteSpace(locationTimeZone))
@@ -91,7 +131,7 @@ internal static class OcpiTariffEvaluator
                         }
                         vat = rate;
                     }
-                    var certainty = match == TariffMatch.Match && !previousUnknown
+                    var certainty = typeMatch == TariffMatch.Match && match == TariffMatch.Match && !previousUnknown
                         ? TariffCertainty.Applicable : TariffCertainty.Conditional;
                     result.Add(new(dimension, price, step, vat, i, certainty));
                     if (certainty == TariffCertainty.Conditional) limitations.Add("CONDITIONAL");
@@ -104,7 +144,7 @@ internal static class OcpiTariffEvaluator
                 previousUnknown = true;
             }
         }
-        return new(result, limitations.OrderBy(x => x).ToArray());
+        return new(result, limitations.OrderBy(x => x).ToArray(), sourceType, typeMatch);
     }
 
     private static bool WithinTopLevelValidity(JsonElement tariff, DateTimeOffset instant, HashSet<string> limitations)

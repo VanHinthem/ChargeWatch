@@ -5,10 +5,10 @@ internal static class OcpiTariffEvaluatorTests
     public static void Run()
     {
         static EvaluatedTariff Check(string json, string instant = "2026-10-28T10:30:00Z",
-            string? zone = "Europe/Amsterdam", OcpiSessionContext? session = null)
+            string? zone = "Europe/Amsterdam", OcpiSessionContext? session = null, string? tariffType = null)
         {
             using var doc = JsonDocument.Parse(json);
-            return OcpiTariffEvaluator.Evaluate(doc.RootElement, DateTimeOffset.Parse(instant), zone, session);
+            return OcpiTariffEvaluator.Evaluate(doc.RootElement, DateTimeOffset.Parse(instant), zone, session, tariffType);
         }
         const string efl = """
         {"elements":[
@@ -106,6 +106,37 @@ internal static class OcpiTariffEvaluatorTests
             """, session:new OcpiSessionContext(Reservation:"RESERVATION"));
         Assert(reservation.Components.Single(x => x.Dimension == "FLAT").Price == 1,
             "reservation-only price");
+
+
+        const string typed = """
+            {"type":"PROFILE_CHEAP","elements":[{"price_components":[
+              {"type":"ENERGY","price":0.20,"step_size":1}]}]}
+            """;
+        var noSelection = Check(typed);
+        Assert(noSelection.Components.Count == 1 &&
+               noSelection.Components[0].Certainty == TariffCertainty.Conditional &&
+               noSelection.TypeMatch == TariffMatch.Unknown, "typed tariff without user selection");
+        var cheap = Check(typed, tariffType:"PROFILE_CHEAP");
+        Assert(cheap.Components.Single().Certainty == TariffCertainty.Applicable &&
+               cheap.TypeMatch == TariffMatch.Match, "selected profile");
+        var regular = Check(typed, tariffType:"REGULAR");
+        Assert(regular.Components.Count == 0 && regular.TypeMatch == TariffMatch.NoMatch &&
+               regular.Limitations.Contains("TARIFF_TYPE_MISMATCH"), "different profile excluded");
+        var unspecified = Check("""
+            {"elements":[{"price_components":[{"type":"ENERGY","price":0.41,"step_size":1}]}]}
+            """, tariffType:"AD_HOC_PAYMENT");
+        Assert(unspecified.Components.Single().Certainty == TariffCertainty.Applicable,
+            "missing OCPI type applies to any requested profile");
+        var malformedType = Check("""
+            {"type":"NON_STANDARD","elements":[{"price_components":[
+              {"type":"ENERGY","price":0.45,"step_size":1}]}]}
+            """, tariffType:"REGULAR");
+        Assert(malformedType.Components.Single().Certainty == TariffCertainty.Conditional &&
+               malformedType.Limitations.Contains("UNSUPPORTED_TARIFF_TYPE"),
+            "unknown source type not silently mapped to regular");
+        var invalidRequest = Check(typed, tariffType:"PROFILE_UNKNOWN");
+        Assert(invalidRequest.Components.All(x => x.Certainty == TariffCertainty.Conditional),
+            "unknown requested profile not assumed");
 
         var expired = Check("""
             {"end_date_time":"2026-10-28T10:30:00Z",
