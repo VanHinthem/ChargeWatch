@@ -359,7 +359,6 @@ internal static class BulkImporter
 
             // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
             // back both; the additive schema migration must be applied first.
-            await ObservationCheckpoints.Capture(db, tx);
             // Provenance is only supplied by WatchRunner after a successful HTTP 200
             // Locations download. Manual --bulk, 304 and tariff-only imports never
             // manufacture new observed fetch times.
@@ -407,8 +406,6 @@ internal static class BulkImporter
             }
 
 
-            await EvseHourFinalizer.Run(db, tx);
-            await LocationHourFinalizer.Run(db, tx);
 
             string sha;
             await using (var source = File.OpenRead(locationsPath))
