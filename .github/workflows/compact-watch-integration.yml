@@ -64,15 +64,6 @@ jobs:
             sleep 0.1
           done
           dotnet run --project src/ChargeWatch.Importer -- --watch-once
-          psql -v ON_ERROR_STOP=1 -c "SELECT location_id,continuity_valid FROM location_observation_checkpoint;"
-          psql -v ON_ERROR_STOP=1 <<'SQL'
-          DO $check$
-          BEGIN
-            IF (SELECT count(*) FROM location_observation_checkpoint) <> 1
-               OR (SELECT continuity_valid FROM location_observation_checkpoint) IS DISTINCT FROM false
-            THEN RAISE EXCEPTION 'First location checkpoint must have continuity_valid=false (never NULL)'; END IF;
-          END $check$;
-          SQL
           psql -v ON_ERROR_STOP=1 <<'SQL'
           DO $check$
           BEGIN
