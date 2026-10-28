@@ -6,6 +6,7 @@ on:
       - 'db/migrations/**'
       - 'db/tests/018_watch_http_fixture.py'
       - 'tests/PollCoverageIntegration/**'
+      - 'tests/sql/poll_hour_rounding_regression.sql'
       - '.github/workflows/compact-watch-integration.yml'
   workflow_dispatch:
 
@@ -179,3 +180,5 @@ jobs:
           test ! -f /tmp/cw-watch-ci/locations.json.gz.pending-response.json
       - name: Validate real SnapshotPollCoverage against isolated PostgreSQL
         run: dotnet run --project tests/PollCoverageIntegration/PollCoverageIntegration.csproj
+      - name: Verify PostgreSQL interval rounding overflow
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/poll_hour_rounding_regression.sql
