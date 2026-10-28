@@ -170,6 +170,17 @@ internal static class BulkImporter
                     throw new InvalidDataException(
                         $"Suspicious Locations snapshot shrinkage: {locCount} versus {activeBefore} active. Reconciliation refused.");
             }
+            // A partial EVSE feed can silently remove capacity even when location count is stable.
+            // Require both national count guards before touching any presence state.
+            if (verifiedLocationsFetchedAtUtc is not null)
+            {
+                await using var evseBaseline = new NpgsqlCommand(
+                    "SELECT evse_count FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'", db, tx);
+                var before = await evseBaseline.ExecuteScalarAsync();
+                if (before is long previousEvses && previousEvses >= 10000 && evseCount < previousEvses * 0.90)
+                    throw new InvalidDataException(
+                        $"Suspicious EVSE snapshot shrinkage: {evseCount} versus {previousEvses}. Reconciliation refused.");
+            }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
                 INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated,is_active,source_data)
@@ -232,6 +243,52 @@ internal static class BulkImporter
                 WHERE (evse.external_evse_id,evse.status,evse.source_last_updated,evse.source_data)
                     IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated,excluded.source_data);
                 """);
+            if (verifiedLocationsFetchedAtUtc is { } presenceAt)
+            {
+                // One complete verified HTTP 200 is one presence observation. Keep
+                // historical EVSE rows; three independent missing snapshots plus
+                // at least ten minutes are needed to mark a row inactive.
+                await using var presence = new NpgsqlCommand("""
+                    UPDATE evse e SET
+                      is_active=true,
+                      last_seen_at=$1,
+                      first_missing_at=NULL,
+                      consecutive_missing_snapshots=0
+                    FROM charging_location l
+                    WHERE e.location_id=l.id
+                      AND EXISTS (
+                        SELECT 1 FROM stage_evse s
+                        WHERE s.payload->>'country'=l.country_code
+                          AND s.payload->>'party'=l.party_id
+                          AND s.payload->>'id'=l.source_id
+                          AND s.payload->>'uid'=e.source_uid
+                      )
+                      AND (NOT e.is_active OR e.last_seen_at IS DISTINCT FROM $1
+                           OR e.first_missing_at IS NOT NULL
+                           OR e.consecutive_missing_snapshots<>0);
+
+                    UPDATE evse e SET
+                      first_missing_at=COALESCE(e.first_missing_at,$1),
+                      consecutive_missing_snapshots=e.consecutive_missing_snapshots+1,
+                      is_active=NOT (
+                        e.consecutive_missing_snapshots+1>=3
+                        AND $1-COALESCE(e.first_missing_at,$1)>=interval '10 minutes')
+                    FROM charging_location l
+                    WHERE e.location_id=l.id AND l.is_active
+                      AND NOT EXISTS (
+                        SELECT 1 FROM stage_evse s
+                        WHERE s.payload->>'country'=l.country_code
+                          AND s.payload->>'party'=l.party_id
+                          AND s.payload->>'id'=l.source_id
+                          AND s.payload->>'uid'=e.source_uid
+                      )
+                      AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<$1);
+                    UPDATE evse SET last_presence_checked_at=$1
+                      WHERE last_presence_checked_at IS NULL OR last_presence_checked_at<$1;
+                    """, db, tx);
+                presence.Parameters.AddWithValue(presenceAt.ToUniversalTime());
+                await presence.ExecuteNonQueryAsync();
+            }
             await Exec(db, tx, """
                 INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data,format,max_voltage,max_amperage)
                 SELECT e.id,s.payload->>'connectorId',s.payload->'data'->>'standard',
