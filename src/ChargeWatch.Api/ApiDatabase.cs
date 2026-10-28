@@ -239,7 +239,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var details = new NpgsqlCommand("""
             SELECT e.id,e.source_uid,e.external_evse_id,e.status,e.source_last_updated,
                    c.id,c.source_id,c.standard,c.power_type,c.max_electric_power,
-                   t.country_code,t.party_id,t.source_id,t.currency,t.details::text,t.source_last_updated,
+                   ct.tariff_country_code,ct.tariff_party_id,ct.tariff_source_id,t.currency,t.details::text,t.source_last_updated,
                    c.format,c.max_voltage,c.max_amperage
             FROM evse e
             LEFT JOIN connector c ON c.evse_id=e.id
@@ -248,9 +248,10 @@ internal sealed class ApiDatabase(ApiOptions options)
                               AND t.party_id=ct.tariff_party_id
                               AND t.source_id=ct.tariff_source_id
             WHERE e.location_id=$1
-            ORDER BY e.id,c.id,t.id
+            ORDER BY e.id,c.id,ct.tariff_country_code,ct.tariff_party_id,ct.tariff_source_id
             """, connection);
         details.Parameters.AddWithValue(id);
+        var tariffAsOfUtc = DateTimeOffset.UtcNow;
         await using var detailReader = await details.ExecuteReaderAsync();
         while (await detailReader.ReadAsync())
         {
@@ -280,11 +281,20 @@ internal sealed class ApiDatabase(ApiOptions options)
                 connectors.Add(connectorId, connector);
                 evse.Connectors.Add(connector);
             }
-            if (detailReader.IsDBNull(10)) continue;
+            if (detailReader.IsDBNull(10)) continue; // Connector has no tariff reference.
+            var tariffCountry = detailReader.GetString(10);
+            var tariffParty = detailReader.GetString(11);
+            var tariffSource = detailReader.GetString(12);
+            if (detailReader.IsDBNull(14))
+            {
+                connector.TariffOptions.Add(ConnectorTariffContract.Missing(
+                    tariffCountry, tariffParty, tariffSource));
+                continue;
+            }
             using var document = JsonDocument.Parse(detailReader.GetString(14));
-            connector.Tariffs.Add(new TariffDetail(
-                detailReader.GetString(10),detailReader.GetString(11),detailReader.GetString(12),
-                NullableString(detailReader,13),document.RootElement.Clone(),NullableTimestamp(detailReader,15)));
+            connector.TariffOptions.Add(ConnectorTariffContract.Evaluate(
+                tariffCountry, tariffParty, tariffSource, NullableString(detailReader,13),
+                document.RootElement, NullableTimestamp(detailReader,15), tariffAsOfUtc));
         }
         return location;
     }

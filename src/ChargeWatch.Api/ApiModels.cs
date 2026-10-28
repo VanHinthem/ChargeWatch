@@ -61,18 +61,98 @@ internal sealed class ConnectorDetail
     public int? MaxAmperage { get; init; }
     public long? EffectivePowerWatts => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Watts;
     public string PowerSource => ConnectorPower.Estimate(PowerType, MaxElectricPower, MaxVoltage, MaxAmperage).Source;
-    public List<TariffDetail> Tariffs { get; } = [];
+    public List<ConnectorTariffOption> TariffOptions { get; } = [];
+    public string TariffStatus => TariffOptions.Count == 0 ? "NO_REFERENCE" :
+        TariffOptions.Any(x => x.Status == "SOURCE_MISSING") ? "SOURCE_MISSING" :
+        TariffOptions.Count > 1 ? "MULTIPLE_OPTIONS" : TariffOptions[0].Status;
 }
 
-internal sealed record TariffDetail(
-    string CountryCode,
-    string PartyId,
-    string SourceId,
-    string? Currency,
-    JsonElement Details,
-    DateTimeOffset? SourceUpdatedAt)
+// One option per actual OCPI connector.tariff_ids reference. Never silently drop missing IDs.
+internal sealed record TariffComponentDto(
+    string Dimension, decimal Price, int? StepSize, decimal? VatPercent,
+    int ElementIndex, string Certainty);
+
+internal sealed record ConnectorTariffOption(
+    string CountryCode, string PartyId, string SourceId,
+    string Status, string? Currency, DateTimeOffset? SourceUpdatedAt,
+    DateTimeOffset? AsOfUtc, IReadOnlyList<TariffComponentDto> Components,
+    IReadOnlyList<string> Limitations);
+
+internal static class ConnectorTariffContract
 {
-    public TariffPresentation Presentation => OcpiTariffPresentation.Parse(Details, Currency);
+    public const string EvaluationZone = "Europe/Amsterdam"; // Netherlands-only product.
+    public static ConnectorTariffOption Missing(string country, string party, string id)
+        => new(country, party, id, "SOURCE_MISSING", null, null, null, [], ["SOURCE_TARIFF_NOT_FOUND"]);
+
+    public static ConnectorTariffOption Evaluate(string country, string party, string id,
+        string? currency, JsonElement details, DateTimeOffset? sourceUpdatedAt, DateTimeOffset asOfUtc)
+    {
+        var metadata = OcpiTariffMetadataParser.Parse(details);
+        var evaluation = OcpiTariffEvaluator.Evaluate(details, asOfUtc, EvaluationZone);
+        var limitations = evaluation.Limitations.Concat(metadata.Limitations).Distinct().OrderBy(x => x).ToArray();
+        var status = evaluation.Components.Count == 0 ? "UNAVAILABLE" :
+            evaluation.Components.All(x => x.Certainty == TariffCertainty.Applicable) && limitations.Length == 0
+                ? "APPLICABLE" : "CONDITIONAL";
+        return new(country, party, id, status, metadata.Currency ?? currency, sourceUpdatedAt,
+            asOfUtc, evaluation.Components.Select(x => new TariffComponentDto(x.Dimension, x.Price,
+                x.StepSize, x.VatPercent, x.ElementIndex, x.Certainty.ToString())).ToArray(), limitations);
+    }
+
+    public static void SelfTest()
+    {
+        static void Require(bool condition, string message)
+        {
+            if (!condition) throw new InvalidOperationException("Connector tariff self-test: " + message);
+        }
+
+        var empty = new ConnectorDetail { Id = 1, SourceId = "none" };
+        Require(empty.TariffStatus == "NO_REFERENCE" && empty.TariffOptions.Count == 0,
+            "missing reference must not invent a price");
+
+        var missing = Missing("NL", "UB2", "absent-in-ndw");
+        var unresolved = new ConnectorDetail { Id = 2, SourceId = "unresolved" };
+        unresolved.TariffOptions.Add(missing);
+        Require(unresolved.TariffStatus == "SOURCE_MISSING" &&
+                missing.CountryCode == "NL" && missing.PartyId == "UB2" &&
+                missing.SourceId == "absent-in-ndw" && missing.Components.Count == 0 &&
+                missing.AsOfUtc is null &&
+                missing.Limitations.Contains("SOURCE_TARIFF_NOT_FOUND"),
+            "unresolved OCPI reference must preserve its source key without a price");
+
+        using var doc = JsonDocument.Parse("""
+            {"currency":"EUR","elements":[{"price_components":[
+                {"type":"ENERGY","price":0.42,"step_size":1,"vat":null}]}]}
+            """);
+        var now = DateTimeOffset.Parse("2026-09-03T10:30:00Z");
+        var first = Evaluate("NL", "EFL", "rate-A", "EUR", doc.RootElement, null, now);
+        var second = Evaluate("NL", "EFL", "rate-B", "EUR", doc.RootElement, null, now);
+        Require(first.Status == "APPLICABLE" && first.Components.Count == 1 &&
+                first.Components[0].Price == 0.42m &&
+                first.Components[0].Certainty == "Applicable" && first.AsOfUtc == now,
+            "single evaluated component must have explicit certainty and timestamp");
+
+        var multiple = new ConnectorDetail { Id = 3, SourceId = "two-rates" };
+        multiple.TariffOptions.Add(first);
+        multiple.TariffOptions.Add(second);
+        Require(multiple.TariffStatus == "MULTIPLE_OPTIONS" &&
+                multiple.TariffOptions.Count == 2 &&
+                multiple.TariffOptions[0].SourceId == "rate-A" &&
+                multiple.TariffOptions[1].SourceId == "rate-B",
+            "multiple distinct tariff options must remain separate");
+
+        multiple.TariffOptions.Add(missing);
+        Require(multiple.TariffStatus == "SOURCE_MISSING" && multiple.TariffOptions.Count == 3,
+            "partially unresolved references must not be presented as complete");
+
+        var json = JsonSerializer.Serialize(multiple,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var parsed = JsonDocument.Parse(json);
+        var root = parsed.RootElement;
+        Require(root.GetProperty("tariffStatus").GetString() == "SOURCE_MISSING" &&
+                root.GetProperty("tariffOptions").GetArrayLength() == 3 &&
+                root.GetProperty("tariffOptions")[2].GetProperty("components").GetArrayLength() == 0,
+            "JSON contract must expose missing source and preserve all options");
+    }
 }
 
 internal sealed record AvailabilitySlot(
