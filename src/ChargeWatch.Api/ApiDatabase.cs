@@ -144,7 +144,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
             FROM selected l
             LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
-            LEFT JOIN connector c ON c.evse_id=e.id
+            LEFT JOIN connector c ON c.evse_id=e.id AND c.is_active
             GROUP BY l.id,l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
                      l.longitude,l.latitude,l.source_last_updated
             ORDER BY l.id
@@ -244,7 +244,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    ct.tariff_country_code,ct.tariff_party_id,ct.tariff_source_id,t.currency,t.details::text,t.source_last_updated,
                    c.format,c.max_voltage,c.max_amperage
             FROM evse e
-            LEFT JOIN connector c ON c.evse_id=e.id
+            LEFT JOIN connector c ON c.evse_id=e.id AND c.is_active
             LEFT JOIN connector_tariff ct ON ct.connector_id=c.id
             LEFT JOIN tariff t ON t.country_code=ct.tariff_country_code
                               AND t.party_id=ct.tariff_party_id
@@ -357,7 +357,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    (SELECT max(last_observed_at) FROM snapshot_poll_checkpoint),
                    (SELECT count(*) FROM charging_location WHERE is_active),
                    (SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
-                   (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
+                   (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active AND c.is_active),
                    (SELECT count(*) FROM tariff),
                    (SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs')
             """, connection);

@@ -4,6 +4,8 @@ on:
     paths:
       - 'src/ChargeWatch.Api/**'
       - 'db/tests/018_readonly_api_role_smoke.sql'
+      - 'db/migrations/022_connector_snapshot_presence.sql'
+      - 'db/tests/022_connector_snapshot_presence_smoke.sql'
       - '.github/workflows/read-only-api.yml'
       - 'docs/ARCHITECTURE.md'
       - 'docs/STATUS.md'
@@ -62,6 +64,8 @@ jobs:
           for migration in db/migrations/*.sql; do
             psql -v ON_ERROR_STOP=1 -1 -f "$migration"
           done
+      - name: Verify connector presence reconciliation
+        run: psql -v ON_ERROR_STOP=1 -f db/tests/022_connector_snapshot_presence_smoke.sql
       - name: Verify API read-only database contract
         run: psql -f db/tests/018_readonly_api_role_smoke.sql
 
@@ -78,9 +82,12 @@ jobs:
           SELECT id,'VISIBLE','AVAILABLE',true FROM charging_location WHERE source_id='PRESENCE';
           INSERT INTO evse (location_id,source_uid,status,is_active)
           SELECT id,'HISTORIC','AVAILABLE',false FROM charging_location WHERE source_id='PRESENCE';
-          INSERT INTO connector(evse_id,source_id,standard)
-          SELECT id,'connector-'||source_uid,'IEC_62196_T2'
+          INSERT INTO connector(evse_id,source_id,standard,is_active)
+          SELECT id,'connector-'||source_uid,'IEC_62196_T2',true
           FROM evse WHERE location_id=(SELECT id FROM charging_location WHERE source_id='PRESENCE');
+          INSERT INTO connector(evse_id,source_id,standard,is_active)
+          SELECT id,'HISTORIC-CONNECTOR','IEC_62196_T2',false
+          FROM evse WHERE source_uid='VISIBLE' AND location_id=(SELECT id FROM charging_location WHERE source_id='PRESENCE');
           SQL
           export CW_API_CONNECTION="Host=localhost;Port=5432;Username=chargewatch_read;Password=read-test-only;Database=chargewatch"
           ASPNETCORE_URLS=http://127.0.0.1:5089 dotnet run --project src/ChargeWatch.Api --configuration Release --no-launch-profile > /tmp/cw-api-presence.log 2>&1 &
