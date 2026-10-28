@@ -25,6 +25,19 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
         OcpiTariffPresentation.SelfTest();
         ConnectorTariffContract.SelfTest();
         ExperimentalAvailability.SelfTest();
+        // Actual NDW anomalies confirmed in production on 2026-10-28.
+        var removedChademo = ConnectorPower.Estimate("AC_1_PHASE", 0, 0, 0);
+        Require(removedChademo.Watts is null && removedChademo.Source == "unknown",
+            "zero-valued CHAdeMO source data must not invent a charging power");
+        var zeroWattType2 = ConnectorPower.Estimate("AC_1_PHASE", 0, 230, 16);
+        Require(zeroWattType2.Watts == 3680 && zeroWattType2.Source == "derived_ac",
+            "zero source wattage with 230 V / 16 A uses derived single-phase power");
+        var dcUpperBound = ConnectorPower.Estimate("DC", null, 1000, 150);
+        Require(dcUpperBound.Watts == 150000 && dcUpperBound.Source == "dc_upper_bound",
+            "DC voltage/current maxima must remain an indicative upper bound");
+        var explicitPower = ConnectorPower.Estimate("AC_3_PHASE", 17250, 230, 25);
+        Require(explicitPower.Watts == 17250 && explicitPower.Source == "source",
+            "positive OCPI source wattage takes precedence over estimated AC power");
         Require(ParseLimit(null) == 100, "default limit");
         Require(ParseLimit(1) == 1, "minimum limit");
         Require(ParseLimit(999) == 200, "maximum limit");
