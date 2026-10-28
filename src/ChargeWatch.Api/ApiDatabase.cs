@@ -413,7 +413,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var command = new NpgsqlCommand(
             "SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs'", connection);
         var value = await command.ExecuteScalarAsync();
-        return value is null or DBNull ? null : (DateTimeOffset)value;
+        return value is null or DBNull ? null : new DateTimeOffset((DateTime)value, TimeSpan.Zero);
     }
 
     private static async Task<DateTimeOffset?> GetFeedLastObservedAt(NpgsqlConnection connection)
