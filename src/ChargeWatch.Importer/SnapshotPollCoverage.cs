@@ -44,6 +44,8 @@ internal static class SnapshotPollCoverage
             AND s.source_updated_at >= $1::timestamptz - interval '24 hours'
             AND s.source_updated_at <= $1::timestamptz + interval '5 minutes';
 
+          DROP TABLE IF EXISTS pg_temp.poll_proposed;
+
           CREATE TEMP TABLE poll_proposed ON COMMIT DROP AS
           SELECT evse_id,hour_start_utc,
                  sum(microseconds)::bigint AS microseconds,
