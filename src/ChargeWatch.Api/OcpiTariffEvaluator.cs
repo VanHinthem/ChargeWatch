@@ -37,7 +37,7 @@ internal static class OcpiTariffEvaluator
         // With no selection, an explicitly typed tariff is only a conditional option.
         string? sourceType = null;
         var typeMatch = TariffMatch.Match;
-        if (tariff.TryGetProperty("type", out var typeValue))
+        if (tariff.TryGetProperty("type", out var typeValue) && typeValue.ValueKind != JsonValueKind.Null)
         {
             if (typeValue.ValueKind != JsonValueKind.String ||
                 !TariffTypes.Contains(typeValue.GetString()!))
@@ -120,7 +120,7 @@ internal static class OcpiTariffEvaluator
                         continue;
                     }
                     decimal? vat = null;
-                    if (component.TryGetProperty("vat", out var vatJson))
+                    if (component.TryGetProperty("vat", out var vatJson) && vatJson.ValueKind != JsonValueKind.Null)
                     {
                         if (vatJson.ValueKind != JsonValueKind.Number ||
                             !vatJson.TryGetDecimal(out var rate) || rate < 0 || rate > 100)
@@ -151,7 +151,7 @@ internal static class OcpiTariffEvaluator
     {
         foreach (var (key, isStart) in new[] { ("start_date_time", true), ("end_date_time", false) })
         {
-            if (!tariff.TryGetProperty(key, out var value)) continue;
+            if (!tariff.TryGetProperty(key, out var value) || value.ValueKind == JsonValueKind.Null) continue;
             if (value.ValueKind != JsonValueKind.String ||
                 !DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var boundary))
@@ -169,7 +169,7 @@ internal static class OcpiTariffEvaluator
     private static TariffMatch MatchRestrictions(JsonElement element, DateTimeOffset? local,
         OcpiSessionContext? session, HashSet<string> limitations)
     {
-        if (!element.TryGetProperty("restrictions", out var restrictions)) return TariffMatch.Match;
+        if (!element.TryGetProperty("restrictions", out var restrictions) || restrictions.ValueKind == JsonValueKind.Null) return TariffMatch.Match;
         if (restrictions.ValueKind != JsonValueKind.Object)
         {
             limitations.Add("INVALID_RESTRICTIONS"); return TariffMatch.Unknown;
@@ -243,7 +243,7 @@ internal static class OcpiTariffEvaluator
     private static bool TryTime(JsonElement parent, string field, out TimeOnly result, out bool present)
     {
         result = default;
-        present = parent.TryGetProperty(field, out var value);
+        present = parent.TryGetProperty(field, out var value) && value.ValueKind != JsonValueKind.Null;
         return !present || value.ValueKind == JsonValueKind.String &&
             TimeOnly.TryParseExact(value.GetString(), "HH:mm", CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out result);
