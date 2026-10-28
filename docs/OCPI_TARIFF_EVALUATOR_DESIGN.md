@@ -32,9 +32,9 @@ Geen berekende prijs in de database opslaan: tarieven en tijdvakken veranderen; 
 - Wanneer meerdere tarief-ID's aan een connector zijn gekoppeld, zonder bruikbare selectieregel geen willekeurig tarief als dé prijs kiezen. Distincte opties tonen of `AMBIGUOUS` retourneren.
 - Bekende bronlimitaties: ontbrekende `connector_tariff` of onoplosbare ID => `UNAVAILABLE`; niet herleiden uit andere connectoren/locaties. Feedstaleness onderscheiden van ontbrekend object.
 
-## Voorstel API-contract (additief)
+## Voorstel API-contract (pre-release, mag breaking zijn)
 
-Onder bestaande `/api/v1/locations/{id}` connector, of een later gespecialiseerd connector-tariefendpoint, een optioneel `tariffEvaluation` object:
+ChargeWatch is nog niet live. Het API-contract mag daarom worden opgeschoond of vervangen zonder backward-compatibility verplichting. Kies één helder, consistent connector-tariefmodel in `/api/v1/locations/{id}` (of een gespecialiseerd endpoint als dat inhoudelijk beter past):
 
 ```json
 {
@@ -135,5 +135,9 @@ Normatieve bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.
 ## Actuele productafbakening (28 oktober 2026)
 - Alleen Nederlandse laadlocaties; `Europe/Amsterdam` is een **expliciete productregel**, geen geo-heuristiek.
 - De algemene pure evaluator behoudt zijn optionele tijdzoneparameter voor losse tests, maar de ChargeWatch-API roept hem altijd aan met `Europe/Amsterdam`.
-- API moet onderscheid maken tussen `NO_REFERENCE`, `SOURCE_MISSING` en bestaande maar niet definitief evalueerbare tarieven; bestaande `tariffs`-gegevens blijven voor compatibiliteit beschikbaar.
+- API moet onderscheid maken tussen `NO_REFERENCE`, `SOURCE_MISSING` en bestaande maar niet definitief evalueerbare tarieven; bestaande `tariffs`-weergave mag worden herzien of verwijderd als het nieuwe model beter is; geen compatibiliteitslaag vereist.
 - Datakwaliteitsdashboard en terugkerende rapportages zijn uitgesteld naar roadmap #79, buiten scope van issue #66.
+
+
+## API-compatibiliteitsbesluit (28 oktober 2026)
+De API is nog niet publiek live. **Breaking changes zijn toegestaan** en bestaande Android-clientmodellen kunnen gelijktijdig worden aangepast. Geen legacyvelden, dubbele endpointvarianten of overgangscontracten uitsluitend voor achterwaartse compatibiliteit. Wel expliciete contracttests, consistente tariefstatussen en wijzigingen vastleggen vóór implementatie. Android UX blijft buiten scope van de huidige data-first backendfase.
