@@ -72,7 +72,10 @@ internal sealed class ConnectorDetail
 // One option per actual OCPI connector.tariff_ids reference. Never silently drop missing IDs.
 internal sealed record TariffComponentDto(
     string Dimension, decimal Price, int? StepSize, decimal? VatPercent,
-    int ElementIndex, string Certainty);
+    int ElementIndex, string Certainty)
+{
+    public string VatStatus => VatPercent.HasValue ? "EXPLICIT_RATE" : "NOT_SPECIFIED";
+}
 
 internal sealed record ConnectorTariffOption(
     string CountryCode, string PartyId, string SourceId,
@@ -163,7 +166,8 @@ internal static class ConnectorTariffContract
              "elements":[{"price_components":[{"type":"ENERGY","price":0.42,"step_size":1}]}]}
             """);
         var bounded = Evaluate("NL","EFL","bounded",null,boundedJson.RootElement,null,now);
-        Require(bounded.MinimumPrice == 0.25m && bounded.MaximumPrice == 50m &&
+        Require(first.Components[0].VatStatus == "NOT_SPECIFIED" &&
+                bounded.MinimumPrice == 0.25m && bounded.MaximumPrice == 50m &&
                 bounded.AlternativeUrl == "https://example.org/tariff" && bounded.HasAlternativeText,
             "OCPI price bounds and source terms must remain visible in API model");
 
