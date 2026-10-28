@@ -138,6 +138,85 @@ internal static class OcpiTariffEvaluatorTests
         Assert(invalidRequest.Components.All(x => x.Certainty == TariffCertainty.Conditional),
             "unknown requested profile not assumed");
 
+
+        // Synthetic regression based on observed NDW/EFL structure (48 hour rows + fallback).
+        // Exact production prices/IDs were not exported into this repository.
+        var eflElements = new List<object>();
+        var firstDay = new DateOnly(2026, 10, 26);
+        for (var day = 0; day < 2; day++)
+        {
+            var date = firstDay.AddDays(day).ToString("yyyy-MM-dd");
+            var nextDate = firstDay.AddDays(day + 1).ToString("yyyy-MM-dd");
+            for (var hour = 0; hour < 24; hour++)
+            {
+                // All restrictions are AND, exact hour window and exact local date.
+                eflElements.Add(new {
+                    price_components = new[] { new { type = "ENERGY",
+                        price = 0.20m + (day * 24 + hour) / 1000m, step_size = 1 } },
+                    restrictions = new { start_date = date, end_date = nextDate,
+                        start_time = hour.ToString("00") + ":00",
+                        end_time = (hour + 1).ToString("00").Replace("24", "00") + ":00" }
+                });
+            }
+        }
+        eflElements.Add(new Dictionary<string, object> {
+            ["price_components"] = new object[] {
+                new { type = "ENERGY", price = 0.529m, step_size = 1 },
+                new { type = "FLAT", price = 0m, step_size = 0 },
+                new { type = "TIME", price = 0m, step_size = 1 }
+            }
+        });
+        using (var eflDocument = JsonDocument.Parse(JsonSerializer.Serialize(
+            new { elements = eflElements })))
+        {
+            // Validate every unique local hourly midpoint across both days.
+            for (var day = 0; day < 2; day++)
+            for (var hour = 0; hour < 24; hour++)
+            {
+                var localDate = firstDay.AddDays(day).ToDateTime(
+                    new TimeOnly(hour, 30), DateTimeKind.Unspecified);
+                var utc = TimeZoneInfo.ConvertTimeToUtc(localDate,
+                    TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam"));
+                var result48 = OcpiTariffEvaluator.Evaluate(eflDocument.RootElement,
+                    new DateTimeOffset(utc), "Europe/Amsterdam");
+                var energy = result48.Components.Single(x => x.Dimension == "ENERGY");
+                Assert(energy.ElementIndex == day * 24 + hour &&
+                    energy.Certainty == TariffCertainty.Applicable,
+                    "48-slot EFL hourly first-match order");
+                Assert(result48.Components.Count(x => x.Dimension == "ENERGY") == 1,
+                    "EFL fallback never added as second energy component");
+            }
+            var outside48 = OcpiTariffEvaluator.Evaluate(eflDocument.RootElement,
+                DateTimeOffset.Parse("2026-10-28T12:30:00Z"), "Europe/Amsterdam");
+            Assert(outside48.Components.Single(x => x.Dimension == "ENERGY").Price == .529m,
+                "EFL fallback beyond 48 slots");
+        }
+
+        using (var metadataDocument = JsonDocument.Parse("""
+            {"currency":"EUR","min_price":{"excl_vat":1.5,"incl_vat":1.815},
+             "max_price":{"excl_vat":50},"tariff_alt_url":"https://example.org/tariff",
+             "tariff_alt_text":[{"language":"en","text":"Example CPO tariff"}]}
+            """))
+        {
+            var meta = OcpiTariffMetadataParser.Parse(metadataDocument.RootElement);
+            Assert(meta.Currency == "EUR" && meta.MinimumPrice == 1.5m &&
+                   meta.MaximumPrice == 50m && meta.HasAlternativeText &&
+                   meta.AlternativeUrl is not null && meta.Limitations.Count == 0,
+                   "OCPI tariff metadata");
+        }
+        using (var malformedDocument = JsonDocument.Parse("""
+            {"currency":"eur","min_price":{"excl_vat":60},
+             "max_price":{"excl_vat":20},"tariff_alt_url":"javascript:alert(1)"}
+            """))
+        {
+            var meta = OcpiTariffMetadataParser.Parse(malformedDocument.RootElement);
+            Assert(meta.Currency == null && meta.MinimumPrice == 60m &&
+                   meta.Limitations.Contains("INVALID_CURRENCY") &&
+                   meta.Limitations.Contains("INVALID_ALTERNATIVE_URL") &&
+                   meta.Limitations.Contains("INCONSISTENT_PRICE_BOUNDS"),
+                   "metadata partial tolerance");
+        }
+
         var expired = Check("""
             {"end_date_time":"2026-10-28T10:30:00Z",
              "elements":[{"price_components":[{"type":"ENERGY","price":1,"step_size":1}]}]}
