@@ -266,7 +266,7 @@ internal static class BulkImporter
                       consecutive_missing_snapshots=0
                     FROM stage_present_evse_ids seen
                     WHERE seen.id=e.id
-                      AND (NOT e.is_active OR e.(e.last_seen_at IS NULL OR e.last_seen_at<$1 - interval '24 hours')
+                      AND (NOT e.is_active OR (e.last_seen_at IS NULL OR e.last_seen_at<$1 - interval '24 hours')
                            OR e.first_missing_at IS NOT NULL
                            OR e.consecutive_missing_snapshots<>0);
 
