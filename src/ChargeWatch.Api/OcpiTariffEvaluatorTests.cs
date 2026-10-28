@@ -10,6 +10,29 @@ internal static class OcpiTariffEvaluatorTests
             using var doc = JsonDocument.Parse(json);
             return OcpiTariffEvaluator.Evaluate(doc.RootElement, DateTimeOffset.Parse(instant), zone, session, tariffType);
         }
+        // Real NDW export contains explicit null for omitted optional top-level and element fields.
+        const string ndwNulls = """
+            {"type":null,"start_date_time":null,"end_date_time":null,
+             "tariff_alt_url":null,"tariff_alt_text":null,"min_price":null,"max_price":null,
+             "currency":"EUR","elements":[
+               {"restrictions":{"start_time":"12:00","end_time":"13:00","day_of_week":null,
+                 "min_duration":null,"max_duration":null},
+                "price_components":[{"type":"ENERGY","price":0.6471,"step_size":1,"vat":null}]},
+               {"restrictions":null,
+                "price_components":[{"type":"ENERGY","price":0.6,"step_size":1}]}]}
+            """;
+        var ndwAtHour = Check(ndwNulls, "2026-09-03T10:30:00Z");
+        Assert(ndwAtHour.TypeMatch == TariffMatch.Match &&
+               ndwAtHour.Components.Single(x => x.Dimension == "ENERGY").Price == .6471m &&
+               ndwAtHour.Components.Single().Certainty == TariffCertainty.Applicable &&
+               !ndwAtHour.Limitations.Contains("INVALID_VALIDITY"),
+            "real NDW explicit null optional fields permit matching hourly tariff");
+        using (var ndwDocument = JsonDocument.Parse(ndwNulls))
+        {
+            var ndwMetadata = OcpiTariffMetadataParser.Parse(ndwDocument.RootElement);
+            Assert(ndwMetadata.Limitations.Count == 0 && ndwMetadata.Currency == "EUR",
+                "real NDW null optional metadata does not produce invalid warnings");
+        }
         const string efl = """
         {"elements":[
          {"price_components":[{"type":"ENERGY","price":0.31,"step_size":1}],"restrictions":{"start_time":"11:00","end_time":"12:00"}},
