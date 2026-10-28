@@ -5,6 +5,7 @@ using System.Threading.RateLimiting;
 if (args.Length == 1 && args[0] == "--self-test")
 {
     ApiOptions.SelfTest();
+    OcpiTariffEvaluatorTests.Run();
     return;
 }
 
