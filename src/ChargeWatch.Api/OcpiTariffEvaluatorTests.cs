@@ -26,7 +26,7 @@ internal static class OcpiTariffEvaluatorTests
         var unknown = Check("""
             {"elements":[
             {"price_components":[{"type":"ENERGY","price":0.2,"step_size":1}],"restrictions":{"min_kwh":10}},
-            {"price_components":[{"type":"ENERGY","price":0.5,"step_size":1}}]}
+            {"price_components":[{"type":"ENERGY","price":0.5,"step_size":1}]}]}
             """);
         Assert(unknown.Components.All(x => x.Certainty == TariffCertainty.Conditional),
             "unknown earlier session restriction blocks certainty");
@@ -44,7 +44,7 @@ internal static class OcpiTariffEvaluatorTests
         var overnight = Check("""
             {"elements":[
               {"price_components":[{"type":"ENERGY","price":0.2,"step_size":1}],"restrictions":{"start_time":"22:00","end_time":"06:00"}},
-              {"price_components":[{"type":"ENERGY","price":0.6,"step_size":1}}]}
+              {"price_components":[{"type":"ENERGY","price":0.6,"step_size":1}]}]}
             """, "2026-10-28T22:00:00Z");
         Assert(overnight.Components.Single(x=>x.Dimension=="ENERGY").Price == .2m, "overnight local");
 
