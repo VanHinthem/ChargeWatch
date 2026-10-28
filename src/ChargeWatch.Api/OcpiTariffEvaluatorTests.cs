@@ -57,14 +57,14 @@ internal static class OcpiTariffEvaluatorTests
         var weekday = Check("""
             {"elements":[
               {"price_components":[{"type":"ENERGY","price":0.11,"step_size":1}],"restrictions":{"day_of_week":["WEDNESDAY"]}},
-              {"price_components":[{"type":"ENERGY","price":0.55,"step_size":1}}]}
+              {"price_components":[{"type":"ENERGY","price":0.55,"step_size":1}]}]}
             """);
         Assert(weekday.Components.Single(x => x.Dimension == "ENERGY").Price == .11m,
             "OCPI named day_of_week");
         var invalidDay = Check("""
             {"elements":[
               {"price_components":[{"type":"ENERGY","price":0.11,"step_size":1}],"restrictions":{"day_of_week":[3]}},
-              {"price_components":[{"type":"ENERGY","price":0.55,"step_size":1}}]}
+              {"price_components":[{"type":"ENERGY","price":0.55,"step_size":1}]}]}
             """);
         Assert(invalidDay.Components.All(x => x.Certainty == TariffCertainty.Conditional),
             "invalid weekday blocks certain fallback");
@@ -74,7 +74,7 @@ internal static class OcpiTariffEvaluatorTests
              {"price_components":[{"type":"ENERGY","price":0.15,"step_size":1}],
               "restrictions":{"min_kwh":10,"max_kwh":20,"min_current":6,"max_current":32,
                               "min_power":2,"max_power":11,"min_duration":120,"max_duration":3600}},
-             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}}]}
+             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}]}]}
             """, session:new OcpiSessionContext(EnergyKwh:10, CurrentAmps:16,
                        PowerKw:7, DurationSeconds:120));
         Assert(withSession.Components.Single(x => x.Dimension == "ENERGY").Price == .15m,
@@ -84,7 +84,7 @@ internal static class OcpiTariffEvaluatorTests
             {"elements":[
              {"price_components":[{"type":"ENERGY","price":0.15,"step_size":1}],
               "restrictions":{"max_kwh":20}},
-             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}}]}
+             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}]}]}
             """, session:new OcpiSessionContext(EnergyKwh:20));
         Assert(outside.Components.Single(x => x.Dimension == "ENERGY").Price == .60m,
             "exclusive max boundary");
@@ -93,7 +93,7 @@ internal static class OcpiTariffEvaluatorTests
             {"elements":[
              {"price_components":[{"type":"ENERGY","price":0.15,"step_size":1}],
               "restrictions":{"max_power":11}},
-             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}}]}
+             {"price_components":[{"type":"ENERGY","price":0.60,"step_size":1}]}]}
             """, session:new OcpiSessionContext(EnergyKwh:12));
         Assert(unknownPower.Components.All(x => x.Certainty == TariffCertainty.Conditional),
             "partial session context cannot imply match");
@@ -102,7 +102,7 @@ internal static class OcpiTariffEvaluatorTests
             {"elements":[
              {"price_components":[{"type":"FLAT","price":1,"step_size":1}],
               "restrictions":{"reservation":"RESERVATION"}},
-             {"price_components":[{"type":"FLAT","price":2,"step_size":1}}]}
+             {"price_components":[{"type":"FLAT","price":2,"step_size":1}]}]}
             """, session:new OcpiSessionContext(Reservation:"RESERVATION"));
         Assert(reservation.Components.Single(x => x.Dimension == "FLAT").Price == 1,
             "reservation-only price");
