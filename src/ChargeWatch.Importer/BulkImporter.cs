@@ -282,8 +282,13 @@ internal static class BulkImporter
                     UPDATE evse SET last_presence_checked_at=$1
                       WHERE last_presence_checked_at IS NULL OR last_presence_checked_at<$1;
                     """, db, tx);
-                presence.Parameters.AddWithValue(presenceAt.ToUniversalTime());
-                await presence.ExecuteNonQueryAsync();
+                foreach (var part in presence.CommandText.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    await using var query = new NpgsqlCommand(part, db, tx) { CommandTimeout = 600 };
+                    if (part.Contains("$1", StringComparison.Ordinal))
+                        query.Parameters.AddWithValue(presenceAt.ToUniversalTime());
+                    await query.ExecuteNonQueryAsync();
+                }
             }
             await Exec(db, tx, """
                 INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data,format,max_voltage,max_amperage)
