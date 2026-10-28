@@ -385,7 +385,8 @@ internal static class BulkImporter
                 provenance.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
                 provenance.Parameters.AddWithValue(locCount);
                 provenance.Parameters.AddWithValue(evseCount);
-                await SnapshotPollCoverage.Capture(db, tx, fetchedAt, locationsHash);
+                // Legacy interval coverage retired in migration 023. Compact snapshot
+                // observations are recorded transactionally below instead.
                 await provenance.ExecuteNonQueryAsync();
                 if (Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
                 {

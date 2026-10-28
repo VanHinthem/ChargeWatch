@@ -5,9 +5,7 @@ on:
       - 'src/ChargeWatch.Importer/**'
       - 'db/migrations/**'
       - 'db/tests/018_watch_http_fixture.py'
-      - 'tests/PollCoverageIntegration/**'
       - 'tests/sql/poll_hour_rounding_regression.sql'
-      - 'tests/sql/poll_coverage_candidate_benchmark.sql'
       - '.github/workflows/compact-watch-integration.yml'
   workflow_dispatch:
 
@@ -179,9 +177,8 @@ jobs:
           END $check$;
           SQL
           test ! -f /tmp/cw-watch-ci/locations.json.gz.pending-response.json
-      - name: Validate real SnapshotPollCoverage against isolated PostgreSQL
-        run: dotnet run --project tests/PollCoverageIntegration/PollCoverageIntegration.csproj
+      - name: Confirm legacy interval coverage retired
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/tests/023_retire_legacy_poll_coverage_smoke.sql
       - name: Verify PostgreSQL interval rounding overflow
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/poll_hour_rounding_regression.sql
-      - name: Benchmark 205k poll candidates (diagnostic, not a performance gate)
-        run: psql -v ON_ERROR_STOP=1 -f tests/sql/poll_coverage_candidate_benchmark.sql
