@@ -113,10 +113,10 @@ var roundedCoverage = await Scalar($"""
     SELECT covered_seconds FROM evse_poll_hour_coverage
     WHERE hour_start_utc='{initial}'::timestamptz
     """);
-if (roundedCoverage != 3005)
+if (roundedCoverage != 3600)
     throw new InvalidOperationException(
-        $"Expected 3005 rounded seconds and suppressed last interval, got {roundedCoverage}.");
-Console.WriteLine("CONFIRMED: real Capture suppressed last 597s from exact 3600s, due to per-interval rounding.");
+        $"Expected 3600 exact seconds, got {roundedCoverage}.");
+if (await Scalar("SELECT covered_microseconds FROM evse_poll_hour_coverage") != 3600000000) throw new Exception("Incorrect precise coverage");
 
 await tx.RollbackAsync();
 Console.WriteLine("PASS: real SnapshotPollCoverage.Capture: consecutive, replay, status change (rolled back).");
