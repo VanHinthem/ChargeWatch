@@ -217,6 +217,46 @@ internal static class OcpiTariffEvaluatorTests
                    "metadata partial tolerance");
         }
 
+
+        // Reduced, hand-transcribed fixture from actual NDW/EFL tariff DB row 29326.
+        // Important: source contains all optional restriction keys explicitly as null.
+        const string realEflSample = """
+            {"currency":"EUR","elements":[
+              {"price_components":[{"type":"ENERGY","price":0.6471,"step_size":1}],
+               "restrictions":{"start_date":"2026-09-03","end_date":"2026-09-04",
+                 "start_time":"00:00","end_time":"01:00","day_of_week":null,
+                 "min_kwh":null,"max_kwh":null,"max_power":null,"min_duration":null}},
+              {"price_components":[{"type":"ENERGY","price":0.6408,"step_size":1}],
+               "restrictions":{"start_date":"2026-09-03","end_date":"2026-09-04",
+                 "start_time":"01:00","end_time":"02:00","reservation":null}},
+              {"price_components":[{"type":"ENERGY","price":0.6107,"step_size":1}],
+               "restrictions":{"start_date":"2026-09-04","end_date":"2026-09-05",
+                 "start_time":"23:00","end_time":"00:00","min_duration":null}},
+              {"price_components":[{"type":"FLAT","price":0,"step_size":1},
+                {"type":"TIME","price":0,"step_size":1},
+                {"type":"ENERGY","price":0.6,"step_size":1}]},
+              {"price_components":[{"type":"PARKING_TIME","price":0,"step_size":1}],
+               "restrictions":{"max_duration":3600,"start_date":null}},
+              {"price_components":[{"type":"PARKING_TIME","price":6,"step_size":1}],
+               "restrictions":{"min_duration":3600,"start_time":null}}
+            ]}
+            """;
+        var realAtFirstHour = Check(realEflSample, "2026-09-02T22:30:00Z",
+            session:new OcpiSessionContext(DurationSeconds:3599));
+        Assert(realAtFirstHour.Components.Single(x => x.Dimension == "ENERGY").Price == .6471m &&
+               realAtFirstHour.Components.Single(x => x.Dimension == "ENERGY").Certainty == TariffCertainty.Applicable,
+            "authentic EFL null restrictions do not block active hourly energy");
+        Assert(realAtFirstHour.Components.Single(x => x.Dimension == "PARKING_TIME").Price == 0m,
+            "authentic EFL parking before duration threshold");
+        var realAtThreshold = Check(realEflSample, "2026-09-02T22:30:00Z",
+            session:new OcpiSessionContext(DurationSeconds:3600));
+        Assert(realAtThreshold.Components.Single(x => x.Dimension == "PARKING_TIME").Price == 6m,
+            "authentic EFL parking at duration threshold");
+        var realFallback = Check(realEflSample, "2026-09-05T10:30:00Z");
+        Assert(realFallback.Components.Single(x => x.Dimension == "ENERGY").Price == 0.6m &&
+               realFallback.Components.Count(x => x.Dimension == "ENERGY") == 1,
+            "authentic EFL unrestricted fallback after hourly range");
+
         var expired = Check("""
             {"end_date_time":"2026-10-28T10:30:00Z",
              "elements":[{"price_components":[{"type":"ENERGY","price":1,"step_size":1}]}]}
