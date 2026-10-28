@@ -248,7 +248,7 @@ internal static class BulkImporter
                 // One complete verified HTTP 200 is one presence observation. Keep
                 // historical EVSE rows; three independent missing snapshots plus
                 // at least ten minutes are needed to mark a row inactive.
-                await using var presence = new NpgsqlCommand("""
+                await Exec(db, tx, """
                     CREATE TEMP TABLE stage_present_evse_ids ON COMMIT DROP AS
                     SELECT e.id FROM stage_evse s
                     JOIN charging_location l
@@ -257,38 +257,11 @@ internal static class BulkImporter
                      AND l.source_id=s.payload->>'id'
                     JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
                     CREATE UNIQUE INDEX ON stage_present_evse_ids(id);
-
-                    UPDATE evse e SET
-                      is_active=true,
-                      last_seen_at=$1,
-                      first_missing_at=NULL,
-                      last_presence_checked_at=NULL,
-                      consecutive_missing_snapshots=0
-                    FROM stage_present_evse_ids seen
-                    WHERE seen.id=e.id
-                      AND (NOT e.is_active OR (e.last_seen_at IS NULL OR e.last_seen_at<$1 - interval '24 hours')
-                           OR e.first_missing_at IS NOT NULL
-                           OR e.consecutive_missing_snapshots<>0);
-
-                    UPDATE evse e SET
-                      first_missing_at=COALESCE(e.first_missing_at,$1),
-                      consecutive_missing_snapshots=e.consecutive_missing_snapshots+1,
-                      last_presence_checked_at=$1,
-                      is_active=NOT (
-                        e.consecutive_missing_snapshots+1>=3
-                        AND $1-COALESCE(e.first_missing_at,$1)>=interval '10 minutes')
-                    FROM charging_location l
-                    WHERE e.location_id=l.id AND l.is_active AND e.is_active
-                      AND NOT EXISTS (SELECT 1 FROM stage_present_evse_ids seen WHERE seen.id=e.id)
-                      AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<$1);
-                    """, db, tx);
-                foreach (var part in presence.CommandText.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    await using var query = new NpgsqlCommand(part, db, tx) { CommandTimeout = 600 };
-                    if (part.Contains("$1", StringComparison.Ordinal))
-                        query.Parameters.AddWithValue(presenceAt.ToUniversalTime());
-                    await query.ExecuteNonQueryAsync();
-                }
+                    """);
+                await using var presence = new NpgsqlCommand(
+                    "SELECT * FROM reconcile_evse_snapshot_presence($1)", db, tx) { CommandTimeout = 600 };
+                presence.Parameters.AddWithValue(presenceAt.ToUniversalTime());
+                await presence.ExecuteNonQueryAsync();
             }
             await Exec(db, tx, """
                 INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data,format,max_voltage,max_amperage)
