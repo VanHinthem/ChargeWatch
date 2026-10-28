@@ -177,6 +177,8 @@ jobs:
           END $check$;
           SQL
           test ! -f /tmp/cw-watch-ci/locations.json.gz.pending-response.json
+      - name: Confirm legacy duration statistics retired
+        run: psql -v ON_ERROR_STOP=1 -f db/tests/024_retire_legacy_duration_statistics_smoke.sql
       - name: Confirm legacy interval coverage retired
         run: |
           psql -v ON_ERROR_STOP=1 -f db/tests/023_retire_legacy_poll_coverage_smoke.sql
