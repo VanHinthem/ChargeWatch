@@ -71,5 +71,52 @@ await Exec("DROP TABLE poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 1200)
     throw new InvalidOperationException("A status change generated invented continuity.");
 
+
+// Real collector SQL: six contiguous intervals total exactly one hour.
+// Five intervals of 600.6 seconds round to 601 each, followed by 597 seconds.
+// Expected exact total: 3600; current additive integer total: 3602.
+// The final interval is suppressed because the rounded sum exceeds 3600.
+await Exec($"""
+    DELETE FROM evse_poll_hour_coverage;
+    DELETE FROM evse_poll_checkpoint;
+    UPDATE ndw_snapshot_checkpoint SET source_sha256='{oldHash}',fetched_at='{initial}'
+       WHERE source_name='ndw-locations';
+    UPDATE stage_observation SET status_class='available',
+        source_updated_at='2026-10-25 07:59:59+00';
+    INSERT INTO evse_poll_checkpoint(evse_id,observed_at,status_class,source_updated_at,snapshot_sha256)
+      SELECT id,'{initial}','available','2026-10-25 07:59:59+00','{oldHash}' FROM evse;
+    """);
+var times = new[] {
+    "2026-10-25T08:00:00Z",
+    "2026-10-25T08:10:00.600Z",
+    "2026-10-25T08:20:01.200Z",
+    "2026-10-25T08:30:01.800Z",
+    "2026-10-25T08:40:02.400Z",
+    "2026-10-25T08:50:03.000Z",
+    "2026-10-25T09:00:00Z"
+};
+for (var i = 1; i < times.Length; i++)
+{
+    var previousSha = new string((char)('a' + i - 1), 64);
+    var nextSha = new string((char)('a' + i), 64);
+    var prior = DateTimeOffset.Parse(times[i - 1]);
+    var next = DateTimeOffset.Parse(times[i]);
+    await Exec($"""
+        UPDATE ndw_snapshot_checkpoint SET source_sha256='{previousSha}',
+          fetched_at='{prior:O}' WHERE source_name='ndw-locations';
+        UPDATE stage_observation SET source_updated_at='{next.AddSeconds(-1):O}';
+        """);
+    await SnapshotPollCoverage.Capture(db, tx, next, nextSha);
+    await Exec("DROP TABLE poll_eligible, poll_previous;");
+}
+var roundedCoverage = await Scalar($"""
+    SELECT covered_seconds FROM evse_poll_hour_coverage
+    WHERE hour_start_utc='{initial}'::timestamptz
+    """);
+if (roundedCoverage != 3005)
+    throw new InvalidOperationException(
+        $"Expected 3005 rounded seconds and suppressed last interval, got {roundedCoverage}.");
+Console.WriteLine("CONFIRMED: real Capture suppressed last 597s from exact 3600s, due to per-interval rounding.");
+
 await tx.RollbackAsync();
 Console.WriteLine("PASS: real SnapshotPollCoverage.Capture: consecutive, replay, status change (rolled back).");
