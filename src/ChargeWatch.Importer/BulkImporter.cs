@@ -262,25 +262,25 @@ internal static class BulkImporter
                       is_active=true,
                       last_seen_at=$1,
                       first_missing_at=NULL,
+                      last_presence_checked_at=NULL,
                       consecutive_missing_snapshots=0
                     FROM stage_present_evse_ids seen
                     WHERE seen.id=e.id
-                      AND (NOT e.is_active OR e.last_seen_at IS DISTINCT FROM $1
+                      AND (NOT e.is_active OR e.(e.last_seen_at IS NULL OR e.last_seen_at<$1 - interval '24 hours')
                            OR e.first_missing_at IS NOT NULL
                            OR e.consecutive_missing_snapshots<>0);
 
                     UPDATE evse e SET
                       first_missing_at=COALESCE(e.first_missing_at,$1),
                       consecutive_missing_snapshots=e.consecutive_missing_snapshots+1,
+                      last_presence_checked_at=$1,
                       is_active=NOT (
                         e.consecutive_missing_snapshots+1>=3
                         AND $1-COALESCE(e.first_missing_at,$1)>=interval '10 minutes')
                     FROM charging_location l
-                    WHERE e.location_id=l.id AND l.is_active
+                    WHERE e.location_id=l.id AND l.is_active AND e.is_active
                       AND NOT EXISTS (SELECT 1 FROM stage_present_evse_ids seen WHERE seen.id=e.id)
                       AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<$1);
-                    UPDATE evse SET last_presence_checked_at=$1
-                      WHERE last_presence_checked_at IS NULL OR last_presence_checked_at<$1;
                     """, db, tx);
                 foreach (var part in presence.CommandText.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
