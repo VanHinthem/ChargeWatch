@@ -5,6 +5,7 @@ on:
       - 'src/ChargeWatch.Importer/**'
       - 'db/migrations/**'
       - 'db/tests/018_watch_http_fixture.py'
+      - 'tests/PollCoverageIntegration/**'
       - '.github/workflows/compact-watch-integration.yml'
   workflow_dispatch:
 
@@ -176,3 +177,5 @@ jobs:
           END $check$;
           SQL
           test ! -f /tmp/cw-watch-ci/locations.json.gz.pending-response.json
+      - name: Validate real SnapshotPollCoverage against isolated PostgreSQL
+        run: dotnet run --project tests/PollCoverageIntegration/PollCoverageIntegration.csproj
