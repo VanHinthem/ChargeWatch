@@ -14,3 +14,7 @@ Release sha-4846fa1 migrated 015–017 successfully with pre-migration backup. A
 - A saturated hour with new known-safe nonoverlapping time cannot always be distinguished from a replay using current aggregate schema; suppress and report such entries.
 - Validate build/CI, staged simulation of an overflowing EVSE-hour, collector replay successful completion, active locations and typed JSONB field coverage, and unchanged old history.
 - No migration needed for this patch; UGREEN rollout still requires its automatic backup/checkpoint. Do not deploy or merge before user approval and checks.
+
+## Local SQL regression outcome — 28 October 2026
+
+On the isolated local PostgreSQL test database, `tests/sql/poll_hour_coverage_overflow_regression.sql` executed successfully: temporary fixture inserted two existing EVSE-hours plus three incoming samples; guarded upsert reported `INSERT 0 2` (one saturated conflict suppressed, one valid increment and one new hour inserted), the PL/pgSQL assertions passed (`NOTICE: Coverage overflow guard regression passed`) and the transaction rolled back. This verifies the SQL guard semantics, **not** end-to-end importer observation replay. GitHub CI checks were green for the test-commit HEAD before this documentation update.
