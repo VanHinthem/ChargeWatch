@@ -285,6 +285,25 @@ internal static class BulkImporter
                 WHERE (connector.standard,connector.power_type,connector.max_electric_power,connector.source_data,connector.format,connector.max_voltage,connector.max_amperage)
                     IS DISTINCT FROM (excluded.standard,excluded.power_type,excluded.max_electric_power,excluded.source_data,excluded.format,excluded.max_voltage,excluded.max_amperage);
                 """);
+            if (verifiedLocationsFetchedAtUtc is { } connectorPresenceAt)
+            {
+                // Reconcile within the same verified, guarded HTTP 200 transaction;
+                // preserve missing connector rows and their historical tariff links.
+                await Exec(db, tx, """
+                    CREATE TEMP TABLE stage_present_connector_ids ON COMMIT DROP AS
+                    SELECT c.id
+                    FROM stage_connector s
+                    JOIN charging_location l ON l.country_code=s.payload->>'country'
+                      AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
+                    JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid'
+                    JOIN connector c ON c.evse_id=e.id AND c.source_id=s.payload->>'connectorId';
+                    CREATE UNIQUE INDEX ON stage_present_connector_ids(id);
+                    """);
+                await using var connectorPresence = new NpgsqlCommand(
+                    "SELECT * FROM reconcile_connector_snapshot_presence($1)", db, tx) { CommandTimeout = 600 };
+                connectorPresence.Parameters.AddWithValue(connectorPresenceAt.ToUniversalTime());
+                await connectorPresence.ExecuteNonQueryAsync();
+            }
             await Exec(db, tx, """
                 CREATE TEMP TABLE stage_connector_id ON COMMIT DROP AS
                 SELECT c.id AS connector_id
