@@ -68,17 +68,21 @@ internal sealed class ConnectorDetail
 }
 
 // One option per actual OCPI connector.tariff_ids reference. Never silently drop missing IDs.
+internal sealed record TariffComponentDto(
+    string Dimension, decimal Price, int? StepSize, decimal? VatPercent,
+    int ElementIndex, string Certainty);
+
 internal sealed record ConnectorTariffOption(
     string CountryCode, string PartyId, string SourceId,
     string Status, string? Currency, DateTimeOffset? SourceUpdatedAt,
-    IReadOnlyList<EvaluatedTariffComponent> Components,
+    DateTimeOffset? AsOfUtc, IReadOnlyList<TariffComponentDto> Components,
     IReadOnlyList<string> Limitations);
 
 internal static class ConnectorTariffContract
 {
     public const string EvaluationZone = "Europe/Amsterdam"; // Netherlands-only product.
     public static ConnectorTariffOption Missing(string country, string party, string id)
-        => new(country, party, id, "SOURCE_MISSING", null, null, [], ["SOURCE_TARIFF_NOT_FOUND"]);
+        => new(country, party, id, "SOURCE_MISSING", null, null, null, [], ["SOURCE_TARIFF_NOT_FOUND"]);
 
     public static ConnectorTariffOption Evaluate(string country, string party, string id,
         string? currency, JsonElement details, DateTimeOffset? sourceUpdatedAt, DateTimeOffset asOfUtc)
@@ -90,7 +94,8 @@ internal static class ConnectorTariffContract
             evaluation.Components.All(x => x.Certainty == TariffCertainty.Applicable) && limitations.Length == 0
                 ? "APPLICABLE" : "CONDITIONAL";
         return new(country, party, id, status, metadata.Currency ?? currency, sourceUpdatedAt,
-            evaluation.Components, limitations);
+            asOfUtc, evaluation.Components.Select(x => new TariffComponentDto(x.Dimension, x.Price,
+                x.StepSize, x.VatPercent, x.ElementIndex, x.Certainty.ToString())).ToArray(), limitations);
     }
 
     public static void SelfTest()
