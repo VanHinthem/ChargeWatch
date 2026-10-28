@@ -100,17 +100,58 @@ internal static class ConnectorTariffContract
 
     public static void SelfTest()
     {
+        static void Require(bool condition, string message)
+        {
+            if (!condition) throw new InvalidOperationException("Connector tariff self-test: " + message);
+        }
+
+        var empty = new ConnectorDetail { Id = 1, SourceId = "none" };
+        Require(empty.TariffStatus == "NO_REFERENCE" && empty.TariffOptions.Count == 0,
+            "missing reference must not invent a price");
+
+        var missing = Missing("NL", "UB2", "absent-in-ndw");
+        var unresolved = new ConnectorDetail { Id = 2, SourceId = "unresolved" };
+        unresolved.TariffOptions.Add(missing);
+        Require(unresolved.TariffStatus == "SOURCE_MISSING" &&
+                missing.CountryCode == "NL" && missing.PartyId == "UB2" &&
+                missing.SourceId == "absent-in-ndw" && missing.Components.Count == 0 &&
+                missing.AsOfUtc is null &&
+                missing.Limitations.Contains("SOURCE_TARIFF_NOT_FOUND"),
+            "unresolved OCPI reference must preserve its source key without a price");
+
         using var doc = JsonDocument.Parse("""
             {"currency":"EUR","elements":[{"price_components":[
                 {"type":"ENERGY","price":0.42,"step_size":1,"vat":null}]}]}
             """);
-        var option = Evaluate("NL","EFL","demo","EUR",doc.RootElement,null,
-            DateTimeOffset.Parse("2026-09-03T10:30:00Z"));
-        if (option.Status != "APPLICABLE" || option.Components.Count != 1 ||
-            option.Components[0].Price != 0.42m ||
-            Missing("NL","UB2","missing").Status != "SOURCE_MISSING" ||
-            new ConnectorDetail { Id=1,SourceId="x" }.TariffStatus != "NO_REFERENCE")
-            throw new InvalidOperationException("Connector tariff contract self-test failed.");
+        var now = DateTimeOffset.Parse("2026-09-03T10:30:00Z");
+        var first = Evaluate("NL", "EFL", "rate-A", "EUR", doc.RootElement, null, now);
+        var second = Evaluate("NL", "EFL", "rate-B", "EUR", doc.RootElement, null, now);
+        Require(first.Status == "APPLICABLE" && first.Components.Count == 1 &&
+                first.Components[0].Price == 0.42m &&
+                first.Components[0].Certainty == "Applicable" && first.AsOfUtc == now,
+            "single evaluated component must have explicit certainty and timestamp");
+
+        var multiple = new ConnectorDetail { Id = 3, SourceId = "two-rates" };
+        multiple.TariffOptions.Add(first);
+        multiple.TariffOptions.Add(second);
+        Require(multiple.TariffStatus == "MULTIPLE_OPTIONS" &&
+                multiple.TariffOptions.Count == 2 &&
+                multiple.TariffOptions[0].SourceId == "rate-A" &&
+                multiple.TariffOptions[1].SourceId == "rate-B",
+            "multiple distinct tariff options must remain separate");
+
+        multiple.TariffOptions.Add(missing);
+        Require(multiple.TariffStatus == "SOURCE_MISSING" && multiple.TariffOptions.Count == 3,
+            "partially unresolved references must not be presented as complete");
+
+        var json = JsonSerializer.Serialize(multiple,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var parsed = JsonDocument.Parse(json);
+        var root = parsed.RootElement;
+        Require(root.GetProperty("tariffStatus").GetString() == "SOURCE_MISSING" &&
+                root.GetProperty("tariffOptions").GetArrayLength() == 3 &&
+                root.GetProperty("tariffOptions")[2].GetProperty("components").GetArrayLength() == 0,
+            "JSON contract must expose missing source and preserve all options");
     }
 }
 
