@@ -46,6 +46,7 @@ await Exec($"""
        WHERE source_name='ndw-locations';
     """);
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 600)
     throw new InvalidOperationException("Replay double counted coverage.");
 
