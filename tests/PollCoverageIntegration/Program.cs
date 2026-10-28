@@ -35,6 +35,7 @@ await Exec($"""
     """);
 var at10 = DateTimeOffset.Parse(later);
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 600)
     throw new InvalidOperationException("First 10-minute coverage interval was not 600 seconds.");
 
@@ -51,6 +52,7 @@ if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 600)
 // Next consecutive feed observation, same status: another 600 seconds.
 await Exec("UPDATE stage_observation SET source_updated_at='2026-10-25 08:19+00';");
 await SnapshotPollCoverage.Capture(db, tx, DateTimeOffset.Parse(latest), nextHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 1200)
     throw new InvalidOperationException("Consecutive poll chain failed to cover 1200 seconds.");
 
@@ -64,6 +66,7 @@ await Exec($"""
 await SnapshotPollCoverage.Capture(db, tx,
     DateTimeOffset.Parse("2026-10-25T08:30:00Z"),
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
+await Exec("DROP TABLE poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 1200)
     throw new InvalidOperationException("A status change generated invented continuity.");
 
