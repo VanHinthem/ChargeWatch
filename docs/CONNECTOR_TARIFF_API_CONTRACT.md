@@ -1,4 +1,4 @@
-# Connector tariff API contract — pre-release (#66)
+# Connector tariff API contract — implemented (#66)
 
 ChargeWatch is NL-only; all tariff evaluation uses `Europe/Amsterdam`. The API is not live, so breaking changes are allowed.
 
@@ -16,11 +16,11 @@ In `GET /api/v1/locations/{id}`, each connector exposes `tariffStatus` and `tari
 
 Each option includes source identifiers, currency, sourceUpdatedAt, asOfUtc, status, selected per-dimension components with string certainty and limitations. The API also exposes parsed `minimumPrice`, `maximumPrice`, `alternativeUrl` and `hasAlternativeText` when supplied. Each component exposes `vatStatus` (`EXPLICIT_RATE` or `NOT_SPECIFIED`) and optional `vatPercent`; these do not establish the final consumer price. The response uses a single UTC evaluation instant per location request. Prices are source CPO components, **not** final eMSP prices or complete charging-session totals. Unknown VAT must remain unknown.
 
-The SQL LEFT JOIN preserves `connector_tariff` source identifiers even when `tariff` is null. No DB migration or production changes. The Android client will be updated in a separate phase after backend validation.
+The SQL LEFT JOIN preserves `connector_tariff` source identifiers even when `tariff` is null. The tariff API and database migrations 018 and 019 are deployed and validated on NAS. The Android client will be updated in a separate phase after backend validation.
 
 ## Tests and rollout
 
-`dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj -- --self-test` checks the connector tariff contract; CI also builds and validates the API. Before deploying, review a real missing UB2 reference and a known valid EFL tariff. Dashboard and recurring integrity reports remain deferred to #79.
+`dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj -- --self-test` checks the connector tariff contract; CI also builds and validates the API. Deployment validation completed on NAS against real UB2 (location 67381) and EFL tariffs (locations 82929 and 97917). Dashboard and recurring integrity reports remain deferred to #79.
 
 ## Independent NDW Tariffs feed provenance
 
@@ -30,4 +30,8 @@ Tariff applicability is **not** the same as source freshness: `APPLICABLE` descr
 
 ## Acceptance and deployment
 
-This PR requires migration 018 before collector/API startup. Verify read-only grants, an HTTP 304 advancing `tariffsFeedLastCheckedAt` without changing `sourceUpdatedAt`, and stale/unknown behavior before considering #66 complete. The real UB2/EFL/EFL-duration validations from PR #80 remain relevant.
+Deployed releases include migration 018 (checkpoint table and read-role grant) and migration 019 (collector import-role write grant). A successful HTTP 304 produced a verified checkpoint timestamp, which was returned identically by the read-only API with `tariffsFeedIsStale=false`. Runtime validation completed; issue #66 closed. Automated historical monitoring remains deferred to issue #79. The real UB2/EFL/EFL-duration validations from PR #80 remain relevant.
+
+## Delivery status (2026-10-28)
+
+Production NAS release: `7a7e9425369b5b04503b2c46d94d66d66fc99b08` (PR #82). The tariff API work in PRs #80 and #81 and the migration permission fix in #82 are merged into `main`; all corresponding CI checks passed. Database and API checks succeeded. Android integration is intentionally the next phase. No claim that a restore to an isolated database has been performed.
