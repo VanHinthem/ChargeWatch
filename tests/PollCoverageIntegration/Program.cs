@@ -118,5 +118,28 @@ if (roundedCoverage != 3600)
         $"Expected 3600 exact seconds, got {roundedCoverage}.");
 if (await Scalar("SELECT covered_microseconds FROM evse_poll_hour_coverage") != 3600000000) throw new Exception("Incorrect precise coverage");
 
+
+await Exec("""
+    DELETE FROM evse_poll_hour_coverage;
+    INSERT INTO evse_poll_hour_coverage
+      (evse_id,hour_start_utc,covered_seconds,available_seconds)
+      SELECT id,'2026-10-25 08:00+00',3500,1200 FROM evse;
+    """);
+await Exec($"""
+    UPDATE ndw_snapshot_checkpoint SET source_sha256='{oldHash}',fetched_at='{initial}'
+      WHERE source_name='ndw-locations';
+    UPDATE evse_poll_checkpoint SET observed_at='{initial}',
+      snapshot_sha256='{oldHash}',status_class='available',
+      source_updated_at='2026-10-25 07:59+00';
+    UPDATE stage_observation SET status_class='available',
+      source_updated_at='2026-10-25 08:09+00';
+    """);
+await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
+if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 ||
+    await Scalar("SELECT available_seconds FROM evse_poll_hour_coverage") != 1200 ||
+    await Scalar("SELECT count(*) FROM evse_poll_hour_coverage WHERE covered_microseconds IS NULL") != 1)
+    throw new InvalidOperationException("Legacy hour must stay unchanged and unmarked as precise.");
+
 await tx.RollbackAsync();
 Console.WriteLine("PASS: real SnapshotPollCoverage.Capture: consecutive, replay, status change (rolled back).");
