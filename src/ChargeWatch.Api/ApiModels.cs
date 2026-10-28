@@ -36,6 +36,8 @@ internal sealed class LocationDetail
     public required bool IsStale { get; init; }
     public DateTimeOffset? FeedLastObservedAt { get; init; }
     public bool FeedIsStale { get; init; }
+    public DateTimeOffset? TariffsFeedLastCheckedAt { get; init; }
+    public bool TariffsFeedIsStale { get; init; }
     public List<EvseDetail> Evses { get; } = [];
 }
 
@@ -209,7 +211,9 @@ internal sealed record DataStatus(
     long LocationCount,
     long EvseCount,
     long ConnectorCount,
-    long TariffCount);
+    long TariffCount,
+    DateTimeOffset? TariffsFeedLastCheckedAt,
+    bool TariffsFeedIsStale);
 
 internal sealed record MapConnectorCategory(
     int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax,
