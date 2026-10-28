@@ -177,6 +177,9 @@ internal static class OcpiTariffEvaluator
         var unknown = false;
         foreach (var property in restrictions.EnumerateObject())
         {
+            // NDW/EFL serializes absent optional OCPI restrictions as explicit null.
+            // Treat null as absent, not as an unknown condition.
+            if (property.Value.ValueKind == JsonValueKind.Null) continue;
             if (!SupportedRestrictions.Contains(property.Name))
             {
                 limitations.Add("UNKNOWN_RESTRICTION"); unknown = true; continue;
