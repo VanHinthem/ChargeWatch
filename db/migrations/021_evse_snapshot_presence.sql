@@ -83,7 +83,7 @@ BEGIN
 
   INSERT INTO evse_snapshot_active_hour
    (evse_id,hour_start_utc,category_counts,changed_count,unchanged_count)
-  SELECT id,pending.hour_start_utc,
+  SELECT e.id,pending.hour_start_utc,
     ARRAY(SELECT CASE WHEN n=(CASE upper(coalesce(e.status,''))
          WHEN 'AVAILABLE' THEN 1 WHEN 'CHARGING' THEN 2
          WHEN 'BLOCKED' THEN 3 WHEN 'RESERVED' THEN 4
