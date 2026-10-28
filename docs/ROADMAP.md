@@ -108,3 +108,12 @@ De NDW GeoJSON-test voor hetzelfde kaartgebied leverde:
 - [NDW OCPI Tariffs gzip](https://opendata.ndw.nu/charging_point_tariffs_ocpi.json.gz)
 
 De exacte NDW geografische endpointparameters moeten voor de implementatie tegen de actuele documentatie worden gevalideerd.
+
+
+## Data First — planning herijkt 28 oktober 2026
+
+1. **P1 #66:** OCPI 2.2.1-tariefevaluator; tolerant bronbehoud en veilige partiële evaluatie. Ontwerp-review draft PR #71, daarna parser/evaluator, repository, API-contract en specifieke Tariffs-versheid. Geen Android voordat backend gevalideerd is.
+2. **P2 #72:** structureel oplossen van overlappende/suppressed EVSE-hour-intervallen na de niet-definitieve recoveryguard #70. Historische data behouden, reproduceerbare interval-union en idempotentietests.
+3. **P3 #73:** integrale NDW/OCPI-data-audit, inclusief performance, bronkwaliteit en monitoring/herstelbaarheid.
+
+**Reeds op main en productie:** #63 opgelost door PR #67; #65 door PR #68; #64 door PR #69. Issue #11 blijft open als overkoepelende historische-statistiekscope; #72 is de gerichte vervolgfix. UX PR #61 blijft open maar on hold voor datacontract, PR #54 blijft zelfstandig open wegens niet afgeronde Geffen-dekkingsnotitie. Geen merge of productie-ingreep zonder review en akkoord.
