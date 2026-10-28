@@ -44,31 +44,35 @@ internal static class SnapshotPollCoverage
             AND s.source_updated_at >= $1::timestamptz - interval '24 hours'
             AND s.source_updated_at <= $1::timestamptz + interval '5 minutes';
 
-          INSERT INTO evse_poll_hour_coverage(evse_id,hour_start_utc,covered_seconds,available_seconds)
-          SELECT evse_id,hour_start_utc,sum(seconds)::integer,
-                 sum(CASE WHEN status_class='available' THEN seconds ELSE 0 END)::integer
+          INSERT INTO evse_poll_hour_coverage
+            (evse_id,hour_start_utc,covered_seconds,available_seconds,
+             covered_microseconds,available_microseconds)
+          SELECT evse_id,hour_start_utc,
+                 (sum(microseconds)/1000000)::integer,
+                 (sum(CASE WHEN status_class='available' THEN microseconds ELSE 0 END)/1000000)::integer,
+                 sum(microseconds),
+                 sum(CASE WHEN status_class='available' THEN microseconds ELSE 0 END)
           FROM (
             SELECT evse_id,status_class,h.hour_start_utc,
-                   extract(epoch FROM
+                   (extract(epoch FROM
                      least(end_at,h.hour_start_utc+interval '1 hour')
-                     -greatest(start_at,h.hour_start_utc))::integer AS seconds
+                     -greatest(start_at,h.hour_start_utc))*1000000)::bigint AS microseconds
             FROM poll_eligible
             CROSS JOIN LATERAL generate_series(
               date_trunc('hour',start_at),
               date_trunc('hour',end_at),interval '1 hour') h(hour_start_utc)
           ) intervals
-          WHERE seconds>0
+          WHERE microseconds>0
           GROUP BY evse_id,hour_start_utc
           ON CONFLICT(evse_id,hour_start_utc) DO UPDATE SET
-            covered_seconds=evse_poll_hour_coverage.covered_seconds+excluded.covered_seconds,
-            available_seconds=evse_poll_hour_coverage.available_seconds+excluded.available_seconds
-          WHERE evse_poll_hour_coverage.covered_seconds + excluded.covered_seconds <= 3600
-            AND evse_poll_hour_coverage.available_seconds + excluded.available_seconds <= 3600;
-          -- Preserve existing history instead of clipping values to 3600.
-          -- Intervals whose union cannot be proven from the existing aggregate
-          -- are NOT applied when they would overflow the hour. The caller logs
-          -- the number rejected. We still advance the snapshot checkpoint,
-          -- allowing the independent catalog import to commit.
+            covered_microseconds=evse_poll_hour_coverage.covered_microseconds+excluded.covered_microseconds,
+            available_microseconds=evse_poll_hour_coverage.available_microseconds+excluded.available_microseconds,
+            covered_seconds=((evse_poll_hour_coverage.covered_microseconds+excluded.covered_microseconds)/1000000)::integer,
+            available_seconds=((evse_poll_hour_coverage.available_microseconds+excluded.available_microseconds)/1000000)::integer
+          -- Legacy rows have no exact provenance: preserve them as legacy.
+          WHERE evse_poll_hour_coverage.covered_microseconds IS NOT NULL
+            AND evse_poll_hour_coverage.covered_microseconds+excluded.covered_microseconds <= 3600000000
+            AND evse_poll_hour_coverage.available_microseconds+excluded.available_microseconds <= 3600000000;
 
           INSERT INTO evse_poll_checkpoint
             (evse_id,observed_at,status_class,source_updated_at,snapshot_sha256)
@@ -97,14 +101,9 @@ internal static class SnapshotPollCoverage
                 await using var probe = new NpgsqlCommand("""
                     WITH proposed AS (
                       SELECT i.evse_id,h.hour_start_utc,
-                             sum(extract(epoch FROM
+                             sum((extract(epoch FROM
                                least(i.end_at,h.hour_start_utc+interval '1 hour')
-                               -greatest(i.start_at,h.hour_start_utc))::integer) AS seconds,
-                             sum(CASE WHEN i.status_class='available' THEN
-                               extract(epoch FROM
-                                 least(i.end_at,h.hour_start_utc+interval '1 hour')
-                                 -greatest(i.start_at,h.hour_start_utc))::integer
-                               ELSE 0 END) AS available_seconds
+                               -greatest(i.start_at,h.hour_start_utc))*1000000)::bigint) AS microseconds
                       FROM poll_eligible i
                       CROSS JOIN LATERAL generate_series(
                         date_trunc('hour',i.start_at),
@@ -113,16 +112,24 @@ internal static class SnapshotPollCoverage
                             > greatest(i.start_at,h.hour_start_utc)
                       GROUP BY i.evse_id,h.hour_start_utc
                     )
-                    SELECT count(*)
+                    SELECT
+                      count(*) FILTER(WHERE existing.covered_microseconds IS NULL) AS legacy_rows,
+                      count(*) FILTER(WHERE existing.covered_microseconds IS NOT NULL
+                        AND existing.covered_microseconds+p.microseconds>3600000000) AS overflows
                     FROM proposed p
                     JOIN evse_poll_hour_coverage existing USING(evse_id,hour_start_utc)
-                    WHERE existing.covered_seconds+p.seconds>3600
-                       OR existing.available_seconds+p.available_seconds>3600
                     """, db, tx) { CommandTimeout = 600 };
-                var rejected = (long)(await probe.ExecuteScalarAsync())!;
-                if (rejected > 0)
+                await using var reader = await probe.ExecuteReaderAsync();
+                await reader.ReadAsync();
+                var legacy = reader.GetInt64(0);
+                var overflow = reader.GetInt64(1);
+                await reader.DisposeAsync();
+                if (legacy > 0)
                     Console.Error.WriteLine(
-                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; existing history preserved.");
+                        $"INFO: {legacy} legacy EVSE-hour increments skipped; historical seconds preserved.");
+                if (overflow > 0)
+                    Console.Error.WriteLine(
+                        $"WARNING: {overflow} exact EVSE-hour coverage increments exceed 3600 seconds; existing history preserved.");
             }
             await command.ExecuteNonQueryAsync();
         }
