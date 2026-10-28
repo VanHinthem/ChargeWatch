@@ -1,6 +1,6 @@
-# OCPI 2.2.1-tariefevaluator — technisch ontwerp (onderzoeksfase)
+# OCPI 2.2.1-tariefevaluator — technisch ontwerp en implementatiegeschiedenis
 
-Status: ontwerpvoorstel in PR #62, **niet geïmplementeerd**. Eerst review, daarna afzonderlijke implementatie-PR. Uitgangspunt: NDW OCPI 2.2.1; bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.pdf (tariff module §11.3-11.4) en https://ocpi.github.io/openapi-specification/ocpi/2.2.1/roles/cpo-interface.html.
+**Actuele status (28-10-2026): geïmplementeerd, getest op echte NDW-data en uitgerold op NAS. Issue #66 gesloten; laatste productie-release `7a7e942` (PR #82). Historische ontwerpvoorstellen en reviewnotities hieronder zijn geen actuele API-specificatie; zie `docs/CONNECTOR_TARIFF_API_CONTRACT.md` voor het werkelijke contract.** Uitgangspunt: NDW OCPI 2.2.1; bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.pdf (tariff module §11.3-11.4) en https://ocpi.github.io/openapi-specification/ocpi/2.2.1/roles/cpo-interface.html.
 
 ## Achtergrond
 - Bestaand `tariff.details jsonb` bewaart de bronstructuur.
@@ -32,7 +32,7 @@ Geen berekende prijs in de database opslaan: tarieven en tijdvakken veranderen; 
 - Wanneer meerdere tarief-ID's aan een connector zijn gekoppeld, zonder bruikbare selectieregel geen willekeurig tarief als dé prijs kiezen. Distincte opties tonen of `AMBIGUOUS` retourneren.
 - Bekende bronlimitaties: ontbrekende `connector_tariff` of onoplosbare ID => `UNAVAILABLE`; niet herleiden uit andere connectoren/locaties. Feedstaleness onderscheiden van ontbrekend object.
 
-## Voorstel API-contract (pre-release, mag breaking zijn)
+## Historisch API-contractvoorstel (vervangen door het geïmplementeerde contract)
 
 ChargeWatch is nog niet live. Het API-contract mag daarom worden opgeschoond of vervangen zonder backward-compatibility verplichting. Kies één helder, consistent connector-tariefmodel in `/api/v1/locations/{id}` (of een gespecialiseerd endpoint als dat inhoudelijk beter past):
 
@@ -61,7 +61,7 @@ ChargeWatch is nog niet live. Het API-contract mag daarom worden opgeschoond of 
 
 Dit is een **schemavoorbeeld**, niet een geverifieerde werkelijke locatie of een bewezen prijs van 0,38 EUR. Echte contracttypen/JSON casing afstemmen op bestaande API. Vermijd vrije tekst als enige machineleesbare toestand. Lege/afwezige dimensies impliceren nooit nul kosten. Geen prijswaarde wanneer betrouwbaarheid ontbreekt. Voeg waar nodig `validUntilUtc` toe op basis van berekenbaar volgend prijsomslagmoment; nooit speculatief.
 
-## Android-presentatie
+## Historisch Android-presentatievoorstel (nog niet geïmplementeerd)
 
 - `CURRENT` vast: `€ x,xx/kWh`; `CURRENT` dynamisch: `Nu € x,xx/kWh · Dynamisch`; altijd relevante voorwaarden en aanvullende dimensies laten zien.
 - `CONDITIONAL` of `AMBIGUOUS`: `Tarief afhankelijk van voorwaarden`, eventueel expliciete opties; geen misleidende enkelvoudige prijs.
@@ -81,9 +81,9 @@ Dit is een **schemavoorbeeld**, niet een geverifieerde werkelijke locatie of een
 9. Meerdere connector-tariefrelaties, ontbrekende tariefobjecten, oude feed.
 10. Regression: Android ontvangt reeds bestaande details en blijft werken als `tariffEvaluation` afwezig is.
 
-## Acceptatie en vervolg
+## Historische acceptatie- en vervolgstappen (inmiddels deels achterhaald)
 
-- Bestaande APIs blijven backward compatible; nieuwe evaluator is additief.
+- Historisch voorstel, **vervallen**: bestaande API's blijven backward compatible. Productbesluit: pre-release breaking changes zijn toegestaan.
 - Foutieve of niet volledig interpreteerbare restricties leiden niet tot een schijnbaar zekere prijs.
 - Testfixture van echte EFL-volgorde wordt klein en geanonimiseerd vastgelegd, zonder nationale data-export in Git.
 - Eerst een kleine losse implementatie-PR voor parser/evaluator + tests, daarna API en Android, in coördinatie met nog openstaande PR #61.
@@ -92,7 +92,7 @@ Dit is een **schemavoorbeeld**, niet een geverifieerde werkelijke locatie of een
 
 ## Ontwerp-review 28 oktober 2026 — Data First, tolerant maar expliciet
 
-**Status:** aangevuld ontwerp ter review; nog geen evaluator geïmplementeerd. Leid afwijkingen van NDW nooit af tot het stilzwijgend verwerpen van een geheel tarief. Bewaar de originele `details` altijd, verzamel diagnosecodes en evalueer alle onafhankelijk veilig interpreteerbare dimensies. Een gedeeltelijke evaluatie mag nooit als complete gegarandeerde laadprijs worden gepresenteerd.
+**Historische status op moment van review:** aangevuld ontwerp; destijds nog geen evaluator geïmplementeerd. Implementatie is inmiddels voltooid. Leid afwijkingen van NDW nooit af tot het stilzwijgend verwerpen van een geheel tarief. Bewaar de originele `details` altijd, verzamel diagnosecodes en evalueer alle onafhankelijk veilig interpreteerbare dimensies. Een gedeeltelijke evaluatie mag nooit als complete gegarandeerde laadprijs worden gepresenteerd.
 
 ### Correcties op het eerdere voorstel
 
@@ -106,9 +106,9 @@ Dit is een **schemavoorbeeld**, niet een geverifieerde werkelijke locatie of een
 - **Freshness:** Locations-feedactualiteit is niet gelijk aan Tariffs-feedactualiteit; 5/60-minuten controlecycli kunnen tijdelijk cross-feed verschillen opleveren. Gebruik specifieke Tariffs-controle/download-/importprovenance zodra beschikbaar. Identificeer een ontbrekende bronreferentie niet automatisch als importerbug of als blijvend verdwenen tarief.
 - **Gedeeltelijke resultaten:** houd per dimensie de evaluatiestatus en trace (`tariffId`, `elementIndex`, restrictiematches, `stepSize`, VAT en bronmoment) bij. Eén ongeldig element hoeft niet alle andere dimensies te blokkeren; een onbekende eerdere kandidaat voor dezelfde dimensie moet wel expliciet de zekerheid beperken. Geen lege dimensie als nulprijs interpreteren.
 
-### API-contract: aanscherping vóór implementatie
+### Historische API-contractreview vóór implementatie (vervangen)
 
-Behoud `tariffs[].details` en `presentation` volledig backward-compatible. Voeg een afzonderlijk machineleesbaar evaluatieobject toe met evaluatiecontext (`asOfUtc`, optioneel `requestedTariffType`), algemene én per-dimensie status, `tariffOptions` bij meerdere profielen, `components`, `limitations`, `sourceUpdatedAt` en waar aantoonbaar mogelijk `validUntilUtc`. Een enkele status `CURRENT` mag niet gelijk worden gesteld aan gegarandeerde eindkosten; expliciete bron-/CPO-/laadpasdisclaimers blijven vereist. De precieze DTO-namen en serialisatie eerst contracttesten.
+Historisch voorstel (vervallen): behoud `tariffs[].details` en `presentation` backward-compatible. Voeg een afzonderlijk machineleesbaar evaluatieobject toe met evaluatiecontext (`asOfUtc`, optioneel `requestedTariffType`), algemene én per-dimensie status, `tariffOptions` bij meerdere profielen, `components`, `limitations`, `sourceUpdatedAt` en waar aantoonbaar mogelijk `validUntilUtc`. Een enkele status `CURRENT` mag niet gelijk worden gesteld aan gegarandeerde eindkosten; expliciete bron-/CPO-/laadpasdisclaimers blijven vereist. De precieze DTO-namen en serialisatie eerst contracttesten.
 
 ### Regressie-fixtures en praktijkvalidatie
 
@@ -141,3 +141,14 @@ Normatieve bron: https://evroaming.org/wp-content/uploads/2024/11/OCPI-2.2.1-d2.
 
 ## API-compatibiliteitsbesluit (28 oktober 2026)
 De API is nog niet publiek live. **Breaking changes zijn toegestaan** en bestaande Android-clientmodellen kunnen gelijktijdig worden aangepast. Geen legacyvelden, dubbele endpointvarianten of overgangscontracten uitsluitend voor achterwaartse compatibiliteit. Wel expliciete contracttests, consistente tariefstatussen en wijzigingen vastleggen vóór implementatie. Android UX blijft buiten scope van de huidige data-first backendfase.
+
+
+## Afgeronde implementatie en NAS-acceptatie (28 oktober 2026)
+
+- Pure OCPI-evaluator, metadata en authentieke EFL-testvalidatie: PR #74 t/m #78.
+- Locatie-API met `tariffStatus` en `tariffOptions[]`: PR #80, release `3e09acc`.
+- Onafhankelijke Tariffs-feedactualiteit, `MALFORMED`, btw-aanwezigheid en metadata: PR #81, migratie 018.
+- Schrijfrechten collectorcheckpoint: PR #82, migratie 019, release `7a7e942`.
+- NAS-validaties: ontbrekende UB2-referentie locatie 67381; EFL uurprijs locatie 82929; EFL PARKING_TIME locatie 97917; Tariffs checkpoint na succesvolle 304 exact teruggelezen via `/api/v1/data-status`, `tariffsFeedIsStale=false`.
+- Geen internationale tijdzones: vaste `Europe/Amsterdam`; geen API backward-compatibility eis vóór publieke lancering.
+- Issue #66 is gesloten. Monitoring en datakwaliteitsdashboard zijn uitgesteld naar #79; Android-contractintegratie volgt afzonderlijk. Backups zijn op archiefstructuur gevalideerd maar geïsoleerde restore is niet aangetoond.
