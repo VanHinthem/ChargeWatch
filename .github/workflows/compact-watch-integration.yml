@@ -7,6 +7,7 @@ on:
       - 'db/tests/018_watch_http_fixture.py'
       - 'tests/PollCoverageIntegration/**'
       - 'tests/sql/poll_hour_rounding_regression.sql'
+      - 'tests/sql/poll_coverage_candidate_benchmark.sql'
       - '.github/workflows/compact-watch-integration.yml'
   workflow_dispatch:
 
@@ -182,3 +183,5 @@ jobs:
         run: dotnet run --project tests/PollCoverageIntegration/PollCoverageIntegration.csproj
       - name: Verify PostgreSQL interval rounding overflow
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/poll_hour_rounding_regression.sql
+      - name: Benchmark 205k poll candidates (diagnostic, not a performance gate)
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/poll_coverage_candidate_benchmark.sql
