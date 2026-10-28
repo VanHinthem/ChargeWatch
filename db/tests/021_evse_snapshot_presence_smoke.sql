@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 BEGIN;
 -- Historical rows are retained, but must not count as currently visible capacity.
 INSERT INTO charging_location DEFAULT VALUES;
