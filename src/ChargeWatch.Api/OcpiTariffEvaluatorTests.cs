@@ -159,13 +159,12 @@ internal static class OcpiTariffEvaluatorTests
                 });
             }
         }
-        eflElements.Add(new {
-            price_components = new object[] {
+        eflElements.Add(new Dictionary<string, object> {
+            ["price_components"] = new object[] {
                 new { type = "ENERGY", price = 0.529m, step_size = 1 },
                 new { type = "FLAT", price = 0m, step_size = 0 },
                 new { type = "TIME", price = 0m, step_size = 1 }
-            },
-            restrictions = (object?)null
+            }
         });
         using (var eflDocument = JsonDocument.Parse(JsonSerializer.Serialize(
             new { elements = eflElements })))
