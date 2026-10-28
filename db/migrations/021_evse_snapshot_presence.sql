@@ -12,10 +12,10 @@ CREATE INDEX IF NOT EXISTS idx_evse_active_location ON evse(location_id)
 -- stage_present_evse_ids table (unique index on id). Kept as a SQL function to
 -- exercise disappearance, reappearance and replay with isolated DB fixtures.
 CREATE OR REPLACE FUNCTION reconcile_evse_snapshot_presence(p_observed_at timestamptz)
-RETURNS TABLE(present_rows bigint, inactivated_rows bigint)
+RETURNS TABLE(present_rows bigint, missing_rows_processed bigint)
 LANGUAGE plpgsql AS $presence$
 DECLARE n_present bigint;
-DECLARE n_inactivated bigint;
+DECLARE n_missing bigint;
 BEGIN
   UPDATE evse e SET
     is_active=true,
@@ -43,8 +43,8 @@ BEGIN
   WHERE e.location_id=l.id AND l.is_active AND e.is_active
     AND NOT EXISTS (SELECT 1 FROM stage_present_evse_ids seen WHERE seen.id=e.id)
     AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<p_observed_at);
-  GET DIAGNOSTICS n_inactivated=ROW_COUNT;
-  RETURN QUERY SELECT n_present,n_inactivated;
+  GET DIAGNOSTICS n_missing=ROW_COUNT;
+  RETURN QUERY SELECT n_present,n_missing;
 END $presence$;
 GRANT EXECUTE ON FUNCTION reconcile_evse_snapshot_presence(timestamptz) TO chargewatch_import;
 
