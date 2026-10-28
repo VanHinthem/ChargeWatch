@@ -1,3 +1,9 @@
+## Legacy duration-statistieken — cleanup in review (migratie 024)
+
+De oudere bron-timestampgebaseerde duur/statistiekketen wordt niet gebruikt door de actuele compacte snapshot-API. De afzonderlijke collectoraanroepen `ObservationCheckpoints.Capture`, `EvseHourFinalizer.Run` en `LocationHourFinalizer.Run` zijn op de cleanup-branch verwijderd, inclusief zes implementatieklassen. Migratie `024_retire_legacy_duration_statistics` verwijdert negen oude tabellen (ongeveer 130 MB op productie op 28 oktober); de compacte weekprofielen, eigen actieve uuraccumulatoren, `snapshot_poll_checkpoint` en `ndw_snapshot_checkpoint` blijven bestaan. Oude 003–005-migraties blijven als geschiedenis intact.
+
+**Destructieve wijziging:** niet naar NAS uitrollen vóór aparte goedkeuring en verplichte pre-migration-back-up. CI moet zowel migratie-smoke als HTTP 200→304→200, replay/rollback en actuele statistieken valideren. Geen claim dat oude tijdgewogen duurinformatie later nog reconstrueerbaar is. Geen deployment of merge op basis van alleen dit ontwerp.
+
 ## Legacy EVSE poll coverage — cleanup voorbereid (review, niet uitgerold)
 
 De experimentele intervalgebaseerde `evse_poll_hour_coverage` en het bijbehorende `evse_poll_checkpoint` worden niet gelezen door de huidige compacte statistiek-API. De verwerkingsaanroep `SnapshotPollCoverage.Capture` is verwijderd in een afzonderlijke cleanup-branch; migratie `023_retire_legacy_poll_coverage` verwijdert beide tabellen inclusief historie en indexen. **De migratie is destructief**, dus productie vereist expliciete releasegoedkeuring, verplichte pre-migration backup en een aparte geïsoleerde restoreverificatie. Geen NAS-wijzigingen uitgevoerd. De actuele compacte snapshotprofielen, `snapshot_poll_checkpoint`, actieve uuraccumulatoren en huidige API blijven behouden. De PR moet nog CI en review doorlopen voordat merge of deployment kan plaatsvinden.
