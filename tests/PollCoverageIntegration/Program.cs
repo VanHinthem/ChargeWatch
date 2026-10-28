@@ -142,6 +142,14 @@ if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 
     throw new InvalidOperationException("Legacy hour must stay unchanged and unmarked as precise.");
 
 
+// Replaying the same candidate against a legacy row must not convert it or add seconds.
+await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
+await Exec("DROP TABLE poll_eligible, poll_previous;");
+if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 ||
+    await Scalar("SELECT available_seconds FROM evse_poll_hour_coverage") != 1200 ||
+    await Scalar("SELECT count(*) FROM evse_poll_hour_coverage WHERE covered_microseconds IS NULL") != 1)
+    throw new InvalidOperationException("Repeated candidate changed a legacy hour.");
+
 // Split an 800-ms observation across a UTC hour boundary.
 // Each 400-ms slice must be stored precisely even though both legacy second
 // projections legitimately remain zero.
