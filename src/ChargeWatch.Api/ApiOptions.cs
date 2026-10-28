@@ -25,6 +25,7 @@ internal sealed record ApiOptions(string ConnectionString, TimeSpan StaleAfter)
         OcpiTariffPresentation.SelfTest();
         ConnectorTariffContract.SelfTest();
         ExperimentalAvailability.SelfTest();
+        SourceFreshnessHelper.SelfTest();
         // Actual NDW anomalies confirmed in production on 2026-10-28.
         var removedChademo = ConnectorPower.Estimate("AC_1_PHASE", 0, 0, 0);
         Require(removedChademo.Watts is null && removedChademo.Source == "unknown",

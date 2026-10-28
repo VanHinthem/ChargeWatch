@@ -19,7 +19,11 @@ internal sealed record LocationListItem(
     bool IsStale,
     DateTimeOffset? FeedLastObservedAt,
     bool FeedIsStale,
-    double? DistanceMeters);
+    double? DistanceMeters)
+{
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(SourceUpdatedAt);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(SourceUpdatedAt);
+}
 
 internal sealed class LocationDetail
 {
@@ -34,6 +38,8 @@ internal sealed class LocationDetail
     public double? Longitude { get; init; }
     public DateTimeOffset? SourceUpdatedAt { get; init; }
     public required bool IsStale { get; init; }
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(SourceUpdatedAt);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(SourceUpdatedAt);
     public DateTimeOffset? FeedLastObservedAt { get; init; }
     public bool FeedIsStale { get; init; }
     public DateTimeOffset? TariffsFeedLastCheckedAt { get; init; }
@@ -48,6 +54,8 @@ internal sealed class EvseDetail
     public string? ExternalEvseId { get; init; }
     public required string Status { get; init; }
     public DateTimeOffset? SourceUpdatedAt { get; init; }
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(SourceUpdatedAt);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(SourceUpdatedAt);
     public List<ConnectorDetail> Connectors { get; } = [];
 }
 
@@ -226,5 +234,9 @@ internal sealed record MapLocationItem(
     string FeatureId, double Longitude, double Latitude, string Address,
     string? OperatorName, DateTimeOffset? LastUpdated,
     int AvailableCount, int TotalCount,
-    IReadOnlyList<MapConnectorCategory> ConnectorCategories);
+    IReadOnlyList<MapConnectorCategory> ConnectorCategories)
+{
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(LastUpdated);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(LastUpdated);
+}
 internal sealed record MapViewportResult(IReadOnlyList<MapLocationItem> Locations, bool Truncated);
