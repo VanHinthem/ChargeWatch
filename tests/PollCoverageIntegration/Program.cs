@@ -35,7 +35,7 @@ await Exec($"""
     """);
 var at10 = DateTimeOffset.Parse(later);
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 600)
     throw new InvalidOperationException("First 10-minute coverage interval was not 600 seconds.");
 
@@ -46,14 +46,14 @@ await Exec($"""
        WHERE source_name='ndw-locations';
     """);
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 600)
     throw new InvalidOperationException("Replay double counted coverage.");
 
 // Next consecutive feed observation, same status: another 600 seconds.
 await Exec("UPDATE stage_observation SET source_updated_at='2026-10-25 08:19+00';");
 await SnapshotPollCoverage.Capture(db, tx, DateTimeOffset.Parse(latest), nextHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 1200)
     throw new InvalidOperationException("Consecutive poll chain failed to cover 1200 seconds.");
 
@@ -67,7 +67,7 @@ await Exec($"""
 await SnapshotPollCoverage.Capture(db, tx,
     DateTimeOffset.Parse("2026-10-25T08:30:00Z"),
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 1200)
     throw new InvalidOperationException("A status change generated invented continuity.");
 
@@ -107,7 +107,7 @@ for (var i = 1; i < times.Length; i++)
         UPDATE stage_observation SET source_updated_at='{next.AddSeconds(-1):O}';
         """);
     await SnapshotPollCoverage.Capture(db, tx, next, nextSha);
-    await Exec("DROP TABLE poll_eligible, poll_previous;");
+    await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 }
 var roundedCoverage = await Scalar($"""
     SELECT covered_seconds FROM evse_poll_hour_coverage
@@ -135,7 +135,7 @@ await Exec($"""
       source_updated_at='2026-10-25 08:09+00';
     """);
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 ||
     await Scalar("SELECT available_seconds FROM evse_poll_hour_coverage") != 1200 ||
     await Scalar("SELECT count(*) FROM evse_poll_hour_coverage WHERE covered_microseconds IS NULL") != 1)
@@ -144,7 +144,7 @@ if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 
 
 // Replaying the same candidate against a legacy row must not convert it or add seconds.
 await SnapshotPollCoverage.Capture(db, tx, at10, newHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("SELECT covered_seconds FROM evse_poll_hour_coverage") != 3500 ||
     await Scalar("SELECT available_seconds FROM evse_poll_hour_coverage") != 1200 ||
     await Scalar("SELECT count(*) FROM evse_poll_hour_coverage WHERE covered_microseconds IS NULL") != 1)
@@ -165,7 +165,7 @@ await Exec($"""
     """);
 await SnapshotPollCoverage.Capture(db, tx,
     DateTimeOffset.Parse("2026-10-25T09:00:00.400Z"), newHash);
-await Exec("DROP TABLE poll_eligible, poll_previous;");
+await Exec("DROP TABLE poll_proposed, poll_eligible, poll_previous;");
 if (await Scalar("""
     SELECT count(*) FROM evse_poll_hour_coverage
     WHERE covered_microseconds=400000 AND available_microseconds=400000
