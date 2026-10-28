@@ -144,7 +144,7 @@ internal static class OcpiTariffEvaluator
                 previousUnknown = true;
             }
         }
-        return new(result, limitations.OrderBy(x => x).ToArray());
+        return new(result, limitations.OrderBy(x => x).ToArray(), sourceType, typeMatch);
     }
 
     private static bool WithinTopLevelValidity(JsonElement tariff, DateTimeOffset instant, HashSet<string> limitations)
