@@ -169,10 +169,12 @@ internal static class OcpiTariffEvaluator
         {
             if (value.ValueKind != JsonValueKind.Array) return TariffMatch.Unknown;
             var days = value.EnumerateArray().ToArray();
-            if (days.Any(x => x.ValueKind != JsonValueKind.Number || !x.TryGetInt32(out var d) || d is < 1 or > 7))
+            if (days.Any(x => x.ValueKind != JsonValueKind.String ||
+                !Enum.TryParse<DayOfWeek>(x.GetString(), true, out var parsed) ||
+                !string.Equals(x.GetString(), parsed.ToString().ToUpperInvariant(), StringComparison.Ordinal)))
                 return TariffMatch.Unknown;
-            var isoDay = local.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)local.DayOfWeek;
-            return days.Any(x => x.GetInt32() == isoDay) ? TariffMatch.Match : TariffMatch.NoMatch;
+            return days.Any(x => x.GetString() == local.DayOfWeek.ToString().ToUpperInvariant())
+                ? TariffMatch.Match : TariffMatch.NoMatch;
         }
         if (value.ValueKind != JsonValueKind.String) return TariffMatch.Unknown;
         if (property.Name is "start_date" or "end_date")
