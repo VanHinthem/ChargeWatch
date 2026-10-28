@@ -249,20 +249,22 @@ internal static class BulkImporter
                 // historical EVSE rows; three independent missing snapshots plus
                 // at least ten minutes are needed to mark a row inactive.
                 await using var presence = new NpgsqlCommand("""
+                    CREATE TEMP TABLE stage_present_evse_ids ON COMMIT DROP AS
+                    SELECT e.id FROM stage_evse s
+                    JOIN charging_location l
+                      ON l.country_code=s.payload->>'country'
+                     AND l.party_id=s.payload->>'party'
+                     AND l.source_id=s.payload->>'id'
+                    JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
+                    CREATE UNIQUE INDEX ON stage_present_evse_ids(id);
+
                     UPDATE evse e SET
                       is_active=true,
                       last_seen_at=$1,
                       first_missing_at=NULL,
                       consecutive_missing_snapshots=0
-                    FROM charging_location l
-                    WHERE e.location_id=l.id
-                      AND EXISTS (
-                        SELECT 1 FROM stage_evse s
-                        WHERE s.payload->>'country'=l.country_code
-                          AND s.payload->>'party'=l.party_id
-                          AND s.payload->>'id'=l.source_id
-                          AND s.payload->>'uid'=e.source_uid
-                      )
+                    FROM stage_present_evse_ids seen
+                    WHERE seen.id=e.id
                       AND (NOT e.is_active OR e.last_seen_at IS DISTINCT FROM $1
                            OR e.first_missing_at IS NOT NULL
                            OR e.consecutive_missing_snapshots<>0);
@@ -275,13 +277,7 @@ internal static class BulkImporter
                         AND $1-COALESCE(e.first_missing_at,$1)>=interval '10 minutes')
                     FROM charging_location l
                     WHERE e.location_id=l.id AND l.is_active
-                      AND NOT EXISTS (
-                        SELECT 1 FROM stage_evse s
-                        WHERE s.payload->>'country'=l.country_code
-                          AND s.payload->>'party'=l.party_id
-                          AND s.payload->>'id'=l.source_id
-                          AND s.payload->>'uid'=e.source_uid
-                      )
+                      AND NOT EXISTS (SELECT 1 FROM stage_present_evse_ids seen WHERE seen.id=e.id)
                       AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<$1);
                     UPDATE evse SET last_presence_checked_at=$1
                       WHERE last_presence_checked_at IS NULL OR last_presence_checked_at<$1;
