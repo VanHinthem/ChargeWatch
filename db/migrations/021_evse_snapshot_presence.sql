@@ -92,7 +92,7 @@ BEGIN
          THEN pending.poll_count ELSE 0 END
          FROM generate_series(1,9) n ORDER BY n),
     0,pending.poll_count
-  FROM evse e WHERE e.is_active
+  FROM evse e JOIN charging_location l ON l.id=e.location_id AND l.is_active WHERE e.is_active
   ON CONFLICT(evse_id) DO UPDATE SET
     category_counts=ARRAY(
       SELECT evse_snapshot_active_hour.category_counts[n]+excluded.category_counts[n]
@@ -109,7 +109,7 @@ BEGIN
         ('AVAILABLE','CHARGING','BLOCKED','RESERVED','INOPERATIVE','OUTOFORDER','PLANNED','REMOVED')) AS unknown,
       count(e.id) FILTER(WHERE upper(e.status) IN ('INOPERATIVE','OUTOFORDER')) AS defects
     FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
-    GROUP BY l.id
+    WHERE l.is_active GROUP BY l.id
   )
   INSERT INTO location_snapshot_active_hour
    (location_id,hour_start_utc,category_counts,changed_count,unchanged_count,free_evse_sum,active_evse_sum,valid_count_samples,excluded_count_samples)
@@ -134,8 +134,8 @@ BEGIN
   GET DIAGNOSTICS location_rows=ROW_COUNT;
 
   -- Guard against silently skipped mismatched-hour conflict rows.
-  IF evse_rows<>(SELECT count(*) FROM evse WHERE is_active)
-     OR location_rows<>(SELECT count(*) FROM charging_location) THEN
+  IF evse_rows<>(SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active)
+     OR location_rows<>(SELECT count(*) FROM charging_location WHERE is_active) THEN
     RAISE EXCEPTION 'incomplete 304 flush: expected one write per catalog asset';
   END IF;
 
@@ -167,7 +167,7 @@ BEGIN
     WHEN 'RESERVED' THEN 4 WHEN 'INOPERATIVE' THEN 5 WHEN 'OUTOFORDER' THEN 6
     WHEN 'PLANNED' THEN 8 WHEN 'REMOVED' THEN 9 ELSE 7 END
    THEN 1 ELSE 0 END FROM generate_series(1,9) n ORDER BY n),1,0
- FROM evse e WHERE e.is_active
+ FROM evse e JOIN charging_location l ON l.id=e.location_id AND l.is_active WHERE e.is_active
  ON CONFLICT(evse_id) DO UPDATE SET
  category_counts=ARRAY(SELECT evse_snapshot_active_hour.category_counts[n]+excluded.category_counts[n]
  FROM generate_series(1,9) n ORDER BY n),
@@ -181,7 +181,7 @@ BEGIN
  count(e.id) FILTER(WHERE e.id IS NOT NULL AND upper(btrim(coalesce(e.status,''))) NOT IN
  ('AVAILABLE','CHARGING','BLOCKED','RESERVED','INOPERATIVE','OUTOFORDER','PLANNED','REMOVED')) unknown,
  count(e.id) FILTER(WHERE upper(btrim(coalesce(e.status,''))) IN ('INOPERATIVE','OUTOFORDER')) defects
- FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active GROUP BY l.id
+ FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active WHERE l.is_active GROUP BY l.id
  )
  INSERT INTO location_snapshot_active_hour
  (location_id,hour_start_utc,category_counts,changed_count,unchanged_count,free_evse_sum,active_evse_sum,valid_count_samples,excluded_count_samples)
@@ -198,7 +198,7 @@ BEGIN
  excluded_count_samples=location_snapshot_active_hour.excluded_count_samples+excluded.excluded_count_samples
  WHERE location_snapshot_active_hour.hour_start_utc=excluded.hour_start_utc;
  GET DIAGNOSTICS nl=ROW_COUNT;
- IF ne<>(SELECT count(*) FROM evse WHERE is_active) OR nl<>(SELECT count(*) FROM charging_location) THEN
+ IF ne<>(SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active) OR nl<>(SELECT count(*) FROM charging_location WHERE is_active) THEN
  RAISE EXCEPTION 'changed-feed sample missed assets'; END IF;
  RETURN QUERY SELECT ne,nl;
 END $fn$;
