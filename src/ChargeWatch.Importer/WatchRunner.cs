@@ -275,6 +275,12 @@ internal static class WatchRunner
                 LastSuccessfulImportUtc = anyChanged ? DateTimeOffset.UtcNow : state.LastSuccessfulImportUtc
             };
             await SaveState(statePath, newState);
+            if (tariffs is not null)
+            {
+                var importConnection = Environment.GetEnvironmentVariable("CW_IMPORT_CONNECTION")
+                    ?? throw new InvalidOperationException("CW_IMPORT_CONNECTION missing.");
+                await TariffsFeedCheckpoint.Record(importConnection, DateTimeOffset.UtcNow, tariffs.Changed);
+            }
             if (locations?.Changed == true &&
                 Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
                 SnapshotPendingDownloadJournal.Complete(locationsPath);
