@@ -8,6 +8,46 @@ ALTER TABLE evse ADD COLUMN IF NOT EXISTS consecutive_missing_snapshots integer 
     CHECK (consecutive_missing_snapshots >= 0);
 CREATE INDEX IF NOT EXISTS idx_evse_active_location ON evse(location_id)
   WHERE is_active;
+-- Executed only by verified HTTP 200 importer after filling the session-local
+-- stage_present_evse_ids table (unique index on id). Kept as a SQL function to
+-- exercise disappearance, reappearance and replay with isolated DB fixtures.
+CREATE OR REPLACE FUNCTION reconcile_evse_snapshot_presence(p_observed_at timestamptz)
+RETURNS TABLE(present_rows bigint, inactivated_rows bigint)
+LANGUAGE plpgsql AS $presence$
+DECLARE n_present bigint;
+DECLARE n_inactivated bigint;
+BEGIN
+  UPDATE evse e SET
+    is_active=true,
+    last_seen_at=p_observed_at,
+    first_missing_at=NULL,
+    last_presence_checked_at=NULL,
+    consecutive_missing_snapshots=0
+  FROM stage_present_evse_ids seen
+  WHERE seen.id=e.id
+    AND (NOT e.is_active
+         OR e.last_seen_at IS NULL
+         OR e.last_seen_at<p_observed_at-interval '24 hours'
+         OR e.first_missing_at IS NOT NULL
+         OR e.consecutive_missing_snapshots<>0);
+  GET DIAGNOSTICS n_present=ROW_COUNT;
+
+  UPDATE evse e SET
+    first_missing_at=COALESCE(e.first_missing_at,p_observed_at),
+    consecutive_missing_snapshots=e.consecutive_missing_snapshots+1,
+    last_presence_checked_at=p_observed_at,
+    is_active=NOT (
+      e.consecutive_missing_snapshots+1>=3
+      AND p_observed_at-COALESCE(e.first_missing_at,p_observed_at)>=interval '10 minutes')
+  FROM charging_location l
+  WHERE e.location_id=l.id AND l.is_active AND e.is_active
+    AND NOT EXISTS (SELECT 1 FROM stage_present_evse_ids seen WHERE seen.id=e.id)
+    AND (e.last_presence_checked_at IS NULL OR e.last_presence_checked_at<p_observed_at);
+  GET DIAGNOSTICS n_inactivated=ROW_COUNT;
+  RETURN QUERY SELECT n_present,n_inactivated;
+END $presence$;
+GRANT EXECUTE ON FUNCTION reconcile_evse_snapshot_presence(timestamptz) TO chargewatch_import;
+
 INSERT INTO schema_migration(version) VALUES ('021_evse_snapshot_presence') ON CONFLICT DO NOTHING;
 
 -- Reinstall live function definitions from migration 014 with active-only filters.
