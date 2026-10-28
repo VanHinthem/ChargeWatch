@@ -9,6 +9,12 @@ if (args.Length == 1 && args[0] == "--self-test")
     return;
 }
 
+if (args.Length >= 1 && args[0] == "--validate-tariff-file")
+{
+    OcpiRealTariffValidation.Run(args);
+    return;
+}
+
 var apiOptions = ApiOptions.FromEnvironment();
 var builder = WebApplication.CreateBuilder(args);
 

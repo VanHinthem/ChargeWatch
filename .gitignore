@@ -11,3 +11,6 @@ local.properties
 
 # Local NDW feed snapshot analysis (not committed)
 .local/ndw/
+
+# Local, potentially sensitive real OCPI tariff exports
+.local/tariff-validation/
