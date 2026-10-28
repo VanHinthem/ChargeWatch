@@ -51,7 +51,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
                    l.latitude,l.longitude,
-                   count(e.id)::int AS evse_count,
+                   count(e.id) FILTER (WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('REMOVED','PLANNED'))::int AS evse_count,
                    count(e.id) FILTER (WHERE upper(e.status)='AVAILABLE')::int AS available_count,
                    count(e.id) FILTER (WHERE upper(e.status) IN ('CHARGING','BLOCKED','RESERVED'))::int AS occupied_count,
                    count(e.id) FILTER (WHERE upper(e.status) IN ('INOPERATIVE','OUTOFORDER'))::int AS fault_count,
@@ -131,7 +131,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    l.longitude,l.latitude,
                    GREATEST(l.source_last_updated,max(e.source_last_updated)) AS updated_at,
                    count(DISTINCT e.id) FILTER (WHERE upper(e.status)='AVAILABLE')::int AS available_count,
-                   count(DISTINCT e.id)::int AS total_count,
+                   count(DISTINCT e.id) FILTER (WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('REMOVED','PLANNED'))::int AS total_count,
                    COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
                        'available', CASE WHEN upper(e.status)='AVAILABLE' THEN 1 ELSE 0 END,
                        'status',upper(e.status),
@@ -141,7 +141,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                        'powerMax',c.max_electric_power,
                        'maxVoltage',c.max_voltage,
                        'maxAmperage',c.max_amperage
-                   )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
+                   )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL AND upper(btrim(coalesce(e.status,''))) NOT IN ('REMOVED','PLANNED')),'[]'::jsonb)::text AS connectors
             FROM selected l
             LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             LEFT JOIN connector c ON c.evse_id=e.id AND c.is_active
