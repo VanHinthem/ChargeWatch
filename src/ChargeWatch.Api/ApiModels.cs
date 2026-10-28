@@ -38,8 +38,8 @@ internal sealed class LocationDetail
     public double? Longitude { get; init; }
     public DateTimeOffset? SourceUpdatedAt { get; init; }
     public required bool IsStale { get; init; }
-    public long? SourceAgeSeconds => global::SourceFreshness.AgeSeconds(SourceUpdatedAt);
-    public string SourceFreshness => global::SourceFreshness.Classify(SourceUpdatedAt);
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(SourceUpdatedAt);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(SourceUpdatedAt);
     public DateTimeOffset? FeedLastObservedAt { get; init; }
     public bool FeedIsStale { get; init; }
     public DateTimeOffset? TariffsFeedLastCheckedAt { get; init; }
@@ -54,8 +54,8 @@ internal sealed class EvseDetail
     public string? ExternalEvseId { get; init; }
     public required string Status { get; init; }
     public DateTimeOffset? SourceUpdatedAt { get; init; }
-    public long? SourceAgeSeconds => global::SourceFreshness.AgeSeconds(SourceUpdatedAt);
-    public string SourceFreshness => global::SourceFreshness.Classify(SourceUpdatedAt);
+    public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(SourceUpdatedAt);
+    public string SourceFreshness => SourceFreshnessHelper.Classify(SourceUpdatedAt);
     public List<ConnectorDetail> Connectors { get; } = [];
 }
 
