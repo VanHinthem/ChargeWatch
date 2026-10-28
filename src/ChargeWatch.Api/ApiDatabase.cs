@@ -306,7 +306,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        await using (var exists = new NpgsqlCommand("SELECT 1 FROM charging_location WHERE id=$1", connection))
+        await using (var exists = new NpgsqlCommand("SELECT 1 FROM charging_location WHERE id=$1 AND is_active", connection))
         {
             exists.Parameters.AddWithValue(locationId);
             if (await exists.ExecuteScalarAsync() is null) return null;
