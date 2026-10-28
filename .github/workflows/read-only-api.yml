@@ -131,7 +131,7 @@ jobs:
           assert len(viewport['locations'])==1,viewport
           maploc=viewport['locations'][0]
           assert maploc['totalCount']==1 and maploc['availableCount']==1,maploc
-          assert all(category['type']!='CHADEMO' for category in maploc['connectorCategories']),maploc
+          assert all(category['connectorType']!='CHADEMO' for category in maploc['connectorCategories']),maploc
           status=get('data-status')
           assert status['evseCount']==146 and status['connectorCount']==146,status
           print('Active-only API location, detail, viewport and data-status contract passed.')
