@@ -61,10 +61,14 @@ internal static class SnapshotPollCoverage
           GROUP BY evse_id,hour_start_utc
           ON CONFLICT(evse_id,hour_start_utc) DO UPDATE SET
             covered_seconds=evse_poll_hour_coverage.covered_seconds+excluded.covered_seconds,
-            available_seconds=evse_poll_hour_coverage.available_seconds+excluded.available_seconds;
-          -- evse_poll_hour_coverage CHECK (covered_seconds BETWEEN 0 AND 3600)
-          -- now raises 23514 on overflow instead of silently skipping the interval.
-          -- The import transaction rolls back, including provenance/checkpoints.
+            available_seconds=evse_poll_hour_coverage.available_seconds+excluded.available_seconds
+          WHERE evse_poll_hour_coverage.covered_seconds + excluded.covered_seconds <= 3600
+            AND evse_poll_hour_coverage.available_seconds + excluded.available_seconds <= 3600;
+          -- Preserve existing history instead of clipping values to 3600.
+          -- Intervals whose union cannot be proven from the existing aggregate
+          -- are NOT applied when they would overflow the hour. The caller logs
+          -- the number rejected. We still advance the snapshot checkpoint,
+          -- allowing the independent catalog import to commit.
 
           INSERT INTO evse_poll_checkpoint
             (evse_id,observed_at,status_class,source_updated_at,snapshot_sha256)
@@ -85,6 +89,41 @@ internal static class SnapshotPollCoverage
             await using var command = new NpgsqlCommand(statement, db, tx) { CommandTimeout = 600 };
             command.Parameters.AddWithValue(fetchedAt.ToUniversalTime());
             command.Parameters.AddWithValue(sha);
+            if (statement.StartsWith("INSERT INTO evse_poll_hour_coverage", StringComparison.Ordinal))
+            {
+                // Detect attempted increments that would exceed the actual hour.
+                // Existing aggregate counters do not reveal the covered time spans,
+                // so overlapping seconds cannot be deduplicated with confidence.
+                await using var probe = new NpgsqlCommand("""
+                    WITH proposed AS (
+                      SELECT i.evse_id,h.hour_start_utc,
+                             sum(extract(epoch FROM
+                               least(i.end_at,h.hour_start_utc+interval '1 hour')
+                               -greatest(i.start_at,h.hour_start_utc))::integer) AS seconds,
+                             sum(CASE WHEN i.status_class='available' THEN
+                               extract(epoch FROM
+                                 least(i.end_at,h.hour_start_utc+interval '1 hour')
+                                 -greatest(i.start_at,h.hour_start_utc))::integer
+                               ELSE 0 END) AS available_seconds
+                      FROM poll_eligible i
+                      CROSS JOIN LATERAL generate_series(
+                        date_trunc('hour',i.start_at),
+                        date_trunc('hour',i.end_at),interval '1 hour') h(hour_start_utc)
+                      WHERE least(i.end_at,h.hour_start_utc+interval '1 hour')
+                            > greatest(i.start_at,h.hour_start_utc)
+                      GROUP BY i.evse_id,h.hour_start_utc
+                    )
+                    SELECT count(*)
+                    FROM proposed p
+                    JOIN evse_poll_hour_coverage existing USING(evse_id,hour_start_utc)
+                    WHERE existing.covered_seconds+p.seconds>3600
+                       OR existing.available_seconds+p.available_seconds>3600
+                    """, db, tx) { CommandTimeout = 600 };
+                var rejected = (long)(await probe.ExecuteScalarAsync())!;
+                if (rejected > 0)
+                    Console.Error.WriteLine(
+                        $"WARNING: {rejected} overlapping/saturated EVSE-hour coverage increments suppressed; existing history preserved.");
+            }
             await command.ExecuteNonQueryAsync();
         }
     }
