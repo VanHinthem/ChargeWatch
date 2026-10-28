@@ -21,7 +21,7 @@ internal static class OcpiTariffEvaluator
     };
 
     // Context-dependent restrictions are intentionally UNKNOWN until actual session context exists.
-    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone)
+    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone, OcpiSessionContext? session = null)
     {
         var limitations = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<EvaluatedTariffComponent>();
@@ -63,7 +63,7 @@ internal static class OcpiTariffEvaluator
                     t.ValueKind == JsonValueKind.String && t.GetString() == dimension).ToArray();
                 if (matches.Length == 0) continue;
 
-                var match = MatchRestrictions(element, local, limitations);
+                var match = MatchRestrictions(element, local, session, limitations);
                 if (match == TariffMatch.NoMatch) continue;
                 foreach (var component in matches)
                 {
@@ -127,7 +127,7 @@ internal static class OcpiTariffEvaluator
     }
 
     private static TariffMatch MatchRestrictions(JsonElement element, DateTimeOffset? local,
-        HashSet<string> limitations)
+        OcpiSessionContext? session, HashSet<string> limitations)
     {
         if (!element.TryGetProperty("restrictions", out var restrictions)) return TariffMatch.Match;
         if (restrictions.ValueKind != JsonValueKind.Object)
@@ -143,7 +143,10 @@ internal static class OcpiTariffEvaluator
             }
             if (property.Name is not ("start_time" or "end_time" or "start_date" or "end_date" or "day_of_week"))
             {
-                limitations.Add("SESSION_CONTEXT_REQUIRED"); unknown = true; continue;
+                var sessionMatch = OcpiSessionRestrictions.Evaluate(property, session, limitations);
+                if (sessionMatch == TariffMatch.NoMatch) return TariffMatch.NoMatch;
+                if (sessionMatch == TariffMatch.Unknown) unknown = true;
+                continue;
             }
             if (local is null)
             {
