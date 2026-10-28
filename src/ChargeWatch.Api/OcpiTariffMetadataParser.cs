@@ -30,7 +30,7 @@ internal static class OcpiTariffMetadataParser
             warnings.Add("INCONSISTENT_PRICE_BOUNDS");
 
         string? url = null;
-        if (tariff.TryGetProperty("tariff_alt_url", out var urlValue))
+        if (tariff.TryGetProperty("tariff_alt_url", out var urlValue) && urlValue.ValueKind != JsonValueKind.Null)
         {
             if (urlValue.ValueKind == JsonValueKind.String &&
                 Uri.TryCreate(urlValue.GetString(), UriKind.Absolute, out var candidate) &&
@@ -40,7 +40,7 @@ internal static class OcpiTariffMetadataParser
         }
 
         var hasText = false;
-        if (tariff.TryGetProperty("tariff_alt_text", out var altText))
+        if (tariff.TryGetProperty("tariff_alt_text", out var altText) && altText.ValueKind != JsonValueKind.Null)
         {
             if (altText.ValueKind == JsonValueKind.Array)
             {
@@ -60,7 +60,7 @@ internal static class OcpiTariffMetadataParser
 
     private static decimal? ParsePrice(JsonElement tariff, string name, HashSet<string> warnings)
     {
-        if (!tariff.TryGetProperty(name, out var value)) return null;
+        if (!tariff.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
         if (value.ValueKind == JsonValueKind.Object &&
             value.TryGetProperty("excl_vat", out var amount) &&
             amount.ValueKind == JsonValueKind.Number &&
