@@ -36,6 +36,8 @@ internal sealed class LocationDetail
     public required bool IsStale { get; init; }
     public DateTimeOffset? FeedLastObservedAt { get; init; }
     public bool FeedIsStale { get; init; }
+    public DateTimeOffset? TariffsFeedLastCheckedAt { get; init; }
+    public bool TariffsFeedIsStale { get; init; }
     public List<EvseDetail> Evses { get; } = [];
 }
 
@@ -70,13 +72,18 @@ internal sealed class ConnectorDetail
 // One option per actual OCPI connector.tariff_ids reference. Never silently drop missing IDs.
 internal sealed record TariffComponentDto(
     string Dimension, decimal Price, int? StepSize, decimal? VatPercent,
-    int ElementIndex, string Certainty);
+    int ElementIndex, string Certainty)
+{
+    public string VatStatus => VatPercent.HasValue ? "EXPLICIT_RATE" : "NOT_SPECIFIED";
+}
 
 internal sealed record ConnectorTariffOption(
     string CountryCode, string PartyId, string SourceId,
     string Status, string? Currency, DateTimeOffset? SourceUpdatedAt,
     DateTimeOffset? AsOfUtc, IReadOnlyList<TariffComponentDto> Components,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations,
+    decimal? MinimumPrice = null, decimal? MaximumPrice = null,
+    string? AlternativeUrl = null, bool HasAlternativeText = false);
 
 internal static class ConnectorTariffContract
 {
@@ -90,12 +97,14 @@ internal static class ConnectorTariffContract
         var metadata = OcpiTariffMetadataParser.Parse(details);
         var evaluation = OcpiTariffEvaluator.Evaluate(details, asOfUtc, EvaluationZone);
         var limitations = evaluation.Limitations.Concat(metadata.Limitations).Distinct().OrderBy(x => x).ToArray();
-        var status = evaluation.Components.Count == 0 ? "UNAVAILABLE" :
+        var status = evaluation.Components.Count == 0 && limitations.Any(x => x.StartsWith("INVALID_", StringComparison.Ordinal)) ? "MALFORMED" :
+            evaluation.Components.Count == 0 ? "UNAVAILABLE" :
             evaluation.Components.All(x => x.Certainty == TariffCertainty.Applicable) && limitations.Length == 0
                 ? "APPLICABLE" : "CONDITIONAL";
         return new(country, party, id, status, metadata.Currency ?? currency, sourceUpdatedAt,
             asOfUtc, evaluation.Components.Select(x => new TariffComponentDto(x.Dimension, x.Price,
-                x.StepSize, x.VatPercent, x.ElementIndex, x.Certainty.ToString())).ToArray(), limitations);
+                x.StepSize, x.VatPercent, x.ElementIndex, x.Certainty.ToString())).ToArray(), limitations,
+            metadata.MinimumPrice, metadata.MaximumPrice, metadata.AlternativeUrl, metadata.HasAlternativeText);
     }
 
     public static void SelfTest()
@@ -144,6 +153,24 @@ internal static class ConnectorTariffContract
         Require(multiple.TariffStatus == "SOURCE_MISSING" && multiple.TariffOptions.Count == 3,
             "partially unresolved references must not be presented as complete");
 
+        using var malformedJson = JsonDocument.Parse("""{"currency":"EUR","elements":"broken"}""");
+        var malformed = Evaluate("NL", "EFL", "invalid", "EUR", malformedJson.RootElement, null, now);
+        Require(malformed.Status == "MALFORMED" && malformed.Components.Count == 0 &&
+                malformed.Limitations.Contains("INVALID_ELEMENTS"),
+            "malformed source tariff must be distinct from missing source and unavailable time slot");
+
+        using var boundedJson = JsonDocument.Parse("""
+            {"currency":"EUR","min_price":{"excl_vat":0.25},"max_price":{"excl_vat":50.0},
+             "tariff_alt_url":"https://example.org/tariff",
+             "tariff_alt_text":[{"language":"en","text":"Source terms"}],
+             "elements":[{"price_components":[{"type":"ENERGY","price":0.42,"step_size":1}]}]}
+            """);
+        var bounded = Evaluate("NL","EFL","bounded",null,boundedJson.RootElement,null,now);
+        Require(first.Components[0].VatStatus == "NOT_SPECIFIED" &&
+                bounded.MinimumPrice == 0.25m && bounded.MaximumPrice == 50m &&
+                bounded.AlternativeUrl == "https://example.org/tariff" && bounded.HasAlternativeText,
+            "OCPI price bounds and source terms must remain visible in API model");
+
         var json = JsonSerializer.Serialize(multiple,
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         using var parsed = JsonDocument.Parse(json);
@@ -188,7 +215,9 @@ internal sealed record DataStatus(
     long LocationCount,
     long EvseCount,
     long ConnectorCount,
-    long TariffCount);
+    long TariffCount,
+    DateTimeOffset? TariffsFeedLastCheckedAt,
+    bool TariffsFeedIsStale);
 
 internal sealed record MapConnectorCategory(
     int Available, int Total, string? ConnectorType, string? PowerType, int? PowerMax,
