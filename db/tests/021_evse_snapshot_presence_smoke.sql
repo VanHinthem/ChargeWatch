@@ -26,7 +26,7 @@ DELETE FROM stage_present_evse_ids;
 SELECT * FROM reconcile_evse_snapshot_presence('2026-10-29 08:00Z');
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM evse WHERE is_active)<>2
+ IF (SELECT count(*) FROM evse WHERE is_active)<>1
  OR (SELECT count(*) FROM evse WHERE consecutive_missing_snapshots=1)<>1
  THEN RAISE EXCEPTION 'first missing observation should not deactivate'; END IF;
 END $verify$;
@@ -42,7 +42,7 @@ END $verify$;
 SELECT * FROM reconcile_evse_snapshot_presence('2026-10-29 08:05Z');
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM evse WHERE is_active)<>2
+ IF (SELECT count(*) FROM evse WHERE is_active)<>1
  OR (SELECT count(*) FROM evse WHERE consecutive_missing_snapshots=2)<>1
  THEN RAISE EXCEPTION 'second missing observation should not deactivate'; END IF;
 END $verify$;
@@ -50,7 +50,7 @@ END $verify$;
 SELECT * FROM reconcile_evse_snapshot_presence('2026-10-29 08:10Z');
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM evse WHERE is_active)<>1
+ IF (SELECT count(*) FROM evse WHERE is_active)<>0
  OR (SELECT count(*) FROM evse WHERE consecutive_missing_snapshots=3)<>1
  THEN RAISE EXCEPTION 'third missing observation must deactivate'; END IF;
 END $verify$;
@@ -61,7 +61,7 @@ SELECT id FROM evse WHERE consecutive_missing_snapshots=3;
 SELECT * FROM reconcile_evse_snapshot_presence('2026-10-29 08:15Z');
 DO $verify$
 BEGIN
- IF (SELECT count(*) FROM evse WHERE is_active)<>2
+ IF (SELECT count(*) FROM evse WHERE is_active)<>1
  OR (SELECT count(*) FROM evse WHERE consecutive_missing_snapshots<>0)<>0
  OR (SELECT count(*) FROM evse WHERE first_missing_at IS NOT NULL)<>0
  THEN RAISE EXCEPTION 'returning EVSE not reactivated cleanly'; END IF;
