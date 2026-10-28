@@ -39,3 +39,18 @@ Test verschillende UTC-momenten, inclusief overgang naar een ander uur, na afloo
 - Bij ontbrekende EFL-tariefreferenties valideer eerst dat het bronobject bestaat; geen ander vergelijkbaar tarief substitueren.
 
 Dit is een handmatige, read-only verificatiestap: CI kan geen toegang tot de privé-NAS aantonen.
+
+### Offline validatie van parkeerduur (PR #78)
+
+Op de Windows-ontwikkelmachine met de originele export lokaal opgeslagen (geen bronrepository op de NAS nodig):
+
+```powershell
+$tariff = "C:\GITHUB\ChargeWatch\.local\tariff-validation\efl-real.json"
+foreach ($seconds in 3599, 3600) {
+    dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj -- --validate-tariff-file $tariff Europe/Amsterdam 2026-09-03T10:30:00Z "--duration-seconds=$seconds"
+}
+```
+
+`--duration-seconds=N` is optioneel, vereist een niet-negatief geheel aantal seconden en kan na de tijd of na de optionele gevraagde tariff type staan. De diagnostische uitvoer bevat `sessionDurationSeconds`. Verwacht op EFL-tarief #29326: 3599 seconden -> PARKING_TIME 0 uit element 49; 3600 seconden -> PARKING_TIME 6 uit element 50; elk exact één toepasselijke parkeercomponent, zonder `SESSION_CONTEXT_REQUIRED`. De waarde 6 is een **prijscomponent**, geen berekend parkeertotaal. Voor dit tarief is de bron-`step_size` 1. De gedocumenteerde test verandert geen database en toont geen ruwe bronpayload.
+
+Let op: `dotnet run --project` kan de werkdirectory veranderen naar de projectdirectory; gebruik op Windows voor het JSON-bestand een **absoluut pad**.
