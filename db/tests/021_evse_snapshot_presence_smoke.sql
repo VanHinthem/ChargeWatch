@@ -2,6 +2,8 @@
 BEGIN;
 -- The compact-statistics isolated schema intentionally starts minimal.
 ALTER TABLE charging_location ADD COLUMN is_active boolean NOT NULL DEFAULT true;
+INSERT INTO charging_location DEFAULT VALUES;
+UPDATE charging_location SET is_active=false WHERE id=(SELECT max(id) FROM charging_location);
 UPDATE evse SET location_id=(SELECT min(id) FROM charging_location),status='AVAILABLE';
 INSERT INTO evse(location_id,status,is_active)
 SELECT min(id),'AVAILABLE',false FROM charging_location;
