@@ -44,14 +44,10 @@ internal static class SnapshotPollCoverage
             AND s.source_updated_at >= $1::timestamptz - interval '24 hours'
             AND s.source_updated_at <= $1::timestamptz + interval '5 minutes';
 
-          INSERT INTO evse_poll_hour_coverage
-            (evse_id,hour_start_utc,covered_seconds,available_seconds,
-             covered_microseconds,available_microseconds)
+          CREATE TEMP TABLE poll_proposed ON COMMIT DROP AS
           SELECT evse_id,hour_start_utc,
-                 (sum(microseconds)/1000000)::integer,
-                 (sum(CASE WHEN status_class='available' THEN microseconds ELSE 0 END)/1000000)::integer,
-                 sum(microseconds),
-                 sum(CASE WHEN status_class='available' THEN microseconds ELSE 0 END)
+                 sum(microseconds)::bigint AS microseconds,
+                 sum(CASE WHEN status_class='available' THEN microseconds ELSE 0 END)::bigint AS available_microseconds
           FROM (
             SELECT evse_id,status_class,h.hour_start_utc,
                    (extract(epoch FROM
@@ -63,7 +59,16 @@ internal static class SnapshotPollCoverage
               date_trunc('hour',end_at),interval '1 hour') h(hour_start_utc)
           ) intervals
           WHERE microseconds>0
-          GROUP BY evse_id,hour_start_utc
+          GROUP BY evse_id,hour_start_utc;
+
+          INSERT INTO evse_poll_hour_coverage
+            (evse_id,hour_start_utc,covered_seconds,available_seconds,
+             covered_microseconds,available_microseconds)
+          SELECT evse_id,hour_start_utc,
+                 (microseconds/1000000)::integer,
+                 (available_microseconds/1000000)::integer,
+                 microseconds,available_microseconds
+          FROM poll_proposed
           ON CONFLICT(evse_id,hour_start_utc) DO UPDATE SET
             covered_microseconds=evse_poll_hour_coverage.covered_microseconds+excluded.covered_microseconds,
             available_microseconds=evse_poll_hour_coverage.available_microseconds+excluded.available_microseconds,
@@ -99,24 +104,11 @@ internal static class SnapshotPollCoverage
                 // Existing aggregate counters do not reveal the covered time spans,
                 // so overlapping seconds cannot be deduplicated with confidence.
                 await using var probe = new NpgsqlCommand("""
-                    WITH proposed AS (
-                      SELECT i.evse_id,h.hour_start_utc,
-                             sum((extract(epoch FROM
-                               least(i.end_at,h.hour_start_utc+interval '1 hour')
-                               -greatest(i.start_at,h.hour_start_utc))*1000000)::bigint) AS microseconds
-                      FROM poll_eligible i
-                      CROSS JOIN LATERAL generate_series(
-                        date_trunc('hour',i.start_at),
-                        date_trunc('hour',i.end_at),interval '1 hour') h(hour_start_utc)
-                      WHERE least(i.end_at,h.hour_start_utc+interval '1 hour')
-                            > greatest(i.start_at,h.hour_start_utc)
-                      GROUP BY i.evse_id,h.hour_start_utc
-                    )
                     SELECT
                       count(*) FILTER(WHERE existing.covered_microseconds IS NULL) AS legacy_rows,
                       count(*) FILTER(WHERE existing.covered_microseconds IS NOT NULL
                         AND existing.covered_microseconds+p.microseconds>3600000000) AS overflows
-                    FROM proposed p
+                    FROM poll_proposed p
                     JOIN evse_poll_hour_coverage existing USING(evse_id,hour_start_utc)
                     """, db, tx) { CommandTimeout = 600 };
                 await using var reader = await probe.ExecuteReaderAsync();
