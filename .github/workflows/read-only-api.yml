@@ -88,6 +88,18 @@ jobs:
           INSERT INTO connector(evse_id,source_id,standard,is_active)
           SELECT id,'HISTORIC-CONNECTOR','IEC_62196_T2',false
           FROM evse WHERE source_uid='VISIBLE' AND location_id=(SELECT id FROM charging_location WHERE source_id='PRESENCE');
+          -- 144 REMOVED EVSEs plus one PLANNED EVSE: none may inflate
+          -- operational counts, connector categories or available capacity.
+          INSERT INTO evse(location_id,source_uid,status,is_active)
+          SELECT id,'REMOVED-'||n,'REMOVED',true
+          FROM charging_location CROSS JOIN generate_series(1,144) n
+          WHERE source_id='PRESENCE';
+          INSERT INTO evse(location_id,source_uid,status,is_active)
+          SELECT id,'PLANNED','PLANNED',true
+          FROM charging_location WHERE source_id='PRESENCE';
+          INSERT INTO connector(evse_id,source_id,standard,is_active)
+          SELECT id,'non-operational-'||source_uid,'CHADEMO',true
+          FROM evse WHERE source_uid LIKE 'REMOVED-%' OR source_uid='PLANNED';
           SQL
           export CW_API_CONNECTION="Host=localhost;Port=5432;Username=chargewatch_read;Password=read-test-only;Database=chargewatch"
           ASPNETCORE_URLS=http://127.0.0.1:5089 dotnet run --project src/ChargeWatch.Api --configuration Release --no-launch-profile > /tmp/cw-api-presence.log 2>&1 &
@@ -109,13 +121,18 @@ jobs:
           loc=locations[0]
           assert loc['evseCount']==1 and loc['availableCount']==1,loc
           details=get('locations/'+str(loc['id']))
-          assert len(details['evses'])==1,details
-          assert details['evses'][0]['sourceUid']=='VISIBLE',details
-          assert len(details['evses'][0]['connectors'])==1,details
+          assert len(details['evses'])==146, len(details['evses'])
+          assert sum(e['status']=='REMOVED' for e in details['evses'])==144
+          assert sum(e['status']=='PLANNED' for e in details['evses'])==1
+          visible=next(e for e in details['evses'] if e['sourceUid']=='VISIBLE')
+          assert len(visible['connectors'])==1,visible
+          assert any(e['status']=='REMOVED' and e['connectors'] for e in details['evses'])
           viewport=get('map/viewport?bbox=5.3,51.6,5.8,51.9')
           assert len(viewport['locations'])==1,viewport
-          assert viewport['locations'][0]['totalCount']==1,viewport
+          maploc=viewport['locations'][0]
+          assert maploc['totalCount']==1 and maploc['availableCount']==1,maploc
+          assert all(category['connectorType']!='CHADEMO' for category in maploc['connectorCategories']) if 'connectorCategories' in maploc else True
           status=get('data-status')
-          assert status['evseCount']==1 and status['connectorCount']==1,status
+          assert status['evseCount']==146 and status['connectorCount']==146,status
           print('Active-only API location, detail, viewport and data-status contract passed.')
           PY
