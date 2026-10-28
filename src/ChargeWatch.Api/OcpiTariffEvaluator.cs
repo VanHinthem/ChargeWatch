@@ -21,7 +21,7 @@ internal static class OcpiTariffEvaluator
     };
 
     // Context-dependent restrictions are intentionally UNKNOWN until actual session context exists.
-    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone)
+    public static EvaluatedTariff Evaluate(JsonElement tariff, DateTimeOffset asOfUtc, string? locationTimeZone, OcpiSessionContext? session = null)
     {
         var limitations = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<EvaluatedTariffComponent>();
@@ -63,7 +63,7 @@ internal static class OcpiTariffEvaluator
                     t.ValueKind == JsonValueKind.String && t.GetString() == dimension).ToArray();
                 if (matches.Length == 0) continue;
 
-                var match = MatchRestrictions(element, local, limitations);
+                var match = MatchRestrictions(element, local, session, limitations);
                 if (match == TariffMatch.NoMatch) continue;
                 foreach (var component in matches)
                 {
@@ -127,7 +127,7 @@ internal static class OcpiTariffEvaluator
     }
 
     private static TariffMatch MatchRestrictions(JsonElement element, DateTimeOffset? local,
-        HashSet<string> limitations)
+        OcpiSessionContext? session, HashSet<string> limitations)
     {
         if (!element.TryGetProperty("restrictions", out var restrictions)) return TariffMatch.Match;
         if (restrictions.ValueKind != JsonValueKind.Object)
@@ -143,7 +143,10 @@ internal static class OcpiTariffEvaluator
             }
             if (property.Name is not ("start_time" or "end_time" or "start_date" or "end_date" or "day_of_week"))
             {
-                limitations.Add("SESSION_CONTEXT_REQUIRED"); unknown = true; continue;
+                var sessionMatch = OcpiSessionRestrictions.Evaluate(property, session, limitations);
+                if (sessionMatch == TariffMatch.NoMatch) return TariffMatch.NoMatch;
+                if (sessionMatch == TariffMatch.Unknown) unknown = true;
+                continue;
             }
             if (local is null)
             {
@@ -166,10 +169,12 @@ internal static class OcpiTariffEvaluator
         {
             if (value.ValueKind != JsonValueKind.Array) return TariffMatch.Unknown;
             var days = value.EnumerateArray().ToArray();
-            if (days.Any(x => x.ValueKind != JsonValueKind.Number || !x.TryGetInt32(out var d) || d is < 1 or > 7))
+            if (days.Any(x => x.ValueKind != JsonValueKind.String ||
+                !Enum.TryParse<DayOfWeek>(x.GetString(), true, out var parsed) ||
+                !string.Equals(x.GetString(), parsed.ToString().ToUpperInvariant(), StringComparison.Ordinal)))
                 return TariffMatch.Unknown;
-            var isoDay = local.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)local.DayOfWeek;
-            return days.Any(x => x.GetInt32() == isoDay) ? TariffMatch.Match : TariffMatch.NoMatch;
+            return days.Any(x => x.GetString() == local.DayOfWeek.ToString().ToUpperInvariant())
+                ? TariffMatch.Match : TariffMatch.NoMatch;
         }
         if (value.ValueKind != JsonValueKind.String) return TariffMatch.Unknown;
         if (property.Name is "start_date" or "end_date")
