@@ -212,6 +212,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await connection.OpenAsync();
 
         var feedObservedAt = await GetFeedLastObservedAt(connection);
+        var tariffsCheckedAt = await GetTariffsFeedLastCheckedAt(connection);
         LocationDetail? location;
         await using (var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
@@ -230,7 +231,8 @@ internal sealed class ApiDatabase(ApiOptions options)
                 SourceId=reader.GetString(3), Address=reader.GetString(4), City=reader.GetString(5),
                 OperatorName=NullableString(reader,6), Latitude=NullableDouble(reader,7), Longitude=NullableDouble(reader,8),
                 SourceUpdatedAt=updated, IsStale=IsStale(updated),
-                FeedLastObservedAt=feedObservedAt, FeedIsStale=IsStale(feedObservedAt)
+                FeedLastObservedAt=feedObservedAt, FeedIsStale=IsStale(feedObservedAt),
+                TariffsFeedLastCheckedAt=tariffsCheckedAt, TariffsFeedIsStale=IsTariffsFeedStale(tariffsCheckedAt)
             };
         }
 
@@ -356,7 +358,8 @@ internal sealed class ApiDatabase(ApiOptions options)
                    (SELECT count(*) FROM charging_location WHERE is_active),
                    (SELECT count(*) FROM evse),
                    (SELECT count(*) FROM connector),
-                   (SELECT count(*) FROM tariff)
+                   (SELECT count(*) FROM tariff),
+                   (SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs')
             """, connection);
         await using var reader = await command.ExecuteReaderAsync();
         await reader.ReadAsync();
@@ -364,7 +367,8 @@ internal sealed class ApiDatabase(ApiOptions options)
         var observed = NullableTimestamp(reader,1);
         var age = observed is null ? (double?)null : (DateTimeOffset.UtcNow-observed.Value).TotalSeconds;
         return new DataStatus(completed,observed,age,IsStale(observed),(int)_staleAfter.TotalMinutes,
-            reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5));
+            reader.GetInt64(2),reader.GetInt64(3),reader.GetInt64(4),reader.GetInt64(5),
+            NullableTimestamp(reader,6),IsTariffsFeedStale(NullableTimestamp(reader,6)));
     }
 
     private void AppendSlots(List<AvailabilitySlot> target, NpgsqlDataReader reader, int categoryCount, int offset=0, bool includeCounts=false)
@@ -398,6 +402,18 @@ internal sealed class ApiDatabase(ApiOptions options)
                 includeCounts ? countSamples![hour] : null,
                 includeCounts ? excludedSamples![hour] : null));
         }
+    }
+
+    // Tariffs are polled hourly by default, unlike Locations (every five minutes).
+    private static bool IsTariffsFeedStale(DateTimeOffset? lastCheck) =>
+        lastCheck is null || DateTimeOffset.UtcNow - lastCheck.Value > TimeSpan.FromHours(2);
+
+    private static async Task<DateTimeOffset?> GetTariffsFeedLastCheckedAt(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs'", connection);
+        var value = await command.ExecuteScalarAsync();
+        return value is null or DBNull ? null : (DateTimeOffset)value;
     }
 
     private static async Task<DateTimeOffset?> GetFeedLastObservedAt(NpgsqlConnection connection)
