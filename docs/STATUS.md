@@ -1,3 +1,7 @@
+## Pending review — issue #73 EVSE presence
+
+Branch feature/evse-snapshot-presence adds migration 021 and guarded transactional EVSE presence reconciliation, active-only API queries and filtered new statistics. Not merged/deployed. CI and performance review pending. See [design](EVSE_SNAPSHOT_PRESENCE_DESIGN.md).
+
 # ChargeWatch — actuele status (26 oktober 2026)
 
 ## Issue #56 — vrije-EVSE-gemiddelden: productie gevalideerd
