@@ -97,7 +97,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE chargewatch_import;
           CREATE ROLE chargewatch_read;
-          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,is_active boolean NOT NULL DEFAULT true);
           CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, location_id bigint REFERENCES charging_location(id),status text);
           CREATE TABLE ndw_snapshot_checkpoint(source_name text PRIMARY KEY, source_sha256 text NOT NULL);
           CREATE TABLE schema_migration(version text PRIMARY KEY);
