@@ -61,7 +61,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    CASE WHEN $7::double precision IS NULL OR l.position IS NULL THEN NULL
                         ELSE ST_Distance(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography) END AS distance_meters
             FROM charging_location l
-            LEFT JOIN evse e ON e.location_id=l.id
+            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             WHERE l.is_active
               AND ($1::text IS NULL OR l.address ILIKE '%'||$1||'%' OR l.city ILIKE '%'||$1||'%'
                    OR coalesce(l.operator_name,'') ILIKE '%'||$1||'%')
@@ -143,7 +143,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                        'maxAmperage',c.max_amperage
                    )) FILTER (WHERE e.id IS NOT NULL AND c.id IS NOT NULL),'[]'::jsonb)::text AS connectors
             FROM selected l
-            LEFT JOIN evse e ON e.location_id=l.id
+            LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             LEFT JOIN connector c ON c.evse_id=e.id
             GROUP BY l.id,l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
                      l.longitude,l.latitude,l.source_last_updated
@@ -217,7 +217,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using (var command = new NpgsqlCommand("""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
                    l.latitude,l.longitude,GREATEST(l.source_last_updated,max(e.source_last_updated))
-            FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id
+            FROM charging_location l LEFT JOIN evse e ON e.location_id=l.id AND e.is_active
             WHERE l.id=$1 AND l.is_active GROUP BY l.id
             """, connection))
         {
@@ -249,7 +249,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             LEFT JOIN tariff t ON t.country_code=ct.tariff_country_code
                               AND t.party_id=ct.tariff_party_id
                               AND t.source_id=ct.tariff_source_id
-            WHERE e.location_id=$1
+            WHERE e.location_id=$1 AND e.is_active
             ORDER BY e.id,c.id,ct.tariff_country_code,ct.tariff_party_id,ct.tariff_source_id
             """, connection);
         details.Parameters.AddWithValue(id);
@@ -306,7 +306,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        await using (var exists = new NpgsqlCommand("SELECT 1 FROM charging_location WHERE id=$1", connection))
+        await using (var exists = new NpgsqlCommand("SELECT 1 FROM charging_location WHERE id=$1 AND is_active", connection))
         {
             exists.Parameters.AddWithValue(locationId);
             if (await exists.ExecuteScalarAsync() is null) return null;
@@ -330,7 +330,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             SELECT p.evse_id,p.iso_weekday,p.category_ewma,p.sample_count,p.changed_feed_count,
                    p.unchanged_feed_count,p.last_sample_at
             FROM evse_snapshot_weekday_profile p
-            JOIN evse e ON e.id=p.evse_id
+            JOIN evse e ON e.id=p.evse_id AND e.is_active
             WHERE e.location_id=$1 ORDER BY p.evse_id,p.iso_weekday
             """, connection))
         {
@@ -356,8 +356,8 @@ internal sealed class ApiDatabase(ApiOptions options)
             SELECT (SELECT max(completed_at) FROM import_run WHERE status='completed'),
                    (SELECT max(last_observed_at) FROM snapshot_poll_checkpoint),
                    (SELECT count(*) FROM charging_location WHERE is_active),
-                   (SELECT count(*) FROM evse),
-                   (SELECT count(*) FROM connector),
+                   (SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
+                   (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
                    (SELECT count(*) FROM tariff),
                    (SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs')
             """, connection);

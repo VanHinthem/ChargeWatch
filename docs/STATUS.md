@@ -1,3 +1,7 @@
+## Issue #73 — EVSE-aanwezigheid: PR #84 gereed voor squash-merge (28 oktober 2026)
+
+PR [#84](https://github.com/VanHinthem/ChargeWatch/pull/84) voegt migratie `021_evse_snapshot_presence` toe: transactionele reconciliatie na gevalideerde HTTP 200-locatiesnapshots, behoud van historische EVSE-records, actuele EVSE/connectorfilters in de API en filtering van nieuwe compacte statistiekwaarnemingen. De tests op commit `88220d86` waren groen: PostgreSQL, Watch HTTP 200/304, read-only API, landelijke importbenchmark en NAS Images. Benchmark: 80.777 locaties / 203.114 EVSE's, complete gevalideerde HTTP 200-import inclusief compacte statistieken 25 seconden in geïsoleerde CI (geen NAS-meting). **Nog niet gemerged of gedeployed op moment van deze statusupdate**; merge alleen met expliciet akkoord, NAS-uitrol apart. Connector-aanwezigheid binnen een actieve EVSE blijft onderdeel van de integrale audit #73. Zie [ontwerp](EVSE_SNAPSHOT_PRESENCE_DESIGN.md).
+
 # ChargeWatch — actuele status (26 oktober 2026)
 
 ## Issue #56 — vrije-EVSE-gemiddelden: productie gevalideerd

@@ -9,6 +9,8 @@ on:
       - 'db/migrations/012_snapshot_unchanged_flush.sql'
       - 'db/migrations/013_snapshot_changed_hour.sql'
       - 'db/migrations/014_location_free_evse_ewma.sql'
+      - 'db/migrations/021_evse_snapshot_presence.sql'
+      - 'db/tests/021_evse_snapshot_presence_smoke.sql'
       - 'db/migrate.sh'
       - 'docker-compose.yml'
       - 'db/tests/019_location_free_evse_ewma_smoke.sql'
@@ -95,7 +97,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE chargewatch_import;
           CREATE ROLE chargewatch_read;
-          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+          CREATE TABLE charging_location(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,is_active boolean NOT NULL DEFAULT true);
           CREATE TABLE evse(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, location_id bigint REFERENCES charging_location(id),status text);
           CREATE TABLE ndw_snapshot_checkpoint(source_name text PRIMARY KEY, source_sha256 text NOT NULL);
           CREATE TABLE schema_migration(version text PRIMARY KEY);
@@ -119,6 +121,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -1 -f db/migrations/014_location_free_evse_ewma.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/019_location_free_evse_ewma_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/020_location_free_evse_304_capacity.sql
+          psql -v ON_ERROR_STOP=1 -1 -f db/migrations/021_evse_snapshot_presence.sql
+          psql -v ON_ERROR_STOP=1 -f db/tests/021_evse_snapshot_presence_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/014_snapshot_transition_rollback_smoke.sql
           psql -v ON_ERROR_STOP=1 -f db/tests/017_poll_replay_guard.sql
       - name: Verify migration runner skip, serialization and rollback

@@ -170,6 +170,17 @@ internal static class BulkImporter
                     throw new InvalidDataException(
                         $"Suspicious Locations snapshot shrinkage: {locCount} versus {activeBefore} active. Reconciliation refused.");
             }
+            // A partial EVSE feed can silently remove capacity even when location count is stable.
+            // Require both national count guards before touching any presence state.
+            if (verifiedLocationsFetchedAtUtc is not null)
+            {
+                await using var evseBaseline = new NpgsqlCommand(
+                    "SELECT evse_count FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'", db, tx);
+                var before = await evseBaseline.ExecuteScalarAsync();
+                if (before is long previousEvses && previousEvses >= 10000 && evseCount < previousEvses * 0.90)
+                    throw new InvalidDataException(
+                        $"Suspicious EVSE snapshot shrinkage: {evseCount} versus {previousEvses}. Reconciliation refused.");
+            }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
                 INSERT INTO charging_location(country_code,party_id,source_id,address,city,operator_name,latitude,longitude,position,source_last_updated,is_active,source_data)
@@ -232,6 +243,26 @@ internal static class BulkImporter
                 WHERE (evse.external_evse_id,evse.status,evse.source_last_updated,evse.source_data)
                     IS DISTINCT FROM (excluded.external_evse_id,excluded.status,excluded.source_last_updated,excluded.source_data);
                 """);
+            if (verifiedLocationsFetchedAtUtc is { } presenceAt)
+            {
+                // One complete verified HTTP 200 is one presence observation. Keep
+                // historical EVSE rows; three independent missing snapshots plus
+                // at least ten minutes are needed to mark a row inactive.
+                await Exec(db, tx, """
+                    CREATE TEMP TABLE stage_present_evse_ids ON COMMIT DROP AS
+                    SELECT e.id FROM stage_evse s
+                    JOIN charging_location l
+                      ON l.country_code=s.payload->>'country'
+                     AND l.party_id=s.payload->>'party'
+                     AND l.source_id=s.payload->>'id'
+                    JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
+                    CREATE UNIQUE INDEX ON stage_present_evse_ids(id);
+                    """);
+                await using var presence = new NpgsqlCommand(
+                    "SELECT * FROM reconcile_evse_snapshot_presence($1)", db, tx) { CommandTimeout = 600 };
+                presence.Parameters.AddWithValue(presenceAt.ToUniversalTime());
+                await presence.ExecuteNonQueryAsync();
+            }
             await Exec(db, tx, """
                 INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,source_data,format,max_voltage,max_amperage)
                 SELECT e.id,s.payload->>'connectorId',s.payload->'data'->>'standard',
