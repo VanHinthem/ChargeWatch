@@ -357,7 +357,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    (SELECT max(last_observed_at) FROM snapshot_poll_checkpoint),
                    (SELECT count(*) FROM charging_location WHERE is_active),
                    (SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active AND c.is_active),
-                   (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
+                   (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active AND c.is_active),
                    (SELECT count(*) FROM tariff),
                    (SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs')
             """, connection);
