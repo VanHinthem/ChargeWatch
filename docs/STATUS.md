@@ -1,3 +1,11 @@
+## Tariff API — source tariff type voor Android-diagnostiek (29 oktober 2026)
+
+Android PR #61 liet bij een Vattenfall-locatie zien dat `TARIFF_TYPE_SELECTION_REQUIRED` wel als limitation beschikbaar was, maar het onderliggende OCPI `Tariff.type` niet in het API-contract stond. Daardoor kon de client niet uitleggen welk bronprofiel de conditional status veroorzaakte.
+
+Deze companion-wijziging exposeert daarom `sourceTariffType` per `tariffOptions[]`. Dit is uitsluitend bron-/diagnostiekcontext; de API kiest nog steeds geen profiel namens de gebruiker en verandert geen prijsselectie. `TARIFF_TYPE_SELECTION_REQUIRED` blijft gelden zolang geen expliciet profiel geselecteerd wordt.
+
+Geen database-, collector- of migratiewijziging. Voor merge zijn API self-test/CI en review vereist; deployment blijft apart.
+
 ## Data-audit — implementatie afgerond, productievalidatie connectorfix nog apart (29 oktober 2026)
 
 **Vast databeleid:** NDW/OCPI is de primaire bron van waarheid. ChargeWatch behoudt brondata, identiteiten en relaties zo veel mogelijk en toont alle betrouwbare informatie die beschikbaar is. Lokale bronfouten worden op het kleinst veilige entiteitsniveau geïsoleerd; één foutief record mag geldige landelijke updates niet blokkeren. Onbekende, afwezige of bewaarde data wordt niet als nul, vrij of gegarandeerd actueel voorgesteld. Dit beleid staat in [PRODUCT](PRODUCT.md) en [ARCHITECTURE](ARCHITECTURE.md).
