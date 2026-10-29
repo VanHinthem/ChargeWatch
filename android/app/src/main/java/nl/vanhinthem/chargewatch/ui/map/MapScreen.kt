@@ -1147,7 +1147,7 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     paint.textSize = if (label.length > 4) 30f else 35f
     canvas.drawText(label, 64f, 76f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 103f, 27f)
+    if (isFavorite) drawFavoriteBadge(canvas, 104f, 26f)
     return bitmap
 }
 
@@ -1190,7 +1190,7 @@ private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boo
     paint.textSize = if (label.length > 4) 31f else 37f
     canvas.drawText(label, 75f, 89f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 122f, 29f)
+    if (isFavorite) drawFavoriteBadge(canvas, 124f, 29f)
     return bitmap
 }
 
@@ -1199,19 +1199,19 @@ private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
 
     // Slight shadow so the yellow badge stays readable over both light and dark map tiles.
     paint.color = Color.argb(50, 0, 0, 0)
-    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 17.5f, paint)
+    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 19f, paint)
 
     paint.color = Color.parseColor("#F3AF25")
-    canvas.drawCircle(centerX, centerY, 16.5f, paint)
+    canvas.drawCircle(centerX, centerY, 18f, paint)
 
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = 1.5f
     paint.color = Color.argb(150, 38, 49, 58)
-    canvas.drawCircle(centerX, centerY, 16f, paint)
+    canvas.drawCircle(centerX, centerY, 17.5f, paint)
 
     val star = Path()
-    val outerRadius = 9.8
-    val innerRadius = 4.5
+    val outerRadius = 10.8
+    val innerRadius = 5.0
     for (i in 0 until 10) {
         val radius = if (i % 2 == 0) outerRadius else innerRadius
         val angle = -PI / 2 + i * PI / 5
