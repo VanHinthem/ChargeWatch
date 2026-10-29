@@ -249,6 +249,7 @@ internal sealed class ApiDatabase(ApiOptions options)
             LEFT JOIN tariff t ON t.country_code=ct.tariff_country_code
                               AND t.party_id=ct.tariff_party_id
                               AND t.source_id=ct.tariff_source_id
+                              AND t.is_active
             WHERE e.location_id=$1 AND e.is_active
             ORDER BY e.id,c.id,ct.tariff_country_code,ct.tariff_party_id,ct.tariff_source_id
             """, connection);
@@ -358,7 +359,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    (SELECT count(*) FROM charging_location WHERE is_active),
                    (SELECT count(*) FROM evse e JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active),
                    (SELECT count(*) FROM connector c JOIN evse e ON e.id=c.evse_id JOIN charging_location l ON l.id=e.location_id WHERE e.is_active AND l.is_active AND c.is_active),
-                   (SELECT count(*) FROM tariff),
+                   (SELECT count(*) FROM tariff WHERE is_active),
                    (SELECT last_successful_check_at FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs')
             """, connection);
         await using var reader = await command.ExecuteReaderAsync();
