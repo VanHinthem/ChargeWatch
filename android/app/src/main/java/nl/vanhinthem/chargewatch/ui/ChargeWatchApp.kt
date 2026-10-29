@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -39,9 +40,13 @@ import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
 import nl.vanhinthem.chargewatch.data.favorites.favoritesNeedingFetch
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.settings.ChargeWatchDataStatus
+import nl.vanhinthem.chargewatch.data.settings.SettingsDataClient
+import nl.vanhinthem.chargewatch.data.settings.SettingsDataResult
 import nl.vanhinthem.chargewatch.ui.favorites.FavoritesScreen
 import nl.vanhinthem.chargewatch.ui.map.MapScreen
 import nl.vanhinthem.chargewatch.ui.map.LocationSelectionSheet
+import nl.vanhinthem.chargewatch.ui.settings.SettingsScreen
 
 @Composable
 fun ChargeWatchApp() {
@@ -66,6 +71,11 @@ fun ChargeWatchApp() {
     var detailOpen by remember { mutableStateOf(false) }
     var favoriteDetail by remember { mutableStateOf<MapLocation?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val settingsClient = remember { SettingsDataClient() }
+    var settingsData by remember { mutableStateOf<ChargeWatchDataStatus?>(null) }
+    var settingsLoading by remember { mutableStateOf(false) }
+    var settingsError by remember { mutableStateOf<String?>(null) }
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
@@ -126,6 +136,22 @@ fun ChargeWatchApp() {
             refreshing = false
         }
     }
+
+    suspend fun refreshSettings() {
+        if (settingsLoading) return
+        settingsLoading = true
+        settingsError = null
+        try {
+            when (val result = settingsClient.load()) {
+                is SettingsDataResult.Success -> settingsData = result.status
+                is SettingsDataResult.Failure -> settingsError = result.message
+            }
+        } catch (_: Exception) {
+            settingsError = "Data-status kon niet worden opgehaald."
+        } finally {
+            settingsLoading = false
+        }
+    }
     LaunchedEffect(selectedTab) {
         while (selectedTab == 1) {
             delay(60_000)
@@ -134,6 +160,9 @@ fun ChargeWatchApp() {
     }
     LaunchedEffect(selectedTab, favorites.map { it.featureId }) {
         if (selectedTab == 1 && favorites.isNotEmpty()) refresh()
+    }
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 2) refreshSettings()
     }
 
 
@@ -144,13 +173,11 @@ fun ChargeWatchApp() {
                 MapScreen(
                     viewModel = mapViewModel,
                     darkTheme = useDarkTheme,
-                    themeChoice = themeChoice,
-                    onThemeChoice = selectTheme,
                     onDetailVisibilityChanged = { detailOpen = it },
                     favorites = favorites,
                     onToggleFavorite = { location -> scope.launch { repository.toggle(location) } }
                 )
-            } else {
+            } else if (selectedTab == 1) {
                 FavoritesScreen(
                     favorites = favorites,
                     availability = statusView,
@@ -195,6 +222,15 @@ fun ChargeWatchApp() {
                         }
                     }
                 )
+            } else {
+                SettingsScreen(
+                    themeChoice = themeChoice,
+                    onThemeChoice = selectTheme,
+                    dataStatus = settingsData,
+                    loading = settingsLoading,
+                    error = settingsError,
+                    onRefresh = { scope.launch { refreshSettings() } }
+                )
             }
 
             favoriteDetail?.let { location ->
@@ -229,6 +265,12 @@ fun ChargeWatchApp() {
                 onClick = { selectedTab = 1 },
                 icon = { Icon(Icons.Default.Star, contentDescription = null) },
                 label = { Text("Favorieten") }
+            )
+            NavigationBarItem(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                label = { Text("Instellingen") }
             )
         }
     }
