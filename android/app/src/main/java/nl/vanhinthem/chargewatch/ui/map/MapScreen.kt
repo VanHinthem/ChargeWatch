@@ -12,6 +12,7 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,14 +69,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
 import java.time.LocalDate
@@ -88,12 +95,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
+import nl.vanhinthem.chargewatch.data.search.SearchLocation
+import nl.vanhinthem.chargewatch.data.search.SearchResult
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.NdwAvailability
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
@@ -121,9 +132,58 @@ fun MapScreen(
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val searchClient = remember { LocationSearchClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
+    var searchLoading by remember { mutableStateOf(false) }
+    var searchMessage by remember { mutableStateOf<String?>(null) }
+    var searchTarget by remember { mutableStateOf<SearchLocation?>(null) }
+    var pendingSearchFeatureId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(searchQuery) {
+        val query = searchQuery.trim()
+        if (query.length < 2) {
+            searchResults = emptyList()
+            searchMessage = null
+            searchLoading = false
+            return@LaunchedEffect
+        }
+
+        delay(350)
+        searchLoading = true
+        searchMessage = null
+        when (val result = searchClient.search(query)) {
+            is SearchResult.Success -> {
+                searchResults = result.locations
+                searchMessage = if (result.locations.isEmpty()) "Geen laadlocaties gevonden." else null
+            }
+            is SearchResult.Failure -> {
+                searchResults = emptyList()
+                searchMessage = result.message
+            }
+        }
+        searchLoading = false
+    }
+
+    LaunchedEffect(state.locations, pendingSearchFeatureId) {
+        val featureId = pendingSearchFeatureId ?: return@LaunchedEffect
+        state.locations.firstOrNull { it.featureId == featureId }?.let { location ->
+            selectedLocations = listOf(location)
+            pendingSearchFeatureId = null
+        }
+    }
+
+    fun selectSearchResult(result: SearchLocation) {
+        searchQuery = if (result.city.isBlank()) result.address
+            else "${result.address}, ${result.city}"
+        searchResults = emptyList()
+        searchMessage = null
+        pendingSearchFeatureId = result.featureId
+        selectedLocations = emptyList()
+        searchTarget = result
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
@@ -131,7 +191,9 @@ fun MapScreen(
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
             onLocationsSelected = { selectedLocations = it },
-            favoriteIds = favorites.map { it.featureId }.toSet()
+            favoriteIds = favorites.map { it.featureId }.toSet(),
+            cameraTarget = searchTarget,
+            onCameraTargetConsumed = { searchTarget = null }
         )
 
         SearchHeader(
@@ -139,6 +201,12 @@ fun MapScreen(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            results = searchResults,
+            loading = searchLoading,
+            message = searchMessage,
+            onResultSelected = ::selectSearchResult,
             onBottomChanged = { searchHeaderBottom = it }
         )
 
@@ -184,31 +252,160 @@ fun MapScreen(
 @Composable
 private fun SearchHeader(
     modifier: Modifier = Modifier,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<SearchLocation>,
+    loading: Boolean,
+    message: String?,
+    onResultSelected: (SearchLocation) -> Unit,
     onBottomChanged: (Dp) -> Unit = {}
 ) {
     val density = LocalDensity.current
-    Surface(
-        modifier = modifier.fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
-            },
-        shape = RoundedCornerShape(22.dp),
-        tonalElevation = 5.dp
+    val focusManager = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    val showSuggestions = focused && query.trim().length >= 2
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .onGloballyPositioned { coordinates ->
+                    onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
+                },
+            shape = RoundedCornerShape(22.dp),
+            tonalElevation = 5.dp
         ) {
-            Icon(Icons.Default.Search, contentDescription = null)
-            Text(
-                text = "Zoek locatie of plaats",
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Icon(Icons.Default.FilterList, contentDescription = "Filters")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .onFocusChanged { focused = it.isFocused },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            results.firstOrNull()?.let {
+                                onResultSelected(it)
+                                focused = false
+                                focusManager.clearFocus()
+                            }
+                        }
+                    ),
+                    decorationBox = { innerTextField ->
+                        if (query.isEmpty()) {
+                            Text(
+                                "Zoek locatie of plaats",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else if (query.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            onQueryChange("")
+                            focusManager.clearFocus()
+                            focused = false
+                        }
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen")
+                    }
+                }
+
+                Icon(Icons.Default.FilterList, contentDescription = "Filters")
+            }
+        }
+
+        if (showSuggestions && (results.isNotEmpty() || message != null || loading)) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 6.dp)
+                ) {
+                    if (results.isNotEmpty()) {
+                        results.forEachIndexed { index, result ->
+                            if (index > 0) HorizontalDivider()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onResultSelected(result)
+                                        focused = false
+                                        focusManager.clearFocus()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.EvStation,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        result.address.ifBlank { "Laadlocatie" },
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    val secondary = listOfNotNull(
+                                        result.city.takeIf { it.isNotBlank() },
+                                        result.operatorName?.takeIf { it.isNotBlank() }
+                                    ).joinToString(" · ")
+                                    if (secondary.isNotBlank()) {
+                                        Text(
+                                            secondary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (result.totalCount > 0) {
+                                    Text(
+                                        "${result.availableCount}/${result.totalCount}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (result.availableCount > 0)
+                                            ComposeColor(0xFF168653)
+                                        else ComposeColor(0xFFD43B3B)
+                                    )
+                                }
+                            }
+                        }
+                    } else if (!loading && message != null) {
+                        Text(
+                            message,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -219,7 +416,9 @@ private fun ChargeMap(
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
-    favoriteIds: Set<String>
+    favoriteIds: Set<String>,
+    cameraTarget: SearchLocation?,
+    onCameraTargetConsumed: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -320,6 +519,15 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
+                cameraTarget?.let { target ->
+                    map.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(target.latitude, target.longitude),
+                            16.0
+                        )
+                    )
+                    onCameraTargetConsumed()
+                }
                 if (currentStyleUri != styleUri) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
