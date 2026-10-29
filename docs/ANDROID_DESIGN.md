@@ -104,6 +104,7 @@ De bestaande zoekbalk op de kaart is functioneel gemaakt; **filtering blijft bui
 - Suggesties tonen laadlocatieadres plus plaats/operator. Beschikbaarheidsratio wordt alleen als groen/rood `x/y` getoond wanneer de zoekresponse geen onbekende EVSE-status bevat; anders een neutrale `?`.
 - Selecteren centreert/zoomt de kaart op het resultaat. De detail-sheet opent pas zodra de reguliere viewport dezelfde externe OCPI-identiteit (`featureId`) heeft geladen, zodat zoeken dezelfde kaart-/detaildata en favorietsemantiek gebruikt als een markerselectie.
 - Geen aparte zoekdetailpagina, geen markerverrijking per suggestie en geen filterlogica in deze wijziging.
+- **Scopegrens #61:** de huidige zoekfunctie zoekt ChargeWatch-laadlocaties. Een latere Google-Maps-achtige bestemmingzoeker (vrij adres/plaats/POI, aparte bestemmingsmarker en lijst dichtstbijzijnde laadlocaties) wordt als zelfstandige vervolg-PR onderzocht en ontworpen. Daarbij eerst providerkeuze, server-side proxy/cache, quota/rate limiting, privacy en UX-contract vastleggen; niet in deze PR improviseren.
 
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
