@@ -1118,27 +1118,24 @@ private fun openStreetView(context: Context, location: MapLocation) {
 }
 
 private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(116, 116, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    // Soft elevation without turning the marker into a heavy outlined button.
     paint.color = Color.argb(48, 0, 0, 0)
-    canvas.drawCircle(58f, 62f, 45f, paint)
+    canvas.drawCircle(64f, 69f, 49f, paint)
 
-    // Light keyline keeps the status color readable on both light and dark tiles.
     paint.color = Color.parseColor("#F5F7F8")
-    canvas.drawCircle(58f, 58f, 44f, paint)
+    canvas.drawCircle(64f, 64f, 48f, paint)
 
     paint.color = statusColor
-    canvas.drawCircle(58f, 58f, 40f, paint)
+    canvas.drawCircle(64f, 64f, 44f, paint)
 
-    // Subtle inner highlight gives the marker a little depth without changing status color.
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = 1.5f
-    paint.color = Color.argb(90, 255, 255, 255)
-    canvas.drawCircle(58f, 58f, 38.5f, paint)
+    paint.color = Color.argb(84, 255, 255, 255)
+    canvas.drawCircle(64f, 64f, 42.5f, paint)
 
     paint.style = Paint.Style.FILL
     paint.color = Color.WHITE
@@ -1147,41 +1144,41 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
         "sans-serif-medium",
         android.graphics.Typeface.BOLD
     )
-    paint.textSize = if (label.length > 4) 28f else 32f
-    canvas.drawText(label, 58f, 69f, paint)
+    paint.textSize = if (label.length > 4) 30f else 35f
+    canvas.drawText(label, 64f, 76f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 94f, 24f)
+    if (isFavorite) drawFavoriteBadge(canvas, 103f, 27f)
     return bitmap
 }
 
 private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(136, 136, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(150, 150, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    paint.color = Color.argb(52, 0, 0, 0)
-    canvas.drawCircle(68f, 75f, 56f, paint)
+    paint.color = Color.argb(48, 0, 0, 0)
+    canvas.drawCircle(75f, 82f, 61f, paint)
 
-    // A status-colored halo is the only cluster-specific visual cue.
+    // Cluster halo stays subtle even though the marker itself is slightly larger.
     paint.color = Color.argb(
-        92,
+        70,
         Color.red(statusColor),
         Color.green(statusColor),
         Color.blue(statusColor)
     )
-    canvas.drawCircle(68f, 70f, 56f, paint)
+    canvas.drawCircle(75f, 76f, 60f, paint)
 
     paint.color = Color.parseColor("#F5F7F8")
-    canvas.drawCircle(68f, 70f, 50f, paint)
+    canvas.drawCircle(75f, 76f, 53f, paint)
 
     paint.color = statusColor
-    canvas.drawCircle(68f, 70f, 45f, paint)
+    canvas.drawCircle(75f, 76f, 48f, paint)
 
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = 1.5f
-    paint.color = Color.argb(90, 255, 255, 255)
-    canvas.drawCircle(68f, 70f, 43.5f, paint)
+    paint.color = Color.argb(84, 255, 255, 255)
+    canvas.drawCircle(75f, 76f, 46.5f, paint)
 
     paint.style = Paint.Style.FILL
     paint.color = Color.WHITE
@@ -1190,30 +1187,31 @@ private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boo
         "sans-serif-medium",
         android.graphics.Typeface.BOLD
     )
-    paint.textSize = if (label.length > 4) 29f else 34f
-    canvas.drawText(label, 68f, 82f, paint)
+    paint.textSize = if (label.length > 4) 31f else 37f
+    canvas.drawText(label, 75f, 89f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 112f, 26f)
+    if (isFavorite) drawFavoriteBadge(canvas, 122f, 29f)
     return bitmap
 }
 
 private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    paint.color = Color.argb(42, 0, 0, 0)
-    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 15.5f, paint)
+    // Slight shadow so the yellow badge stays readable over both light and dark map tiles.
+    paint.color = Color.argb(50, 0, 0, 0)
+    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 17.5f, paint)
 
-    paint.color = Color.parseColor("#F5F7F8")
-    canvas.drawCircle(centerX, centerY, 14.5f, paint)
+    paint.color = Color.parseColor("#F3AF25")
+    canvas.drawCircle(centerX, centerY, 16.5f, paint)
 
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = 1.5f
     paint.color = Color.argb(150, 38, 49, 58)
-    canvas.drawCircle(centerX, centerY, 14f, paint)
+    canvas.drawCircle(centerX, centerY, 16f, paint)
 
     val star = Path()
-    val outerRadius = 9.2
-    val innerRadius = 4.2
+    val outerRadius = 9.8
+    val innerRadius = 4.5
     for (i in 0 until 10) {
         val radius = if (i % 2 == 0) outerRadius else innerRadius
         val angle = -PI / 2 + i * PI / 5
@@ -1224,13 +1222,7 @@ private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
     star.close()
 
     paint.style = Paint.Style.FILL
-    paint.color = Color.parseColor("#F3AF25")
-    canvas.drawPath(star, paint)
-
-    paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1.2f
-    paint.strokeJoin = Paint.Join.ROUND
-    paint.color = Color.parseColor("#26313A")
+    paint.color = Color.WHITE
     canvas.drawPath(star, paint)
 }
 
