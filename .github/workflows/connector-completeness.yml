@@ -5,6 +5,7 @@ on:
       - 'db/tests/connector_partial_feed_http.py'
       - 'db/tests/022_connector_snapshot_presence_smoke.sql'
       - 'db/migrations/022_connector_snapshot_presence.sql'
+      - 'db/migrations/026_connector_collection_completeness.sql'
       - 'src/ChargeWatch.Importer/**'
       - '.github/workflows/connector-completeness.yml'
   workflow_dispatch:
@@ -61,7 +62,7 @@ jobs:
           done
       - name: Build actual importer
         run: dotnet build src/ChargeWatch.Importer --configuration Release
-      - name: Reject incomplete HTTP 200 connector collections transactionally
+      - name: Isolate incomplete HTTP 200 connector collections per EVSE
         run: python3 db/tests/connector_partial_feed_http.py
       - name: Preserve legitimate disappearance, hysteresis and return
         run: psql -v ON_ERROR_STOP=1 -f db/tests/022_connector_snapshot_presence_smoke.sql
