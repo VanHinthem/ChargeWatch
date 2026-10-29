@@ -1,3 +1,15 @@
+## Android UX — PR #61 herbouwd op definitief tariefcontract (29 oktober 2026)
+
+PR [#61](https://github.com/VanHinthem/ChargeWatch/pull/61) is opnieuw opgebouwd vanaf actuele `main`; de oude pre-#66 Android-branch is niet gerebased omdat die nog het vervallen `tariffs[].presentation`-contract gebruikte.
+
+De Android-enrichmentparser leest nu per connector `tariffStatus` en `tariffOptions[]`. Bruikbare componenten blijven zichtbaar, maar `SOURCE_MISSING`, `MULTIPLE_OPTIONS`, `CONDITIONAL`, `UNAVAILABLE` en `MALFORMED` blijven expliciet. Btw wordt alleen bij een expliciete `vatPercent` omgerekend; zonder bronpercentage toont de UI `btw onbekend` en wordt geen Nederlands percentage aangenomen.
+
+De compacte locatie-sheet toont maximaal twee ENERGY-prijzen, waarschuwt alleen bij echte extra componenten/voorwaarden, gebruikt compactere horizontale connectorcards en een adaptieve 2/3-kolomsindeling. De tijdelijke NDW/ChargeWatch-benchmarkbalk is verwijderd; ChargeWatch-default en NDW-fallback blijven in de ViewModel ongewijzigd. De eerder op Samsung beoordeelde donkere OpenFreeMap-`fiord`-stijl is hersteld, met kleine polish aan zoekbalk, titel, beschikbaarheidsregel en clusterring. De uitgebreide sheet houdt nu expliciet ruimte vrij onder de zoekheader; compact→uitgebreid en uitgebreid→compact werken via verticale swipe over de sheet-inhoud, en een neerwaartse swipe vanuit compact sluit de sheet.
+
+Gerichte Android-tests dekken applicable, conditional, source-missing, multiple-options en ontbrekende btw. Nog vereist vóór merge: actuele Android CI/debug-build en fysieke Samsung-validatie in licht/donker van compacte/uitgebreide sheet, tariefteksten, connectorindeling en gestures/back. Geen backend-, database- of NAS-wijziging in deze PR.
+
+**Productiegrens:** PR #93 is nog niet als NAS-release bevestigd; dat staat los van deze Android-PR. Geen merge of deployment zonder expliciet akkoord.
+
 ## Tariff API — source tariff type voor Android-diagnostiek (29 oktober 2026)
 
 Android PR #61 liet bij een Vattenfall-locatie zien dat `TARIFF_TYPE_SELECTION_REQUIRED` wel als limitation beschikbaar was, maar het onderliggende OCPI `Tariff.type` niet in het API-contract stond. Daardoor kon de client niet uitleggen welk bronprofiel de conditional status veroorzaakte.
