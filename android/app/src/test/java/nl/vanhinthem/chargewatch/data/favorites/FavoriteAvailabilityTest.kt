@@ -10,48 +10,73 @@ import java.time.Instant
 
 class FavoriteAvailabilityTest {
     private val now = Instant.parse("2026-10-25T11:00:00Z")
-    private fun location(updated: String?, reliability: CountReliability = CountReliability.Safe) =
-        MapLocation("NL-A", 5.5, 51.7, "Test", updated, AvailabilitySummary(1, 2, reliability))
 
-    @Test fun currentTrustedStatusShowsFetchFreshness() {
+    private fun location(
+        sourceUpdated: String?,
+        observedAt: String? = "2026-10-25T10:58:00Z",
+        feedIsStale: Boolean? = false,
+        reliability: CountReliability = CountReliability.Safe
+    ) = MapLocation(
+        featureId = "NL-A",
+        longitude = 5.5,
+        latitude = 51.7,
+        title = "Test",
+        lastUpdated = sourceUpdated,
+        availability = AvailabilitySummary(1, 2, reliability),
+        feedLastObservedAt = observedAt,
+        feedIsStale = feedIsStale
+    )
+
+    @Test fun recentFeedObservationIsShownInsteadOfSourceObjectAge() {
         val result = favoriteAvailability(
-            location = location("2026-10-24T01:00:00Z"),
-            now = now,
-            checkedAt = now.minusSeconds(120)
+            location("2026-10-20T10:00:00Z"),
+            now
         )
         assertEquals("1/2", result.label)
         assertEquals(AvailabilityStatus.Available, result.status)
         assertEquals("2 min geleden gecontroleerd", result.description)
-    }
-
-    @Test fun veryOldSourceTimestampDoesNotMakeRecentlyFetchedStatusLookStale() {
-        val result = favoriteAvailability(
-            location = location("2026-10-20T10:00:00Z"),
-            now = now,
-            checkedAt = now
-        )
-        assertEquals("Zojuist gecontroleerd", result.description)
         assertEquals("2026-10-20T10:00:00Z", result.sourceUpdated)
     }
 
-    @Test fun missingCheckTimeIsExplicit() {
-        val result = favoriteAvailability(location("2026-10-25T10:58:00Z"), now)
-        assertEquals("Nog niet gecontroleerd", result.description)
+    @Test fun staleFeedGetsExplicitWarning() {
+        val result = favoriteAvailability(
+            location(
+                sourceUpdated = "2026-10-25T10:59:00Z",
+                observedAt = "2026-10-25T10:40:00Z",
+                feedIsStale = true
+            ),
+            now
+        )
+        assertEquals(
+            "Gegevens mogelijk verouderd · laatste controle 20 min geleden",
+            result.description
+        )
     }
 
-    @Test fun unreliableStatusKeepsUnknownAvailabilityButShowsCheckAge() {
+    @Test fun unknownFeedObservationDoesNotInventFreshness() {
         val result = favoriteAvailability(
-            location = location("2026-10-25T10:58:00Z", CountReliability.Ambiguous),
-            now = now,
-            checkedAt = now.minusSeconds(60)
+            location("2026-10-25T10:59:00Z", observedAt = null, feedIsStale = null),
+            now
+        )
+        assertEquals("Laatste controle onbekend", result.description)
+    }
+
+    @Test fun unreliableStatusKeepsUnknownAvailabilityButFeedFreshness() {
+        val result = favoriteAvailability(
+            location(
+                sourceUpdated = "2026-10-25T10:58:00Z",
+                observedAt = "2026-10-25T11:00:00Z",
+                reliability = CountReliability.Ambiguous
+            ),
+            now
         )
         assertEquals("?", result.label)
         assertEquals(AvailabilityStatus.Unknown, result.status)
-        assertEquals("1 min geleden gecontroleerd", result.description)
+        assertEquals("Zojuist gecontroleerd", result.description)
     }
 
     @Test fun missingLocationIsUnknown() {
-        val result = favoriteAvailability(null, now, now)
+        val result = favoriteAvailability(null, now)
         assertEquals("?", result.label)
         assertEquals(AvailabilityStatus.Unknown, result.status)
         assertEquals("Nog niet gecontroleerd", result.description)
