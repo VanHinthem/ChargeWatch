@@ -97,6 +97,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -265,7 +266,11 @@ fun MapScreen(
             favoriteIds = favorites.map { it.featureId }.toSet(),
             cameraTarget = cameraTarget,
             destination = destination,
-            onMapCenterChanged = { lat, lon -> mapCenter = lat to lon },
+            onMapCenterChanged = { lat, lon ->
+                // Do not redraw all markers for insignificant camera movement.
+                val region = (lat * 10).roundToInt() / 10.0 to (lon * 10).roundToInt() / 10.0
+                if (mapCenter != region) mapCenter = region
+            },
             onCameraTargetConsumed = { cameraTarget = null }
         )
 
