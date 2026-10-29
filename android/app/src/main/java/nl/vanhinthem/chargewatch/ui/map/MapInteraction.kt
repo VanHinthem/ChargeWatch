@@ -37,24 +37,45 @@ internal fun destinationAfterQueryEdit(query: String, selected: Destination?): D
  * The distance tolerance follows zoom: small drags matter when zoomed in,
  * but a tiny camera offset must not create a flickering button.
  * Also show it after a meaningful manual zoom, because returning restores
- * the original address view (zoom 14).
+ * the fitted address-and-chargers overview rather than a hard-coded zoom.
  */
 internal fun shouldShowReturnToDestination(
     destination: Destination?,
     cameraLatitude: Double,
     cameraLongitude: Double,
     cameraZoom: Double,
-    destinationZoom: Double = 14.0
+    destinationZoom: Double = 14.0,
+    overview: DestinationOverview? = null
 ): Boolean {
     if (destination == null || !cameraLatitude.isFinite() ||
         !cameraLongitude.isFinite() || !cameraZoom.isFinite()
     ) return false
-    if (abs(cameraZoom - destinationZoom) >= 0.75) return true
+    val targetZoom = overview?.zoom ?: destinationZoom
+    val targetLatitude = overview?.latitude ?: destination.latitude
+    val targetLongitude = overview?.longitude ?: destination.longitude
+    if (abs(cameraZoom - targetZoom) >= 0.75) return true
 
-    val latMeters = (cameraLatitude - destination.latitude) * 111_200.0
-    val longitudeMeters = (cameraLongitude - destination.longitude) *
-        111_200.0 * cos(destination.latitude * PI / 180.0)
-    val toleranceMeters = (90.0 * 2.0.pow(destinationZoom - cameraZoom))
+    val latMeters = (cameraLatitude - targetLatitude) * 111_200.0
+    val longitudeMeters = (cameraLongitude - targetLongitude) *
+        111_200.0 * cos(targetLatitude * PI / 180.0)
+    val toleranceMeters = (90.0 * 2.0.pow(targetZoom - cameraZoom))
         .coerceIn(25.0, 500.0)
     return hypot(latMeters, longitudeMeters) >= toleranceMeters
+}
+
+/** The actual camera of the overview containing the address and nearby charging locations. */
+internal data class DestinationOverview(
+    val latitude: Double,
+    val longitude: Double,
+    val zoom: Double
+)
+
+/** Give the expanded search panel room, but never make the fitting area disappear. */
+internal fun overviewTopPaddingPixels(mapHeightPx: Int, panelBottomPx: Int, marginPx: Int): Int {
+    if (mapHeightPx <= 0) return marginPx.coerceAtLeast(0)
+    val margin = marginPx.coerceAtLeast(0)
+    return (panelBottomPx + margin).coerceIn(
+        margin.coerceAtMost((mapHeightPx * 0.65).toInt()),
+        (mapHeightPx * 0.65).toInt().coerceAtLeast(0)
+    )
 }
