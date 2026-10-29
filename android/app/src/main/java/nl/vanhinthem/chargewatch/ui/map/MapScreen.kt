@@ -153,19 +153,19 @@ fun MapScreen(
     val pdokClient = remember { PdokDestinationClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by viewModel.searchQuery
     var searchResults by remember { mutableStateOf<List<DestinationSuggestion>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf<String?>(null) }
-    var searchSelected by remember { mutableStateOf(false) }
+    var searchSelected by viewModel.searchSelected
     var selectedSuggestion by remember { mutableStateOf<DestinationSuggestion?>(null) }
-    var destination by remember { mutableStateOf<Destination?>(null) }
-    var cameraTarget by remember { mutableStateOf<CameraTarget?>(null) }
+    var destination by viewModel.destination
+    var cameraTarget by remember { mutableStateOf(destination?.let { CameraTarget(it.latitude, it.longitude, 14.0) }) }
     var mapCenter by remember { mutableStateOf(51.765 to 5.525) }
-    var nearLocations by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
+    var nearLocations by viewModel.nearLocations
     var nearLoading by remember { mutableStateOf(false) }
-    var nearMessage by remember { mutableStateOf<String?>(null) }
-    var nearbyExpanded by remember { mutableStateOf(false) }
+    var nearMessage by viewModel.nearMessage
+    var nearbyExpanded by viewModel.nearbyExpanded
 
     LaunchedEffect(searchQuery, searchSelected) {
         val query = searchQuery.trim()
@@ -638,7 +638,7 @@ private fun ChargeMap(
             mapView.apply {
                 getMapAsync { map ->
                     map.cameraPosition = CameraPosition.Builder()
-                        .target(LatLng(51.765, 5.525))
+                        .target(LatLng(destination?.latitude ?: 51.765, destination?.longitude ?: 5.525))
                         .zoom(12.0)
                         .build()
 
