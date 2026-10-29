@@ -97,6 +97,18 @@ class FavoritesRepository(context: Context) {
         }
     }
 
+    suspend fun moveTo(id: String, targetIndex: Int) {
+        store.edit { prefs ->
+            val current = decode(prefs[FAVORITES]).toMutableList()
+            val from = current.indexOfFirst { it.featureId == id }
+            if (from >= 0 && current.isNotEmpty()) {
+                val item = current.removeAt(from)
+                current.add(targetIndex.coerceIn(0, current.size), item)
+            }
+            prefs[FAVORITES] = json.encodeToString(current)
+        }
+    }
+
     private fun decode(value: String?): List<FavoriteLocation> =
         try { value?.let { json.decodeFromString<List<FavoriteLocation>>(it) } ?: emptyList() }
         catch (_: Exception) { emptyList() }
