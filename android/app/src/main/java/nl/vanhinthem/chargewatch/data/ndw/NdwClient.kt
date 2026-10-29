@@ -6,6 +6,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class NdwClient(
@@ -39,7 +40,15 @@ class NdwClient(
                         val raw = response.body?.string()
                             ?: return@use NdwResult.Unavailable("NDW gaf een lege response.")
                         try {
-                            NdwResult.Success(parser.parse(raw))
+                            val observedAt = Instant.now().toString()
+                            NdwResult.Success(
+                                parser.parse(raw).map {
+                                    it.copy(
+                                        feedLastObservedAt = observedAt,
+                                        feedIsStale = false
+                                    )
+                                }
+                            )
                         } catch (ex: Exception) {
                             NdwResult.Unavailable("NDW-data kon niet worden verwerkt.")
                         }
