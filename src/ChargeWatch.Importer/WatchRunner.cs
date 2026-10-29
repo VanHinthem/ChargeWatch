@@ -237,7 +237,9 @@ internal static class WatchRunner
                     locationsForImport,
                     tariffsForImport,
                     minimumLocations.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                ], locations?.Changed == true ? locations.FetchedAtUtc : null);
+                ],
+                locations?.Changed == true ? locations.FetchedAtUtc : null,
+                tariffs?.Changed == true ? tariffs.FetchedAtUtc : null);
                 if (result != 0)
                     throw new InvalidOperationException($"Bulk importer returned exit code {result}.");
 
