@@ -32,7 +32,7 @@ class MapViewModel(
     val nearLocations = mutableStateOf<List<SearchLocation>>(emptyList())
     val nearMessage = mutableStateOf<String?>(null)
     val nearbyExpanded = mutableStateOf(false)
-    val overview = mutableStateOf<DestinationOverview?>(null)
+    internal val overview = mutableStateOf<DestinationOverview?>(null)
     val nearLoadedFor = mutableStateOf<Destination?>(null)
 
     private var lastRequestedViewport: NdwViewport? = null
