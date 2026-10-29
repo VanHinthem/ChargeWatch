@@ -95,6 +95,16 @@ Tijdens de fysieke Android-validatie is de hoofdnavigatie uitgebreid naar **Kaar
 - **Visueel:** Settings volgt dezelfde Material 3 light/dark-kleuren, afgeronde kaarten en statussemantiek als Favorieten. Feedstatus gebruikt naast kleur ook tekst (`Actueel` / `Verouderd`).
 - **Scope:** geen database- of collectorwijziging voor Settings. De afzonderlijke map-viewport-feedfreshnessuitbreiding blijft read-only metadata en staat los van de data-statusweergave.
 
+### Implementatiebesluit — Zoeken (29 oktober 2026)
+
+De bestaande zoekbalk op de kaart is functioneel gemaakt; **filtering blijft buiten deze stap**.
+
+- Zoekbron is de bestaande ChargeWatch read-only route `/api/v1/locations?q=...`; geen externe geocoder en geen nieuw backendcontract.
+- Zoeken start vanaf twee tekens met een korte debounce (350 ms) en maximaal acht suggesties.
+- Suggesties tonen laadlocatieadres plus plaats/operator. Beschikbaarheidsratio wordt alleen als groen/rood `x/y` getoond wanneer de zoekresponse geen onbekende EVSE-status bevat; anders een neutrale `?`.
+- Selecteren centreert/zoomt de kaart op het resultaat. De detail-sheet opent pas zodra de reguliere viewport dezelfde externe OCPI-identiteit (`featureId`) heeft geladen, zodat zoeken dezelfde kaart-/detaildata en favorietsemantiek gebruikt als een markerselectie.
+- Geen aparte zoekdetailpagina, geen markerverrijking per suggestie en geen filterlogica in deze wijziging.
+
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
 2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
