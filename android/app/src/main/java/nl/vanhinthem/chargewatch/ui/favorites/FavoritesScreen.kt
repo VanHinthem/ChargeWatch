@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -107,11 +108,16 @@ fun FavoritesScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 12.dp, top = 20.dp, bottom = 8.dp),
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Favorieten", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Favorieten",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 Text(
                     if (favorites.size == 1) "1 opgeslagen laadlocatie"
                     else "${favorites.size} opgeslagen laadlocaties",
@@ -119,19 +125,31 @@ fun FavoritesScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (refreshing) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .size(24.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                IconButton(
-                    onClick = onRefresh,
-                    enabled = favorites.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Beschikbaarheid verversen")
+            Surface(
+                modifier = Modifier.size(46.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 2.dp
+            ) {
+                if (refreshing) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = favorites.isNotEmpty()
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Beschikbaarheid verversen",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
