@@ -385,21 +385,24 @@ internal static class BulkImporter
                 await using (var source = File.OpenRead(tariffsPath!))
                     tariffsHash = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
                 await using var tariffPresence = new NpgsqlCommand("""
-                    UPDATE tariff t SET is_active=true,last_seen_at=$1
-                    FROM stage_tariff s
-                    WHERE t.country_code=s.payload->>'country'
-                      AND t.party_id=s.payload->>'party'
-                      AND t.source_id=s.payload->>'id'
-                      AND (NOT t.is_active OR t.last_seen_at IS DISTINCT FROM $1);
-
-                    UPDATE tariff t SET is_active=false
-                    WHERE t.is_active
-                      AND NOT EXISTS (
-                        SELECT 1 FROM stage_tariff s
-                        WHERE t.country_code=s.payload->>'country'
-                          AND t.party_id=s.payload->>'party'
-                          AND t.source_id=s.payload->>'id');
-
+                    WITH present AS (
+                      UPDATE tariff t SET is_active=true,last_seen_at=$1
+                      FROM stage_tariff s
+                      WHERE t.country_code=s.payload->>'country'
+                        AND t.party_id=s.payload->>'party'
+                        AND t.source_id=s.payload->>'id'
+                        AND (NOT t.is_active OR t.last_seen_at IS DISTINCT FROM $1)
+                      RETURNING 1
+                    ), absent AS (
+                      UPDATE tariff t SET is_active=false
+                      WHERE t.is_active
+                        AND NOT EXISTS (
+                          SELECT 1 FROM stage_tariff s
+                          WHERE t.country_code=s.payload->>'country'
+                            AND t.party_id=s.payload->>'party'
+                            AND t.source_id=s.payload->>'id')
+                      RETURNING 1
+                    )
                     INSERT INTO ndw_tariffs_snapshot_checkpoint
                       (feed_key,source_sha256,fetched_at,tariff_count)
                     VALUES ('tariffs',$2,$1,$3)
