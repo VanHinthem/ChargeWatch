@@ -307,14 +307,16 @@ private fun SearchHeader(
                         }
                     ),
                     decorationBox = { innerTextField ->
-                        if (query.isEmpty()) {
-                            Text(
-                                "Zoek locatie of plaats",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                        Box {
+                            if (query.isEmpty()) {
+                                Text(
+                                    "Zoek locatie of plaats",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
                     }
                 )
 
