@@ -194,7 +194,8 @@ fun ChargeWatchApp() {
                     isFavorite = { item -> favorites.any { it.featureId == item.featureId } },
                     onToggleFavorite = { item -> scope.launch { repository.toggle(item) } },
                     expandedTopInset = 16.dp,
-                    initiallyExpanded = true
+                    initiallyExpanded = true,
+                    compactAllowed = false
                 )
             }
 
