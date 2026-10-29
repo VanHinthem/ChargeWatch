@@ -8,7 +8,9 @@ from pathlib import Path
 
 locations=[{"country_code":"NL","party_id":"TST","id":"LOC001","address":"CI test",
  "city":"Test","evses":[{"uid":"EVSE001","status":"AVAILABLE","last_updated":"2026-10-24T08:00:00Z","connectors":[{"id":"1","standard":"IEC_62196_T2","power_type":"AC_3_PHASE"}]}]}]
-sources={"/locations":gzip.compress(json.dumps(locations).encode()),"/tariffs":gzip.compress(b"[]")}
+tariffs=[{"country_code":"NL","party_id":"TST","id":"RATE","currency":"EUR",
+ "last_updated":"2026-10-24T08:00:00Z","elements":[{"price_components":[{"type":"ENERGY","price":0.3,"step_size":1}]}]}]
+sources={"/locations":gzip.compress(json.dumps(locations).encode()),"/tariffs":gzip.compress(json.dumps(tariffs).encode())}
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
