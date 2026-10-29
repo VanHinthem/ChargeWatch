@@ -152,6 +152,7 @@ fun MapScreen(
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val favoriteIds = favorites.map { it.featureId }.toSet()
     val nearestClient = remember { LocationSearchClient() }
     val pdokClient = remember { PdokDestinationClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
@@ -307,7 +308,7 @@ fun MapScreen(
                 selectedLocations = tapped
                 if (tapped.isNotEmpty()) nearbyExpanded = false
             },
-            favoriteIds = favorites.map { it.featureId }.toSet(),
+            favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
             destination = destination,
             onMapCameraIdle = { lat, lon, zoom ->
@@ -336,6 +337,7 @@ fun MapScreen(
             searchSelected = searchSelected,
             destination = destination,
             nearLocations = nearLocations,
+            favoriteIds = favoriteIds,
             nearLoading = nearLoading,
             nearMessage = nearMessage,
             nearbyExpanded = nearbyExpanded,
@@ -399,6 +401,7 @@ private fun SearchHeader(
     searchSelected: Boolean,
     destination: Destination?,
     nearLocations: List<SearchLocation>,
+    favoriteIds: Set<String>,
     nearLoading: Boolean,
     nearMessage: String?,
     nearbyExpanded: Boolean,
@@ -559,8 +562,7 @@ private fun SearchHeader(
                                 when {
                                     nearLoading -> "Dichtstbijzijnde locaties ophalen…"
                                     nearMessage != null && nearLocations.isEmpty() -> nearMessage
-                                    nearLocations.size == 1 -> "1 laadlocatie gevonden"
-                                    else -> "${nearLocations.size} laadlocaties gevonden"
+                                    else -> nearestLocationsCountLabel(nearLocations.size)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -630,6 +632,14 @@ private fun SearchHeader(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
+                                    }
+                                    if (isNearbyFavorite(item, favoriteIds)) {
+                                        Icon(
+                                            Icons.Default.Star,
+                                            contentDescription = "Favoriet",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = ComposeColor(0xFFF3AF25)
+                                        )
                                     }
                                     Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false) "?"
                                         else "${item.availableCount}/${item.totalCount}",
