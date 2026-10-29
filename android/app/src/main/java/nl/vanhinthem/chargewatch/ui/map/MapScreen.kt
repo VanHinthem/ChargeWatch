@@ -15,10 +15,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Brightness6
@@ -135,30 +138,6 @@ fun MapScreen(
             onThemeChoice = onThemeChoice
         )
 
-        // Temporary comparison controls. Source remains NDW by default.
-        Surface(
-            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
-                .padding(top = 82.dp, start = 16.dp, end = 16.dp),
-            shape = RoundedCornerShape(18.dp),
-            tonalElevation = 4.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                listOf("NDW", "ChargeWatch").forEach { source ->
-                    OutlinedButton(onClick = { selectedLocations = emptyList(); viewModel.setSource(source) }) {
-                        Text(if (state.source == source) "✓ $source" else source)
-                    }
-                }
-                Text(
-                    "${state.locations.size} · ${state.loadMillis?.let { "${it} ms" } ?: "—"}",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        }
-
         if (state.loading) {
             CircularProgressIndicator(
                 modifier = Modifier
@@ -208,7 +187,7 @@ private fun SearchHeader(modifier: Modifier = Modifier, themeChoice: String, onT
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -497,39 +476,23 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    // The standard partial anchor is fixed around half the window.
-    // Explicit compact/expanded states let the initial sheet fit its content.
+    // Compact and expanded are explicit content states. Material's own sheet
+    // still handles dismissal; our vertical drag maps the content state.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var expanded by remember(selectedId) { mutableStateOf(false) }
     BackHandler(enabled = expanded) { expanded = false }
-    // Material 3 only provides a partially-expanded anchor if sheet content is
-    // taller than half the available screen. Keep that anchor stable while the
-    // expanded-only details are conditionally rendered.
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val expandedSheetMaxHeight = screenHeight * 0.86f
+    // Keep the expanded sheet visually separated from the persistent search header.
+    val sheetTopInset = 112.dp
+    val expandedSheetMaxHeight = (screenHeight - sheetTopInset - 12.dp).coerceAtLeast(360.dp)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = Modifier.padding(top = screenHeight * 0.07f),
-        // A compact drag-handle slot avoids the large default handle area above details.
+        modifier = Modifier.padding(top = sheetTopInset),
+        // Keep the handle as a visual affordance, but do not require tapping it.
         dragHandle = {
-            var dragAmount by remember { mutableStateOf(0f) }
             Box(
-                Modifier.fillMaxWidth().height(24.dp)
-                    .pointerInput(selectedId, expanded) {
-                        detectVerticalDragGestures(
-                            onDragStart = { dragAmount = 0f },
-                            onVerticalDrag = { change, amount ->
-                                change.consume()
-                                dragAmount += amount
-                            },
-                            onDragEnd = {
-                                if (dragAmount < -25f) expanded = true
-                                if (dragAmount > 25f && expanded) expanded = false
-                            }
-                        )
-                    }
-                    .clickable { expanded = !expanded },
+                Modifier.fillMaxWidth().height(24.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
@@ -591,16 +554,38 @@ private fun LocationSelectionSheet(
                 AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
                 AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
             }
+            var sheetDragAmount by remember(selectedId, expanded) { mutableStateOf(0f) }
             Column(
                 Modifier.fillMaxWidth()
                     .heightIn(max = expandedSheetMaxHeight)
+                    .pointerInput(selectedId, expanded) {
+                        detectVerticalDragGestures(
+                            onDragStart = { sheetDragAmount = 0f },
+                            onVerticalDrag = { change, amount ->
+                                sheetDragAmount += amount
+                                // Only consume once the gesture clearly expresses a
+                                // sheet transition; small movements remain available
+                                // to the expanded content's vertical scroll.
+                                if (kotlin.math.abs(sheetDragAmount) > 18f) change.consume()
+                            },
+                            onDragEnd = {
+                                when {
+                                    sheetDragAmount < -48f && !expanded -> expanded = true
+                                    sheetDragAmount > 48f && expanded -> expanded = false
+                                    sheetDragAmount > 72f && !expanded -> onDismiss()
+                                }
+                                sheetDragAmount = 0f
+                            },
+                            onDragCancel = { sheetDragAmount = 0f }
+                        )
+                    }
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                        Text(location.title, style = MaterialTheme.typography.titleLarge)
                         location.address?.takeIf { it != location.title }?.let {
                             Text(it, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -619,69 +604,170 @@ private fun LocationSelectionSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
-                    Text(location.availability.label, style = MaterialTheme.typography.titleLarge, color = statusColor)
-                    Text(availabilityDescription(location.availability),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    when (location.availability.status) {
+                        AvailabilityStatus.Available -> {
+                            Text(location.availability.label,
+                                style = MaterialTheme.typography.titleMedium, color = statusColor)
+                            Text("laadpunten vrij", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        AvailabilityStatus.NoneAvailable -> {
+                            Text(
+                                location.availability.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = statusColor
+                            )
+                            Text(
+                                "Geen laadpunten vrij",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = statusColor
+                            )
+                        }
+                        AvailabilityStatus.Unknown -> Text(
+                            "Beschikbaarheid onbekend",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 // The summary is always visible, not only when the sheet is expanded.
                 // Never imply a single price when tariff components, VAT or conditions differ.
                 val connectors = location.connectorCategories
-                val singleConnector = connectors.singleOrNull()
-                val energyPrices = (enrichment as? EnrichmentResult.Found)?.value?.let { detail ->
-                    detail.tariffs.filter { it.type == "ENERGY" }
-                        .distinctBy { listOf(it.inclusiveAmount, it.currency, it.vat.orEmpty(), it.hasRestrictions.toString()) }
-                        .takeIf { prices ->
-                            prices?.size == 1 &&
-                                prices[0].vatKnown && !prices[0].hasRestrictions &&
-                                prices[0].currency == "EUR"
+                val detailTariffs = (enrichment as? EnrichmentResult.Found)?.value
+                val energyPrices = detailTariffs?.tariffs.orEmpty()
+                    .filter { it.type == "ENERGY" }
+                    .distinctBy {
+                        listOf(
+                            it.inclusiveAmount, it.currency, it.vat.orEmpty(),
+                            it.hasRestrictions.toString(), it.optionStatus
+                        )
+                    }
+                val hasExtraComponents = detailTariffs?.tariffs.orEmpty().any { it.type != "ENERGY" }
+                val compactProfileSelectionOnly = detailTariffs?.let { detail ->
+                    "TARIFF_TYPE_SELECTION_REQUIRED" in detail.tariffLimitations &&
+                        detail.sourceTariffTypes == setOf("REGULAR") &&
+                        detail.tariffLimitations.all {
+                            it == "TARIFF_TYPE_SELECTION_REQUIRED" || it == "CONDITIONAL"
                         }
-                }
+                } == true
+                val hasExtraConditions = hasExtraComponents ||
+                    detailTariffs?.tariffs.orEmpty().any {
+                        it.hasRestrictions && !compactProfileSelectionOnly
+                    } ||
+                    (detailTariffs?.hasComplexTariffs == true && !compactProfileSelectionOnly)
                 if (!expanded) {
-                // Show up to three actual connector categories per row; do not sum
-                // connector counts (multiple connectors may share one EVSE).
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    connectors.chunked(3).forEach { connectorRow ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            connectorRow.forEach { connector ->
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    tonalElevation = 2.dp
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val columns = if (maxWidth >= 330.dp) 3 else 2
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            connectors.chunked(columns).forEach { connectorRow ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        ConnectorSocketIcon(connector.connectorType, sizeDp = 26)
+                                    connectorRow.forEach { connector ->
+                                        Surface(
+                                            modifier = if (connectors.size == 1)
+                                                Modifier.widthIn(min = 160.dp, max = 190.dp)
+                                            else Modifier.weight(1f),
+                                            shape = RoundedCornerShape(12.dp),
+                                            tonalElevation = 2.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                ConnectorSocketIcon(connector.connectorType, sizeDp = 20)
+                                                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                                    Text(
+                                                        connectorPowerLabel(connector) ?: "— kW",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        connectorDisplayName(connector.connectorType),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (connectors.size > 1) {
+                                        repeat(columns - connectorRow.size) { Spacer(Modifier.weight(1f)) }
+                                    }
+                                }
+                            }
+
+                            energyPrices.take(2).forEach { price ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocalOffer,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Column {
                                         Text(
-                                            connectorPowerLabel(connector) ?: "— kW",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            maxLines = 1
+                                            (if (price.currency == "EUR") "€ " else "") +
+                                                (if (price.vatKnown) price.inclusiveAmount else price.amount)
+                                                    .replace('.', ',') +
+                                                "/kWh" +
+                                                (if (price.currency == "EUR") "" else " ${price.currency}"),
+                                            style = MaterialTheme.typography.titleMedium
                                         )
                                         Text(
-                                            connectorDisplayName(connector.connectorType),
+                                            if (price.vatKnown) "incl. btw" else "btw onbekend",
                                             style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                             }
-                            repeat(3 - connectorRow.size) {
-                                Spacer(Modifier.weight(1f))
+                            if (energyPrices.size > 2) {
+                                Text(
+                                    "+${energyPrices.size - 2} tarieven bekijken",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (energyPrices.isEmpty() && detailTariffs != null) {
+                                val message = when {
+                                    "SOURCE_MISSING" in detailTariffs.tariffStatuses ->
+                                        "Tariefreferentie ontbreekt in actuele bron"
+                                    "UNAVAILABLE" in detailTariffs.tariffStatuses ->
+                                        "Tarief momenteel niet toepasbaar"
+                                    "MALFORMED" in detailTariffs.tariffStatuses ->
+                                        "Tariefgegevens zijn onvolledig"
+                                    else -> null
+                                }
+                                if (message != null) Text(
+                                    message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (hasExtraConditions) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "Extra kosten of voorwaarden",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
-                    energyPrices?.singleOrNull()?.let { price ->
-                        Text(
-                            "€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
-                                if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
-                                    " · voorwaarden" else "",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
                 }
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -733,11 +819,29 @@ private fun LocationSelectionSheet(
                         EnrichmentResult.NotFound -> Text("Geen aanvullende tarieven voor deze locatie.")
                         EnrichmentResult.Unavailable -> Text("Tariefgegevens konden niet worden opgehaald.")
                         is EnrichmentResult.Found -> {
-                            if (result.value.tariffs.isEmpty()) Text("Geen betrouwbaar tarief beschikbaar.")
+                            if (result.value.tariffs.isEmpty()) {
+                                val message = when {
+                                    "SOURCE_MISSING" in result.value.tariffStatuses ->
+                                        "Tariefreferentie ontbreekt in de actuele NDW-bron."
+                                    "UNAVAILABLE" in result.value.tariffStatuses ->
+                                        "Het gekoppelde tarief is momenteel niet toepasbaar."
+                                    "MALFORMED" in result.value.tariffStatuses ->
+                                        "Tariefgegevens zijn onvolledig of ongeldig."
+                                    else -> "Geen betrouwbaar tarief beschikbaar."
+                                }
+                                Text(message)
+                            }
                             result.value.tariffs
                                 .distinctBy { part ->
-                                    if (part.hasRestrictions) listOf(part.connectorId, part.tariffId, part.elementIndex.toString())
-                                    else listOf(part.type, part.inclusiveAmount, part.currency, part.vat.orEmpty(), "unrestricted")
+                                    listOf(
+                                        part.type,
+                                        part.inclusiveAmount,
+                                        part.currency,
+                                        part.vat.orEmpty(),
+                                        part.hasRestrictions.toString(),
+                                        part.optionStatus,
+                                        part.sourceTariffType.orEmpty()
+                                    )
                                 }
                                 .forEach { part ->
                                     val unit = when (part.type) {
@@ -757,9 +861,11 @@ private fun LocationSelectionSheet(
                                         verticalAlignment = Alignment.Top) {
                                         Column(Modifier.weight(1f)) {
                                             Text(label, style = MaterialTheme.typography.bodyMedium)
-                                            Text(taxNote + if (part.hasRestrictions) " · voorwaarden" else "",
+                                            Text(
+                                                taxNote,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
                                         Text(if (part.currency == "EUR") "€ ${part.inclusiveAmount.replace('.', ',')}/$unit"
                                              else "${part.inclusiveAmount} ${part.currency}/$unit",
@@ -770,8 +876,48 @@ private fun LocationSelectionSheet(
                                 Text("Prijscomponenten; je laadpasprovider kan een andere eindprijs berekenen.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (result.value.hasComplexTariffs)
-                                Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
+                            val sourceTypes = result.value.sourceTariffTypes.sorted()
+                            val profileSelectionOnly =
+                                "TARIFF_TYPE_SELECTION_REQUIRED" in result.value.tariffLimitations &&
+                                    result.value.tariffLimitations.all {
+                                        it == "TARIFF_TYPE_SELECTION_REQUIRED" || it == "CONDITIONAL"
+                                    }
+                            if (profileSelectionOnly && sourceTypes.size == 1) {
+                                Text(
+                                    "Tariefprofiel: ${tariffTypeLabel(sourceTypes.single())}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            } else {
+                                val visibleLimitations = result.value.tariffLimitations
+                                    .let { limitations ->
+                                        if ("TARIFF_TYPE_SELECTION_REQUIRED" in limitations)
+                                            limitations - "CONDITIONAL"
+                                        else limitations
+                                    }
+                                if (visibleLimitations.isNotEmpty()) {
+                                    Text(
+                                        "Tariefvoorwaarden",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    visibleLimitations.sorted().forEach { limitation ->
+                                        val suffix = if (
+                                            limitation == "TARIFF_TYPE_SELECTION_REQUIRED" &&
+                                            sourceTypes.isNotEmpty()
+                                        ) " (bronprofiel: ${sourceTypes.joinToString()})" else ""
+                                        Text(
+                                            "• ${tariffLimitationLabel(limitation)}$suffix",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                } else if (result.value.hasComplexTariffs) {
+                                    Text(
+                                        "Er zijn meerdere of niet volledig zekere tariefopties.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                     HorizontalDivider()
@@ -953,7 +1099,7 @@ private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boo
     canvas.drawCircle(70f, 76f, 57f, paint)
     paint.color = Color.WHITE
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 3f
+    paint.strokeWidth = 2f
     canvas.drawCircle(70f, 76f, 49f, paint)
     paint.style = Paint.Style.FILL
     paint.textAlign = Paint.Align.CENTER
@@ -987,10 +1133,40 @@ private const val CLUSTER_ZOOM_STEP = 2.0
 private const val MAX_CLUSTER_ZOOM = 18.0
 private const val GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps"
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
-private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
+private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/fiord"
 private const val AVAILABLE_COLOR = "#168653"
 private const val NONE_AVAILABLE_COLOR = "#D43B3B"
 private const val UNKNOWN_COLOR = "#818D96"
+
+private fun tariffTypeLabel(type: String): String = when (type) {
+    "REGULAR" -> "Regulier"
+    "AD_HOC_PAYMENT" -> "Ad-hoc betalen"
+    "PROFILE_CHEAP" -> "Goedkoop"
+    "PROFILE_FAST" -> "Snel"
+    "PROFILE_GREEN" -> "Groen"
+    else -> type
+}
+
+private fun tariffLimitationLabel(code: String): String = when (code) {
+    "CONDITIONAL" -> "Prijs hangt af van een sessievoorwaarde"
+    "TARIFF_TYPE_SELECTION_REQUIRED" -> "NDW levert een specifiek tariefprofiel; ChargeWatch kiest dit niet automatisch"
+    "UNSUPPORTED_TARIFF_TYPE" -> "Het brontarief gebruikt een onbekend tariefprofiel"
+    "UNSUPPORTED_REQUESTED_TARIFF_TYPE" -> "Het gevraagde tariefprofiel wordt niet ondersteund"
+    "UNKNOWN_RESTRICTION" -> "Het tarief bevat een voorwaarde die ChargeWatch nog niet interpreteert"
+    "TIME_ZONE_REQUIRED" -> "Tijdzone is nodig om de tijdsvoorwaarde te beoordelen"
+    "INVALID_RESTRICTION_VALUE" -> "Een tariefvoorwaarde heeft een ongeldige waarde"
+    "INVALID_RESTRICTIONS" -> "De tariefvoorwaarden hebben een ongeldig formaat"
+    "INVALID_ELEMENTS" -> "De tariefelementen hebben een ongeldig formaat"
+    "INVALID_ELEMENT" -> "Een tariefelement is ongeldig"
+    "INVALID_PRICE_COMPONENT" -> "Een prijscomponent is ongeldig"
+    "INVALID_VAT" -> "Het btw-percentage is ongeldig"
+    "INVALID_CURRENCY" -> "De valuta is ongeldig"
+    "INVALID_VALIDITY" -> "De geldigheidsperiode is ongeldig"
+    "OUTSIDE_VALIDITY" -> "Het tarief valt buiten zijn geldigheidsperiode"
+    "SOURCE_TARIFF_NOT_FOUND" -> "De tariefreferentie ontbreekt in de actuele bron"
+    "TARIFF_TYPE_MISMATCH" -> "Dit tariefprofiel past niet bij de gekozen optie"
+    else -> "Niet volledig geïnterpreteerde tariefvoorwaarde"
+}
 
 /** Preserve NDW fallback behavior; mark API-derived values as estimates/bounds. */
 private fun connectorPowerLabel(connector: NdwAvailability): String? {
