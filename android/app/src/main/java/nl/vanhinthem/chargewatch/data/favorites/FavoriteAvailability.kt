@@ -7,13 +7,13 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * OCPI lastUpdated describes when the source object itself last changed. It is
- * not a freshness clock: an unchanged AVAILABLE EVSE may legitimately keep the
- * same source timestamp for hours or days.
+ * OCPI lastUpdated is when the source object itself changed. It is deliberately
+ * not used as a freshness clock: an unchanged EVSE may keep that timestamp for
+ * hours or days while the Locations feed is still being observed normally.
  *
- * Favorites therefore show when ChargeWatch last fetched/checked this status.
- * The original source timestamp remains available as sourceUpdated for detail
- * or diagnostics, but is never presented as "status age".
+ * The favorites UI uses feedLastObservedAt/feedIsStale instead. For the
+ * ChargeWatch API this is the collector's Locations-feed observation time; for
+ * direct NDW fallback it is the successful client fetch time.
  */
 data class FavoriteAvailability(
     val label: String,
@@ -24,14 +24,17 @@ data class FavoriteAvailability(
 
 fun favoriteAvailability(
     location: MapLocation?,
-    now: Instant = Instant.now(),
-    checkedAt: Instant? = null
+    now: Instant = Instant.now()
 ): FavoriteAvailability {
     if (location == null) {
         return FavoriteAvailability("?", "Nog niet gecontroleerd", AvailabilityStatus.Unknown, null)
     }
 
-    val description = checkAgeLabel(checkedAt, now)
+    val description = feedFreshnessLabel(
+        observedAt = location.feedLastObservedAt,
+        feedIsStale = location.feedIsStale,
+        now = now
+    )
     if (location.availability.reliability == CountReliability.Ambiguous ||
         location.availability.status == AvailabilityStatus.Unknown
     ) {
@@ -51,15 +54,34 @@ fun favoriteAvailability(
     )
 }
 
-internal fun checkAgeLabel(checkedAt: Instant?, now: Instant): String {
-    if (checkedAt == null || checkedAt.isAfter(now.plusSeconds(60))) {
-        return "Nog niet gecontroleerd"
+internal fun feedFreshnessLabel(
+    observedAt: String?,
+    feedIsStale: Boolean?,
+    now: Instant
+): String {
+    val observed = try {
+        observedAt?.let(Instant::parse)
+    } catch (_: Exception) {
+        null
+    } ?: return "Laatste controle onbekend"
+
+    if (observed.isAfter(now.plusSeconds(60))) {
+        return "Laatste controle onbekend"
     }
 
-    val minutes = Duration.between(checkedAt, now).toMinutes().coerceAtLeast(0)
-    return when (minutes) {
-        0L -> "Zojuist gecontroleerd"
-        1L -> "1 min geleden gecontroleerd"
-        else -> "$minutes min geleden gecontroleerd"
+    val minutes = Duration.between(observed, now).toMinutes().coerceAtLeast(0)
+    val age = when (minutes) {
+        0L -> "zojuist"
+        1L -> "1 min geleden"
+        else -> "$minutes min geleden"
+    }
+    return if (feedIsStale == true) {
+        "Gegevens mogelijk verouderd · laatste controle $age"
+    } else {
+        when (minutes) {
+            0L -> "Zojuist gecontroleerd"
+            1L -> "1 min geleden gecontroleerd"
+            else -> "$minutes min geleden gecontroleerd"
+        }
     }
 }
