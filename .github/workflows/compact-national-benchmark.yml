@@ -50,7 +50,7 @@ jobs:
       - name: Generate synthetic national feed
         run: |
           python3 db/tests/019_national_fixture.py /tmp/national-locations.json.gz 80777 203114
-          python3 -c 'import gzip; gzip.open("/tmp/national-tariffs.json.gz","wb").write(b"[]")'
+          python3 -c 'import gzip,json; tariff=[{"country_code":"NL","party_id":"TST","id":"RATE","currency":"EUR","last_updated":"2026-10-24T08:00:00Z","elements":[{"price_components":[{"type":"ENERGY","price":0.3,"step_size":1}]}]}]; gzip.open("/tmp/national-tariffs.json.gz","wt").write(json.dumps(tariff))'
       - name: Benchmark complete bulk importer with real catalogue schema
         run: |
           set -euo pipefail
@@ -75,6 +75,7 @@ jobs:
           CW_NDW_TARIFFS_URL: 'http://127.0.0.1:18888/tariffs'
           CW_NDW_CACHE_DIR: '/tmp/cw-national-watch-cache'
           CW_NDW_MIN_LOCATIONS: '80777'
+          CW_NDW_MIN_TARIFFS: '1'
         run: |
           set -euo pipefail
           python3 db/tests/020_national_http_fixture.py &

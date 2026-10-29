@@ -28,6 +28,16 @@ Migration `018_tariffs_feed_checkpoint.sql` creates a single-row `ndw_tariffs_fe
 
 Tariff applicability is **not** the same as source freshness: `APPLICABLE` describes the rule selection only, while `tariffsFeedIsStale=true` indicates that the source check is too old for a trusted current-price claim. Android must respect both signals. Tariff `sourceUpdatedAt` is the upstream record's timestamp, not the feed's last verification time.
 
+## Presence in the current Tariffs snapshot
+
+A stored source payload is not by itself evidence that the tariff is still present in NDW. Migration `025_tariff_snapshot_presence` therefore records current presence separately with `tariff.is_active` and `last_seen_at`, plus a single-row `ndw_tariffs_snapshot_checkpoint`.
+
+Presence is reconciled only inside a successful bulk transaction for a changed, validated Tariffs HTTP 200 response. A tariff missing from that accepted snapshot becomes inactive while its payload and `connector_tariff` reference remain stored. The location API joins only active tariffs, so the preserved reference is returned as `SOURCE_MISSING` with no price components. A later accepted snapshot containing the same tariff reactivates it. Tariffs HTTP 304, cache replay and manual `--bulk` do not infer absence.
+
+Before reconciliation, the importer rejects fewer than `CW_NDW_MIN_TARIFFS` unique tariffs (production default 1.000) and shrinkage greater than 10% from the last accepted Tariffs snapshot count. On the first verified snapshot after migration, the active tariff count is the fallback baseline. A rejected or failed import advances neither presence state nor source checkpoints/cache. This is a safety guard against empty or obviously partial feeds, not proof that every smaller upstream change is complete.
+
+`/api/v1/data-status.tariffCount` counts active tariffs. Tariffs-feed freshness remains independent: a recent successful feed check can be fresh while a particular preserved connector reference is `SOURCE_MISSING`.
+
 ## Acceptance and deployment
 
 Deployed releases include migration 018 (checkpoint table and read-role grant) and migration 019 (collector import-role write grant). A successful HTTP 304 produced a verified checkpoint timestamp, which was returned identically by the read-only API with `tariffsFeedIsStale=false`. Runtime validation completed; issue #66 closed. Automated historical monitoring remains deferred to issue #79. The real UB2/EFL/EFL-duration validations from PR #80 remain relevant.

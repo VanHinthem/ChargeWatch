@@ -1,0 +1,68 @@
+name: Tariff snapshot presence
+on:
+  pull_request:
+    paths:
+      - 'db/tests/tariff_disappearance_http.py'
+      - 'db/migrations/025_tariff_snapshot_presence.sql'
+      - 'src/ChargeWatch.Importer/**'
+      - 'src/ChargeWatch.Api/**'
+      - '.github/workflows/tariff-disappearance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tariff-presence-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_tariff_presence_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_tariff_presence_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_tariff_presence_ci
+      POSTGRES_USER: chargewatch_owner
+      POSTGRES_DB: chargewatch_tariff_presence_ci
+      CW_IMPORT_PASSWORD: import-test-only
+      CW_READ_PASSWORD: read-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare disposable PostgreSQL 18 database
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
+          # Production bootstrap hardcodes database chargewatch; use isolated roles here.
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chargewatch_import LOGIN PASSWORD 'import-test-only';
+          CREATE ROLE chargewatch_read LOGIN PASSWORD 'read-test-only';
+          GRANT CONNECT ON DATABASE chargewatch_tariff_presence_ci TO chargewatch_import, chargewatch_read;
+          GRANT USAGE ON SCHEMA public TO chargewatch_import, chargewatch_read;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO chargewatch_import;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chargewatch_import;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO chargewatch_read;
+          SQL
+          for migration in db/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -1 -f "$migration"
+          done
+      - name: Build actual importer and API
+        run: |
+          dotnet build src/ChargeWatch.Importer --configuration Release
+          dotnet build src/ChargeWatch.Api --configuration Release
+      - name: Verify disappearance, 304, return and unsafe-feed rollback
+        run: python3 db/tests/tariff_disappearance_http.py

@@ -41,7 +41,7 @@ internal static class BulkImporter
 
     private static string Csv(string json) => "\"" + json.Replace("\"", "\"\"") + "\"";
 
-    public static async Task<int> Run(string[] args, DateTimeOffset? verifiedLocationsFetchedAtUtc = null)
+    public static async Task<int> Run(string[] args, DateTimeOffset? verifiedLocationsFetchedAtUtc = null, DateTimeOffset? verifiedTariffsFetchedAtUtc = null)
     {
         if (args.Length is < 1 or > 3)
         {
@@ -180,6 +180,29 @@ internal static class BulkImporter
                 if (before is long previousEvses && previousEvses >= 10000 && evseCount < previousEvses * 0.90)
                     throw new InvalidDataException(
                         $"Suspicious EVSE snapshot shrinkage: {evseCount} versus {previousEvses}. Reconciliation refused.");
+            }
+            if (verifiedTariffsFetchedAtUtc is not null)
+            {
+                if (tariffsPath is null)
+                    throw new InvalidDataException("Verified Tariffs snapshot has no source file.");
+                var minimumTariffs = 1000;
+                var configuredMinimum = Environment.GetEnvironmentVariable("CW_NDW_MIN_TARIFFS");
+                if (!string.IsNullOrWhiteSpace(configuredMinimum) &&
+                    (!int.TryParse(configuredMinimum, out minimumTariffs) || minimumTariffs < 1))
+                    throw new ArgumentException("CW_NDW_MIN_TARIFFS must be a positive integer.");
+                if (seenTariffs.Count < minimumTariffs)
+                    throw new InvalidDataException(
+                        $"Only {seenTariffs.Count} tariffs; expected >= {minimumTariffs}. Presence reconciliation refused.");
+
+                await using var tariffBaseline = new NpgsqlCommand("""
+                    SELECT coalesce(
+                      (SELECT tariff_count FROM ndw_tariffs_snapshot_checkpoint WHERE feed_key='tariffs'),
+                      (SELECT count(*)::integer FROM tariff WHERE is_active))
+                    """, db, tx);
+                var previousTariffs = Convert.ToInt32(await tariffBaseline.ExecuteScalarAsync());
+                if (previousTariffs >= minimumTariffs && seenTariffs.Count < previousTariffs * 0.90)
+                    throw new InvalidDataException(
+                        $"Suspicious Tariffs snapshot shrinkage: {seenTariffs.Count} versus {previousTariffs}. Presence reconciliation refused.");
             }
             Console.WriteLine($"Staged: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs. Publishing...");
             await Exec(db, tx, """
@@ -356,6 +379,45 @@ internal static class BulkImporter
                     WHERE (tariff.currency,tariff.details,tariff.source_last_updated)
                         IS DISTINCT FROM (excluded.currency,excluded.details,excluded.source_last_updated);
                     """);
+            if (verifiedTariffsFetchedAtUtc is { } tariffFetchedAt)
+            {
+                string tariffsHash;
+                await using (var source = File.OpenRead(tariffsPath!))
+                    tariffsHash = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
+                await using var tariffPresence = new NpgsqlCommand("""
+                    WITH present AS (
+                      UPDATE tariff t SET is_active=true,last_seen_at=$1
+                      FROM stage_tariff s
+                      WHERE t.country_code=s.payload->>'country'
+                        AND t.party_id=s.payload->>'party'
+                        AND t.source_id=s.payload->>'id'
+                        AND (NOT t.is_active OR t.last_seen_at IS DISTINCT FROM $1)
+                      RETURNING 1
+                    ), absent AS (
+                      UPDATE tariff t SET is_active=false
+                      WHERE t.is_active
+                        AND NOT EXISTS (
+                          SELECT 1 FROM stage_tariff s
+                          WHERE t.country_code=s.payload->>'country'
+                            AND t.party_id=s.payload->>'party'
+                            AND t.source_id=s.payload->>'id')
+                      RETURNING 1
+                    )
+                    INSERT INTO ndw_tariffs_snapshot_checkpoint
+                      (feed_key,source_sha256,fetched_at,tariff_count)
+                    VALUES ('tariffs',$2,$1,$3)
+                    ON CONFLICT(feed_key) DO UPDATE SET
+                      source_sha256=excluded.source_sha256,
+                      fetched_at=excluded.fetched_at,
+                      tariff_count=excluded.tariff_count,
+                      committed_at=statement_timestamp()
+                    WHERE excluded.fetched_at>ndw_tariffs_snapshot_checkpoint.fetched_at;
+                    """, db, tx) { CommandTimeout = 600 };
+                tariffPresence.Parameters.AddWithValue(tariffFetchedAt.ToUniversalTime());
+                tariffPresence.Parameters.AddWithValue(tariffsHash);
+                tariffPresence.Parameters.AddWithValue(seenTariffs.Count);
+                await tariffPresence.ExecuteNonQueryAsync();
+            }
 
             // Sprint 3 checkpoints share the catalogue transaction. A failure rolls
             // back both; the additive schema migration must be applied first.
