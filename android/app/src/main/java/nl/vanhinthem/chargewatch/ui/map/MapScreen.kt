@@ -269,7 +269,10 @@ fun MapScreen(
             locations = state.locations,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
-            onLocationsSelected = { selectedLocations = it },
+            onLocationsSelected = { tapped ->
+                selectedLocations = tapped
+                if (tapped.isNotEmpty()) nearbyExpanded = false
+            },
             favoriteIds = favorites.map { it.featureId }.toSet(),
             cameraTarget = cameraTarget,
             destination = destination,
@@ -297,6 +300,7 @@ fun MapScreen(
             nearLoading = nearLoading,
             nearMessage = nearMessage,
             nearbyExpanded = nearbyExpanded,
+            showNearbyPanel = selectedLocations.isEmpty(),
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
@@ -356,6 +360,7 @@ private fun SearchHeader(
     nearLoading: Boolean,
     nearMessage: String?,
     nearbyExpanded: Boolean,
+    showNearbyPanel: Boolean,
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
@@ -464,7 +469,7 @@ private fun SearchHeader(
         }
         // Keep the selected destination pinned while another address is being typed,
         // but give autocomplete priority over the nearby-charger panel.
-        if (destination != null && !(focused && !searchSelected)) {
+        if (destination != null && showNearbyPanel && !(focused && !searchSelected)) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -535,39 +540,39 @@ private fun SearchHeader(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                     style = MaterialTheme.typography.bodySmall)
                             }
-                    nearLocations.forEachIndexed { index, item ->
-                        if (index > 0) HorizontalDivider()
-                        Row(modifier = Modifier.fillMaxWidth().clickable { onNearestSelected(item) }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Default.EvStation, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.operatorName?.takeIf { it.isNotBlank() }
-                                    ?: item.address.ifBlank { "Laadlocatie" },
-                                    style = MaterialTheme.typography.titleSmall)
-                                Text(listOfNotNull(item.address.takeIf { it.isNotBlank() },
-                                    item.city.takeIf { it.isNotBlank() }).joinToString(", "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                item.distanceMeters?.let { meters ->
-                                    Text(if (meters < 1000) "${meters.toInt()} m hemelsbreed"
-                                        else String.format(Locale.forLanguageTag("nl-NL"), "%.1f km hemelsbreed", meters / 1000.0),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            nearLocations.forEachIndexed { index, item ->
+                                if (index > 0) HorizontalDivider()
+                                Row(modifier = Modifier.fillMaxWidth().clickable { onNearestSelected(item) }
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Icon(Icons.Default.EvStation, contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(item.operatorName?.takeIf { it.isNotBlank() }
+                                            ?: item.address.ifBlank { "Laadlocatie" },
+                                            style = MaterialTheme.typography.titleSmall)
+                                        Text(listOfNotNull(item.address.takeIf { it.isNotBlank() },
+                                            item.city.takeIf { it.isNotBlank() }).joinToString(", "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        item.distanceMeters?.let { meters ->
+                                            Text(if (meters < 1000) "${meters.toInt()} m hemelsbreed"
+                                                else String.format(Locale.forLanguageTag("nl-NL"), "%.1f km hemelsbreed", meters / 1000.0),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false) "?"
+                                        else "${item.availableCount}/${item.totalCount}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = when {
+                                            item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false -> ComposeColor(0xFF818D96)
+                                            item.availableCount > 0 -> ComposeColor(0xFF168653)
+                                            else -> ComposeColor(0xFFD43B3B)
+                                        })
                                 }
                             }
-                            Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false) "?"
-                                else "${item.availableCount}/${item.totalCount}",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = when {
-                                    item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false -> ComposeColor(0xFF818D96)
-                                    item.availableCount > 0 -> ComposeColor(0xFF168653)
-                                    else -> ComposeColor(0xFFD43B3B)
-                                })
-                        }
-                    }
                         }
                     }
                 }
