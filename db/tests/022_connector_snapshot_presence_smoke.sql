@@ -16,6 +16,9 @@ CREATE TEMP TABLE stage_present_connector_ids ON COMMIT DROP AS
 SELECT id FROM connector WHERE source_id='PRESENT';
 CREATE UNIQUE INDEX ON stage_present_connector_ids(id);
 
+CREATE TEMP TABLE stage_connector_presence_excluded_evse_ids(id bigint PRIMARY KEY)
+ON COMMIT DROP;
+
 SELECT * FROM reconcile_connector_snapshot_presence('2026-10-29 08:00Z');
 SELECT * FROM reconcile_connector_snapshot_presence('2026-10-29 08:00Z');
 DO $verify$
