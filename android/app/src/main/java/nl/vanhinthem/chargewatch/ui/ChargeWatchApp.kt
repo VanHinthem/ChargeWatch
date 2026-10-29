@@ -69,7 +69,6 @@ fun ChargeWatchApp() {
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
-    var latestStatusFetchedAt by remember { mutableStateOf<Map<String, Instant>>(emptyMap()) }
     var favoriteFetchedAt by remember { mutableStateOf<Instant?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
@@ -77,18 +76,19 @@ fun ChargeWatchApp() {
     val mapStatuses = mapState.locations.associateBy { it.featureId }
     val statusView = favorites.associate { favorite ->
         val favoriteObserved = latestStatuses[favorite.featureId]
-        val favoriteCheckedAt = latestStatusFetchedAt[favorite.featureId]
         val mapObserved = mapStatuses[favorite.featureId]
-        val mapCheckedAt = mapState.fetchedAt
+        fun feedObservedAt(location: MapLocation?): Instant? = try {
+            location?.feedLastObservedAt?.let(Instant::parse)
+        } catch (_: Exception) {
+            null
+        }
+        val favoriteObservedAt = feedObservedAt(favoriteObserved)
+        val mapObservedAt = feedObservedAt(mapObserved)
         val useMap = mapObserved != null &&
-            (favoriteCheckedAt == null || (mapCheckedAt?.isAfter(favoriteCheckedAt) == true))
+            (favoriteObservedAt == null ||
+                (mapObservedAt?.isAfter(favoriteObservedAt) == true))
         val observed = if (useMap) mapObserved else favoriteObserved ?: mapObserved
-        val checkedAt = if (useMap) mapCheckedAt else favoriteCheckedAt ?: mapCheckedAt
-        favorite.featureId to favoriteAvailability(
-            location = observed,
-            now = statusCheckedAt,
-            checkedAt = checkedAt
-        )
+        favorite.featureId to favoriteAvailability(observed, statusCheckedAt)
     }
     suspend fun refresh(force: Boolean = false) {
         val currentTime = Instant.now()
@@ -109,16 +109,12 @@ fun ChargeWatchApp() {
         try {
             when (val result = availabilityClient.refresh(needed)) {
                 is FavoriteRefreshResult.Success -> {
-                    val fetchedAt = Instant.now()
                     latestStatuses = latestStatuses + result.locations
-                    latestStatusFetchedAt = latestStatusFetchedAt + result.locations.keys.associateWith { fetchedAt }
-                    favoriteFetchedAt = fetchedAt
+                    favoriteFetchedAt = Instant.now()
                     refreshMessage = result.warning
                 }
                 is FavoriteRefreshResult.Partial -> {
-                    val fetchedAt = Instant.now()
                     latestStatuses = latestStatuses + result.locations
-                    latestStatusFetchedAt = latestStatusFetchedAt + result.locations.keys.associateWith { fetchedAt }
                     refreshMessage = result.warning
                     // Partial responses are not considered fully checked, so retry is possible.
                 }
@@ -186,16 +182,12 @@ fun ChargeWatchApp() {
                             scope.launch {
                                 when (val result = availabilityClient.refresh(listOf(favorite))) {
                                     is FavoriteRefreshResult.Success -> {
-                                        val fetchedAt = Instant.now()
                                         latestStatuses = latestStatuses + result.locations
-                                        latestStatusFetchedAt = latestStatusFetchedAt + result.locations.keys.associateWith { fetchedAt }
-                                        result.locations[favorite.featureId]?.let { favoriteDetail = it }
+                                                            result.locations[favorite.featureId]?.let { favoriteDetail = it }
                                     }
                                     is FavoriteRefreshResult.Partial -> {
-                                        val fetchedAt = Instant.now()
                                         latestStatuses = latestStatuses + result.locations
-                                        latestStatusFetchedAt = latestStatusFetchedAt + result.locations.keys.associateWith { fetchedAt }
-                                        result.locations[favorite.featureId]?.let { favoriteDetail = it }
+                                                            result.locations[favorite.featureId]?.let { favoriteDetail = it }
                                         refreshMessage = result.warning
                                     }
                                 }
