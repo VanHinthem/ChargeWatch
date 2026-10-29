@@ -485,18 +485,41 @@ private fun LocationSelectionSheet(
     // Keep the expanded sheet visually separated from the persistent search header.
     val sheetTopInset = 112.dp
     val expandedSheetMaxHeight = (screenHeight - sheetTopInset - 12.dp).coerceAtLeast(360.dp)
+    fun gestureModifier(): Modifier = Modifier.pointerInput(selectedId, expanded) {
+        var dragAmount = 0f
+        detectVerticalDragGestures(
+            onDragStart = { dragAmount = 0f },
+            onVerticalDrag = { change, amount ->
+                change.consume()
+                dragAmount += amount
+            },
+            onDragEnd = {
+                when {
+                    dragAmount < -36f -> expanded = true
+                    dragAmount > 36f && expanded -> expanded = false
+                    dragAmount > 54f && !expanded -> onDismiss()
+                }
+                dragAmount = 0f
+            },
+            onDragCancel = { dragAmount = 0f }
+        )
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        sheetGesturesEnabled = false,
         modifier = Modifier.padding(top = sheetTopInset),
-        // Keep the handle as a visual affordance, but do not require tapping it.
+        // We own the sheet gesture so Material cannot interpret the handle as dismissal.
         dragHandle = {
             Box(
-                Modifier.fillMaxWidth().height(24.dp),
+                Modifier.fillMaxWidth().height(36.dp)
+                    .then(gestureModifier())
+                    .clickable { expanded = !expanded },
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
-                    Modifier.padding(top = 8.dp).width(32.dp).height(4.dp)
+                    Modifier.padding(top = 10.dp).width(36.dp).height(4.dp)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
                 )
             }
@@ -554,36 +577,17 @@ private fun LocationSelectionSheet(
                 AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
                 AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
             }
-            var sheetDragAmount by remember(selectedId, expanded) { mutableStateOf(0f) }
             Column(
                 Modifier.fillMaxWidth()
                     .heightIn(max = expandedSheetMaxHeight)
-                    .pointerInput(selectedId, expanded) {
-                        detectVerticalDragGestures(
-                            onDragStart = { sheetDragAmount = 0f },
-                            onVerticalDrag = { change, amount ->
-                                sheetDragAmount += amount
-                                // Only consume once the gesture clearly expresses a
-                                // sheet transition; small movements remain available
-                                // to the expanded content's vertical scroll.
-                                if (kotlin.math.abs(sheetDragAmount) > 18f) change.consume()
-                            },
-                            onDragEnd = {
-                                when {
-                                    sheetDragAmount < -48f && !expanded -> expanded = true
-                                    sheetDragAmount > 48f && expanded -> expanded = false
-                                    sheetDragAmount > 72f && !expanded -> onDismiss()
-                                }
-                                sheetDragAmount = 0f
-                            },
-                            onDragCancel = { sheetDragAmount = 0f }
-                        )
-                    }
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Row(
+                    Modifier.fillMaxWidth().then(gestureModifier()),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(location.title, style = MaterialTheme.typography.titleLarge)
                         location.address?.takeIf { it != location.title }?.let {
