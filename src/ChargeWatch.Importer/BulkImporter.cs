@@ -16,16 +16,6 @@ internal static class BulkImporter
     private static IEnumerable<JsonElement> Items(JsonElement e, string property)
         => e.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray() : [];
 
-    private static IEnumerable<JsonElement> RequiredNonEmptyItems(
-        JsonElement e, string property, string owner)
-    {
-        if (!e.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Array)
-            throw new InvalidDataException($"{owner} has missing or invalid {property} collection.");
-        if (value.GetArrayLength() == 0)
-            throw new InvalidDataException($"{owner} has empty {property} collection.");
-        return value.EnumerateArray();
-    }
-
     private static string Key(params string[] parts) => string.Join("\u001f", parts);
 
     private static async IAsyncEnumerable<JsonElement> Read(string path)
@@ -73,6 +63,8 @@ internal static class BulkImporter
         var seenEvses = new HashSet<string>(StringComparer.Ordinal);
         var seenConnectors = new HashSet<string>(StringComparer.Ordinal);
         var seenTariffs = new HashSet<string>(StringComparer.Ordinal);
+        var incompleteConnectorEvses =
+            new List<(string Country, string Party, string LocationId, string Uid)>();
         var locCount = 0;
         var evseCount = 0;
         var connectorCount = 0;
@@ -86,6 +78,7 @@ internal static class BulkImporter
                 CREATE TEMP TABLE stage_loc(payload jsonb) ON COMMIT DROP;
                 CREATE TEMP TABLE stage_evse(payload jsonb) ON COMMIT DROP;
                 CREATE TEMP TABLE stage_connector(payload jsonb) ON COMMIT DROP;
+                CREATE TEMP TABLE stage_incomplete_connector_evse(payload jsonb) ON COMMIT DROP;
                 CREATE TEMP TABLE stage_tariff(payload jsonb) ON COMMIT DROP;
                 """);
 
@@ -136,8 +129,14 @@ internal static class BulkImporter
                     foreach (var evse in Items(loc, "evses"))
                     {
                         var uid = Required(evse, "uid");
-                        foreach (var connector in RequiredNonEmptyItems(
-                                     evse, "connectors", $"EVSE {Key(country, party, id, uid)}"))
+                        if (!evse.TryGetProperty("connectors", out var connectors) ||
+                            connectors.ValueKind != JsonValueKind.Array ||
+                            connectors.GetArrayLength() == 0)
+                        {
+                            incompleteConnectorEvses.Add((country, party, id, uid));
+                            continue;
+                        }
+                        foreach (var connector in connectors.EnumerateArray())
                         {
                             var connectorId = Required(connector, "id");
                             if (!seenConnectors.Add(Key(country, party, id, uid, connectorId)))
@@ -147,6 +146,21 @@ internal static class BulkImporter
                         }
                     }
                 }
+            }
+            if (incompleteConnectorEvses.Count > 0)
+            {
+                await using var iw = await db.BeginTextImportAsync(
+                    "COPY stage_incomplete_connector_evse(payload) FROM STDIN WITH (FORMAT csv)");
+                foreach (var item in incompleteConnectorEvses)
+                    await iw.WriteLineAsync(Csv(JsonSerializer.Serialize(new
+                    {
+                        country = item.Country,
+                        party = item.Party,
+                        id = item.LocationId,
+                        uid = item.Uid
+                    })));
+                Console.Error.WriteLine(
+                    $"WARNING: skipped connector presence for {incompleteConnectorEvses.Count} EVSE(s) with a missing, invalid or empty connectors collection.");
             }
 
             if (tariffsPath is not null)
@@ -332,6 +346,14 @@ internal static class BulkImporter
                     JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid'
                     JOIN connector c ON c.evse_id=e.id AND c.source_id=s.payload->>'connectorId';
                     CREATE UNIQUE INDEX ON stage_present_connector_ids(id);
+
+                    CREATE TEMP TABLE stage_connector_presence_excluded_evse_ids ON COMMIT DROP AS
+                    SELECT e.id
+                    FROM stage_incomplete_connector_evse s
+                    JOIN charging_location l ON l.country_code=s.payload->>'country'
+                      AND l.party_id=s.payload->>'party' AND l.source_id=s.payload->>'id'
+                    JOIN evse e ON e.location_id=l.id AND e.source_uid=s.payload->>'uid';
+                    CREATE UNIQUE INDEX ON stage_connector_presence_excluded_evse_ids(id);
                     """);
                 await using var connectorPresence = new NpgsqlCommand(
                     "SELECT * FROM reconcile_connector_snapshot_presence($1)", db, tx) { CommandTimeout = 600 };
