@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,6 +70,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -166,6 +168,7 @@ fun MapScreen(
     var nearLoading by remember { mutableStateOf(false) }
     var nearMessage by viewModel.nearMessage
     var nearbyExpanded by viewModel.nearbyExpanded
+    var canReturnToDestination by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery, searchSelected) {
         val query = searchQuery.trim()
@@ -199,6 +202,7 @@ fun MapScreen(
             when (val response = pdokClient.lookup(suggestion)) {
                 is DestinationLookupResult.Success -> {
                     destination = response.destination
+                    canReturnToDestination = false
                     nearbyExpanded = true
                     cameraTarget = CameraTarget(response.destination.latitude, response.destination.longitude, 14.0)
                 }
@@ -241,6 +245,7 @@ fun MapScreen(
         selectedSuggestion = null
         destination = destinationAfterQueryEdit(value, destination)
         if (value.isBlank()) {
+            canReturnToDestination = false
             nearbyExpanded = false
             nearLocations = emptyList()
             nearMessage = null
@@ -254,6 +259,12 @@ fun MapScreen(
         searchMessage = null
         selectedLocations = emptyList()
         selectedSuggestion = item
+    }
+
+    fun returnToDestination() {
+        val selected = destination ?: return
+        nearbyExpanded = false
+        cameraTarget = CameraTarget(selected.latitude, selected.longitude, 14.0)
     }
 
     fun selectNearestCharger(item: SearchLocation) {
@@ -276,7 +287,9 @@ fun MapScreen(
             favoriteIds = favorites.map { it.featureId }.toSet(),
             cameraTarget = cameraTarget,
             destination = destination,
-            onMapCenterChanged = { lat, lon ->
+            onMapCameraIdle = { lat, lon, zoom ->
+                // This observes *all* camera movement (manual pans and list jumps).
+                canReturnToDestination = shouldShowReturnToDestination(destination, lat, lon, zoom)
                 // Do not redraw all markers for insignificant camera movement.
                 val region = (lat * 10).roundToInt() / 10.0 to (lon * 10).roundToInt() / 10.0
                 if (mapCenter != region) mapCenter = region
@@ -300,6 +313,8 @@ fun MapScreen(
             nearLoading = nearLoading,
             nearMessage = nearMessage,
             nearbyExpanded = nearbyExpanded,
+            canReturnToDestination = canReturnToDestination,
+            onReturnToDestination = ::returnToDestination,
             showNearbyPanel = selectedLocations.isEmpty(),
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
@@ -360,6 +375,8 @@ private fun SearchHeader(
     nearLoading: Boolean,
     nearMessage: String?,
     nearbyExpanded: Boolean,
+    canReturnToDestination: Boolean,
+    onReturnToDestination: () -> Unit,
     showNearbyPanel: Boolean,
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
@@ -521,6 +538,23 @@ private fun SearchHeader(
                         )
                     }
                     AnimatedVisibility(
+                        visible = canReturnToDestination,
+                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                    ) {
+                        Column {
+                            HorizontalDivider()
+                            TextButton(
+                                onClick = onReturnToDestination,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.MyLocation, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Terug naar zoekadres")
+                            }
+                        }
+                    }
+                    AnimatedVisibility(
                         visible = nearbyExpanded,
                         enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                         exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
@@ -599,7 +633,7 @@ private fun ChargeMap(
     favoriteIds: Set<String>,
     cameraTarget: CameraTarget?,
     destination: Destination?,
-    onMapCenterChanged: (Double, Double) -> Unit,
+    onMapCameraIdle: (Double, Double, Double) -> Unit,
     onCameraTargetConsumed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -609,7 +643,7 @@ private fun ChargeMap(
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentDestination = rememberUpdatedState(destination)
-    val currentMapCenterHandler = rememberUpdatedState(onMapCenterChanged)
+    val currentMapIdleHandler = rememberUpdatedState(onMapCameraIdle)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
@@ -702,7 +736,11 @@ private fun ChargeMap(
                             currentDestination.value
                         )
                         map.cameraPosition.target?.let { center ->
-                            currentMapCenterHandler.value(center.latitude, center.longitude)
+                            currentMapIdleHandler.value(
+                                center.latitude,
+                                center.longitude,
+                                map.cameraPosition.zoom
+                            )
                         }
                         requestViewport(map, onViewportChanged)
                     }
