@@ -1,6 +1,6 @@
 # ChargeWatch — Technisch ontwerp
 
-**Status:** Importer, PostgreSQL/PostGIS en compacte statistieken zijn operationeel; de read-only API wordt in PR #22 toegevoegd. Android is nog niet gebouwd.
+**Status:** Importer, PostgreSQL/PostGIS, read-only API, compacte statistieken en Android-client zijn operationeel. De data-audit tot en met tarief- en connectoraanwezigheid is geïmplementeerd; productie-uitrol blijft per release een afzonderlijk beslismoment.
 
 ## Hoofdopzet — versie 1
 
@@ -37,6 +37,16 @@ NDW OCPI Locations + Tariffs
 
 **Ontwerpprincipe:** één modulaire backend en database, geen microservices of message broker in MVP.
 
+### NDW als bron van waarheid en maximaal databehoud
+
+- NDW/OCPI is de primaire bron van waarheid voor de actuele landelijke catalogus, statussen en brontarieven.
+- Bewaar ontvangen brondata, identiteiten en relaties zo veel mogelijk; onbekende velden of tijdelijk afwezige records zijn geen reden voor destructieve verwijdering.
+- Verwerk geldige delen van een snapshot ook wanneer één lokaal onderdeel onbruikbaar is. Isoleer fouten op het kleinst veilige niveau, zodat één EVSE of connector de landelijke import niet blokkeert.
+- Gebruik onvolledige of malformeerde lokale data nooit als bewijs van verdwijning. Voor die entiteit blijft de laatst geldige data staan en schuift presence-evidence niet op.
+- Neem afwezigheid alleen over uit een daarvoor voldoende betrouwbare snapshot, met toepasselijke minimumaantallen, krimpguards, replaybescherming en hysterese.
+- Toon zo veel mogelijk betrouwbare informatie, maar verzin niets: onbekend is niet nul, vrij, defect of actueel. Scheid broninhoud, aanwezigheid, versheid en afgeleide zekerheid.
+- Behouden historische bronrijen zijn diagnostische continuïteit, geen onbeperkte tijdreeks en geen bewijs dat de inhoud nog actueel is.
+
 ## Logisch gegevensmodel
 
 | Entiteit | Doel |
@@ -50,7 +60,7 @@ NDW OCPI Locations + Tariffs
 | StatisticsAccumulator | Tijdelijk werk-/checkpointmodel om geldige tijdgewogen observaties per uur en import te verwerken |
 | EvseDurationSummary | Compacte duurverdelingen en tellers voor beschikbaarheids-, niet-beschikbaarheids- en storingsperioden per EVSE; geen ruwe sessielog |
 | LocationFullOccupancySummary | Per locatie duurcategorieën van perioden met **nul vrije EVSE's**, overgangsteller naar >=1 vrij, begindetectietijd van huidige volledig-bezette periode en datakwaliteit |
-| Tariff | Alleen huidige OCPI-tariefcomponenten en voorwaarden; geen tariefhistorie |
+| Tariff | Actuele OCPI-tariefcomponenten en voorwaarden; verdwenen bronrijen inactief behouden voor identiteit/diagnose, zonder tarieftijdreeks |
 | ImportRun | Status, timing, aantallen, fouten en gebruikte bronmetadata |
 
 Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor identity gebruiken we bij voorkeur **country_code + party_id + OCPI location ID**, met een stabiele interne sleutel; bron-IDs kunnen wijzigen. De status is uiteindelijk per EVSE, niet per tariefconnector.
@@ -60,8 +70,8 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 1. Conditionele GET toepassen waar HTTP ETag/Last-Modified dat ondersteunen; wijzigingsfrequentie eerst meten.
 2. Het nationale gzip/JSON-bestand gestreamd downloaden, uitpakken en verwerken zonder volledige landelijke JSON permanent in RAM te houden.
 3. Schema en datakwaliteit valideren: IDs, aantallen, tijdstempels, volledigheid en afnemende dekkingsgraad.
-4. Data in staging vergelijken met de laatst succesvol gepubliceerde versie.
-5. Een complete geldige import atomair publiceren; wijzigingen vastleggen.
+4. Data in staging vergelijken met de laatst succesvol gepubliceerde versie; structurele lokale fouten per entiteit markeren.
+5. Een geaccepteerde snapshot atomair publiceren. Geldige delen blijven verwerkbaar; onbetrouwbare lokale collecties worden uitsluitend voor destructieve presence-evidence uitgesloten.
 6. Huidige EVSE-statussen vergelijken, compacte uuraccumulators bijwerken en veilig publiceren. De importer hoeft in v1 **geen** notificaties of langdurige eventhistorie bij te houden.
 
 **Nooit:** afwezige records in een mislukte of onvolledige import automatisch als defect, verdwenen of vrij markeren. Bij fouten behoudt de API de laatst bekende status met duidelijke stale-indicator.
@@ -78,7 +88,7 @@ Locatie is niet hetzelfde als EVSE, en EVSE niet hetzelfde als connector. Voor i
 - **Locatiebrede bezettingsperioden:** bepaal bij iedere valide gezamenlijke locatiesnapshot of er **0** of **>=1** vrije EVSE's zijn. Houd start en duur van ononderbroken perioden met 0 vrij bij; bij overgang naar >=1 vrij verhoog je compacte histogram-buckets/tellers en sluit je de periode af. Hiermee meten we rechtstreeks hoe lang een locatie zonder vrije aansluiting blijft, zonder uit te gaan van onafhankelijke EVSE's. Storingen kunnen ook 0 vrij opleveren: onderscheid **volledig bezet** van **geen beschikbare aansluiting door storing/blokkade** en label of filter dergelijke perioden voor voorspellingen.
 - **Onvolledige perioden:** onbetrouwbare of niet-verse gezamenlijke status pauzeert de geldige observatie; ontbrekende begin- of eindobservatie niet stilzwijgend als volledige duur registreren. Bij een wijzigend aantal EVSE's aan de locatie en bij importgaten de statistische kwaliteitscontrole toepassen.
 - **Ruwe events:** geen langdurige landelijke eventhistorie. Alleen huidige status, bron-/waarnemingstijd en noodzakelijke duurzame importtoestand opslaan. Een gemiste statuswisseling tussen imports kan niet worden gereconstrueerd.
-- **Tarieven:** alleen actuele tarieven, zonder historisering.
+- **Tarieven:** alleen actieve tarieven als actuele prijs presenteren. Verdwenen bronpayloads en referenties mogen inactief bewaard blijven voor identiteit en diagnose, zonder een tarieftijdreeks op te bouwen.
 
 Bij 18 MB gzip per vijf minuten betekent volledige herdownload circa 5,2 GB per dag; meet HTTP caching, overweeg toekomstige delta-/pushmogelijkheden. Niet aannemen dat zulke mogelijkheden al beschikbaar zijn.
 

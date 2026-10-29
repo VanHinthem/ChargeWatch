@@ -1,12 +1,16 @@
 # ChargeWatch — Productvisie en requirements
 
-**Status:** Concept v0.1 — besproken 21–22 oktober 2026. Geen productcode geïmplementeerd.
+**Status:** Versie 1 in ontwikkeling; landelijke backend, read-only API en Android-basis zijn operationeel. Data-first betrouwbaarheid blijft voorrang houden op nieuwe UI-functionaliteit.
 
 ## Visie
 
 ChargeWatch is een Android-first persoonlijke laadassistent voor **openbare laadpunten in Nederland**. De app helpt gebruikers kiezen *waar, wanneer en tegen welke prijs* zij het best kunnen laden. Het oorspronkelijke idee was een Android-widget met de vrije en operationele status van favoriete laadpalen; het product is uitgebreid naar een volwaardige app.
 
 ChargeWatch is primair een **informatie- en monitoring-app**, geen laadpas-, betaal- of sessiestartplatform. Athlon Charge kan het starten en betalen blijven verzorgen. Of ChargeWatch uitsluitend privé of later publiek gebruikt wordt, is nog open.
+
+### Bron- en databehoudbeleid
+
+NDW/OCPI is de primaire bron van waarheid. ChargeWatch bewaart en verwerkt zo veel mogelijk aangeleverde data en toont zo veel mogelijk betrouwbare informatie. Een fout in één lokaal onderdeel mag geldige landelijke updates niet blokkeren: isoleer de betreffende entiteit en behoud daarvoor de laatst geldige gegevens. Afwezigheid, nulwaarden, beschikbaarheid of actualiteit worden nooit gegokt. Bewaarde oude data wordt alleen als actueel gepresenteerd wanneer aanwezigheid en versheid dat ondersteunen.
 
 ## Gekozen productfuncties
 

@@ -1,4 +1,4 @@
-# Connector snapshot presence — issue #73 / migration 022
+# Connector snapshot presence — issue #73 / migrations 022 and 026
 
 ## Problem and evidence
 On 28 October 2026 the verified NDW import reported 204,044 connector payloads,
@@ -17,6 +17,11 @@ A missing tariff is not evidence of a missing connector.
   relationship history and clearing missing counters.
 - No presence changes on HTTP 304, manual bulk imports, rejected shrinkage,
   or rolled-back imports. Ignore absent connectors on inactive parent EVSEs or locations.
+- Migration 026 isolates a missing, null, non-array or empty connector collection
+  to its owning EVSE. That EVSE receives no present or missing connector evidence
+  for the snapshot: existing connector rows and missing counters remain unchanged.
+  Its location/EVSE fields and all other valid EVSEs/connectors are still imported.
+  One malformed EVSE must not roll back or suppress the national snapshot.
 - Active queries must require c.is_active AND e.is_active AND l.is_active.
   No change to EVSE-based capacity or historical statistic calculations.
 - Fresh tariff links for a connector that *is present* continue to be
@@ -28,9 +33,12 @@ A missing tariff is not evidence of a missing connector.
   this intentionally reduces false positives on transient source omissions.
 - Migration defaults historical connector rows to active. Three new successful
   snapshots are required to classify removals.
-- The importer currently does not store a connector count in its NDW checkpoint.
-  An aggregate six-row discrepancy is *not* proof of six exact missing IDs.
-- Required: schema smoke/replay/reappearance/tariff tests, live HTTP list/detail/
-  viewport/data-status checks, nationwide import regression, migration and NAS
-  release pipeline. Verify latest SHA CI and complete PR review before merge.
-- No NAS deployment or squash merge without explicit approval.
+- The importer does not store a connector count in its NDW checkpoint. An
+  aggregate discrepancy is not proof of exact missing identities; reconciliation
+  therefore remains identity-based and excludes structurally unreliable EVSEs.
+- Automated verification covers per-EVSE isolation for missing/null/non-array/
+  empty collections, continued evidence for another EVSE in the same HTTP 200,
+  replay, hysteresis, reappearance, tariff-relation retention, nationwide import,
+  migration and image build.
+- Production release still requires explicit approval and validation that the
+  normal NDW feed commits while any warning count remains visible in collector logs.
