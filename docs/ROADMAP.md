@@ -110,10 +110,10 @@ De NDW GeoJSON-test voor hetzelfde kaartgebied leverde:
 De exacte NDW geografische endpointparameters moeten voor de implementatie tegen de actuele documentatie worden gevalideerd.
 
 
-## Data First — planning herijkt 28 oktober 2026
+## Data First — afronding 29 oktober 2026
 
-1. **P1 #66:** OCPI 2.2.1-tariefevaluator; tolerant bronbehoud en veilige partiële evaluatie. Ontwerp-review draft PR #71, daarna parser/evaluator, repository, API-contract en specifieke Tariffs-versheid. Geen Android voordat backend gevalideerd is.
-2. **P2 #72:** structureel oplossen van overlappende/suppressed EVSE-hour-intervallen na de niet-definitieve recoveryguard #70. Historische data behouden, reproduceerbare interval-union en idempotentietests.
-3. **P3 #73:** integrale NDW/OCPI-data-audit, inclusief performance, bronkwaliteit en monitoring/herstelbaarheid.
+De data-first implementatiereeks is inhoudelijk afgerond. De oude interval-/duurstatistiekketens uit #72/#11 zijn via PR #89/#90 retired en vormen geen actuele runtime-architectuur meer. De integrale audit vond daarna nog twee concrete functionele gaten; die zijn gericht opgelost in PR #92 (tariefaanwezigheid) en PR #93 (onvolledige connectorcollecties per EVSE). NDW/OCPI blijft de bron van waarheid; brondata wordt maximaal behouden en lokale bronfouten worden zo klein mogelijk geïsoleerd.
 
-**Reeds op main en productie:** #63 opgelost door PR #67; #65 door PR #68; #64 door PR #69. Issue #11 blijft open als overkoepelende historische-statistiekscope; #72 is de gerichte vervolgfix. UX PR #61 blijft open maar on hold voor datacontract, PR #54 blijft zelfstandig open wegens niet afgeronde Geffen-dekkingsnotitie. Geen merge of productie-ingreep zonder review en akkoord.
+**Volgende productprioriteit:** Android hervatten. Open PR #61 eerst herbeoordelen tegen het definitieve tariefcontract, source freshness, operationele EVSE-telling en connectorsemantiek; daarna alleen de nog passende UX-wijzigingen behouden en op een fysiek Samsung-toestel valideren. PR #54 blijft een zelfstandige documentatienotitie en #79 een uitgestelde monitoring-roadmaptaak.
+
+**Releasegrens:** PR #92 is op de NAS bevestigd. PR #93 is op main gemerged, maar de NAS-uitrol daarvan blijft een afzonderlijk expliciet beslismoment. Geen merge of productie-ingreep zonder review en akkoord.
