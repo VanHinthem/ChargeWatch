@@ -239,8 +239,8 @@ fun MapScreen(
         // Editing an address must not discard the previously selected destination.
         // Only explicitly clearing the search removes its blue marker and nearby list.
         selectedSuggestion = null
+        destination = destinationAfterQueryEdit(value, destination)
         if (value.isBlank()) {
-            destination = null
             nearbyExpanded = false
             nearLocations = emptyList()
             nearMessage = null
