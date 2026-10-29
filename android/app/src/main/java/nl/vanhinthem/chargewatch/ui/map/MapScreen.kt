@@ -10,6 +10,12 @@ import android.graphics.Path
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
@@ -44,6 +50,8 @@ import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,6 +79,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInRoot
@@ -97,6 +106,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.PI
 import kotlin.math.cos
@@ -155,7 +165,7 @@ fun MapScreen(
     var nearLocations by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
     var nearLoading by remember { mutableStateOf(false) }
     var nearMessage by remember { mutableStateOf<String?>(null) }
-    var pendingSearchFeatureId by remember { mutableStateOf<String?>(null) }
+    var nearbyExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery, searchSelected) {
         val query = searchQuery.trim()
@@ -189,6 +199,7 @@ fun MapScreen(
             when (val response = pdokClient.lookup(suggestion)) {
                 is DestinationLookupResult.Success -> {
                     destination = response.destination
+                    nearbyExpanded = true
                     cameraTarget = CameraTarget(response.destination.latitude, response.destination.longitude, 14.0)
                 }
                 is DestinationLookupResult.Failure -> searchMessage = response.message
@@ -222,21 +233,18 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(state.locations, pendingSearchFeatureId) {
-        val featureId = pendingSearchFeatureId ?: return@LaunchedEffect
-        state.locations.firstOrNull { it.featureId == featureId }?.let {
-            selectedLocations = listOf(it)
-            pendingSearchFeatureId = null
-        }
-    }
-
     fun onQueryChanged(value: String) {
         searchQuery = value
         searchSelected = false
+        // Editing an address must not discard the previously selected destination.
+        // Only explicitly clearing the search removes its blue marker and nearby list.
         selectedSuggestion = null
-        destination = null
-        pendingSearchFeatureId = null
-        nearLocations = emptyList()
+        if (value.isBlank()) {
+            destination = null
+            nearbyExpanded = false
+            nearLocations = emptyList()
+            nearMessage = null
+        }
     }
 
     fun selectSearchResult(item: DestinationSuggestion) {
@@ -249,12 +257,11 @@ fun MapScreen(
     }
 
     fun selectNearestCharger(item: SearchLocation) {
-        val loaded = state.locations.firstOrNull { it.featureId == item.featureId }
-        if (loaded != null) selectedLocations = listOf(loaded)
-        else {
-            pendingSearchFeatureId = item.featureId
-            cameraTarget = CameraTarget(item.latitude, item.longitude, 16.0)
-        }
+        // A list tap only navigates: the user opens the existing location sheet
+        // explicitly by tapping the charging marker on the map.
+        selectedLocations = emptyList()
+        nearbyExpanded = false
+        cameraTarget = CameraTarget(item.latitude, item.longitude, 17.0)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -289,6 +296,8 @@ fun MapScreen(
             nearLocations = nearLocations,
             nearLoading = nearLoading,
             nearMessage = nearMessage,
+            nearbyExpanded = nearbyExpanded,
+            onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
             onBottomChanged = { searchHeaderBottom = it }
@@ -346,6 +355,8 @@ private fun SearchHeader(
     nearLocations: List<SearchLocation>,
     nearLoading: Boolean,
     nearMessage: String?,
+    nearbyExpanded: Boolean,
+    onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
     onBottomChanged: (Dp) -> Unit = {}
