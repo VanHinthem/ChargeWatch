@@ -41,9 +41,6 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Brightness6
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -121,8 +118,6 @@ fun MapScreen(
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
     darkTheme: Boolean = false,
-    themeChoice: String = "system",
-    onThemeChoice: (String) -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -144,8 +139,6 @@ fun MapScreen(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            themeChoice = themeChoice,
-            onThemeChoice = onThemeChoice,
             onBottomChanged = { searchHeaderBottom = it }
         )
 
@@ -191,11 +184,8 @@ fun MapScreen(
 @Composable
 private fun SearchHeader(
     modifier: Modifier = Modifier,
-    themeChoice: String,
-    onThemeChoice: (String) -> Unit,
     onBottomChanged: (Dp) -> Unit = {}
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     Surface(
         modifier = modifier.fillMaxWidth()
@@ -218,19 +208,6 @@ private fun SearchHeader(
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.Brightness6, contentDescription = "Weergavethema")
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    listOf("system" to "Systeem", "light" to "Licht", "dark" to "Donker").forEach { (value, label) ->
-                        DropdownMenuItem(
-                            text = { Text(if (themeChoice == value) "✓ $label" else label) },
-                            onClick = { onThemeChoice(value); menuOpen = false }
-                        )
-                    }
-                }
-            }
             Icon(Icons.Default.FilterList, contentDescription = "Filters")
         }
     }
