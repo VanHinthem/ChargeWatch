@@ -333,34 +333,33 @@ private fun SearchHeader(
     modifier: Modifier = Modifier,
     query: String,
     onQueryChange: (String) -> Unit,
-    results: List<SearchLocation>,
+    results: List<DestinationSuggestion>,
     loading: Boolean,
     message: String?,
-    onResultSelected: (SearchLocation) -> Unit,
+    searchSelected: Boolean,
+    destination: Destination?,
+    nearLocations: List<SearchLocation>,
+    nearLoading: Boolean,
+    nearMessage: String?,
+    onNearestSelected: (SearchLocation) -> Unit,
+    onResultSelected: (DestinationSuggestion) -> Unit,
     onBottomChanged: (Dp) -> Unit = {}
 ) {
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    val showSuggestions = focused && query.trim().length >= 2
+    val suggestVisible = focused && !searchSelected && query.trim().length >= 2
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { coordinates ->
-                    onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
-                },
+            modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
+                onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
+            },
             shape = RoundedCornerShape(22.dp),
             tonalElevation = 5.dp
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -368,131 +367,141 @@ private fun SearchHeader(
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .onFocusChanged { focused = it.isFocused },
+                    modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
+                    keyboardActions = KeyboardActions(onSearch = {
+                        if (suggestVisible) {
                             results.firstOrNull()?.let {
                                 onResultSelected(it)
                                 focused = false
                                 focusManager.clearFocus()
                             }
-                        }
-                    ),
+                        } else focusManager.clearFocus()
+                    }),
                     decorationBox = { innerTextField ->
                         Box {
                             if (query.isEmpty()) {
-                                Text(
-                                    "Zoek locatie of plaats",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                                Text("Zoek adres of plaats", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge)
                             }
                             innerTextField()
                         }
                     }
                 )
-
                 if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                 } else if (query.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            onQueryChange("")
-                            focusManager.clearFocus()
-                            focused = false
-                        }
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen")
-                    }
+                    IconButton(onClick = {
+                        onQueryChange("")
+                        focusManager.clearFocus()
+                        focused = false
+                    }) { Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen") }
                 }
-
-                Icon(Icons.Default.FilterList, contentDescription = "Filters")
+                // Filter implementation is phase B of issue #95.
+                Icon(Icons.Default.FilterList, contentDescription = "Filters (volgt later)")
             }
         }
 
-        if (showSuggestions && (results.isNotEmpty() || message != null || loading)) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                tonalElevation = 6.dp
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 6.dp)
-                ) {
-                    if (results.isNotEmpty()) {
-                        results.forEachIndexed { index, result ->
-                            if (index > 0) HorizontalDivider()
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onResultSelected(result)
-                                        focused = false
-                                        focusManager.clearFocus()
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 11.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.EvStation,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        result.address.ifBlank { "Laadlocatie" },
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                    val secondary = listOfNotNull(
-                                        result.city.takeIf { it.isNotBlank() },
-                                        result.operatorName?.takeIf { it.isNotBlank() }
-                                    ).joinToString(" · ")
-                                    if (secondary.isNotBlank()) {
-                                        Text(
-                                            secondary,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                if (result.totalCount > 0) {
-                                    Text(
-                                        if (result.unknownCount > 0) "?"
-                                        else "${result.availableCount}/${result.totalCount}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = when {
-                                            result.unknownCount > 0 -> ComposeColor(0xFF818D96)
-                                            result.availableCount > 0 -> ComposeColor(0xFF168653)
-                                            else -> ComposeColor(0xFFD43B3B)
-                                        }
-                                    )
-                                }
+        if (suggestVisible && (results.isNotEmpty() || message != null || loading)) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
+                Column(modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())
+                    .padding(vertical = 6.dp)) {
+                    results.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider()
+                        Row(modifier = Modifier.fillMaxWidth().clickable {
+                            onResultSelected(item)
+                            focused = false
+                            focusManager.clearFocus()
+                        }.padding(horizontal = 16.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Navigation, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.label, style = MaterialTheme.typography.titleSmall)
+                                Text(when (item.type) {
+                                    "adres" -> "Adres"
+                                    "postcode" -> "Postcode"
+                                    "weg" -> "Straat"
+                                    "woonplaats" -> "Plaats"
+                                    "gemeente" -> "Gemeente"
+                                    else -> "Bestemming"
+                                }, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                    } else if (!loading && message != null) {
-                        Text(
-                            message,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    }
+                    if (results.isEmpty() && !loading && message != null) {
+                        Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        if (searchSelected && destination == null && !loading && message != null) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Text(message, modifier = Modifier.padding(16.dp))
+            }
+        }
+        if (destination != null) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
+                Column(modifier = Modifier.heightIn(max = 330.dp).verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp)) {
+                    Text("Dichtstbijzijnde laadlocaties",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.titleSmall)
+                    if (nearLoading) {
+                        Text("Laadlocaties zoeken…",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall)
+                    } else if (nearMessage != null) {
+                        Text(nearMessage,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    nearLocations.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider()
+                        Row(modifier = Modifier.fillMaxWidth().clickable { onNearestSelected(item) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.EvStation, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.operatorName?.takeIf { it.isNotBlank() }
+                                    ?: item.address.ifBlank { "Laadlocatie" },
+                                    style = MaterialTheme.typography.titleSmall)
+                                Text(listOfNotNull(item.address.takeIf { it.isNotBlank() },
+                                    item.city.takeIf { it.isNotBlank() }).joinToString(", "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                item.distanceMeters?.let { meters ->
+                                    Text(if (meters < 1000) "${meters.toInt()} m hemelsbreed"
+                                        else String.format(Locale.forLanguageTag("nl-NL"), "%.1f km hemelsbreed", meters / 1000.0),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Text(if (item.unknownCount > 0 || item.totalCount <= 0) "?"
+                                else "${item.availableCount}/${item.totalCount}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = when {
+                                    item.unknownCount > 0 || item.totalCount <= 0 -> ComposeColor(0xFF818D96)
+                                    item.availableCount > 0 -> ComposeColor(0xFF168653)
+                                    else -> ComposeColor(0xFFD43B3B)
+                                })
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private data class CameraTarget(val latitude: Double, val longitude: Double, val zoom: Double)
 
 @Composable
 private fun ChargeMap(
