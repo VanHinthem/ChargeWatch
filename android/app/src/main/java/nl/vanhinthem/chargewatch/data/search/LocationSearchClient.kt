@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -26,7 +27,8 @@ data class SearchLocation(
     val availableCount: Int,
     val totalCount: Int,
     val unknownCount: Int,
-    val distanceMeters: Double? = null
+    val distanceMeters: Double? = null,
+    val feedIsStale: Boolean? = null
 )
 
 sealed interface SearchResult {
@@ -122,7 +124,8 @@ internal fun parseSearchLocations(raw: String): List<SearchLocation> =
             longitude = longitude,
             availableCount = obj["availableCount"]?.jsonPrimitive?.intOrNull ?: 0,
             totalCount = obj["evseCount"]?.jsonPrimitive?.intOrNull ?: 0,
-            unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: 0,
-            distanceMeters = obj["distanceMeters"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() && it >= 0.0 }
+            unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: Int.MAX_VALUE,
+            distanceMeters = obj["distanceMeters"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() && it >= 0.0 },
+            feedIsStale = obj["feedIsStale"]?.jsonPrimitive?.booleanOrNull
         )
     }
