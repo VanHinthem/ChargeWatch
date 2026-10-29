@@ -16,6 +16,16 @@ internal static class BulkImporter
     private static IEnumerable<JsonElement> Items(JsonElement e, string property)
         => e.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray() : [];
 
+    private static IEnumerable<JsonElement> RequiredNonEmptyItems(
+        JsonElement e, string property, string owner)
+    {
+        if (!e.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException($"{owner} has missing or invalid {property} collection.");
+        if (value.GetArrayLength() == 0)
+            throw new InvalidDataException($"{owner} has empty {property} collection.");
+        return value.EnumerateArray();
+    }
+
     private static string Key(params string[] parts) => string.Join("\u001f", parts);
 
     private static async IAsyncEnumerable<JsonElement> Read(string path)
@@ -126,7 +136,8 @@ internal static class BulkImporter
                     foreach (var evse in Items(loc, "evses"))
                     {
                         var uid = Required(evse, "uid");
-                        foreach (var connector in Items(evse, "connectors"))
+                        foreach (var connector in RequiredNonEmptyItems(
+                                     evse, "connectors", $"EVSE {Key(country, party, id, uid)}"))
                         {
                             var connectorId = Required(connector, "id");
                             if (!seenConnectors.Add(Key(country, party, id, uid, connectorId)))
