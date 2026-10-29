@@ -8,6 +8,9 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -22,6 +25,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.ui.map.MapViewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -33,10 +38,9 @@ import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
 import nl.vanhinthem.chargewatch.data.favorites.favoritesNeedingFetch
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
-import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
-import nl.vanhinthem.chargewatch.data.ndw.CountReliability
 import nl.vanhinthem.chargewatch.ui.favorites.FavoritesScreen
 import nl.vanhinthem.chargewatch.ui.map.MapScreen
+import nl.vanhinthem.chargewatch.ui.map.LocationSelectionSheet
 
 @Composable
 fun ChargeWatchApp() {
@@ -59,6 +63,8 @@ fun ChargeWatchApp() {
     val mapState by mapViewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var detailOpen by remember { mutableStateOf(false) }
+    var favoriteDetail by remember { mutableStateOf<MapLocation?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val availabilityClient = remember { FavoritesAvailabilityClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
@@ -140,25 +146,65 @@ fun ChargeWatchApp() {
                     refreshMessage = refreshMessage,
                     onRefresh = { scope.launch { refresh(force = true) } },
                     onRename = { id, name -> scope.launch { repository.rename(id, name) } },
-                    onMove = { id, offset -> scope.launch { repository.move(id, offset) } },
-                    onRemove = { item ->
+                    onReorder = { id, targetIndex ->
+                        scope.launch { repository.moveTo(id, targetIndex) }
+                    },
+                    onRemove = { item, index ->
                         scope.launch {
-                            repository.toggle(
-                                MapLocation(
-                                    featureId = item.featureId,
-                                    longitude = item.longitude,
-                                    latitude = item.latitude,
-                                    title = item.title,
-                                    lastUpdated = null,
-                                    availability = AvailabilitySummary(null, null, CountReliability.Ambiguous)
-                                )
+                            repository.remove(item.featureId)
+                            val result = snackbarHostState.showSnackbar(
+                                message = "Favoriet verwijderd",
+                                actionLabel = "Ongedaan maken",
+                                withDismissAction = true
                             )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                repository.restore(item, index)
+                            }
+                        }
+                    },
+                    onOpen = { favorite ->
+                        val cached = latestStatuses[favorite.featureId] ?: mapStatuses[favorite.featureId]
+                        if (cached != null) {
+                            favoriteDetail = cached
+                        } else {
+                            scope.launch {
+                                when (val result = availabilityClient.refresh(listOf(favorite))) {
+                                    is FavoriteRefreshResult.Success -> {
+                                        latestStatuses = latestStatuses + result.locations
+                                        result.locations[favorite.featureId]?.let { favoriteDetail = it }
+                                    }
+                                    is FavoriteRefreshResult.Partial -> {
+                                        latestStatuses = latestStatuses + result.locations
+                                        result.locations[favorite.featureId]?.let { favoriteDetail = it }
+                                        refreshMessage = result.warning
+                                    }
+                                }
+                            }
                         }
                     }
                 )
             }
+
+            favoriteDetail?.let { location ->
+                LocationSelectionSheet(
+                    locations = listOf(location),
+                    onDismiss = { favoriteDetail = null },
+                    onLocationSelected = { },
+                    isFavorite = { item -> favorites.any { it.featureId == item.featureId } },
+                    onToggleFavorite = { item -> scope.launch { repository.toggle(item) } },
+                    expandedTopInset = 16.dp,
+                    initiallyExpanded = true
+                )
+            }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            )
         }
-        if (!detailOpen) NavigationBar {
+        if (!detailOpen && favoriteDetail == null) NavigationBar {
             NavigationBarItem(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
