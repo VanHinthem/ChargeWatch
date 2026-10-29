@@ -1147,7 +1147,7 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     paint.textSize = if (label.length > 4) 30f else 35f
     canvas.drawText(label, 64f, 76f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 104f, 26f)
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 64f, 64f, 44f)
     return bitmap
 }
 
@@ -1190,8 +1190,21 @@ private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boo
     paint.textSize = if (label.length > 4) 31f else 37f
     canvas.drawText(label, 75f, 89f, paint)
 
-    if (isFavorite) drawFavoriteBadge(canvas, 124f, 29f)
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 75f, 76f, 48f)
     return bitmap
+}
+
+private fun drawFavoriteBadgeOnMarker(
+    canvas: Canvas,
+    markerCenterX: Float,
+    markerCenterY: Float,
+    markerRadius: Float
+) {
+    // Keep the badge at the same normalized top-right position for both
+    // individual markers and clusters, regardless of marker size.
+    val badgeX = markerCenterX + markerRadius * 0.91f
+    val badgeY = markerCenterY - markerRadius * 0.86f
+    drawFavoriteBadge(canvas, badgeX, badgeY)
 }
 
 private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
