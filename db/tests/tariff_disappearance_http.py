@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Isolated CI reproduction: a tariff disappears while its connector reference remains.
-Default asserts safe behavior; --expect-known-bug explicitly characterizes current bug.
-Never run against NAS: requires CI, loopback PostgreSQL, and a dedicated empty database.
-"""
-import argparse
+"""End-to-end tariff presence contract on a disposable PostgreSQL 18 database."""
 import gzip
 import json
 import os
@@ -18,6 +14,7 @@ from urllib.request import urlopen
 DB = "chargewatch_tariff_presence_ci"
 STAMP = "2026-10-28T12:00:00Z"
 API = "http://127.0.0.1:5093/api/v1/"
+KEEP_IDS = ["KEEP-" + str(n) for n in range(10)]
 
 
 def require(condition, message):
@@ -44,17 +41,14 @@ def get(path):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--expect-known-bug", action="store_true")
-    args = parser.parse_args()
     require(os.environ.get("CI") == "true", "CI-only fixture")
     require(os.environ.get("PGHOST") in ("localhost", "127.0.0.1"), "Loopback DB required")
     require(os.environ.get("PGDATABASE") == DB, "Dedicated test DB required")
     require(sql("SELECT current_database()") == DB, "Wrong actual DB")
     require(sql("SELECT count(*) FROM charging_location") == "0", "Test DB must be empty")
-    require(sql("SELECT count(*) FROM tariff") == "0", "Tariff test table must be empty")
-    require(sql("SELECT version FROM schema_migration WHERE version='024_retire_legacy_duration_statistics'")
-            == "024_retire_legacy_duration_statistics", "Latest schema required")
+    require(sql("SELECT count(*) FROM tariff") == "0", "Tariff table must be empty")
+    require(sql("SELECT version FROM schema_migration WHERE version='025_tariff_snapshot_presence'")
+            == "025_tariff_snapshot_presence", "Latest schema required")
 
     location = {
         "country_code": "NL", "party_id": "TST", "id": "TARIFF-PRESENCE",
@@ -66,6 +60,19 @@ def main():
                                    "max_voltage": 230, "max_amperage": 16,
                                    "tariff_ids": ["T"], "last_updated": STAMP}]}]}
     state = {"phase": "A", "requests": []}
+
+    def tariffs_for(phase):
+        if phase == "F":
+            return []
+        if phase == "E":
+            return [tariff("KEEP-0", 0.30)]
+        rows = [tariff(key, 0.30) for key in KEEP_IDS]
+        if phase in ("A", "D"):
+            rows.append(tariff("T", 0.42))
+        return rows
+
+    def tariff_version(phase):
+        return "B" if phase == "C" else phase
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -80,11 +87,15 @@ def main():
                     return
                 body = [location]
             elif self.path == "/tariffs":
-                etag = '"tariffs-' + phase + '"'
-                # B is nonempty: this is disappearance, not an empty-feed edge case.
-                body = [tariff("KEEP", 0.30)]
-                if phase == "A":
-                    body.append(tariff("T", 0.42))
+                version = tariff_version(phase)
+                etag = '"tariffs-' + version + '"'
+                if self.headers.get("If-None-Match") == etag:
+                    self.send_response(304)
+                    self.send_header("ETag", etag)
+                    self.end_headers()
+                    state["requests"].append([phase, self.path, 304])
+                    return
+                body = tariffs_for(phase)
             else:
                 self.send_error(404)
                 return
@@ -107,7 +118,6 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix="cw-tariff-presence-") as cache:
             env = os.environ.copy()
-            # These credentials belong exclusively to the disposable CI database.
             env["CW_IMPORT_CONNECTION"] = (
                 "Host=127.0.0.1;Database=" + DB +
                 ";Username=chargewatch_import;Password=import-test-only")
@@ -118,13 +128,19 @@ def main():
             env.update(CW_NDW_LOCATIONS_URL=fixture + "/locations",
                        CW_NDW_TARIFFS_URL=fixture + "/tariffs",
                        CW_NDW_CACHE_DIR=cache, CW_NDW_MIN_LOCATIONS="1",
-                       CW_ENABLE_COMPACT_STATISTICS="1",
+                       CW_NDW_MIN_TARIFFS="1", CW_ENABLE_COMPACT_STATISTICS="1",
                        ASPNETCORE_URLS="http://127.0.0.1:5093")
 
-            def poll():
-                subprocess.run(
+            def poll(expect_success=True):
+                result = subprocess.run(
                     ["dotnet", "src/ChargeWatch.Importer/bin/Release/net10.0/ChargeWatch.Importer.dll",
-                     "--watch-once"], env=env, check=True, timeout=120)
+                     "--watch-once"], env=env, text=True, capture_output=True, timeout=120)
+                print(result.stdout, end="")
+                print(result.stderr, end="")
+                if expect_success:
+                    require(result.returncode == 0, "Expected successful poll")
+                else:
+                    require(result.returncode != 0, "Unsafe tariff feed was accepted")
 
             poll()
             with open(Path(cache) / "api.log", "w+") as api_log:
@@ -152,6 +168,7 @@ def main():
                         require(option["sourceId"] == "T", "Unexpected tariff identity")
                         return {"tariffStatus": connector["tariffStatus"],
                                 "components": option["components"],
+                                "limitations": option["limitations"],
                                 "tariffsFeedIsStale": detail["tariffsFeedIsStale"],
                                 "feedCheckedAt": detail["tariffsFeedLastCheckedAt"]}
 
@@ -159,31 +176,80 @@ def main():
                     require(before["tariffStatus"] == "APPLICABLE", "Baseline tariff must apply")
                     require(any(c["dimension"] == "ENERGY" and c["price"] == 0.42
                                 for c in before["components"]), "Baseline ENERGY price missing")
+
                     state["phase"] = "B"
                     poll()
-                    after = observe()
+                    absent = observe()
+                    require(absent["tariffStatus"] == "SOURCE_MISSING", absent)
+                    require(absent["components"] == [], "Removed tariff exposed old components")
+                    require("SOURCE_TARIFF_NOT_FOUND" in absent["limitations"], absent)
+                    require(absent["tariffsFeedIsStale"] is False, "Fresh B feed must be visible")
+                    require(absent["feedCheckedAt"] > before["feedCheckedAt"],
+                            "Tariff feed checkpoint did not advance")
                     with gzip.open(Path(cache) / "tariffs.json.gz", "rt") as source:
                         source_ids = [t["id"] for t in json.load(source)]
-                    require(source_ids == ["KEEP"], "B snapshot not promoted correctly")
-                    require(["B", "/locations", 304] in state["requests"], "Expected Locations 304")
-                    require(["B", "/tariffs", 200] in state["requests"], "Expected Tariffs 200")
-                    require(after["tariffsFeedIsStale"] is False, "Fresh B feed must be visible")
-                    require(after["feedCheckedAt"] > before["feedCheckedAt"], "Tariff checkpoint did not advance")
-                    retained = sql("SELECT count(*) FROM tariff WHERE party_id='TST' AND source_id='T'")
-                    evidence = {"before": before, "after": after,
-                                "committedSourceTariffIds": source_ids,
-                                "retainedTariffRows": int(retained), "requests": state["requests"]}
+                    require(source_ids == KEEP_IDS, "B snapshot not promoted correctly")
+                    require(sql("SELECT is_active::text FROM tariff WHERE source_id='T'") == "false",
+                            "Removed tariff row was not retained as inactive")
+                    require(sql("SELECT tariff_count FROM ndw_tariffs_snapshot_checkpoint") == "10",
+                            "Presence checkpoint count incorrect")
+                    snapshot_at_b = sql(
+                        "SELECT fetched_at::text FROM ndw_tariffs_snapshot_checkpoint WHERE feed_key='tariffs'")
+
+                    state["phase"] = "C"
+                    poll()
+                    after_304 = observe()
+                    require(after_304["tariffStatus"] == "SOURCE_MISSING", after_304)
+                    require(sql("SELECT fetched_at::text FROM ndw_tariffs_snapshot_checkpoint WHERE feed_key='tariffs'")
+                            == snapshot_at_b, "304 changed snapshot presence checkpoint")
+                    require(["C", "/tariffs", 304] in state["requests"], "Tariffs 304 not exercised")
+
+                    state["phase"] = "D"
+                    poll()
+                    returned = observe()
+                    require(returned["tariffStatus"] == "APPLICABLE", returned)
+                    require(any(c["dimension"] == "ENERGY" and c["price"] == 0.42
+                                for c in returned["components"]), "Returned tariff price missing")
+                    require(sql("SELECT is_active::text FROM tariff WHERE source_id='T'") == "true",
+                            "Returned tariff did not reactivate")
+                    checkpoint_d = sql(
+                        "SELECT fetched_at::text||'|'||tariff_count FROM ndw_tariffs_snapshot_checkpoint")
+                    feed_checked_d = returned["feedCheckedAt"]
+                    cache_d = (Path(cache) / "tariffs.json.gz").read_bytes()
+
+                    state["phase"] = "E"
+                    poll(expect_success=False)
+                    after_partial = observe()
+                    require(after_partial["tariffStatus"] == "APPLICABLE", "Partial feed changed live tariff")
+                    require(after_partial["feedCheckedAt"] == feed_checked_d,
+                            "Failed partial feed advanced feed checkpoint")
+                    require((Path(cache) / "tariffs.json.gz").read_bytes() == cache_d,
+                            "Failed partial feed replaced cache")
+                    require(sql("SELECT fetched_at::text||'|'||tariff_count FROM ndw_tariffs_snapshot_checkpoint")
+                            == checkpoint_d, "Failed partial feed changed presence checkpoint")
+
+                    state["phase"] = "F"
+                    poll(expect_success=False)
+                    after_empty = observe()
+                    require(after_empty["tariffStatus"] == "APPLICABLE", "Empty feed changed live tariff")
+                    require(after_empty["feedCheckedAt"] == feed_checked_d,
+                            "Failed empty feed advanced feed checkpoint")
+                    require((Path(cache) / "tariffs.json.gz").read_bytes() == cache_d,
+                            "Failed empty feed replaced cache")
+                    require(sql("SELECT fetched_at::text||'|'||tariff_count FROM ndw_tariffs_snapshot_checkpoint")
+                            == checkpoint_d, "Failed empty feed changed presence checkpoint")
+
+                    evidence = {
+                        "baseline": before,
+                        "afterDisappearance": absent,
+                        "after304": after_304,
+                        "afterReturn": returned,
+                        "activeTariffs": int(sql("SELECT count(*) FROM tariff WHERE is_active")),
+                        "retainedTariffs": int(sql("SELECT count(*) FROM tariff")),
+                        "presenceCheckpoint": checkpoint_d,
+                        "requests": state["requests"]}
                     print(json.dumps(evidence, indent=2), flush=True)
-                    bug = after["tariffStatus"] == "APPLICABLE" and any(
-                        c["dimension"] == "ENERGY" and c["price"] == 0.42
-                        for c in after["components"])
-                    if args.expect_known_bug:
-                        require(retained == "1" and bug, "Known bug no longer reproduced; update regression")
-                        print("REPRODUCED KNOWN BUG: removed source tariff still APPLICABLE at 0.42; NOT a fix.")
-                    else:
-                        require(not bug and not after["components"],
-                                "Removed source tariff must not expose the old current price")
-                        print("PASS: removed tariff does not expose a current price.")
+                    print("PASS: disappeared tariff is retained but cannot expose a current price.")
                 finally:
                     if api_process.poll() is None:
                         api_process.terminate()
