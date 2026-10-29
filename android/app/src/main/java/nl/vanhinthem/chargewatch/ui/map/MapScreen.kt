@@ -645,8 +645,13 @@ fun LocationSelectionSheet(
                         }
                     }
                     IconButton(onClick = { onToggleFavorite(location) }) {
-                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
-                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                        val favorite = isFavorite(location)
+                        Icon(
+                            imageVector = if (favorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (favorite) "Verwijder favoriet" else "Voeg favoriet toe",
+                            tint = if (favorite) ComposeColor(0xFFF3AF25)
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
