@@ -856,7 +856,7 @@ private fun fitDestinationOverview(
     val fit = runCatching {
         map.getCameraForLatLngBounds(
             LatLngBounds.fromLatLngs(points.map { (lat, lon) -> LatLng(lat, lon) }),
-            arrayOf(margin, topPadding, margin, margin),
+            intArrayOf(margin, topPadding, margin, margin),
             0.0, 0.0
         )
     }.getOrNull() ?: return fallback
