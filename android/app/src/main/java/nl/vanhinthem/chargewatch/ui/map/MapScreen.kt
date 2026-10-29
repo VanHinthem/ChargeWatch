@@ -139,6 +139,7 @@ import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
@@ -155,6 +156,7 @@ fun MapScreen(
     val pdokClient = remember { PdokDestinationClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
+    var searchPanelBottomPx by remember { mutableStateOf(0) }
     var searchQuery by viewModel.searchQuery
     var searchResults by remember { mutableStateOf<List<DestinationSuggestion>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
@@ -162,7 +164,10 @@ fun MapScreen(
     var searchSelected by viewModel.searchSelected
     var selectedSuggestion by remember { mutableStateOf<DestinationSuggestion?>(null) }
     var destination by viewModel.destination
-    var cameraTarget by remember { mutableStateOf(destination?.let { CameraTarget(it.latitude, it.longitude, 14.0) }) }
+    var cameraTarget by remember {
+        mutableStateOf(viewModel.overview.value?.let { CameraTarget(it.latitude, it.longitude, it.zoom) }
+            ?: destination?.let { CameraTarget(it.latitude, it.longitude, 14.0) })
+    }
     var mapCenter by remember { mutableStateOf(51.765 to 5.525) }
     var nearLocations by viewModel.nearLocations
     var nearLoading by remember { mutableStateOf(false) }
@@ -201,6 +206,9 @@ fun MapScreen(
         try {
             when (val response = pdokClient.lookup(suggestion)) {
                 is DestinationLookupResult.Success -> {
+                    // A different destination invalidates the prior fitted view.
+                    viewModel.overview.value = null
+                    viewModel.nearLoadedFor.value = null
                     destination = response.destination
                     canReturnToDestination = false
                     nearbyExpanded = true
@@ -216,11 +224,15 @@ fun MapScreen(
     LaunchedEffect(destination) {
         val chosen = destination
         if (chosen == null) {
+            viewModel.overview.value = null
+            viewModel.nearLoadedFor.value = null
             nearLocations = emptyList()
             nearMessage = null
             nearLoading = false
             return@LaunchedEffect
         }
+        // Returning from another app tab must not fetch again or undo manual panning.
+        if (viewModel.nearLoadedFor.value == chosen) return@LaunchedEffect
         nearLoading = true
         nearLocations = emptyList()
         nearMessage = null
@@ -235,6 +247,12 @@ fun MapScreen(
         } finally {
             nearLoading = false
         }
+        viewModel.nearLoadedFor.value = chosen
+        // The list expands via animation. Fit only once after its height settles;
+        // never refit when the user toggles it or manually moves the map.
+        delay(420)
+        cameraTarget = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
+            nearby = nearLocations.toList(), panelBottomPx = searchPanelBottomPx)
     }
 
     fun onQueryChanged(value: String) {
@@ -245,6 +263,8 @@ fun MapScreen(
         selectedSuggestion = null
         destination = destinationAfterQueryEdit(value, destination)
         if (value.isBlank()) {
+            viewModel.overview.value = null
+            viewModel.nearLoadedFor.value = null
             canReturnToDestination = false
             nearbyExpanded = false
             nearLocations = emptyList()
@@ -264,7 +284,10 @@ fun MapScreen(
     fun returnToDestination() {
         val selected = destination ?: return
         nearbyExpanded = false
-        cameraTarget = CameraTarget(selected.latitude, selected.longitude, 14.0)
+        val overview = viewModel.overview.value
+        cameraTarget = if (overview != null)
+            CameraTarget(overview.latitude, overview.longitude, overview.zoom)
+        else CameraTarget(selected.latitude, selected.longitude, 14.0)
     }
 
     fun selectNearestCharger(item: SearchLocation) {
@@ -288,12 +311,15 @@ fun MapScreen(
             cameraTarget = cameraTarget,
             destination = destination,
             onMapCameraIdle = { lat, lon, zoom ->
-                // This observes *all* camera movement (manual pans and list jumps).
-                canReturnToDestination = shouldShowReturnToDestination(destination, lat, lon, zoom)
+                // Compare with the *fitted* overview, not the original fixed zoom 14.
+                canReturnToDestination = shouldShowReturnToDestination(
+                    destination, lat, lon, zoom, overview = viewModel.overview.value
+                )
                 // Do not redraw all markers for insignificant camera movement.
                 val region = (lat * 10).roundToInt() / 10.0 to (lon * 10).roundToInt() / 10.0
                 if (mapCenter != region) mapCenter = region
             },
+            onOverviewCalculated = { viewModel.overview.value = it },
             onCameraTargetConsumed = { cameraTarget = null }
         )
 
@@ -319,7 +345,8 @@ fun MapScreen(
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
-            onBottomChanged = { searchHeaderBottom = it }
+            onBottomChanged = { searchHeaderBottom = it },
+            onPanelBottomChanged = { searchPanelBottomPx = it }
         )
 
         if (state.loading) {
@@ -381,14 +408,21 @@ private fun SearchHeader(
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
-    onBottomChanged: (Dp) -> Unit = {}
+    onBottomChanged: (Dp) -> Unit = {},
+    onPanelBottomChanged: (Int) -> Unit = {}
 ) {
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
     val suggestVisible = focused && !searchSelected && query.trim().length >= 2
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
+            },
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
@@ -615,7 +649,13 @@ private fun SearchHeader(
     }
 }
 
-private data class CameraTarget(val latitude: Double, val longitude: Double, val zoom: Double)
+private data class CameraTarget(
+    val latitude: Double,
+    val longitude: Double,
+    val zoom: Double,
+    val nearby: List<SearchLocation>? = null,
+    val panelBottomPx: Int = 0
+)
 
 /** Not Compose state: avoid marker re-clustering for each autocomplete keystroke. */
 private class MapRenderSnapshot {
@@ -634,6 +674,7 @@ private fun ChargeMap(
     cameraTarget: CameraTarget?,
     destination: Destination?,
     onMapCameraIdle: (Double, Double, Double) -> Unit,
+    onOverviewCalculated: (DestinationOverview) -> Unit,
     onCameraTargetConsumed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -644,6 +685,7 @@ private fun ChargeMap(
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentDestination = rememberUpdatedState(destination)
     val currentMapIdleHandler = rememberUpdatedState(onMapCameraIdle)
+    val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
@@ -672,8 +714,11 @@ private fun ChargeMap(
             mapView.apply {
                 getMapAsync { map ->
                     map.cameraPosition = CameraPosition.Builder()
-                        .target(LatLng(destination?.latitude ?: 51.765, destination?.longitude ?: 5.525))
-                        .zoom(12.0)
+                        .target(LatLng(
+                            cameraTarget?.latitude ?: destination?.latitude ?: 51.765,
+                            cameraTarget?.longitude ?: destination?.longitude ?: 5.525
+                        ))
+                        .zoom(cameraTarget?.zoom ?: 12.0)
                         .build()
 
                     map.setOnMarkerClickListener { marker ->
@@ -750,10 +795,13 @@ private fun ChargeMap(
         update = { view ->
             view.getMapAsync { map ->
                 cameraTarget?.let { target ->
+                    val result = if (target.nearby != null) {
+                        fitDestinationOverview(map, view, target)
+                    } else DestinationOverview(target.latitude, target.longitude, target.zoom)
+                    if (target.nearby != null) currentOverviewHandler.value(result)
                     map.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(
-                            LatLng(target.latitude, target.longitude),
-                            target.zoom
+                            LatLng(result.latitude, result.longitude), result.zoom
                         )
                     )
                     onCameraTargetConsumed()
@@ -779,6 +827,39 @@ private fun ChargeMap(
                 }
             }
         }
+    )
+}
+
+/** Calculate a one-shot camera with all real nearest-result coordinates and the blue pin.
+ * MapLibre handles Mercator projection and asymmetric padding for the search overlay.
+ * We strip persistent padding from the resulting camera to avoid affecting manual pans.
+ */
+private fun fitDestinationOverview(
+    map: MapLibreMap,
+    view: MapView,
+    request: CameraTarget
+): DestinationOverview {
+    val fallback = DestinationOverview(request.latitude, request.longitude, request.zoom)
+    val chargers = request.nearby.orEmpty().filter {
+        it.latitude.isFinite() && it.longitude.isFinite() &&
+            it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0
+    }
+    if (chargers.isEmpty() || view.width <= 0 || view.height <= 0) return fallback
+
+    val density = view.resources.displayMetrics.density
+    val margin = (24 * density).roundToInt()
+    val topPadding = overviewTopPaddingPixels(view.height, request.panelBottomPx, margin)
+    val positions = listOf(LatLng(request.latitude, request.longitude)) +
+        chargers.map { LatLng(it.latitude, it.longitude) }
+    val bounds = LatLngBounds.fromLatLngs(positions)
+    val fit = map.getCameraForLatLngBounds(
+        bounds, arrayOf(margin, topPadding, margin, margin), 0.0, 0.0
+    ) ?: return fallback
+    val center = fit.target ?: return fallback
+    // Zoom limits prevent a remote fifth charger from forcing an unreadable region.
+    return DestinationOverview(
+        center.latitude, center.longitude,
+        fit.zoom.coerceIn(11.0, 16.5)
     )
 }
 
