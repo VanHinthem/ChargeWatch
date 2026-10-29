@@ -10,8 +10,6 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -67,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -85,6 +85,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
@@ -476,46 +477,36 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    // Compact and expanded are explicit content states. Material's own sheet
-    // still handles dismissal; our vertical drag maps the content state.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var expanded by remember(selectedId) { mutableStateOf(false) }
-    BackHandler(enabled = expanded) { expanded = false }
+    // Use Material 3's real sheet anchors. This keeps drag, fling, nested scroll,
+    // accessibility actions and dismissal in one state machine instead of
+    // simulating compact/expanded in a separate boolean.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val expanded = sheetState.currentValue == SheetValue.Expanded ||
+        sheetState.targetValue == SheetValue.Expanded
+    BackHandler(enabled = expanded) {
+        scope.launch { sheetState.partialExpand() }
+    }
+
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // Keep the expanded sheet visually separated from the persistent search header.
+    // The sheet can fully expand, but never underneath the persistent search header.
     val sheetTopInset = 112.dp
     val expandedSheetMaxHeight = (screenHeight - sheetTopInset - 12.dp).coerceAtLeast(360.dp)
-    fun gestureModifier(): Modifier = Modifier.pointerInput(selectedId, expanded) {
-        var dragAmount = 0f
-        detectVerticalDragGestures(
-            onDragStart = { dragAmount = 0f },
-            onVerticalDrag = { change, amount ->
-                change.consume()
-                dragAmount += amount
-            },
-            onDragEnd = {
-                when {
-                    dragAmount < -36f -> expanded = true
-                    dragAmount > 36f && expanded -> expanded = false
-                    dragAmount > 54f && !expanded -> onDismiss()
-                }
-                dragAmount = 0f
-            },
-            onDragCancel = { dragAmount = 0f }
-        )
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        sheetGesturesEnabled = false,
-        modifier = Modifier.padding(top = sheetTopInset),
-        // We own the sheet gesture so Material cannot interpret the handle as dismissal.
+        // Filling the available height guarantees a real PartiallyExpanded anchor;
+        // Material handles swipe up/down and nested scroll natively.
+        modifier = Modifier.padding(top = sheetTopInset).fillMaxHeight(),
         dragHandle = {
             Box(
-                Modifier.fillMaxWidth().height(36.dp)
-                    .then(gestureModifier())
-                    .clickable { expanded = !expanded },
+                Modifier.fillMaxWidth().height(32.dp)
+                    .clickable {
+                        scope.launch {
+                            if (expanded) sheetState.partialExpand() else sheetState.expand()
+                        }
+                    },
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
@@ -585,7 +576,7 @@ private fun LocationSelectionSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().then(gestureModifier()),
+                    Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1015,9 +1006,12 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor meer details", modifier = Modifier.clickable { expanded = true },
+                    Text(
+                        "Veeg omhoog voor meer details",
+                        modifier = Modifier.clickable { scope.launch { sheetState.expand() } },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
             }
