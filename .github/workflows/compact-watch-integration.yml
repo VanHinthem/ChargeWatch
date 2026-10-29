@@ -38,6 +38,7 @@ jobs:
       CW_NDW_LOCATIONS_URL: 'http://127.0.0.1:18887/locations'
       CW_NDW_TARIFFS_URL: 'http://127.0.0.1:18887/tariffs'
       CW_NDW_MIN_LOCATIONS: '1'
+      CW_NDW_MIN_TARIFFS: '1'
       CW_NDW_CACHE_DIR: '/tmp/cw-watch-ci'
     steps:
       - uses: actions/checkout@v4
