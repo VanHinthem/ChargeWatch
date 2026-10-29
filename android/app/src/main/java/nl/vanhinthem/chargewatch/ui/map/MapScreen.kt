@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -50,11 +51,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
@@ -493,35 +494,43 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    // Use Material 3's real sheet anchors. This keeps drag, fling, nested scroll,
-    // accessibility actions and dismissal in one state machine instead of
-    // simulating compact/expanded in a separate boolean.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    // A standard bottom sheet supports an explicit peek height. That is what the
+    // map UX needs: compact = exactly the summary content, expanded = all detail.
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = SheetValue.PartiallyExpanded,
+        skipHiddenState = false
+    )
+    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
     val scope = rememberCoroutineScope()
-    // During a drag currentValue remains the state we started from. Keep the
-    // content layout stable until Material has actually settled on Expanded.
+    val density = LocalDensity.current
+    var compactContentHeight by remember(selectedId) { mutableStateOf(320.dp) }
+    val dragHandleHeight = 32.dp
+    val compactPeekHeight = compactContentHeight + dragHandleHeight
     val expanded = sheetState.currentValue == SheetValue.Expanded
-    BackHandler(enabled = expanded) {
-        scope.launch { sheetState.partialExpand() }
+
+    BackHandler {
+        if (expanded) {
+            scope.launch { sheetState.partialExpand() }
+        } else {
+            onDismiss()
+        }
+    }
+    LaunchedEffect(sheetState.currentValue) {
+        if (sheetState.currentValue == SheetValue.Hidden) onDismiss()
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val dragHandleHeight = 32.dp
-    // Use the measured bottom edge of the actual search header, not an estimated
-    // device-independent constant. The 8 dp gap is supplied by MapScreen.
-    val effectiveTopInset = expandedTopInset.coerceAtLeast(96.dp)
-    val expandedSheetContentHeight =
-        (screenHeight - effectiveTopInset - dragHandleHeight).coerceAtLeast(360.dp)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        // Do not size or pad the modal container itself. Its surface position is
-        // derived from the content height so Expanded can stop below the search bar
-        // without introducing empty space above the drag handle.
-        dragHandle = {
+    BottomSheetScaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = expandedTopInset.coerceAtLeast(96.dp)),
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = if (locations.size > 1) 300.dp else compactPeekHeight,
+        sheetMaxWidth = Dp.Unspecified,
+        containerColor = ComposeColor.Transparent,
+        sheetContainerColor = MaterialTheme.colorScheme.surface,
+        sheetDragHandle = {
             Box(
-                Modifier.fillMaxWidth().height(32.dp)
+                Modifier.fillMaxWidth().height(dragHandleHeight)
                     .clickable {
                         scope.launch {
                             if (expanded) sheetState.partialExpand() else sheetState.expand()
@@ -534,8 +543,8 @@ private fun LocationSelectionSheet(
                         .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
                 )
             }
-        }
-    ) {
+        },
+        sheetContent = {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -590,15 +599,25 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .height(expandedSheetContentHeight)
+                    .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top
+                Column(
+                    Modifier.fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            if (!expanded) {
+                                compactContentHeight = with(density) {
+                                    coordinates.size.height.toDp()
+                                }
+                            }
+                        }
+                        .padding(horizontal = 20.dp, vertical = 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(location.title, style = MaterialTheme.typography.titleLarge)
                         location.address?.takeIf { it != location.title }?.let {
@@ -1033,9 +1052,13 @@ private fun LocationSelectionSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
+        }
+    ) {
+        // Transparent scaffold body: the map and search header remain the underlying UI.
     }
 }
 
