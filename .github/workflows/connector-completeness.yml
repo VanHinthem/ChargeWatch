@@ -1,0 +1,67 @@
+name: Connector collection completeness
+on:
+  pull_request:
+    paths:
+      - 'db/tests/connector_partial_feed_http.py'
+      - 'db/tests/022_connector_snapshot_presence_smoke.sql'
+      - 'db/migrations/022_connector_snapshot_presence.sql'
+      - 'src/ChargeWatch.Importer/**'
+      - '.github/workflows/connector-completeness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  connector-completeness-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch_connector_completeness_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch_connector_completeness_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch_connector_completeness_ci
+      POSTGRES_USER: chargewatch_owner
+      POSTGRES_DB: chargewatch_connector_completeness_ci
+      CW_IMPORT_PASSWORD: import-test-only
+      CW_READ_PASSWORD: read-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare disposable PostgreSQL 18 database
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chargewatch_import LOGIN PASSWORD 'import-test-only';
+          CREATE ROLE chargewatch_read LOGIN PASSWORD 'read-test-only';
+          GRANT CONNECT ON DATABASE chargewatch_connector_completeness_ci TO chargewatch_import, chargewatch_read;
+          GRANT USAGE ON SCHEMA public TO chargewatch_import, chargewatch_read;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO chargewatch_import;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chargewatch_import;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO chargewatch_read;
+          SQL
+          for migration in db/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -1 -f "$migration"
+          done
+      - name: Build actual importer
+        run: dotnet build src/ChargeWatch.Importer --configuration Release
+      - name: Reject incomplete HTTP 200 connector collections transactionally
+        run: python3 db/tests/connector_partial_feed_http.py
+      - name: Preserve legitimate disappearance, hysteresis and return
+        run: psql -v ON_ERROR_STOP=1 -f db/tests/022_connector_snapshot_presence_smoke.sql
