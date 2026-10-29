@@ -44,7 +44,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
           psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
-          sh db/init/002_roles.sh
+          # Production bootstrap hardcodes database chargewatch; use isolated roles here.
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE chargewatch_import LOGIN PASSWORD 'import-test-only';
+          CREATE ROLE chargewatch_read LOGIN PASSWORD 'read-test-only';
+          GRANT CONNECT ON DATABASE chargewatch_tariff_presence_ci TO chargewatch_import, chargewatch_read;
+          GRANT USAGE ON SCHEMA public TO chargewatch_import, chargewatch_read;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO chargewatch_import;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chargewatch_import;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO chargewatch_read;
+          SQL
           for migration in db/migrations/*.sql; do
             psql -v ON_ERROR_STOP=1 -1 -f "$migration"
           done
