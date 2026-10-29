@@ -482,13 +482,14 @@ private fun renderNativeMarkers(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LocationSelectionSheet(
+fun LocationSelectionSheet(
     locations: List<MapLocation>,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
     onToggleFavorite: (MapLocation) -> Unit,
-    expandedTopInset: Dp
+    expandedTopInset: Dp,
+    initiallyExpanded: Boolean = false
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
@@ -501,7 +502,7 @@ private fun LocationSelectionSheet(
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
     val sheetState = rememberStandardBottomSheetState(
-        initialValue = SheetValue.PartiallyExpanded,
+        initialValue = if (initiallyExpanded) SheetValue.Expanded else SheetValue.PartiallyExpanded,
         skipHiddenState = false
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
@@ -526,7 +527,7 @@ private fun LocationSelectionSheet(
     BottomSheetScaffold(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = expandedTopInset.coerceAtLeast(96.dp)),
+            .padding(top = expandedTopInset.coerceAtLeast(0.dp)),
         scaffoldState = scaffoldState,
         sheetPeekHeight = if (locations.size > 1) 300.dp else compactPeekHeight,
         sheetMaxWidth = Dp.Unspecified,
