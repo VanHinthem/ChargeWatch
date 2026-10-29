@@ -4,75 +4,82 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LocationEnrichmentTest {
-    @Test fun parsesTariffElementsWithoutInventingTotalPrice() {
+    @Test fun parsesApplicableTariffOptionsWithoutInventingTotalPrice() {
         val result = parseEnrichment("""
-            {"evses":[{"connectors":[{"tariffs":[{"presentation":{
-              "currency":"EUR",
-              "hasUnsupportedData":false,
-              "elements":[
-                {"components":[{"type":"ENERGY","price":0.47,"stepSize":1}],"restrictions":{"start_time":"08:00"}},
-                {"components":[{"type":"PARKING_TIME","price":0.15,"stepSize":60}],"restrictions":null}
+            {"evses":[{"connectors":[{"sourceId":"1","tariffStatus":"APPLICABLE","tariffOptions":[{
+              "sourceId":"T-A","status":"APPLICABLE","currency":"EUR","limitations":[],
+              "components":[
+                {"dimension":"ENERGY","price":0.47,"vatPercent":21,"elementIndex":0,"certainty":"Applicable"},
+                {"dimension":"PARKING_TIME","price":0.15,"vatPercent":null,"elementIndex":1,"certainty":"Applicable"}
               ]
-            }}]}]}]}
+            }]}]}]}
         """.trimIndent())
         assertEquals(2, result.tariffs.size)
-        assertEquals("0.47", result.tariffs[0].amount)
         assertEquals("ENERGY", result.tariffs[0].type)
-        assertTrue(result.tariffs[0].hasRestrictions)
-        assertEquals("PARKING_TIME", result.tariffs[1].type)
-        assertFalse(result.statisticsAvailable)
+        assertEquals("0.47", result.tariffs[0].amount)
+        assertEquals("0.57", result.tariffs[0].inclusiveAmount)
+        assertTrue(result.tariffs[0].vatKnown)
+        assertFalse(result.tariffs[0].hasRestrictions)
+        assertEquals(setOf("APPLICABLE"), result.tariffStatuses)
+        assertFalse(result.hasComplexTariffs)
     }
 
-    @Test fun partiallyUnsupportedTariffKeepsComponentWithoutInventingTotal() {
+    @Test fun conditionalOptionKeepsUsableComponentsAndWarning() {
         val result = parseEnrichment("""
-            {"evses":[{"connectors":[{"tariffs":[
-              {"presentation":{"currency":"EUR","hasUnsupportedData":true,
-              "elements":[{"components":[{"type":"ENERGY","price":1}]}]}},
-              {"details":{"elements":[]}}
-            ]}]}]}
+            {"evses":[{"connectors":[{"sourceId":"1","tariffStatus":"CONDITIONAL","tariffOptions":[{
+              "sourceId":"T-A","status":"CONDITIONAL","sourceTariffType":"REGULAR","currency":"EUR",
+              "limitations":["CONDITIONAL","TARIFF_TYPE_SELECTION_REQUIRED"],
+              "components":[{"dimension":"ENERGY","price":0.44,"vatPercent":21,
+                "elementIndex":3,"certainty":"Conditional"}]
+            }]}]}]}
         """.trimIndent())
         assertTrue(result.hasComplexTariffs)
         assertEquals(1, result.tariffs.size)
-        assertEquals("ENERGY", result.tariffs.single().type)
-        assertEquals("1", result.tariffs.single().inclusiveAmount)
-        assertFalse(result.tariffs.single().vatKnown)
+        assertTrue(result.tariffs.single().hasRestrictions)
+        assertEquals("CONDITIONAL", result.tariffs.single().optionStatus)
+        assertEquals("REGULAR", result.tariffs.single().sourceTariffType)
+        assertEquals(setOf("CONDITIONAL", "TARIFF_TYPE_SELECTION_REQUIRED"), result.tariffLimitations)
+        assertEquals(setOf("REGULAR"), result.sourceTariffTypes)
     }
 
-    @Test fun identicalComponentsOnDifferentConnectorsRemainDistinct() {
+    @Test fun sourceMissingNeverInventsPrice() {
+        val result = parseEnrichment("""
+            {"evses":[{"connectors":[{"sourceId":"1","tariffStatus":"SOURCE_MISSING","tariffOptions":[{
+              "sourceId":"T-MISSING","status":"SOURCE_MISSING","currency":null,
+              "limitations":["SOURCE_TARIFF_NOT_FOUND"],"components":[]
+            }]}]}]}
+        """.trimIndent())
+        assertTrue(result.tariffs.isEmpty())
+        assertTrue(result.hasComplexTariffs)
+        assertTrue("SOURCE_MISSING" in result.tariffStatuses)
+    }
+
+    @Test fun multipleOptionsRemainDistinct() {
         val data = """{"evses":[{"connectors":[
-          {"sourceId":"1","tariffs":[{"sourceId":"T-A","presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.40}]}]}}]},
-          {"sourceId":"2","tariffs":[{"sourceId":"T-B","presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.40}]}]}}]}
+          {"sourceId":"1","tariffStatus":"MULTIPLE_OPTIONS","tariffOptions":[
+            {"sourceId":"T-A","status":"APPLICABLE","currency":"EUR","limitations":[],
+             "components":[{"dimension":"ENERGY","price":0.40,"vatPercent":null,"elementIndex":0,"certainty":"Applicable"}]},
+            {"sourceId":"T-B","status":"APPLICABLE","currency":"EUR","limitations":[],
+             "components":[{"dimension":"ENERGY","price":0.50,"vatPercent":null,"elementIndex":0,"certainty":"Applicable"}]}
+          ]}
         ]}]}"""
         val result = parseEnrichment(data)
         assertEquals(2, result.tariffs.size)
         assertEquals(setOf("T-A", "T-B"), result.tariffs.map { it.tariffId }.toSet())
-        assertEquals(setOf("1", "2"), result.tariffs.map { it.connectorId }.toSet())
-    }
-
-    @Test fun supportedComponentInsidePartiallyUnsupportedTariffRemainsVisibleWithWarning() {
-        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{
-          "currency":"EUR","hasUnsupportedData":true,
-          "elements":[{"components":[{"type":"ENERGY","price":0.44,"vat":21}]}]
-        }}]}]}]}"""
-        val result = parseEnrichment(raw)
         assertTrue(result.hasComplexTariffs)
-        assertEquals(1, result.tariffs.size)
-        assertEquals("0.53", result.tariffs.single().inclusiveAmount)
+        assertEquals(setOf("MULTIPLE_OPTIONS"), result.tariffStatuses)
     }
 
-    @Test fun ocpiVatComponentIsConvertedForDisplay() {
-        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"components":[{"type":"ENERGY","price":0.2691,"vat":21}]}]}}]}]}]}"""
+    @Test fun missingVatStaysUnknownInsteadOfAssumingDutchRate() {
+        val raw = """{"evses":[{"connectors":[{"sourceId":"1","tariffStatus":"APPLICABLE","tariffOptions":[{
+          "sourceId":"T-A","status":"APPLICABLE","currency":"EUR","limitations":[],
+          "components":[{"dimension":"ENERGY","price":0.2691,"vatPercent":null,"elementIndex":0,"certainty":"Applicable"}]
+        }]}]}]}"""
         val part = parseEnrichment(raw).tariffs.single()
-        assertEquals("0.33", part.inclusiveAmount)
-        assertTrue(part.vatKnown)
+        assertEquals("0.2691", part.inclusiveAmount)
+        assertFalse(part.vatKnown)
     }
 
-    @Test fun startDateAloneIsNotPresentedAsPriceCondition() {
-        val raw = """{"evses":[{"connectors":[{"tariffs":[{"presentation":{"currency":"EUR","hasUnsupportedData":false,"elements":[{"restrictions":{"start_date":"2026-01-01","end_date":null,"min_kwh":null},"components":[{"type":"ENERGY","price":0.2691,"vat":21}]}]}}]}]}]}"""
-        val part = parseEnrichment(raw).tariffs.single()
-        assertFalse(part.hasRestrictions)
-        assertEquals("0.33", part.inclusiveAmount)
-    }
     @Test fun experimentalStatisticsRemainSeparatedByWeekday() {
         val raw = """{"isExperimental":true,"probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA","slots":[
           {"isoWeekday":1,"hour":8,"availableProbability":0.25,"sampleCount":5},
@@ -94,6 +101,7 @@ class LocationEnrichmentTest {
         val raw = """{"isExperimental":false,"slots":[{"hour":8,"availableProbability":0.9,"sampleCount":9}]}"""
         assertTrue(parseHourlyAvailability(raw).isEmpty())
     }
+
     @Test(expected = IllegalStateException::class)
     fun missingEvseContractIsNotInterpretedAsEmptyLocation() {
         parseEnrichment("""{"other":"value"}""")
