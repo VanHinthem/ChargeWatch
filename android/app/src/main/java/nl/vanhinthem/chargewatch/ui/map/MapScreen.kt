@@ -510,7 +510,9 @@ private fun ChargeMap(
     onViewportChanged: (NdwViewport) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
     favoriteIds: Set<String>,
-    cameraTarget: SearchLocation?,
+    cameraTarget: CameraTarget?,
+    destination: Destination?,
+    onMapCenterChanged: (Double, Double) -> Unit,
     onCameraTargetConsumed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -519,6 +521,8 @@ private fun ChargeMap(
     val currentLocations = rememberUpdatedState(locations)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
+    val currentDestination = rememberUpdatedState(destination)
+    val currentMapCenterHandler = rememberUpdatedState(onMapCenterChanged)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
 
@@ -552,6 +556,7 @@ private fun ChargeMap(
 
                     map.setOnMarkerClickListener { marker ->
                         val group = markerGroups[marker.id] ?: return@setOnMarkerClickListener false
+                        if (group.isEmpty()) return@setOnMarkerClickListener true
                         when (markerTapAction(group.size, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM)) {
                             MarkerTapAction.SelectLocation,
                             MarkerTapAction.SelectClusterLocations -> currentSelectionHandler.value(group)
@@ -584,7 +589,8 @@ private fun ChargeMap(
                         context = context,
                         iconCache = iconCache,
                         markerGroups = markerGroups,
-                        favoriteIds = currentFavoriteIds.value
+                        favoriteIds = currentFavoriteIds.value,
+                        destination = currentDestination.value
                     )
                     map.getStyle {
                         renderNativeMarkers(
@@ -593,7 +599,8 @@ private fun ChargeMap(
                             iconCache,
                             context,
                             markerGroups,
-                            currentFavoriteIds.value
+                            currentFavoriteIds.value,
+                            currentDestination.value
                         )
                     }
                     map.addOnCameraIdleListener {
@@ -603,8 +610,10 @@ private fun ChargeMap(
                             iconCache,
                             context,
                             markerGroups,
-                            currentFavoriteIds.value
+                            currentFavoriteIds.value,
+                            currentDestination.value
                         )
+                        currentMapCenterHandler.value(map.cameraPosition.target.latitude, map.cameraPosition.target.longitude)
                         requestViewport(map, onViewportChanged)
                     }
                 }
@@ -616,7 +625,7 @@ private fun ChargeMap(
                     map.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(
                             LatLng(target.latitude, target.longitude),
-                            16.0
+                            target.zoom
                         )
                     )
                     onCameraTargetConsumed()
@@ -624,10 +633,10 @@ private fun ChargeMap(
                 if (currentStyleUri != styleUri) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
                     }
                 } else map.getStyle {
-                    renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
+                    renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
                 }
             }
         }
@@ -642,10 +651,11 @@ private fun configureStyle(
     context: Context,
     iconCache: MutableMap<String, Icon>,
     markerGroups: MutableMap<Long, List<MapLocation>>,
-    favoriteIds: Set<String>
+    favoriteIds: Set<String>,
+    destination: Destination?
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds)
+        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
         requestViewport(map, onViewportChanged)
     }
 }
@@ -672,12 +682,11 @@ private fun renderNativeMarkers(
     icons: MutableMap<String, Icon>,
     context: Context,
     markerGroups: MutableMap<Long, List<MapLocation>>,
-    favoriteIds: Set<String>
+    favoriteIds: Set<String>,
+    destination: Destination?
 ) {
     map.clear()
     markerGroups.clear()
-    if (locations.isEmpty()) return
-
     val clusters = mutableListOf<MutableList<MapLocation>>()
     val positions = locations.associateWith { location ->
         map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
@@ -755,6 +764,13 @@ private fun renderNativeMarkers(
                 .title(if (isCluster) group.size.toString() + " laadlocaties" else location.title)
         )
         markerGroups[marker.id] = group.toList()
+    }
+    destination?.let { chosen ->
+        val icon = icons.getOrPut("destination-pin") { iconFactory.fromBitmap(createDestinationMarkerBitmap()) }
+        val marker = map.addMarker(MarkerOptions().position(LatLng(chosen.latitude, chosen.longitude))
+            .icon(icon).title(chosen.label))
+        // Empty group marks this as a destination, not a charging site.
+        markerGroups[marker.id] = emptyList()
     }
 }
 
@@ -1409,6 +1425,23 @@ private fun openStreetView(context: Context, location: MapLocation) {
         )
     )
     context.startActivity(browserFallback)
+}
+
+private fun createDestinationMarkerBitmap(): Bitmap {
+    val bitmap = Bitmap.createBitmap(96, 120, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#2563EB") }
+    val tip = Path().apply {
+        moveTo(20f, 59f)
+        lineTo(48f, 114f)
+        lineTo(76f, 59f)
+        close()
+    }
+    canvas.drawPath(tip, paint)
+    canvas.drawCircle(48f, 43f, 36f, paint)
+    paint.color = Color.WHITE
+    canvas.drawCircle(48f, 43f, 15f, paint)
+    return bitmap
 }
 
 private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
