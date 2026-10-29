@@ -1,8 +1,11 @@
-name: Tariff disappearance reproduction
+name: Tariff snapshot presence
 on:
   pull_request:
     paths:
       - 'db/tests/tariff_disappearance_http.py'
+      - 'db/migrations/025_tariff_snapshot_presence.sql'
+      - 'src/ChargeWatch.Importer/**'
+      - 'src/ChargeWatch.Api/**'
       - '.github/workflows/tariff-disappearance.yml'
   workflow_dispatch:
 
@@ -10,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  reproduce-known-bug:
+  tariff-presence-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -61,5 +64,5 @@ jobs:
         run: |
           dotnet build src/ChargeWatch.Importer --configuration Release
           dotnet build src/ChargeWatch.Api --configuration Release
-      - name: Reproduce known bug (green means reproduced, not fixed)
-        run: python3 db/tests/tariff_disappearance_http.py --expect-known-bug
+      - name: Verify disappearance, 304, return and unsafe-feed rollback
+        run: python3 db/tests/tariff_disappearance_http.py
