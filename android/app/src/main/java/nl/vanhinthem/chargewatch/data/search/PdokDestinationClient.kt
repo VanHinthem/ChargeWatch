@@ -141,7 +141,7 @@ internal fun parsePdokDestination(raw: String): Destination {
         ?.get("docs")?.jsonArray ?: error("Missing PDOK docs")
     val obj = docs.firstOrNull()?.jsonObject ?: error("No matching PDOK object")
     val wkt = obj["centroide_ll"]?.jsonPrimitive?.contentOrNull ?: error("Missing WGS84 centroid")
-    val match = Regex("""POINT\\s*\\(\\s*(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)\\s*\\)""", RegexOption.IGNORE_CASE)
+    val match = Regex("""POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)""", RegexOption.IGNORE_CASE)
         .matchEntire(wkt) ?: error("Invalid WGS84 POINT")
     // WKT uses longitude first. Do not confuse it with the Dutch RD projection.
     val longitude = match.groupValues[1].toDouble()
