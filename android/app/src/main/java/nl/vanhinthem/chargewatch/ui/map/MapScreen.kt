@@ -70,7 +70,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
@@ -118,6 +122,7 @@ fun MapScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
+    var searchHeaderBottom by remember { mutableStateOf(0.dp) }
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -135,7 +140,8 @@ fun MapScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             themeChoice = themeChoice,
-            onThemeChoice = onThemeChoice
+            onThemeChoice = onThemeChoice,
+            onBottomChanged = { searchHeaderBottom = it }
         )
 
         if (state.loading) {
@@ -169,7 +175,8 @@ fun MapScreen(
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
-            onToggleFavorite = onToggleFavorite
+            onToggleFavorite = onToggleFavorite,
+            expandedTopInset = searchHeaderBottom + 8.dp
         )
     }
 
@@ -177,10 +184,19 @@ fun MapScreen(
 }
 
 @Composable
-private fun SearchHeader(modifier: Modifier = Modifier, themeChoice: String, onThemeChoice: (String) -> Unit) {
+private fun SearchHeader(
+    modifier: Modifier = Modifier,
+    themeChoice: String,
+    onThemeChoice: (String) -> Unit,
+    onBottomChanged: (Dp) -> Unit = {}
+) {
     var menuOpen by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
+            },
         shape = RoundedCornerShape(22.dp),
         tonalElevation = 5.dp
     ) {
@@ -466,7 +482,8 @@ private fun LocationSelectionSheet(
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
-    onToggleFavorite: (MapLocation) -> Unit
+    onToggleFavorite: (MapLocation) -> Unit,
+    expandedTopInset: Dp
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
@@ -489,13 +506,12 @@ private fun LocationSelectionSheet(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // Limit the actual sheet height so Expanded stops below the persistent search
-    // header. Do not add top padding to the sheet surface: that creates empty space
-    // above the drag handle only in Expanded.
-    val sheetTopInset = 112.dp
     val dragHandleHeight = 32.dp
+    // Use the measured bottom edge of the actual search header, not an estimated
+    // device-independent constant. The 8 dp gap is supplied by MapScreen.
+    val effectiveTopInset = expandedTopInset.coerceAtLeast(96.dp)
     val expandedSheetContentHeight =
-        (screenHeight - sheetTopInset - dragHandleHeight).coerceAtLeast(360.dp)
+        (screenHeight - effectiveTopInset - dragHandleHeight).coerceAtLeast(360.dp)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
