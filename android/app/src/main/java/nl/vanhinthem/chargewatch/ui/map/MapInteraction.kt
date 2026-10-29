@@ -1,6 +1,7 @@
 package nl.vanhinthem.chargewatch.ui.map
 
 import nl.vanhinthem.chargewatch.data.search.Destination
+import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -79,3 +80,13 @@ internal fun overviewTopPaddingPixels(mapHeightPx: Int, panelBottomPx: Int, marg
         (mapHeightPx * 0.65).toInt().coerceAtLeast(0)
     )
 }
+
+/** The address is always the first bounds point; never depend on viewport markers. */
+internal fun destinationOverviewCoordinates(
+    destination: Destination,
+    nearby: List<SearchLocation>
+): List<Pair<Double, Double>> = listOf(destination.latitude to destination.longitude) +
+    nearby.asSequence().filter {
+        it.latitude.isFinite() && it.longitude.isFinite() &&
+            it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0
+    }.take(5).map { it.latitude to it.longitude }.toList()
