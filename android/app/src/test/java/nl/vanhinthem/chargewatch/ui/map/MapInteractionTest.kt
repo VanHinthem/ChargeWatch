@@ -1,6 +1,7 @@
 package nl.vanhinthem.chargewatch.ui.map
 
 import nl.vanhinthem.chargewatch.data.search.Destination
+import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -84,4 +85,40 @@ class MapInteractionTest {
         assertFalse(shouldShowReturnToDestination(destination, Double.NaN, 5.525, 14.0))
         assertFalse(shouldShowReturnToDestination(destination, 51.765, 5.525, Double.NaN))
     }
+    @Test
+    fun fittedOverviewIsReferenceForReturnButtonNotTheBluePin() {
+        val overview = DestinationOverview(51.769, 5.531, 12.8)
+        // Asymmetric list padding shifts the camera's center away from the blue pin.
+        assertFalse(shouldShowReturnToDestination(destination, 51.769, 5.531, 12.8, overview = overview))
+        assertTrue(shouldShowReturnToDestination(destination, 51.769, 5.531, 16.0, overview = overview))
+        assertTrue(shouldShowReturnToDestination(destination, 51.780, 5.541, 12.8, overview = overview))
+        assertFalse(shouldShowReturnToDestination(destination, overview.latitude, overview.longitude,
+            overview.zoom, overview = overview))
+    }
+
+    @Test
+    fun overviewContainsBluePinAndAtMostFiveValidNearestChargers() {
+        val chargers = (0..6).map { index ->
+            SearchLocation(
+                featureId = "charger-$index", address = "", city = "Oss", operatorName = null,
+                latitude = 51.765 + index * 0.001, longitude = 5.525,
+                availableCount = 0, totalCount = 1, unknownCount = 0
+            )
+        }
+        val points = destinationOverviewCoordinates(destination, chargers)
+        assertEquals(6, points.size)
+        assertEquals(destination.latitude to destination.longitude, points.first())
+        assertEquals(chargers[4].latitude to chargers[4].longitude, points.last())
+        assertEquals(listOf(destination.latitude to destination.longitude),
+            destinationOverviewCoordinates(destination, emptyList()))
+    }
+
+    @Test
+    fun overviewPaddingLeavesRoomForMapBelowExpandedPanel() {
+        assertEquals(640, overviewTopPaddingPixels(1000, 600, 40))
+        assertEquals(650, overviewTopPaddingPixels(1000, 990, 40))
+        assertEquals(40, overviewTopPaddingPixels(1000, 0, 40))
+        assertEquals(40, overviewTopPaddingPixels(0, 500, 40))
+    }
+
 }
