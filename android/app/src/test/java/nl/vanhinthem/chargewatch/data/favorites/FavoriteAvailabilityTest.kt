@@ -13,23 +13,47 @@ class FavoriteAvailabilityTest {
     private fun location(updated: String?, reliability: CountReliability = CountReliability.Safe) =
         MapLocation("NL-A", 5.5, 51.7, "Test", updated, AvailabilitySummary(1, 2, reliability))
 
-    @Test fun currentTrustedStatusIsShown() {
-        val result = favoriteAvailability(location("2026-10-25T10:55:00Z"), now)
+    @Test fun currentTrustedStatusShowsFetchFreshness() {
+        val result = favoriteAvailability(
+            location = location("2026-10-24T01:00:00Z"),
+            now = now,
+            checkedAt = now.minusSeconds(120)
+        )
         assertEquals("1/2", result.label)
         assertEquals(AvailabilityStatus.Available, result.status)
+        assertEquals("2 min geleden gecontroleerd", result.description)
     }
 
-    @Test fun oldTimestampKeepsKnownRatioButLabelsAge() {
-        val result = favoriteAvailability(location("2026-10-25T10:27:00Z"), now)
-        assertEquals("1/2", result.label)
-        assertEquals(AvailabilityStatus.Available, result.status)
-        org.junit.Assert.assertTrue(result.description.contains("33 min"))
+    @Test fun veryOldSourceTimestampDoesNotMakeRecentlyFetchedStatusLookStale() {
+        val result = favoriteAvailability(
+            location = location("2026-10-20T10:00:00Z"),
+            now = now,
+            checkedAt = now
+        )
+        assertEquals("Zojuist gecontroleerd", result.description)
+        assertEquals("2026-10-20T10:00:00Z", result.sourceUpdated)
     }
 
-    @Test fun missingTimestampAndUnreliableStatusesAreUnknown() {
-        assertEquals("1/2", favoriteAvailability(location(null), now).label)
-        assertEquals("?", favoriteAvailability(location("2026-10-25T10:58:00Z", CountReliability.Ambiguous), now).label)
-        assertEquals("1/2", favoriteAvailability(location("bad"), now).label)
-        assertEquals("?", favoriteAvailability(null, now).label)
+    @Test fun missingCheckTimeIsExplicit() {
+        val result = favoriteAvailability(location("2026-10-25T10:58:00Z"), now)
+        assertEquals("Nog niet gecontroleerd", result.description)
+    }
+
+    @Test fun unreliableStatusKeepsUnknownAvailabilityButShowsCheckAge() {
+        val result = favoriteAvailability(
+            location = location("2026-10-25T10:58:00Z", CountReliability.Ambiguous),
+            now = now,
+            checkedAt = now.minusSeconds(60)
+        )
+        assertEquals("?", result.label)
+        assertEquals(AvailabilityStatus.Unknown, result.status)
+        assertEquals("1 min geleden gecontroleerd", result.description)
+    }
+
+    @Test fun missingLocationIsUnknown() {
+        val result = favoriteAvailability(null, now, now)
+        assertEquals("?", result.label)
+        assertEquals(AvailabilityStatus.Unknown, result.status)
+        assertEquals("Nog niet gecontroleerd", result.description)
     }
 }
