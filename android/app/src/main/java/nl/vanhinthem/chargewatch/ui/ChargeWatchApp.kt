@@ -93,6 +93,7 @@ fun ChargeWatchApp() {
                 is FavoriteRefreshResult.Success -> {
                     latestStatuses = latestStatuses + result.locations
                     favoriteFetchedAt = Instant.now()
+                    refreshMessage = result.warning
                 }
                 is FavoriteRefreshResult.Partial -> {
                     latestStatuses = latestStatuses + result.locations
