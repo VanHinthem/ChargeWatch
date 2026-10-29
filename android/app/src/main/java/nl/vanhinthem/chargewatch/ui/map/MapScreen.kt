@@ -462,22 +462,79 @@ private fun SearchHeader(
                 Text(message, modifier = Modifier.padding(16.dp))
             }
         }
-        if (destination != null) {
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
-                Column(modifier = Modifier.heightIn(max = 330.dp).verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp)) {
-                    Text("Dichtstbijzijnde laadlocaties",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.titleSmall)
-                    if (nearLoading) {
-                        Text("Laadlocaties zoeken…",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.bodySmall)
-                    } else if (nearMessage != null) {
-                        Text(nearMessage,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.bodySmall)
+        // Keep the selected destination pinned while another address is being typed,
+        // but give autocomplete priority over the nearby-charger panel.
+        if (destination != null && !(focused && !searchSelected)) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                tonalElevation = 6.dp
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(nearbyExpanded) {
+                                var draggedY = 0f
+                                detectVerticalDragGestures(
+                                    onDragStart = { draggedY = 0f },
+                                    onVerticalDrag = { change, amount ->
+                                        draggedY += amount
+                                        change.consume()
+                                    },
+                                    onDragEnd = {
+                                        if (abs(draggedY) > 24.dp.toPx()) {
+                                            // Swipe down to expand; swipe up to collapse.
+                                            onNearbyExpandedChanged(draggedY > 0f)
+                                        }
+                                    }
+                                )
+                            }
+                            .clickable { onNearbyExpandedChanged(!nearbyExpanded) }
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.EvStation, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Laadlocaties in de buurt", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                when {
+                                    nearLoading -> "Dichtstbijzijnde locaties ophalen…"
+                                    nearMessage != null && nearLocations.isEmpty() -> nearMessage
+                                    nearLocations.size == 1 -> "1 laadlocatie gevonden"
+                                    else -> "${nearLocations.size} laadlocaties gevonden"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            if (nearbyExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (nearbyExpanded) "Lijst inklappen" else "Lijst uitklappen"
+                        )
                     }
+                    AnimatedVisibility(
+                        visible = nearbyExpanded,
+                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier.heightIn(max = 300.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(bottom = 6.dp)
+                        ) {
+                            HorizontalDivider()
+                            if (nearLoading) {
+                                Text("Laadlocaties zoeken…",
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    style = MaterialTheme.typography.bodySmall)
+                            } else if (nearMessage != null && nearLocations.isEmpty()) {
+                                Text(nearMessage,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
                     nearLocations.forEachIndexed { index, item ->
                         if (index > 0) HorizontalDivider()
                         Row(modifier = Modifier.fillMaxWidth().clickable { onNearestSelected(item) }
@@ -509,6 +566,8 @@ private fun SearchHeader(
                                     item.availableCount > 0 -> ComposeColor(0xFF168653)
                                     else -> ComposeColor(0xFFD43B3B)
                                 })
+                        }
+                    }
                         }
                     }
                 }
