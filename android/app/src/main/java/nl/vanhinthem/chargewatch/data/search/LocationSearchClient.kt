@@ -24,7 +24,8 @@ data class SearchLocation(
     val latitude: Double,
     val longitude: Double,
     val availableCount: Int,
-    val totalCount: Int
+    val totalCount: Int,
+    val unknownCount: Int
 )
 
 sealed interface SearchResult {
@@ -88,6 +89,7 @@ internal fun parseSearchLocations(raw: String): List<SearchLocation> =
             latitude = latitude,
             longitude = longitude,
             availableCount = obj["availableCount"]?.jsonPrimitive?.intOrNull ?: 0,
-            totalCount = obj["evseCount"]?.jsonPrimitive?.intOrNull ?: 0
+            totalCount = obj["evseCount"]?.jsonPrimitive?.intOrNull ?: 0,
+            unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: 0
         )
     }
