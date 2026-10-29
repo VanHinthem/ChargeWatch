@@ -121,4 +121,23 @@ class MapInteractionTest {
         assertEquals(40, overviewTopPaddingPixels(0, 500, 40))
     }
 
+    @Test
+    fun nearestCountUsesRequestedLabelAndSingularForm() {
+        assertEquals("5 dichtstbijzijnde locaties", nearestLocationsCountLabel(5))
+        assertEquals("1 dichtstbijzijnde locatie", nearestLocationsCountLabel(1))
+        assertEquals("0 dichtstbijzijnde locaties", nearestLocationsCountLabel(0))
+    }
+
+    @Test
+    fun nearbyFavoriteStarMatchesBySameFeatureIdAsSavedFavorite() {
+        val item = SearchLocation(
+            featureId = "NL-ABC-123", address = "Stationsstraat", city = "Oss",
+            operatorName = "Allego", latitude = 51.765, longitude = 5.525,
+            availableCount = 1, totalCount = 2, unknownCount = 0
+        )
+        assertTrue(isNearbyFavorite(item, setOf("NL-ABC-123", "NL-XYZ-456")))
+        assertFalse(isNearbyFavorite(item, setOf("NL-OTHER-123")))
+        assertFalse(isNearbyFavorite(item, emptySet()))
+    }
+
 }
