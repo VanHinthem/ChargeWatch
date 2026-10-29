@@ -11,7 +11,19 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
 
-data class PricePart(val type: String, val amount: String, val currency: String, val hasRestrictions: Boolean, val tariffId: String = "", val connectorId: String = "", val elementIndex: Int = 0, val vat: String? = null) {
+data class PricePart(
+    val type: String,
+    val amount: String,
+    val currency: String,
+    val hasRestrictions: Boolean,
+    val tariffId: String = "",
+    val connectorId: String = "",
+    val elementIndex: Int = 0,
+    val vat: String? = null,
+    val certainty: String = "Applicable",
+    val optionStatus: String = "APPLICABLE",
+    val sourceTariffType: String? = null
+) {
     val inclusiveAmount: String
         get() {
             val net = amount.toBigDecimalOrNull() ?: return amount
@@ -21,8 +33,18 @@ data class PricePart(val type: String, val amount: String, val currency: String,
         }
     val vatKnown: Boolean get() = vat != null
 }
+
 data class HourlyAvailability(val isoWeekday: Int, val hour: Int, val share: Double, val samples: Int)
-data class LocationEnrichment(val tariffs: List<PricePart>, val hasComplexTariffs: Boolean, val statisticsAvailable: Boolean, val hourlyAvailability: List<HourlyAvailability> = emptyList())
+
+data class LocationEnrichment(
+    val tariffs: List<PricePart>,
+    val hasComplexTariffs: Boolean,
+    val statisticsAvailable: Boolean,
+    val hourlyAvailability: List<HourlyAvailability> = emptyList(),
+    val tariffStatuses: Set<String> = emptySet(),
+    val tariffLimitations: Set<String> = emptySet(),
+    val sourceTariffTypes: Set<String> = emptySet()
+)
 
 sealed interface EnrichmentResult {
     data class Found(val value: LocationEnrichment) : EnrichmentResult
@@ -43,7 +65,6 @@ class LocationEnrichmentClient(
         if (base.isBlank() || !base.startsWith("https://")) return@withContext EnrichmentResult.Unconfigured
         if (!NDW_ID.matches(featureId)) return@withContext EnrichmentResult.NotFound
 
-        // Distinct from map fetching: this client is only invoked by the open-location sheet.
         val path = "/api/v1/locations/by-ndw-id/${featureId}"
         val request = Request.Builder().url(base + path).header("Accept", "application/json").build()
         try {
@@ -87,53 +108,82 @@ fun parseEnrichment(raw: String): LocationEnrichment {
     val root = Json.parseToJsonElement(raw).jsonObject
     val evses = root["evses"]?.jsonArray ?: error("Missing evses")
     val prices = linkedMapOf<String, PricePart>()
+    val statuses = linkedSetOf<String>()
+    val allLimitations = linkedSetOf<String>()
+    val sourceTariffTypes = linkedSetOf<String>()
     var complex = false
-    for (evse in evses) for (connector in evse.jsonObject["connectors"]?.jsonArray.orEmpty()) {
-        val connectorId = connector.jsonObject["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        for (tariff in connector.jsonObject["tariffs"]?.jsonArray.orEmpty()) {
-            val t = tariff.jsonObject
-            val tariffId = t["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val presentation = t["presentation"]?.jsonObject
-            if (presentation == null) { complex = true; continue }
-            val currency = presentation["currency"]?.jsonPrimitive?.contentOrNull
-            if (presentation["hasUnsupportedData"]?.jsonPrimitive?.booleanOrNull != false) {
-                // A tariff may contain usable components as well as rules that
-                // our parser cannot fully interpret. Keep usable components,
-                // while preserving the incomplete-tariff warning.
-                complex = true
-            }
-            if (currency.isNullOrBlank()) {
-                complex = true
-                continue
-            }
-            for ((elementIndex, element) in presentation["elements"]?.jsonArray.orEmpty().withIndex()) {
-                val obj = element.jsonObject
-                val restrictions = obj["restrictions"]?.let { raw -> raw is JsonObject && raw.any { (key, value) -> key != "start_date" && value !is JsonNull } } == true
-                for (component in obj["components"]?.jsonArray.orEmpty()) {
+
+    for (evse in evses) {
+        for (connector in evse.jsonObject["connectors"]?.jsonArray.orEmpty()) {
+            val connectorObject = connector.jsonObject
+            val connectorId = connectorObject["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val connectorStatus = connectorObject["tariffStatus"]?.jsonPrimitive?.contentOrNull ?: "NO_REFERENCE"
+            statuses += connectorStatus
+            if (connectorStatus !in setOf("NO_REFERENCE", "APPLICABLE")) complex = true
+
+            for (option in connectorObject["tariffOptions"]?.jsonArray.orEmpty()) {
+                val optionObject = option.jsonObject
+                val tariffId = optionObject["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val optionStatus = optionObject["status"]?.jsonPrimitive?.contentOrNull ?: connectorStatus
+                val sourceTariffType = optionObject["sourceTariffType"]?.jsonPrimitive?.contentOrNull
+                if (!sourceTariffType.isNullOrBlank()) sourceTariffTypes += sourceTariffType
+                val currency = optionObject["currency"]?.jsonPrimitive?.contentOrNull
+                val limitations = optionObject["limitations"]?.jsonArray.orEmpty()
+                    .mapNotNull { it.jsonPrimitive.contentOrNull }
+                allLimitations += limitations
+                if (optionStatus != "APPLICABLE" || limitations.isNotEmpty()) complex = true
+                if (currency.isNullOrBlank()) {
+                    if (optionObject["components"]?.jsonArray.orEmpty().isNotEmpty()) complex = true
+                    continue
+                }
+
+                for (component in optionObject["components"]?.jsonArray.orEmpty()) {
                     val c = component.jsonObject
-                    val type = c["type"]?.jsonPrimitive?.contentOrNull
+                    val type = c["dimension"]?.jsonPrimitive?.contentOrNull
                     val amount = c["price"]?.jsonPrimitive?.contentOrNull
-                    val vat = c["vat"]?.jsonPrimitive?.contentOrNull
-                    if (type == null || amount == null || type !in listOf("ENERGY","TIME","PARKING_TIME","FLAT")) {
+                    val vat = c["vatPercent"]?.jsonPrimitive?.contentOrNull
+                    val elementIndex = c["elementIndex"]?.jsonPrimitive?.intOrNull ?: 0
+                    val certainty = c["certainty"]?.jsonPrimitive?.contentOrNull ?: "Conditional"
+                    if (type == null || amount == null || type !in listOf("ENERGY", "TIME", "PARKING_TIME", "FLAT")) {
                         complex = true
                         continue
                     }
-                    val key = listOf(connectorId, tariffId, elementIndex.toString(), type, amount, vat, currency, restrictions.toString(),
-                        obj["restrictions"]?.toString().orEmpty(),
-                        c["stepSize"]?.toString().orEmpty()).joinToString("|")
-                    prices.putIfAbsent(key, PricePart(type, amount, currency, restrictions, tariffId, connectorId, elementIndex, vat))
+                    val conditional = optionStatus != "APPLICABLE" || certainty != "Applicable" || limitations.isNotEmpty()
+                    val key = listOf(
+                        connectorId, tariffId, elementIndex.toString(), type, amount, vat.orEmpty(),
+                        currency, certainty, optionStatus
+                    ).joinToString("|")
+                    prices.putIfAbsent(
+                        key,
+                        PricePart(
+                            type = type,
+                            amount = amount,
+                            currency = currency,
+                            hasRestrictions = conditional,
+                            tariffId = tariffId,
+                            connectorId = connectorId,
+                            elementIndex = elementIndex,
+                            vat = vat,
+                            certainty = certainty,
+                            optionStatus = optionStatus,
+                            sourceTariffType = sourceTariffType
+                        )
+                    )
                 }
             }
         }
     }
-    // Statistic percentages remain gated by server policy; this response never invents them.
-    return LocationEnrichment(prices.values.toList(), complex, false)
+
+    return LocationEnrichment(
+        prices.values.toList(),
+        complex,
+        false,
+        tariffStatuses = statuses,
+        tariffLimitations = allLimitations,
+        sourceTariffTypes = sourceTariffTypes
+    )
 }
 
-/** Aggregate location slots by local hour for a compact exploratory preview.
- * Null, unsupported and explicitly nonexperimental server data are excluded.
- * Keep weekday-specific slots distinct; the UI selects an Amsterdam-local weekday.
- */
 fun parseHourlyAvailability(raw: String): List<HourlyAvailability> {
     if (raw.isBlank()) return emptyList()
     val root = Json.parseToJsonElement(raw).jsonObject
