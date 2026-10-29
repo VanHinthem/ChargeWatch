@@ -65,6 +65,25 @@ class FavoritesRepository(context: Context) {
         }
     }
 
+
+    suspend fun remove(id: String) {
+        store.edit { prefs ->
+            prefs[FAVORITES] = json.encodeToString(
+                decode(prefs[FAVORITES]).filterNot { it.featureId == id }
+            )
+        }
+    }
+
+    suspend fun restore(favorite: FavoriteLocation, index: Int) {
+        store.edit { prefs ->
+            val current = decode(prefs[FAVORITES]).toMutableList()
+            if (current.none { it.featureId == favorite.featureId }) {
+                current.add(index.coerceIn(0, current.size), favorite)
+            }
+            prefs[FAVORITES] = json.encodeToString(current)
+        }
+    }
+
     suspend fun move(id: String, offset: Int) {
         store.edit { prefs ->
             val current = decode(prefs[FAVORITES]).toMutableList()
