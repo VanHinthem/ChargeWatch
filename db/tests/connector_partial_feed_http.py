@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject structurally incomplete connector collections before reconciliation."""
+"""Isolate structurally incomplete connector collections to their owning EVSE."""
 import gzip
 import json
 import os
@@ -48,11 +48,14 @@ def location(variant):
         evse["connectors"] = {"id": "C1"}
     elif variant == "empty":
         evse["connectors"] = []
+    other = {"uid": "E2", "status": "AVAILABLE", "last_updated": STAMP,
+             "connectors": [connector("D1"), connector("D2")]
+             if variant == "complete" else [connector("D1")]}
     return [{"country_code": "NL", "party_id": "TST", "id": "CONNECTOR-GUARD",
              "address": "CI connector guard", "city": "Oss",
              "last_updated": STAMP,
              "coordinates": {"latitude": "51.75", "longitude": "5.53"},
-             "evses": [evse]}]
+             "evses": [evse, other]}]
 
 
 def main():
@@ -99,10 +102,9 @@ def main():
             fixture = "http://127.0.0.1:" + str(server.server_port)
             base_env.update(CW_NDW_LOCATIONS_URL=fixture + "/locations",
                             CW_NDW_TARIFFS_URL=fixture + "/tariffs",
-                            CW_NDW_MIN_LOCATIONS="1", CW_NDW_MIN_TARIFFS="1",
-                            CW_ENABLE_COMPACT_STATISTICS="1")
+                            CW_NDW_MIN_LOCATIONS="1", CW_NDW_MIN_TARIFFS="1")
 
-            def poll(cache_name, expect_success):
+            def poll(cache_name):
                 cache = Path(root) / cache_name
                 cache.mkdir()
                 env = base_env.copy()
@@ -112,52 +114,57 @@ def main():
                      "--watch-once"], env=env, text=True, capture_output=True, timeout=120)
                 print(result.stdout, end="")
                 print(result.stderr, end="")
-                if expect_success:
-                    require(result.returncode == 0, "Complete baseline poll failed")
-                else:
-                    require(result.returncode != 0, "Incomplete connector collection was accepted")
-                    require(not (cache / "locations.json.gz").exists(),
-                            "Rejected Locations response was promoted to cache")
-                    require(not (cache / "tariffs.json.gz").exists(),
-                            "Rejected transaction promoted Tariffs cache")
+                require(result.returncode == 0, cache_name + " poll failed")
+                require((cache / "locations.json.gz").exists(),
+                        cache_name + " Locations response was not promoted")
+                require((cache / "tariffs.json.gz").exists(),
+                        cache_name + " Tariffs response was not promoted")
 
-            poll("baseline", True)
-            require(sql("SELECT count(*) FROM connector WHERE is_active") == "2",
+            poll("baseline")
+            require(sql("SELECT count(*) FROM connector WHERE is_active") == "4",
                     "Baseline connectors missing")
             baseline = sql("""
                 SELECT source_sha256||'|'||fetched_at::text||'|'||location_count||'|'||evse_count
                 FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'""")
-            connector_state = sql("""
+            excluded_evse_state = sql("""
                 SELECT string_agg(source_id||':'||is_active::text||':'||
                        consecutive_missing_snapshots::text,',' ORDER BY source_id)
-                FROM connector""")
-            feed_checkpoint = sql("""
-                SELECT last_successful_check_at::text||'|'||last_changed_at::text
-                FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs'""")
+                FROM connector c JOIN evse e ON e.id=c.evse_id
+                WHERE e.source_uid='E1'""")
 
-            for variant in ("missing", "null", "object", "empty"):
+            for missing_count, variant in enumerate(
+                    ("missing", "null", "object", "empty"), start=1):
                 state["variant"] = variant
-                poll(variant, False)
-                require(sql("""
+                poll(variant)
+                current_checkpoint = sql("""
                     SELECT source_sha256||'|'||fetched_at::text||'|'||location_count||'|'||evse_count
-                    FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'""") == baseline,
-                        variant + " changed Locations checkpoint")
+                    FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'""")
+                require(current_checkpoint != baseline,
+                        variant + " did not publish the otherwise valid Locations snapshot")
+                baseline = current_checkpoint
                 require(sql("""
                     SELECT string_agg(source_id||':'||is_active::text||':'||
                            consecutive_missing_snapshots::text,',' ORDER BY source_id)
-                    FROM connector""") == connector_state,
-                        variant + " changed connector presence")
+                    FROM connector c JOIN evse e ON e.id=c.evse_id
+                    WHERE e.source_uid='E1'""") == excluded_evse_state,
+                        variant + " changed presence for the excluded EVSE")
                 require(sql("""
-                    SELECT last_successful_check_at::text||'|'||last_changed_at::text
-                    FROM ndw_tariffs_feed_checkpoint WHERE feed_key='tariffs'""") == feed_checkpoint,
-                        variant + " advanced Tariffs feed checkpoint")
+                    SELECT consecutive_missing_snapshots::text
+                    FROM connector c JOIN evse e ON e.id=c.evse_id
+                    WHERE e.source_uid='E2' AND c.source_id='D2'""") == str(missing_count),
+                        variant + " prevented normal presence evidence for another EVSE")
+                require(sql("""
+                    SELECT is_active::text FROM connector c JOIN evse e ON e.id=c.evse_id
+                    WHERE e.source_uid='E2' AND c.source_id='D1'""") == "true",
+                        variant + " damaged the present connector on another EVSE")
                 require([variant, "/locations", 200] in state["requests"],
                         variant + " did not exercise Locations HTTP 200")
 
-            print(json.dumps({"baseline": connector_state,
-                              "rejectedVariants": ["missing", "null", "object", "empty"],
+            print(json.dumps({"excludedEvsePreserved": excluded_evse_state,
+                              "isolatedVariants": ["missing", "null", "object", "empty"],
+                              "otherEvseMissingEvidence": 4,
                               "requests": state["requests"]}, indent=2), flush=True)
-            print("PASS: incomplete connector collections roll back before presence reconciliation.")
+            print("PASS: incomplete connector collections are isolated to their owning EVSE.")
     finally:
         server.shutdown()
         server.server_close()
