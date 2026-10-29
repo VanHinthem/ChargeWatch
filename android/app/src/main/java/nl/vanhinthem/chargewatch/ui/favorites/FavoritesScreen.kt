@@ -1,5 +1,8 @@
 package nl.vanhinthem.chargewatch.ui.favorites
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,33 +17,44 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
@@ -54,11 +67,33 @@ fun FavoritesScreen(
     refreshMessage: String?,
     onRefresh: () -> Unit,
     onRename: (String, String) -> Unit,
-    onMove: (String, Int) -> Unit,
-    onRemove: (FavoriteLocation) -> Unit
+    onReorder: (String, Int) -> Unit,
+    onRemove: (FavoriteLocation, Int) -> Unit,
+    onOpen: (FavoriteLocation) -> Unit
 ) {
     var editing by remember { mutableStateOf<FavoriteLocation?>(null) }
     var alias by remember { mutableStateOf("") }
+    var visibleFavorites by remember { mutableStateOf(favorites) }
+    var draggedId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val reorderThresholdPx = with(density) { 92.dp.toPx() }
+
+    LaunchedEffect(favorites) {
+        if (draggedId == null) visibleFavorites = favorites
+    }
+
+    fun swapDragged(direction: Int) {
+        val id = draggedId ?: return
+        val from = visibleFavorites.indexOfFirst { it.featureId == id }
+        val to = from + direction
+        if (from < 0 || to !in visibleFavorites.indices) return
+        val updated = visibleFavorites.toMutableList()
+        val item = updated.removeAt(from)
+        updated.add(to, item)
+        visibleFavorites = updated
+        dragOffsetPx += if (direction > 0) -reorderThresholdPx else reorderThresholdPx
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -126,21 +161,61 @@ fun FavoritesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(
-                    items = favorites,
+                    items = visibleFavorites,
                     key = { _, favorite -> favorite.featureId }
                 ) { index, favorite ->
-                    FavoriteCard(
+                    val isDragging = draggedId == favorite.featureId
+                    SwipeFavoriteCard(
+                        modifier = Modifier
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .graphicsLayer {
+                                translationY = if (isDragging) dragOffsetPx else 0f
+                                scaleX = if (isDragging) 1.015f else 1f
+                                scaleY = if (isDragging) 1.015f else 1f
+                            },
                         favorite = favorite,
                         availability = availability[favorite.featureId],
-                        canMoveUp = index > 0,
-                        canMoveDown = index < favorites.lastIndex,
+                        isDragging = isDragging,
+                        gesturesEnabled = draggedId == null || isDragging,
+                        onOpen = { onOpen(favorite) },
                         onEdit = {
                             alias = favorite.alias.orEmpty()
                             editing = favorite
                         },
-                        onMoveUp = { onMove(favorite.featureId, -1) },
-                        onMoveDown = { onMove(favorite.featureId, 1) },
-                        onRemove = { onRemove(favorite) }
+                        onRemove = { onRemove(favorite, index) },
+                        onDragStart = {
+                            draggedId = favorite.featureId
+                            dragOffsetPx = 0f
+                        },
+                        onDrag = { deltaY ->
+                            if (draggedId == favorite.featureId) {
+                                dragOffsetPx += deltaY
+                                while (dragOffsetPx > reorderThresholdPx) {
+                                    val before = visibleFavorites.indexOfFirst { it.featureId == favorite.featureId }
+                                    swapDragged(1)
+                                    val after = visibleFavorites.indexOfFirst { it.featureId == favorite.featureId }
+                                    if (before == after) {
+                                        dragOffsetPx = reorderThresholdPx
+                                        break
+                                    }
+                                }
+                                while (dragOffsetPx < -reorderThresholdPx) {
+                                    val before = visibleFavorites.indexOfFirst { it.featureId == favorite.featureId }
+                                    swapDragged(-1)
+                                    val after = visibleFavorites.indexOfFirst { it.featureId == favorite.featureId }
+                                    if (before == after) {
+                                        dragOffsetPx = -reorderThresholdPx
+                                        break
+                                    }
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            val target = visibleFavorites.indexOfFirst { it.featureId == favorite.featureId }
+                            draggedId = null
+                            dragOffsetPx = 0f
+                            if (target >= 0) onReorder(favorite.featureId, target)
+                        }
                     )
                 }
             }
@@ -184,15 +259,109 @@ fun FavoritesScreen(
 }
 
 @Composable
-private fun FavoriteCard(
+private fun SwipeFavoriteCard(
+    modifier: Modifier,
     favorite: FavoriteLocation,
     availability: FavoriteAvailability?,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
+    isDragging: Boolean,
+    gesturesEnabled: Boolean,
+    onOpen: () -> Unit,
     onEdit: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { distance -> distance * 0.24f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = gesturesEnabled && !isDragging,
+        backgroundContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(22.dp)
+                    )
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    IconButton(
+                        onClick = {
+                            onEdit()
+                            scope.launch { dismissState.reset() }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Naam wijzigen",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Spacer(Modifier.size(8.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    IconButton(
+                        onClick = onRemove
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = "Favoriet verwijderen",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        FavoriteCard(
+            favorite = favorite,
+            availability = availability,
+            elevated = isDragging,
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(favorite.featureId, gesturesEnabled) {
+                    if (!gesturesEnabled) return@pointerInput
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDragStart()
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount.y)
+                        },
+                        onDragEnd = onDragEnd,
+                        onDragCancel = onDragEnd
+                    )
+                }
+                .clickable(enabled = !isDragging, onClick = onOpen)
+        )
+    }
+}
+
+@Composable
+private fun FavoriteCard(
+    modifier: Modifier,
+    favorite: FavoriteLocation,
+    availability: FavoriteAvailability?,
+    elevated: Boolean
 ) {
     val current = availability ?: FavoriteAvailability(
         label = "?",
@@ -203,9 +372,10 @@ private fun FavoriteCard(
     val statusColor = favoriteStatusColor(current.status)
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(22.dp),
-        tonalElevation = 2.dp
+        tonalElevation = if (elevated) 5.dp else 2.dp,
+        shadowElevation = if (elevated) 8.dp else 0.dp
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -247,14 +417,22 @@ private fun FavoriteCard(
                         }
                 }
 
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = "Favoriet",
-                    tint = Color(0xFFF3AF25),
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .size(26.dp)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "Favoriet",
+                        tint = Color(0xFFF3AF25),
+                        modifier = Modifier.size(27.dp)
+                    )
+                    Icon(
+                        Icons.Default.DragHandle,
+                        contentDescription = "Lang indrukken en slepen om te verplaatsen",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .size(22.dp)
+                    )
+                }
             }
 
             Row(
@@ -285,31 +463,6 @@ private fun FavoriteCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Naam wijzigen")
-                }
-                IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Omhoog")
-                }
-                IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = "Omlaag")
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        Icons.Default.DeleteOutline,
-                        contentDescription = "Favoriet verwijderen",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
             }
         }
     }
