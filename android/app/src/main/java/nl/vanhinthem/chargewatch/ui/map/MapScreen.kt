@@ -618,7 +618,9 @@ private fun ChargeMap(
                             currentFavoriteIds.value,
                             currentDestination.value
                         )
-                        currentMapCenterHandler.value(map.cameraPosition.target.latitude, map.cameraPosition.target.longitude)
+                        map.cameraPosition.target?.let { center ->
+                            currentMapCenterHandler.value(center.latitude, center.longitude)
+                        }
                         requestViewport(map, onViewportChanged)
                     }
                 }
