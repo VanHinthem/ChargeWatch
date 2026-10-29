@@ -127,8 +127,8 @@ def main():
                 SELECT source_sha256||'|'||fetched_at::text||'|'||location_count||'|'||evse_count
                 FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'""")
             excluded_evse_state = sql("""
-                SELECT string_agg(source_id||':'||is_active::text||':'||
-                       consecutive_missing_snapshots::text,',' ORDER BY source_id)
+                SELECT string_agg(c.source_id||':'||c.is_active::text||':'||
+                       c.consecutive_missing_snapshots::text,',' ORDER BY c.source_id)
                 FROM connector c JOIN evse e ON e.id=c.evse_id
                 WHERE e.source_uid='E1'""")
 
@@ -143,18 +143,18 @@ def main():
                         variant + " did not publish the otherwise valid Locations snapshot")
                 baseline = current_checkpoint
                 require(sql("""
-                    SELECT string_agg(source_id||':'||is_active::text||':'||
-                           consecutive_missing_snapshots::text,',' ORDER BY source_id)
+                    SELECT string_agg(c.source_id||':'||c.is_active::text||':'||
+                           c.consecutive_missing_snapshots::text,',' ORDER BY c.source_id)
                     FROM connector c JOIN evse e ON e.id=c.evse_id
                     WHERE e.source_uid='E1'""") == excluded_evse_state,
                         variant + " changed presence for the excluded EVSE")
                 require(sql("""
-                    SELECT consecutive_missing_snapshots::text
+                    SELECT c.consecutive_missing_snapshots::text
                     FROM connector c JOIN evse e ON e.id=c.evse_id
                     WHERE e.source_uid='E2' AND c.source_id='D2'""") == str(missing_count),
                         variant + " prevented normal presence evidence for another EVSE")
                 require(sql("""
-                    SELECT is_active::text FROM connector c JOIN evse e ON e.id=c.evse_id
+                    SELECT c.is_active::text FROM connector c JOIN evse e ON e.id=c.evse_id
                     WHERE e.source_uid='E2' AND c.source_id='D1'""") == "true",
                         variant + " damaged the present connector on another EVSE")
                 require([variant, "/locations", 200] in state["requests"],
