@@ -1,5 +1,7 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import nl.vanhinthem.chargewatch.data.search.Destination
+
 internal enum class MarkerTapAction {
     SelectLocation,
     ZoomCluster,
@@ -18,3 +20,7 @@ internal fun markerTapAction(
         else -> MarkerTapAction.SelectClusterLocations
     }
 }
+
+/** An active blue pin survives search edits and map navigation; clearing removes it. */
+internal fun destinationAfterQueryEdit(query: String, selected: Destination?): Destination? =
+    if (query.isBlank()) null else selected
