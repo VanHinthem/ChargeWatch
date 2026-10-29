@@ -387,11 +387,14 @@ private fun SearchHeader(
                                 }
                                 if (result.totalCount > 0) {
                                     Text(
-                                        "${result.availableCount}/${result.totalCount}",
+                                        if (result.unknownCount > 0) "?"
+                                        else "${result.availableCount}/${result.totalCount}",
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = if (result.availableCount > 0)
-                                            ComposeColor(0xFF168653)
-                                        else ComposeColor(0xFFD43B3B)
+                                        color = when {
+                                            result.unknownCount > 0 -> ComposeColor(0xFF818D96)
+                                            result.availableCount > 0 -> ComposeColor(0xFF168653)
+                                            else -> ComposeColor(0xFFD43B3B)
+                                        }
                                     )
                                 }
                             }
