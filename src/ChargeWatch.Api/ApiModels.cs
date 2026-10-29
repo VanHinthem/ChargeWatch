@@ -87,7 +87,7 @@ internal sealed record TariffComponentDto(
 
 internal sealed record ConnectorTariffOption(
     string CountryCode, string PartyId, string SourceId,
-    string Status, string? Currency, DateTimeOffset? SourceUpdatedAt,
+    string Status, string? SourceTariffType, string? Currency, DateTimeOffset? SourceUpdatedAt,
     DateTimeOffset? AsOfUtc, IReadOnlyList<TariffComponentDto> Components,
     IReadOnlyList<string> Limitations,
     decimal? MinimumPrice = null, decimal? MaximumPrice = null,
@@ -97,7 +97,7 @@ internal static class ConnectorTariffContract
 {
     public const string EvaluationZone = "Europe/Amsterdam"; // Netherlands-only product.
     public static ConnectorTariffOption Missing(string country, string party, string id)
-        => new(country, party, id, "SOURCE_MISSING", null, null, null, [], ["SOURCE_TARIFF_NOT_FOUND"]);
+        => new(country, party, id, "SOURCE_MISSING", null, null, null, null, [], ["SOURCE_TARIFF_NOT_FOUND"]);
 
     public static ConnectorTariffOption Evaluate(string country, string party, string id,
         string? currency, JsonElement details, DateTimeOffset? sourceUpdatedAt, DateTimeOffset asOfUtc)
@@ -109,7 +109,7 @@ internal static class ConnectorTariffContract
             evaluation.Components.Count == 0 ? "UNAVAILABLE" :
             evaluation.Components.All(x => x.Certainty == TariffCertainty.Applicable) && limitations.Length == 0
                 ? "APPLICABLE" : "CONDITIONAL";
-        return new(country, party, id, status, metadata.Currency ?? currency, sourceUpdatedAt,
+        return new(country, party, id, status, evaluation.SourceTariffType, metadata.Currency ?? currency, sourceUpdatedAt,
             asOfUtc, evaluation.Components.Select(x => new TariffComponentDto(x.Dimension, x.Price,
                 x.StepSize, x.VatPercent, x.ElementIndex, x.Certainty.ToString())).ToArray(), limitations,
             metadata.MinimumPrice, metadata.MaximumPrice, metadata.AlternativeUrl, metadata.HasAlternativeText);
@@ -147,6 +147,16 @@ internal static class ConnectorTariffContract
                 first.Components[0].Price == 0.42m &&
                 first.Components[0].Certainty == "Applicable" && first.AsOfUtc == now,
             "single evaluated component must have explicit certainty and timestamp");
+
+        using var typedDoc = JsonDocument.Parse("""
+            {"type":"REGULAR","currency":"EUR","elements":[{"price_components":[
+                {"type":"ENERGY","price":0.33,"step_size":1,"vat":21}]}]}
+            """);
+        var typed = Evaluate("NL", "VAN", "regular-rate", "EUR", typedDoc.RootElement, null, now);
+        Require(typed.SourceTariffType == "REGULAR" &&
+                typed.Status == "CONDITIONAL" &&
+                typed.Limitations.Contains("TARIFF_TYPE_SELECTION_REQUIRED"),
+            "source tariff type must be exposed when applicability needs a profile selection");
 
         var multiple = new ConnectorDetail { Id = 3, SourceId = "two-rates" };
         multiple.TariffOptions.Add(first);
@@ -187,6 +197,12 @@ internal static class ConnectorTariffContract
                 root.GetProperty("tariffOptions").GetArrayLength() == 3 &&
                 root.GetProperty("tariffOptions")[2].GetProperty("components").GetArrayLength() == 0,
             "JSON contract must expose missing source and preserve all options");
+
+        var typedJson = JsonSerializer.Serialize(typed,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var typedParsed = JsonDocument.Parse(typedJson);
+        Require(typedParsed.RootElement.GetProperty("sourceTariffType").GetString() == "REGULAR",
+            "JSON contract must expose sourceTariffType");
     }
 }
 
