@@ -1,3 +1,7 @@
+## Besluit 29 oktober 2026 — issue #95 Fase A: directe PDOK-adreszoeker
+
+ChargeWatch blijft uitsluitend Nederland. De eerdere provider-/proxyverkenning is **vervangen** door het expliciete besluit: **gratis PDOK Locatieserver 3.1 rechtstreeks vanuit Android**, voor adressen/postcodes/straten/plaatsen; POI's zijn niet vereist. De oude zoekbalk uit PR #61 wordt bewust vervangen door snelle autocomplete (vanaf twee tekens, 250 ms debounce, maximaal acht PDOK-suggesties); suggest/lookup is een tweetraps API met WGS84-centrum. Een gekozen bestemming wordt een **blauwe, onafhankelijke kaartpin**, nooit een laadmarker of clusterlid. De vijf dichtstbijzijnde locaties worden via bestaande ChargeWatch `/api/v1/locations?latitude&longitude&radiusMeters=25000&limit=5` geladen, met hemelsbrede afstand en alleen betrouwbare beschikbaarheidsstatus. Tik opent de **bestaande** location sheet. De nearest-lijst kan pas vermogen/tarief tonen als daar een efficiënt, correct servercontract voor is; geen per-resultaat-verrijking of gissingen. Filtering blijft issue #95 Fase B. Details en privacy-/performanceacceptatie: [PDOK_DESTINATION_SEARCH.md](PDOK_DESTINATION_SEARCH.md).
+
 # Android app + widget — ontwerp- en goedkeuringsfase
 
 Status: **volledig app-/widget-UX/UI-ontwerp en icoonrichting door gebruiker expliciet goedgekeurd op 24 oktober 2026**. Visuele referenties vastgelegd; Kotlin/Compose/Glance-implementatie is de volgende fase. NDW EVSE-/connectordeduplicatie en releasebeveiliging blijven technische acceptatiegates.
