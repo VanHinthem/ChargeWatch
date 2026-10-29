@@ -840,21 +840,26 @@ private fun fitDestinationOverview(
     request: CameraTarget
 ): DestinationOverview {
     val fallback = DestinationOverview(request.latitude, request.longitude, request.zoom)
-    val chargers = request.nearby.orEmpty().filter {
-        it.latitude.isFinite() && it.longitude.isFinite() &&
-            it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0
-    }
-    if (chargers.isEmpty() || view.width <= 0 || view.height <= 0) return fallback
+    val destination = Destination(
+        label = "", latitude = request.latitude, longitude = request.longitude, type = ""
+    )
+    val points = destinationOverviewCoordinates(destination, request.nearby.orEmpty())
+    if (points.size < 2 || view.width <= 0 || view.height <= 0) return fallback
+    if (points.all { (lat, lon) ->
+            kotlin.math.abs(lat - request.latitude) < 0.000001 &&
+                kotlin.math.abs(lon - request.longitude) < 0.000001
+        }) return fallback
 
     val density = view.resources.displayMetrics.density
     val margin = (24 * density).roundToInt()
     val topPadding = overviewTopPaddingPixels(view.height, request.panelBottomPx, margin)
-    val positions = listOf(LatLng(request.latitude, request.longitude)) +
-        chargers.map { LatLng(it.latitude, it.longitude) }
-    val bounds = LatLngBounds.fromLatLngs(positions)
-    val fit = map.getCameraForLatLngBounds(
-        bounds, arrayOf(margin, topPadding, margin, margin), 0.0, 0.0
-    ) ?: return fallback
+    val fit = runCatching {
+        map.getCameraForLatLngBounds(
+            LatLngBounds.fromLatLngs(points.map { (lat, lon) -> LatLng(lat, lon) }),
+            arrayOf(margin, topPadding, margin, margin),
+            0.0, 0.0
+        )
+    }.getOrNull() ?: return fallback
     val center = fit.target ?: return fallback
     // Zoom limits prevent a remote fifth charger from forcing an unreadable region.
     return DestinationOverview(
