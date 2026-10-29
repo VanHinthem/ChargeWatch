@@ -482,8 +482,9 @@ private fun LocationSelectionSheet(
     // simulating compact/expanded in a separate boolean.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
-    val expanded = sheetState.currentValue == SheetValue.Expanded ||
-        sheetState.targetValue == SheetValue.Expanded
+    // During a drag currentValue remains the state we started from. Keep the
+    // content layout stable until Material has actually settled on Expanded.
+    val expanded = sheetState.currentValue == SheetValue.Expanded
     BackHandler(enabled = expanded) {
         scope.launch { sheetState.partialExpand() }
     }
