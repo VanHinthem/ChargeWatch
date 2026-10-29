@@ -508,6 +508,13 @@ private fun SearchHeader(
 
 private data class CameraTarget(val latitude: Double, val longitude: Double, val zoom: Double)
 
+/** Not Compose state: avoid marker re-clustering for each autocomplete keystroke. */
+private class MapRenderSnapshot {
+    var locations: List<MapLocation>? = null
+    var favoriteIds: Set<String>? = null
+    var destination: Destination? = null
+}
+
 @Composable
 private fun ChargeMap(
     locations: List<MapLocation>,
@@ -536,6 +543,7 @@ private fun ChargeMap(
     }
 
     var currentStyleUri by remember(mapView) { mutableStateOf<String?>(null) }
+    val renderSnapshot = remember(mapView) { MapRenderSnapshot() }
 
     DisposableEffect(lifecycleOwner, mapView) {
         val observer = object : DefaultLifecycleObserver {
@@ -637,13 +645,24 @@ private fun ChargeMap(
                     )
                     onCameraTargetConsumed()
                 }
-                if (currentStyleUri != styleUri) {
+                val styleChanged = currentStyleUri != styleUri
+                val markersChanged = renderSnapshot.locations !== locations ||
+                    renderSnapshot.favoriteIds != favoriteIds ||
+                    renderSnapshot.destination != destination
+                if (styleChanged) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
                         renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
                     }
-                } else map.getStyle {
-                    renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
+                } else if (markersChanged) {
+                    map.getStyle {
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
+                    }
+                }
+                if (styleChanged || markersChanged) {
+                    renderSnapshot.locations = locations
+                    renderSnapshot.favoriteIds = favoriteIds
+                    renderSnapshot.destination = destination
                 }
             }
         }
