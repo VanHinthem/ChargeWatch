@@ -7,9 +7,13 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * NDW lastUpdated is a source observation timestamp, not a guarantee that a new
- * timestamp is emitted while a charging point retains the same state.
- * Keep a known ratio visible, but distinguish age and quality from availability.
+ * OCPI lastUpdated describes when the source object itself last changed. It is
+ * not a freshness clock: an unchanged AVAILABLE EVSE may legitimately keep the
+ * same source timestamp for hours or days.
+ *
+ * Favorites therefore show when ChargeWatch last fetched/checked this status.
+ * The original source timestamp remains available as sourceUpdated for detail
+ * or diagnostics, but is never presented as "status age".
  */
 data class FavoriteAvailability(
     val label: String,
@@ -18,30 +22,44 @@ data class FavoriteAvailability(
     val sourceUpdated: String?
 )
 
-fun favoriteAvailability(location: MapLocation?, now: Instant = Instant.now()): FavoriteAvailability {
+fun favoriteAvailability(
+    location: MapLocation?,
+    now: Instant = Instant.now(),
+    checkedAt: Instant? = null
+): FavoriteAvailability {
     if (location == null) {
-        return FavoriteAvailability("?", "Geen gegevens ontvangen", AvailabilityStatus.Unknown, null)
+        return FavoriteAvailability("?", "Nog niet gecontroleerd", AvailabilityStatus.Unknown, null)
     }
+
+    val description = checkAgeLabel(checkedAt, now)
     if (location.availability.reliability == CountReliability.Ambiguous ||
         location.availability.status == AvailabilityStatus.Unknown
     ) {
-        return FavoriteAvailability("?", "Beschikbaarheid onbekend", AvailabilityStatus.Unknown, location.lastUpdated)
+        return FavoriteAvailability(
+            "?",
+            description,
+            AvailabilityStatus.Unknown,
+            location.lastUpdated
+        )
     }
 
-    val updated = try { location.lastUpdated?.let(Instant::parse) } catch (_: Exception) { null }
-    val description = when {
-        updated == null -> "Laatst bekende status · brontijd onbekend"
-        updated.isAfter(now.plusSeconds(60)) -> "Laatst bekende status · ongeldige brontijd"
-        else -> {
-            val minutes = Duration.between(updated, now).toMinutes().coerceAtLeast(0)
-            if (minutes > 15) "Laatst bekende status · bronupdate $minutes min geleden"
-            else "Bron bijgewerkt $minutes min geleden"
-        }
-    }
     return FavoriteAvailability(
         location.availability.label,
         description,
         location.availability.status,
         location.lastUpdated
     )
+}
+
+internal fun checkAgeLabel(checkedAt: Instant?, now: Instant): String {
+    if (checkedAt == null || checkedAt.isAfter(now.plusSeconds(60))) {
+        return "Nog niet gecontroleerd"
+    }
+
+    val minutes = Duration.between(checkedAt, now).toMinutes().coerceAtLeast(0)
+    return when (minutes) {
+        0L -> "Zojuist gecontroleerd"
+        1L -> "1 min geleden gecontroleerd"
+        else -> "$minutes min geleden gecontroleerd"
+    }
 }
