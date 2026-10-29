@@ -90,3 +90,11 @@ internal fun destinationOverviewCoordinates(
         it.latitude.isFinite() && it.longitude.isFinite() &&
             it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0
     }.take(5).map { it.latitude to it.longitude }.toList()
+
+/** Nearby suggestions use the same OCPI feature identity as map markers and saved favorites. */
+internal fun isNearbyFavorite(item: SearchLocation, favoriteIds: Set<String>): Boolean =
+    item.featureId in favoriteIds
+
+internal fun nearestLocationsCountLabel(count: Int): String =
+    if (count == 1) "1 dichtstbijzijnde locatie"
+    else "${count.coerceAtLeast(0)} dichtstbijzijnde locaties"
