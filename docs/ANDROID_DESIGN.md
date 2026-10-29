@@ -1,3 +1,11 @@
+## Vastgestelde Android-zoek-UX — 29 oktober 2026 (issue #95 fase A, PR #96)
+
+De gebruiker heeft op de Samsung de definitieve zoekervaring beoordeeld en goedgekeurd. De adres-/postcode-/straat-/plaatszoeker gebruikt **gratis PDOK Locatieserver 3.1 rechtstreeks in Android** (geen backendproxy en geen vereiste POI's). Bij het selecteren van een adres toont de kaart een onafhankelijke **blauwe bestemmingspin** en zoekt via de bestaande ChargeWatch-API maximaal vijf nabije laadlocaties.
+
+Het kaartoverzicht **zoomt dynamisch** op de blauwe pin en maximaal vijf gevonden laadlocaties, rekening houdend met het uitgeklapte zoekpaneel en begrensd tot zoom 11–16,5. De in-/uitschuifbare resultatenlijst onder de zoekbalk toont bijvoorbeeld **`5 dichtstbijzijnde locaties`**; uitsluitend opgeslagen favorieten hebben een goudgele ster. Tikken op een lijstitem verplaatst alleen de kaart en klapt de lijst in; een **aparte tik op de kaartmarker** opent de bestaande detailsheet. **Terug naar zoekadres** wordt beschikbaar na merkbaar slepen/zoomen of listnavigatie en herstelt het oorspronkelijk berekende kaartoverzicht. De blauwe pin blijft staan tot het wissen van de zoekopdracht. Geen extra netwerkrequests door paneelbediening, geen wijziging aan de backend, geen nieuwe NAS-service. Zie [PDOK_DESTINATION_SEARCH.md](PDOK_DESTINATION_SEARCH.md).
+
+**Fase B** (kaartfilters voor stekkertype, AC/DC, minimaal vermogen en beschikbaarheid) blijft binnen issue #95 open als afzonderlijke vervolg-PR. De historische ontwerpkeuzes hieronder beschrijven de eerdere situatie en gelden alleen voor zover zij niet door deze vastgestelde UX zijn vervangen.
+
 # Android app + widget — ontwerp- en goedkeuringsfase
 
 Status: **volledig app-/widget-UX/UI-ontwerp en icoonrichting door gebruiker expliciet goedgekeurd op 24 oktober 2026**. Visuele referenties vastgelegd; Kotlin/Compose/Glance-implementatie is de volgende fase. NDW EVSE-/connectordeduplicatie en releasebeveiliging blijven technische acceptatiegates.

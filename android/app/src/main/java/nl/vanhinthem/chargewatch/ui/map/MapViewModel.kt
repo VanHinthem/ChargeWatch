@@ -1,5 +1,6 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import nl.vanhinthem.chargewatch.data.search.Destination
+import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import nl.vanhinthem.chargewatch.data.ndw.ChargeWatchMapClient
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwClient
@@ -20,6 +23,17 @@ class MapViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
+
+    // Selected address and nearby panel survive leaving the map tab and configuration changes.
+    // Deliberately in-memory only: ChargeWatch stores no address search history.
+    val searchQuery = mutableStateOf("")
+    val searchSelected = mutableStateOf(false)
+    val destination = mutableStateOf<Destination?>(null)
+    val nearLocations = mutableStateOf<List<SearchLocation>>(emptyList())
+    val nearMessage = mutableStateOf<String?>(null)
+    val nearbyExpanded = mutableStateOf(false)
+    internal val overview = mutableStateOf<DestinationOverview?>(null)
+    val nearLoadedFor = mutableStateOf<Destination?>(null)
 
     private var lastRequestedViewport: NdwViewport? = null
     private var requestSequence: Long = 0

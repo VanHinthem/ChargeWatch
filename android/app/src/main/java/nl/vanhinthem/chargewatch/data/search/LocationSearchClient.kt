@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -25,7 +26,9 @@ data class SearchLocation(
     val longitude: Double,
     val availableCount: Int,
     val totalCount: Int,
-    val unknownCount: Int
+    val unknownCount: Int,
+    val distanceMeters: Double? = null,
+    val feedIsStale: Boolean? = null
 )
 
 sealed interface SearchResult {
@@ -40,6 +43,37 @@ class LocationSearchClient(
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
 ) {
+    /** Existing PostGIS nearest-charger endpoint; no distance calculation in Android. */
+    suspend fun nearby(latitude: Double, longitude: Double, radiusMeters: Int = 25000, limit: Int = 5): SearchResult =
+        withContext(Dispatchers.IO) {
+            if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0)
+                return@withContext SearchResult.Failure("Ongeldige bestemmingscoördinaten.")
+            if (!baseUrl.startsWith("https://"))
+                return@withContext SearchResult.Failure("ChargeWatch API is niet geconfigureerd.")
+            val url = (baseUrl.trimEnd('/') + "/api/v1/locations").toHttpUrl()
+                .newBuilder()
+                .addQueryParameter("latitude", latitude.toString())
+                .addQueryParameter("longitude", longitude.toString())
+                .addQueryParameter("radiusMeters", radiusMeters.coerceIn(100, 100000).toString())
+                .addQueryParameter("limit", limit.coerceIn(1, 20).toString())
+                .build()
+            try {
+                client.newCall(Request.Builder().url(url).header("Accept", "application/json").build())
+                    .execute().use { response ->
+                        if (!response.isSuccessful)
+                            return@use SearchResult.Failure("Laadlocaties ophalen gaf HTTP ${response.code}.")
+                        val raw = response.body?.string()
+                            ?: return@use SearchResult.Failure("Lege laadlocatierespons.")
+                        runCatching { SearchResult.Success(parseSearchLocations(raw)) }
+                            .getOrElse { SearchResult.Failure("Ongeldige laadlocaties ontvangen.") }
+                    }
+            } catch (_: IOException) {
+                SearchResult.Failure("Dichtstbijzijnde laadlocaties zijn tijdelijk niet beschikbaar.")
+            } catch (_: IllegalArgumentException) {
+                SearchResult.Failure("Ongeldige ChargeWatch API URL.")
+            }
+        }
+
     suspend fun search(query: String, limit: Int = 8): SearchResult = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.length < 2) return@withContext SearchResult.Success(emptyList())
@@ -90,6 +124,8 @@ internal fun parseSearchLocations(raw: String): List<SearchLocation> =
             longitude = longitude,
             availableCount = obj["availableCount"]?.jsonPrimitive?.intOrNull ?: 0,
             totalCount = obj["evseCount"]?.jsonPrimitive?.intOrNull ?: 0,
-            unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: 0
+            unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: Int.MAX_VALUE,
+            distanceMeters = obj["distanceMeters"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() && it >= 0.0 },
+            feedIsStale = obj["feedIsStale"]?.jsonPrimitive?.booleanOrNull
         )
     }
