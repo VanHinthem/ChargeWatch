@@ -1,3 +1,15 @@
+## Tariefverdwijning — gerichte reproductie (29 oktober 2026)
+
+De tariefevaluator blijft afgerond; dit werk onderzoekt uitsluitend een later uit NDW verdwenen tarief. Branch `test/tariff-disappearance-reproduction`, op main 072d9e80. Geen runtime- of schemawijzigingen en geen NAS-contact. NAS-uitrol #90 en bestaande API-validatie zijn door gebruiker bevestigd; de volledige overdracht/audit staat afzonderlijk in PR #91. Die PR is nog niet gemerged; onderstaande oudere passages zijn historische status.
+
+Nieuwe geïsoleerde HTTP-fixture: A bevat tarieven T en KEEP, connector verwijst naar T; B bevat alleen KEEP, dezelfde connectorverwijzing blijft via Locations HTTP 304 bestaan. Echte WatchRunner importeert de gewijzigde Tariffs HTTP 200, daarna wordt de echte read-only API opgevraagd. Controleert cache-inhoud, feedcheckpoint en aangeboden prijs.
+
+CI-job heet bewust `reproduce-known-bug` en gebruikt `--expect-known-bug`: groen betekent dat het foute gedrag is gereproduceerd, niet gerepareerd. Zonder deze vlag vereist de fixture dat de verdwenen bronprijs niet meer wordt aangeboden. Python-syntax lokaal gecontroleerd; echte DB/HTTP-uitvoering moet door de nieuwe CI worden bevestigd. Geen claim dat het scenario op NAS voorkomt.
+
+Volgende stap: resultaat beoordelen en een veilige tariefaanwezigheids-/provenance-oplossing ontwerpen, met behoud van brondata en bescherming tegen lege/partiële/mislukte feeds. Geen brede herbouw van tariefevaluator, geen automatische merge of deployment. Connectorvolledigheid (F2 in PR #91) volgt apart. Uurfinalisatie op NAS blijft op verzoek uitgesteld.
+
+---
+
 ## Legacy duration-statistieken — cleanup in review (migratie 024)
 
 De oudere bron-timestampgebaseerde duur/statistiekketen wordt niet gebruikt door de actuele compacte snapshot-API. De afzonderlijke collectoraanroepen `ObservationCheckpoints.Capture`, `EvseHourFinalizer.Run` en `LocationHourFinalizer.Run` zijn op de cleanup-branch verwijderd, inclusief zes implementatieklassen. Migratie `024_retire_legacy_duration_statistics` verwijdert negen oude tabellen (ongeveer 130 MB op productie op 28 oktober); de compacte weekprofielen, eigen actieve uuraccumulatoren, `snapshot_poll_checkpoint` en `ndw_snapshot_checkpoint` blijven bestaan. Oude 003–005-migraties blijven als geschiedenis intact.
