@@ -106,6 +106,11 @@ import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import nl.vanhinthem.chargewatch.data.search.SearchResult
+import nl.vanhinthem.chargewatch.data.search.Destination
+import nl.vanhinthem.chargewatch.data.search.DestinationSuggestion
+import nl.vanhinthem.chargewatch.data.search.DestinationSuggestionsResult
+import nl.vanhinthem.chargewatch.data.search.DestinationLookupResult
+import nl.vanhinthem.chargewatch.data.search.PdokDestinationClient
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.NdwAvailability
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
@@ -133,57 +138,122 @@ fun MapScreen(
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val searchClient = remember { LocationSearchClient() }
+    val nearestClient = remember { LocationSearchClient() }
+    val pdokClient = remember { PdokDestinationClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
     var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
+    var searchResults by remember { mutableStateOf<List<DestinationSuggestion>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf<String?>(null) }
-    var searchTarget by remember { mutableStateOf<SearchLocation?>(null) }
+    var searchSelected by remember { mutableStateOf(false) }
+    var selectedSuggestion by remember { mutableStateOf<DestinationSuggestion?>(null) }
+    var destination by remember { mutableStateOf<Destination?>(null) }
+    var cameraTarget by remember { mutableStateOf<CameraTarget?>(null) }
+    var mapCenter by remember { mutableStateOf(51.765 to 5.525) }
+    var nearLocations by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
+    var nearLoading by remember { mutableStateOf(false) }
+    var nearMessage by remember { mutableStateOf<String?>(null) }
     var pendingSearchFeatureId by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(searchQuery) {
+    LaunchedEffect(searchQuery, searchSelected) {
         val query = searchQuery.trim()
-        if (query.length < 2) {
-            searchResults = emptyList()
-            searchMessage = null
+        searchResults = emptyList()
+        if (searchSelected || query.length < 2) {
             searchLoading = false
+            searchMessage = null
             return@LaunchedEffect
         }
+        searchMessage = null
+        delay(250)
+        searchLoading = true
+        try {
+            when (val response = pdokClient.suggest(query, mapCenter.first, mapCenter.second)) {
+                is DestinationSuggestionsResult.Success -> {
+                    searchResults = response.items
+                    searchMessage = if (response.items.isEmpty()) "Geen Nederlandse adressen gevonden." else null
+                }
+                is DestinationSuggestionsResult.Failure -> searchMessage = response.message
+            }
+        } finally {
+            searchLoading = false
+        }
+    }
 
-        delay(350)
+    LaunchedEffect(selectedSuggestion) {
+        val suggestion = selectedSuggestion ?: return@LaunchedEffect
         searchLoading = true
         searchMessage = null
-        when (val result = searchClient.search(query)) {
-            is SearchResult.Success -> {
-                searchResults = result.locations
-                searchMessage = if (result.locations.isEmpty()) "Geen laadlocaties gevonden." else null
+        try {
+            when (val response = pdokClient.lookup(suggestion)) {
+                is DestinationLookupResult.Success -> {
+                    destination = response.destination
+                    cameraTarget = CameraTarget(response.destination.latitude, response.destination.longitude, 14.0)
+                }
+                is DestinationLookupResult.Failure -> searchMessage = response.message
             }
-            is SearchResult.Failure -> {
-                searchResults = emptyList()
-                searchMessage = result.message
-            }
+        } finally {
+            searchLoading = false
         }
-        searchLoading = false
+    }
+
+    LaunchedEffect(destination) {
+        val chosen = destination
+        if (chosen == null) {
+            nearLocations = emptyList()
+            nearMessage = null
+            nearLoading = false
+            return@LaunchedEffect
+        }
+        nearLoading = true
+        nearLocations = emptyList()
+        nearMessage = null
+        try {
+            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude)) {
+                is SearchResult.Success -> {
+                    nearLocations = response.locations
+                    nearMessage = if (response.locations.isEmpty()) "Geen laadlocaties binnen 25 km." else null
+                }
+                is SearchResult.Failure -> nearMessage = response.message
+            }
+        } finally {
+            nearLoading = false
+        }
     }
 
     LaunchedEffect(state.locations, pendingSearchFeatureId) {
         val featureId = pendingSearchFeatureId ?: return@LaunchedEffect
-        state.locations.firstOrNull { it.featureId == featureId }?.let { location ->
-            selectedLocations = listOf(location)
+        state.locations.firstOrNull { it.featureId == featureId }?.let {
+            selectedLocations = listOf(it)
             pendingSearchFeatureId = null
         }
     }
 
-    fun selectSearchResult(result: SearchLocation) {
-        searchQuery = if (result.city.isBlank()) result.address
-            else "${result.address}, ${result.city}"
+    fun onQueryChanged(value: String) {
+        searchQuery = value
+        searchSelected = false
+        selectedSuggestion = null
+        destination = null
+        pendingSearchFeatureId = null
+        nearLocations = emptyList()
+    }
+
+    fun selectSearchResult(item: DestinationSuggestion) {
+        searchQuery = item.label
+        searchSelected = true
         searchResults = emptyList()
         searchMessage = null
-        pendingSearchFeatureId = result.featureId
         selectedLocations = emptyList()
-        searchTarget = result
+        selectedSuggestion = item
+    }
+
+    fun selectNearestCharger(item: SearchLocation) {
+        val loaded = state.locations.firstOrNull { it.featureId == item.featureId }
+        if (loaded != null) selectedLocations = listOf(loaded)
+        else {
+            pendingSearchFeatureId = item.featureId
+            cameraTarget = CameraTarget(item.latitude, item.longitude, 16.0)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -193,8 +263,10 @@ fun MapScreen(
             onViewportChanged = viewModel::onViewportChanged,
             onLocationsSelected = { selectedLocations = it },
             favoriteIds = favorites.map { it.featureId }.toSet(),
-            cameraTarget = searchTarget,
-            onCameraTargetConsumed = { searchTarget = null }
+            cameraTarget = cameraTarget,
+            destination = destination,
+            onMapCenterChanged = { lat, lon -> mapCenter = lat to lon },
+            onCameraTargetConsumed = { cameraTarget = null }
         )
 
         SearchHeader(
@@ -203,10 +275,16 @@ fun MapScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             query = searchQuery,
-            onQueryChange = { searchQuery = it },
+            onQueryChange = ::onQueryChanged,
             results = searchResults,
             loading = searchLoading,
             message = searchMessage,
+            searchSelected = searchSelected,
+            destination = destination,
+            nearLocations = nearLocations,
+            nearLoading = nearLoading,
+            nearMessage = nearMessage,
+            onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
             onBottomChanged = { searchHeaderBottom = it }
         )
