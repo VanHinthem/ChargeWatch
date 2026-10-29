@@ -1,3 +1,9 @@
+## Android — bestemming zoeken met gratis PDOK (issue #95 Fase A, 29 oktober 2026)
+
+De Android-implementatie van het afgesproken Nederlandse **adres-/plaatszoeken** gebruikt rechtstreeks de gratis PDOK Locatieserver v3.1 (`suggest → lookup`), zonder externe API-key, nieuwe NAS-container of backendendpoint. De zoekbalk toont tijdens typen suggesties vanaf 2 tekens met 250 ms debounce en annuleerbare requests; bij selectie centreert MapLibre, toont een aparte blauwe bestemmingspin en vraagt via de bestaande ChargeWatch PostGIS-`/locations`-query maximaal vijf nabijgelegen laadlocaties op binnen 25 km. Resultaten tonen afstand en status alleen waar betrouwbaar; laadlocatie-selectie hergebruikt de bestaande shared location sheet. De ChargeWatch-api blijft de kaartbron met NDW-fallback. Een eigen cache blijft in Android-RAM, niet op de NAS. **Filterfase B blijft apart open** binnen #95; monitoringdashboard #79 blijft uitgesteld.
+
+De bron- en privacykeuze en handmatige Samsung-acceptatie staan in [PDOK_DESTINATION_SEARCH.md](PDOK_DESTINATION_SEARCH.md); de voortgang loopt via `feature/95-pdok-destination-search`. Unit/CI-verificatie en fysiek meten van autocomplete-responsiviteit op Samsung zijn onderdeel van de PR-review, niet alvast als afgerond geclaimd. De additionele `feedLastObservedAt/feedIsStale`-API uit #61 is niet hierdoor gedeployed; NAS-release is een apart besluit. **Geen automatische merge/deployment.**
+
 ## Android UX — PR #61 herbouwd op definitief tariefcontract (29 oktober 2026)
 
 PR [#61](https://github.com/VanHinthem/ChargeWatch/pull/61) is opnieuw opgebouwd vanaf actuele `main`; de oude pre-#66 Android-branch is niet gerebased omdat die nog het vervallen `tariffs[].presentation`-contract gebruikte.
