@@ -493,14 +493,16 @@ private fun LocationSelectionSheet(
     // header. Do not add top padding to the sheet surface: that creates empty space
     // above the drag handle only in Expanded.
     val sheetTopInset = 112.dp
-    val expandedSheetMaxHeight = (screenHeight - sheetTopInset - 12.dp).coerceAtLeast(360.dp)
+    val dragHandleHeight = 32.dp
+    val expandedSheetContentHeight =
+        (screenHeight - sheetTopInset - dragHandleHeight).coerceAtLeast(360.dp)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        // Filling the available height guarantees a real PartiallyExpanded anchor;
-        // Material handles swipe up/down and nested scroll natively.
-        modifier = Modifier.height(expandedSheetMaxHeight),
+        // Do not size or pad the modal container itself. Its surface position is
+        // derived from the content height so Expanded can stop below the search bar
+        // without introducing empty space above the drag handle.
         dragHandle = {
             Box(
                 Modifier.fillMaxWidth().height(32.dp)
@@ -572,7 +574,7 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(max = expandedSheetMaxHeight)
+                    .height(expandedSheetContentHeight)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
