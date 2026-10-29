@@ -489,7 +489,8 @@ fun LocationSelectionSheet(
     isFavorite: (MapLocation) -> Boolean,
     onToggleFavorite: (MapLocation) -> Unit,
     expandedTopInset: Dp,
-    initiallyExpanded: Boolean = false
+    initiallyExpanded: Boolean = false,
+    compactAllowed: Boolean = true
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
@@ -503,6 +504,9 @@ fun LocationSelectionSheet(
     // map UX needs: compact = exactly the summary content, expanded = all detail.
     val sheetState = rememberStandardBottomSheetState(
         initialValue = if (initiallyExpanded) SheetValue.Expanded else SheetValue.PartiallyExpanded,
+        confirmValueChange = { next ->
+            compactAllowed || next != SheetValue.PartiallyExpanded
+        },
         skipHiddenState = false
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
@@ -514,7 +518,9 @@ fun LocationSelectionSheet(
     val expanded = sheetState.currentValue == SheetValue.Expanded
 
     BackHandler {
-        if (expanded) {
+        if (!compactAllowed) {
+            onDismiss()
+        } else if (expanded) {
             scope.launch { sheetState.partialExpand() }
         } else {
             onDismiss()
@@ -538,7 +544,11 @@ fun LocationSelectionSheet(
                 Modifier.fillMaxWidth().height(dragHandleHeight)
                     .clickable {
                         scope.launch {
-                            if (expanded) sheetState.partialExpand() else sheetState.expand()
+                            if (expanded) {
+                                if (compactAllowed) sheetState.partialExpand() else sheetState.hide()
+                            } else {
+                                sheetState.expand()
+                            }
                         }
                     },
                 contentAlignment = Alignment.TopCenter
