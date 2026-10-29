@@ -2,7 +2,7 @@
 
 **Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; bezettingsstatistieken, betrouwbaarheidspercentages en historische beschikbaarheidskansen in versie 1; notificaties en accounts later.
 
-> **Status:** backend-datafundament in uitvoering (oktober 2026). Sprint 0 brononderzoek en Sprint 1 landelijke PostgreSQL-bulkimport zijn afgerond; Sprint 2 voegt periodieke NDW-verversing toe. API en Android-app zijn nog niet gebouwd.
+> **Status (29 oktober 2026):** het datafundament, de periodieke NDW/OCPI-import en de read-only API draaien; de Android-app is actief in ontwikkeling. Kaart, locatie-details, tarieven/statistieken, lokale favorieten, light/dark, Settings en een eerste laadlocatiezoekfunctie zijn geïmplementeerd in PR #61. De volgende kaart-UX-fase — bestemming zoeken plus filters — staat in issue #95. NAS/productiedeployments blijven afzonderlijke expliciete releasestappen.
 
 ## Waarom ChargeWatch?
 
@@ -19,7 +19,7 @@ De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot 
 
 ## Versie 1 — Read-only laadpuntcatalogus
 
-Kaart, zoeken en filters; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. **Versie 1 toont ook** de EVSE- en locatiebezettingsprofielen, 90-daagse uptime en de historische kans op minstens één vrije aansluiting per weekdag/uur. Deze indicatie vereist voldoende datadekking; het is geen voorspelling van een vertrekmoment binnen 15/30 minuten. Uitgebreide tariefvergelijking en kortetermijnvoorspellingen volgen eventueel later.
+Kaart en laadlocatiezoeken; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. Google-Maps-achtige bestemmingzoeking en kaartfilters volgen als aparte kaart-UX-fase in issue #95. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. **Versie 1 toont ook** de EVSE- en locatiebezettingsprofielen, 90-daagse uptime en de historische kans op minstens één vrije aansluiting per weekdag/uur. Deze indicatie vereist voldoende datadekking; het is geen voorspelling van een vertrekmoment binnen 15/30 minuten. Uitgebreide tariefvergelijking en kortetermijnvoorspellingen volgen eventueel later.
 
 ## Voorlopige architectuur
 

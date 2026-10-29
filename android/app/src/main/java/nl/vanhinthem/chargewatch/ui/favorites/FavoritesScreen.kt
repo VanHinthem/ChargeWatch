@@ -1,36 +1,59 @@
 package nl.vanhinthem.chargewatch.ui.favorites
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import androidx.compose.ui.zIndex
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteAvailability
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 
 @Composable
@@ -41,51 +64,214 @@ fun FavoritesScreen(
     refreshMessage: String?,
     onRefresh: () -> Unit,
     onRename: (String, String) -> Unit,
-    onMove: (String, Int) -> Unit,
-    onRemove: (FavoriteLocation) -> Unit
+    onReorder: (String, Int) -> Unit,
+    onRemove: (FavoriteLocation, Int) -> Unit,
+    onOpen: (FavoriteLocation) -> Unit
 ) {
     var editing by remember { mutableStateOf<FavoriteLocation?>(null) }
     var alias by remember { mutableStateOf("") }
+    var visibleFavorites by remember { mutableStateOf(favorites) }
+    var draggedId by remember { mutableStateOf<String?>(null) }
+    var openActionsId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val reorderThresholdPx = with(density) { 76.dp.toPx() }
+
+    LaunchedEffect(favorites) {
+        if (draggedId == null) visibleFavorites = favorites
+        if (openActionsId != null && favorites.none { it.featureId == openActionsId }) {
+            openActionsId = null
+        }
+    }
+
+    fun swapDragged(direction: Int) {
+        val id = draggedId ?: return
+        val from = visibleFavorites.indexOfFirst { it.featureId == id }
+        val to = from + direction
+        if (from < 0 || to !in visibleFavorites.indices) return
+
+        val updated = visibleFavorites.toMutableList()
+        val item = updated.removeAt(from)
+        updated.add(to, item)
+        visibleFavorites = updated
+
+        // Preserve the finger/card relationship after the list item changes index.
+        dragOffsetPx += if (direction > 0) -reorderThresholdPx else reorderThresholdPx
+    }
 
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("Favorieten", style = MaterialTheme.typography.headlineMedium)
-        Button(onClick = onRefresh, enabled = !refreshing && favorites.isNotEmpty()) { Text(if (refreshing) "Verversen…" else "Beschikbaarheid verversen") }
-        if (refreshing) CircularProgressIndicator()
-        refreshMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (favorites.isEmpty()) {
-            Text("Nog geen favorieten. Tik op een laadlocatie op de kaart en kies Voeg toe aan favorieten.")
-        }
-        favorites.forEachIndexed { index, favorite ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Favorieten",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    if (favorites.size == 1) "1 opgeslagen laadlocatie"
+                    else "${favorites.size} opgeslagen laadlocaties",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.size(46.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 tonalElevation = 2.dp
             ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(favorite.displayName, style = MaterialTheme.typography.titleMedium)
-                    favorite.address?.takeIf { it != favorite.displayName }?.let { Text(it) }
-                    val current = availability[favorite.featureId]
-                    Text(
-                        if (current == null) "? · Niet gecontroleerd" else "${current.label} · ${current.description}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(onClick = { alias = favorite.alias.orEmpty(); editing = favorite }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Naam wijzigen")
-                        }
-                        IconButton(onClick = { onMove(favorite.featureId, -1) }, enabled = index > 0) {
-                            Icon(Icons.Default.ArrowUpward, contentDescription = "Omhoog")
-                        }
-                        IconButton(onClick = { onMove(favorite.featureId, 1) }, enabled = index < favorites.lastIndex) {
-                            Icon(Icons.Default.ArrowDownward, contentDescription = "Omlaag")
-                        }
-                        Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { onRemove(favorite) }) { Text("Verwijderen") }
+                if (refreshing) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                } else {
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = favorites.isNotEmpty()
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Beschikbaarheid verversen",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        refreshMessage?.let {
+            Text(
+                it,
+                modifier = Modifier.padding(horizontal = 20.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        if (favorites.isEmpty()) {
+            EmptyFavoritesState(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 24.dp)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 4.dp,
+                    bottom = 20.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                itemsIndexed(
+                    items = visibleFavorites,
+                    key = { _, favorite -> favorite.featureId }
+                ) { index, favorite ->
+                    val isDragging = draggedId == favorite.featureId
+                    val actionsOpen = openActionsId == favorite.featureId
+
+                    SwipeFavoriteCard(
+                        modifier = Modifier
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .graphicsLayer {
+                                translationY = if (isDragging) dragOffsetPx else 0f
+                                scaleX = if (isDragging) 1.015f else 1f
+                                scaleY = if (isDragging) 1.015f else 1f
+                            },
+                        favorite = favorite,
+                        availability = availability[favorite.featureId],
+                        isDragging = isDragging,
+                        gesturesEnabled = draggedId == null || isDragging,
+                        actionsOpen = actionsOpen,
+                        onActionsOpenChange = { open ->
+                            openActionsId = if (open) favorite.featureId else null
+                        },
+                        onOpen = {
+                            if (actionsOpen) {
+                                openActionsId = null
+                            } else {
+                                openActionsId = null
+                                onOpen(favorite)
+                            }
+                        },
+                        onEdit = {
+                            openActionsId = null
+                            alias = favorite.alias.orEmpty()
+                            editing = favorite
+                        },
+                        onRemove = {
+                            // Always close the reveal before the item leaves the list.
+                            // If undo restores it, it therefore returns as a normal card.
+                            openActionsId = null
+                            onRemove(favorite, index)
+                        },
+                        onDragStart = {
+                            openActionsId = null
+                            draggedId = favorite.featureId
+                            dragOffsetPx = 0f
+                        },
+                        onDrag = { deltaY ->
+                            if (draggedId == favorite.featureId) {
+                                dragOffsetPx += deltaY
+
+                                while (dragOffsetPx > reorderThresholdPx) {
+                                    val before = visibleFavorites.indexOfFirst {
+                                        it.featureId == favorite.featureId
+                                    }
+                                    swapDragged(1)
+                                    val after = visibleFavorites.indexOfFirst {
+                                        it.featureId == favorite.featureId
+                                    }
+                                    if (before == after) {
+                                        dragOffsetPx = reorderThresholdPx
+                                        break
+                                    }
+                                }
+
+                                while (dragOffsetPx < -reorderThresholdPx) {
+                                    val before = visibleFavorites.indexOfFirst {
+                                        it.featureId == favorite.featureId
+                                    }
+                                    swapDragged(-1)
+                                    val after = visibleFavorites.indexOfFirst {
+                                        it.featureId == favorite.featureId
+                                    }
+                                    if (before == after) {
+                                        dragOffsetPx = -reorderThresholdPx
+                                        break
+                                    }
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            val target = visibleFavorites.indexOfFirst {
+                                it.featureId == favorite.featureId
+                            }
+                            draggedId = null
+                            dragOffsetPx = 0f
+                            if (target >= 0) onReorder(favorite.featureId, target)
+                        }
+                    )
                 }
             }
         }
@@ -100,13 +286,352 @@ fun FavoritesScreen(
                     value = alias,
                     onValueChange = { alias = it },
                     label = { Text("Eigen naam") },
+                    supportingText = {
+                        if (favorite.title != favorite.displayName) {
+                            Text("Oorspronkelijke naam: ${favorite.title}")
+                        }
+                    },
                     singleLine = true
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onRename(favorite.featureId, alias); editing = null }) { Text("Opslaan") }
+                TextButton(
+                    onClick = {
+                        onRename(favorite.featureId, alias)
+                        editing = null
+                    }
+                ) {
+                    Text("Opslaan")
+                }
             },
-            dismissButton = { TextButton(onClick = { editing = null }) { Text("Annuleren") } }
+            dismissButton = {
+                TextButton(onClick = { editing = null }) {
+                    Text("Annuleren")
+                }
+            }
         )
     }
+}
+
+@Composable
+private fun SwipeFavoriteCard(
+    modifier: Modifier,
+    favorite: FavoriteLocation,
+    availability: FavoriteAvailability?,
+    isDragging: Boolean,
+    gesturesEnabled: Boolean,
+    actionsOpen: Boolean,
+    onActionsOpenChange: (Boolean) -> Unit,
+    onOpen: () -> Unit,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val revealWidthPx = with(density) { 68.dp.toPx() }
+
+    var horizontalDragging by remember(favorite.featureId) { mutableStateOf(false) }
+    var horizontalDragOffsetPx by remember(favorite.featureId) { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(actionsOpen) {
+        if (!horizontalDragging) {
+            horizontalDragOffsetPx = if (actionsOpen) -revealWidthPx else 0f
+        }
+    }
+
+    val settledOffsetPx by animateFloatAsState(
+        targetValue = if (actionsOpen) -revealWidthPx else 0f,
+        label = "favorite-action-reveal"
+    )
+    val cardOffsetPx = if (horizontalDragging) horizontalDragOffsetPx else settledOffsetPx
+
+    Box(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Naam wijzigen",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.error
+            ) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        Icons.Default.DeleteOutline,
+                        contentDescription = "Favoriet verwijderen",
+                        tint = MaterialTheme.colorScheme.onError
+                    )
+                }
+            }
+        }
+
+        FavoriteCard(
+            favorite = favorite,
+            availability = availability,
+            elevated = isDragging,
+            dragHandleModifier = Modifier.pointerInput(
+                favorite.featureId,
+                gesturesEnabled
+            ) {
+                if (!gesturesEnabled) return@pointerInput
+
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onDragStart()
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount)
+                    },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragEnd
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    translationX = cardOffsetPx
+                }
+                .pointerInput(
+                    favorite.featureId,
+                    gesturesEnabled,
+                    actionsOpen,
+                    isDragging
+                ) {
+                    if (!gesturesEnabled || isDragging) return@pointerInput
+
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            horizontalDragging = true
+                            horizontalDragOffsetPx =
+                                if (actionsOpen) -revealWidthPx else 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            horizontalDragOffsetPx =
+                                (horizontalDragOffsetPx + dragAmount)
+                                    .coerceIn(-revealWidthPx, 0f)
+                        },
+                        onDragEnd = {
+                            val shouldOpen =
+                                horizontalDragOffsetPx <= -revealWidthPx * 0.35f
+                            horizontalDragging = false
+                            onActionsOpenChange(shouldOpen)
+                        },
+                        onDragCancel = {
+                            horizontalDragging = false
+                            onActionsOpenChange(actionsOpen)
+                        }
+                    )
+                }
+                .clickable(enabled = !isDragging, onClick = onOpen)
+        )
+    }
+}
+
+@Composable
+private fun FavoriteCard(
+    modifier: Modifier,
+    favorite: FavoriteLocation,
+    availability: FavoriteAvailability?,
+    elevated: Boolean,
+    dragHandleModifier: Modifier = Modifier
+) {
+    val current = availability ?: FavoriteAvailability(
+        label = "?",
+        description = "Niet gecontroleerd",
+        status = AvailabilityStatus.Unknown,
+        sourceUpdated = null
+    )
+    val statusColor = favoriteStatusColor(current.status)
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        tonalElevation = if (elevated) 5.dp else 2.dp,
+        shadowElevation = if (elevated) 8.dp else 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                AvailabilityBadge(
+                    label = current.label,
+                    color = statusColor
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        favorite.displayName,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    favorite.operatorName?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    favorite.address
+                        ?.takeIf { it.isNotBlank() && it != favorite.displayName }
+                        ?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "Favoriet",
+                        tint = Color(0xFFF3AF25),
+                        modifier = Modifier.size(27.dp)
+                    )
+
+                    Box(
+                        modifier = dragHandleModifier
+                            .padding(top = 3.dp)
+                            .size(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.DragHandle,
+                            contentDescription = "Sleep om te verplaatsen",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = statusColor.copy(alpha = 0.12f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            availabilityStatusLabel(current),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = statusColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Text(
+                    current.description,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvailabilityBadge(
+    label: String,
+    color: Color
+) {
+    Surface(
+        modifier = Modifier.size(62.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp
+    ) {
+        Surface(
+            modifier = Modifier.padding(4.dp),
+            shape = CircleShape,
+            color = color
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFavoritesState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Outlined.StarBorder,
+            contentDescription = null,
+            modifier = Modifier.size(52.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            "Nog geen favorieten",
+            modifier = Modifier.padding(top = 12.dp),
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            "Open een laadlocatie op de kaart en tik op de ster om hem hier op te slaan.",
+            modifier = Modifier.padding(top = 6.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun favoriteStatusColor(status: AvailabilityStatus): Color = when (status) {
+    AvailabilityStatus.Available -> Color(0xFF168653)
+    AvailabilityStatus.NoneAvailable -> Color(0xFFD43B3B)
+    AvailabilityStatus.Unknown -> Color(0xFF818D96)
+}
+
+private fun availabilityStatusLabel(availability: FavoriteAvailability): String = when (availability.status) {
+    AvailabilityStatus.Available -> "Beschikbaar"
+    AvailabilityStatus.NoneAvailable -> "Geen laadpunten vrij"
+    AvailabilityStatus.Unknown -> "Onbekend"
 }

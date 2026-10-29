@@ -118,6 +118,7 @@ internal sealed class ApiDatabase(ApiOptions options)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
+        var feedObservedAt = await GetFeedLastObservedAt(connection);
         await using var command = new NpgsqlCommand("""
             WITH selected AS (
                 SELECT id,country_code,party_id,source_id,address,operator_name,
@@ -187,7 +188,11 @@ internal sealed class ApiDatabase(ApiOptions options)
                 reader.GetString(3),NullableString(reader,4),NullableTimestamp(reader,7),
                 reader.GetInt32(8),reader.GetInt32(9),categories));
         }
-        return new MapViewportResult(locations,locations.Count >= 1000);
+        return new MapViewportResult(
+            locations,
+            locations.Count >= 1000,
+            feedObservedAt,
+            IsStale(feedObservedAt));
     }
 
     // Resolve by the compound OCPI key. Never infer identity from nearby coordinates.

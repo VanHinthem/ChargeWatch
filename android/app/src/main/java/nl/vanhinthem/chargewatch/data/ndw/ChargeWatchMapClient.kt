@@ -35,8 +35,10 @@ class ChargeWatchMapClient(
                         return@use NdwResult.Unavailable("ChargeWatch API gaf HTTP ${response.code}.")
                     val raw = response.body?.string()
                         ?: return@use NdwResult.Unavailable("Lege API-response.")
-                    runCatching { NdwResult.Success(parseChargeWatchMap(raw)) }
-                        .getOrElse { NdwResult.Unavailable("Ongeldige ChargeWatch kaartgegevens.") }
+                    runCatching {
+                        val parsed = parseChargeWatchMapResponse(raw)
+                        NdwResult.Success(parsed.locations)
+                    }.getOrElse { NdwResult.Unavailable("Ongeldige ChargeWatch kaartgegevens.") }
                 }
         } catch (_: IOException) {
             NdwResult.Unavailable("ChargeWatch API is tijdelijk niet bereikbaar.")
@@ -46,11 +48,19 @@ class ChargeWatchMapClient(
     }
 }
 
-internal fun parseChargeWatchMap(raw: String): List<MapLocation> {
+internal data class ChargeWatchMapResponse(
+    val locations: List<MapLocation>,
+    val feedLastObservedAt: String?,
+    val feedIsStale: Boolean?
+)
+
+internal fun parseChargeWatchMapResponse(raw: String): ChargeWatchMapResponse {
     val root = Json.parseToJsonElement(raw).jsonObject
     if (root["truncated"]?.jsonPrimitive?.booleanOrNull != false)
         error("Cannot prove viewport completeness")
-    return root["locations"]?.jsonArray?.map { element ->
+    val feedLastObservedAt = root["feedLastObservedAt"]?.jsonPrimitive?.contentOrNull
+    val feedIsStale = root["feedIsStale"]?.jsonPrimitive?.booleanOrNull
+    val locations = root["locations"]?.jsonArray?.map { element ->
         val obj = element.jsonObject
         fun text(key: String) = obj[key]?.jsonPrimitive?.contentOrNull
         fun number(key: String) = obj[key]?.jsonPrimitive?.intOrNull
@@ -80,7 +90,13 @@ internal fun parseChargeWatchMap(raw: String): List<MapLocation> {
             address = text("address"), operatorName = text("operatorName"),
             lastUpdated = text("lastUpdated"),
             availability = AvailabilitySummary(available,total,CountReliability.Safe),
-            connectorCategories = categories
+            connectorCategories = categories,
+            feedLastObservedAt = feedLastObservedAt,
+            feedIsStale = feedIsStale
         )
     } ?: error("Missing locations")
+    return ChargeWatchMapResponse(locations, feedLastObservedAt, feedIsStale)
 }
+
+internal fun parseChargeWatchMap(raw: String): List<MapLocation> =
+    parseChargeWatchMapResponse(raw).locations

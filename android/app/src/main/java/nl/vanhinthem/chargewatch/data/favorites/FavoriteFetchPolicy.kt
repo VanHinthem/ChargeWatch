@@ -4,7 +4,7 @@ import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import java.time.Duration
 import java.time.Instant
 
-/** Age of *our successful NDW fetch*, distinct from NDW's last status change. */
+/** Age of *our successful availability fetch*, distinct from NDW's source observation timestamp. */
 private val MAX_FETCH_AGE = Duration.ofMinutes(2)
 
 fun favoritesNeedingFetch(

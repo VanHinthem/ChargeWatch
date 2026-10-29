@@ -53,7 +53,9 @@ data class MapLocation(
     val availability: AvailabilitySummary,
     val address: String? = null,
     val operatorName: String? = null,
-    val connectorCategories: List<NdwAvailability> = emptyList()
+    val connectorCategories: List<NdwAvailability> = emptyList(),
+    val feedLastObservedAt: String? = null,
+    val feedIsStale: Boolean? = null
 )
 
 data class AvailabilitySummary(

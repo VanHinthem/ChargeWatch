@@ -9,6 +9,7 @@ plugins {
 
 // Internal testing only. Do not embed credentials or enable public API access from an APK.
 val enrichmentApiBaseUrl = providers.gradleProperty("chargewatchApiBaseUrl").orElse("https://chargewatch-api.vanhinthem.nl").get()
+val appGitSha = providers.environmentVariable("CW_APP_GIT_SHA").orElse("local").get().take(40)
 require(enrichmentApiBaseUrl.isBlank() || Regex("""https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?/?""").matches(enrichmentApiBaseUrl)) {
     "chargewatchApiBaseUrl must be an HTTPS origin without path or credentials"
 }
@@ -26,6 +27,7 @@ android {
         versionCode = 100000 + (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0)
         versionName = "0.1.0"
         buildConfigField("String", "CHARGEWATCH_API_BASE_URL", "\"$enrichmentApiBaseUrl\"")
+        buildConfigField("String", "APP_GIT_SHA", "\"$appGitSha\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

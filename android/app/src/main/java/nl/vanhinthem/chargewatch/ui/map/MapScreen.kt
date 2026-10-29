@@ -6,23 +6,27 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -36,11 +40,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Brightness6
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Streetview
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,11 +52,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
@@ -64,12 +67,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color as ComposeColor
 import java.time.Instant
 import java.time.LocalDate
@@ -82,9 +95,17 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
+import nl.vanhinthem.chargewatch.data.search.SearchLocation
+import nl.vanhinthem.chargewatch.data.search.SearchResult
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.NdwAvailability
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
@@ -109,13 +130,61 @@ fun MapScreen(
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
     darkTheme: Boolean = false,
-    themeChoice: String = "system",
-    onThemeChoice: (String) -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val searchClient = remember { LocationSearchClient() }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
+    var searchHeaderBottom by remember { mutableStateOf(0.dp) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<SearchLocation>>(emptyList()) }
+    var searchLoading by remember { mutableStateOf(false) }
+    var searchMessage by remember { mutableStateOf<String?>(null) }
+    var searchTarget by remember { mutableStateOf<SearchLocation?>(null) }
+    var pendingSearchFeatureId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(searchQuery) {
+        val query = searchQuery.trim()
+        if (query.length < 2) {
+            searchResults = emptyList()
+            searchMessage = null
+            searchLoading = false
+            return@LaunchedEffect
+        }
+
+        delay(350)
+        searchLoading = true
+        searchMessage = null
+        when (val result = searchClient.search(query)) {
+            is SearchResult.Success -> {
+                searchResults = result.locations
+                searchMessage = if (result.locations.isEmpty()) "Geen laadlocaties gevonden." else null
+            }
+            is SearchResult.Failure -> {
+                searchResults = emptyList()
+                searchMessage = result.message
+            }
+        }
+        searchLoading = false
+    }
+
+    LaunchedEffect(state.locations, pendingSearchFeatureId) {
+        val featureId = pendingSearchFeatureId ?: return@LaunchedEffect
+        state.locations.firstOrNull { it.featureId == featureId }?.let { location ->
+            selectedLocations = listOf(location)
+            pendingSearchFeatureId = null
+        }
+    }
+
+    fun selectSearchResult(result: SearchLocation) {
+        searchQuery = if (result.city.isBlank()) result.address
+            else "${result.address}, ${result.city}"
+        searchResults = emptyList()
+        searchMessage = null
+        pendingSearchFeatureId = result.featureId
+        selectedLocations = emptyList()
+        searchTarget = result
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
@@ -123,7 +192,9 @@ fun MapScreen(
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
             onLocationsSelected = { selectedLocations = it },
-            favoriteIds = favorites.map { it.featureId }.toSet()
+            favoriteIds = favorites.map { it.featureId }.toSet(),
+            cameraTarget = searchTarget,
+            onCameraTargetConsumed = { searchTarget = null }
         )
 
         SearchHeader(
@@ -131,33 +202,14 @@ fun MapScreen(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            themeChoice = themeChoice,
-            onThemeChoice = onThemeChoice
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            results = searchResults,
+            loading = searchLoading,
+            message = searchMessage,
+            onResultSelected = ::selectSearchResult,
+            onBottomChanged = { searchHeaderBottom = it }
         )
-
-        // Temporary comparison controls. Source remains NDW by default.
-        Surface(
-            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
-                .padding(top = 82.dp, start = 16.dp, end = 16.dp),
-            shape = RoundedCornerShape(18.dp),
-            tonalElevation = 4.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                listOf("NDW", "ChargeWatch").forEach { source ->
-                    OutlinedButton(onClick = { selectedLocations = emptyList(); viewModel.setSource(source) }) {
-                        Text(if (state.source == source) "✓ $source" else source)
-                    }
-                }
-                Text(
-                    "${state.locations.size} · ${state.loadMillis?.let { "${it} ms" } ?: "—"}",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        }
 
         if (state.loading) {
             CircularProgressIndicator(
@@ -190,7 +242,8 @@ fun MapScreen(
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
-            onToggleFavorite = onToggleFavorite
+            onToggleFavorite = onToggleFavorite,
+            expandedTopInset = searchHeaderBottom + 8.dp
         )
     }
 
@@ -198,40 +251,167 @@ fun MapScreen(
 }
 
 @Composable
-private fun SearchHeader(modifier: Modifier = Modifier, themeChoice: String, onThemeChoice: (String) -> Unit) {
-    var menuOpen by remember { mutableStateOf(false) }
-    Surface(
+private fun SearchHeader(
+    modifier: Modifier = Modifier,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<SearchLocation>,
+    loading: Boolean,
+    message: String?,
+    onResultSelected: (SearchLocation) -> Unit,
+    onBottomChanged: (Dp) -> Unit = {}
+) {
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    val showSuggestions = focused && query.trim().length >= 2
+
+    Column(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        tonalElevation = 5.dp
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .onGloballyPositioned { coordinates ->
+                    onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
+                },
+            shape = RoundedCornerShape(22.dp),
+            tonalElevation = 5.dp
         ) {
-            Icon(Icons.Default.Search, contentDescription = null)
-            Text(
-                text = "Zoek locatie of plaats",
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.Brightness6, contentDescription = "Weergavethema")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .onFocusChanged { focused = it.isFocused },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            results.firstOrNull()?.let {
+                                onResultSelected(it)
+                                focused = false
+                                focusManager.clearFocus()
+                            }
+                        }
+                    ),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (query.isEmpty()) {
+                                Text(
+                                    "Zoek locatie of plaats",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else if (query.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            onQueryChange("")
+                            focusManager.clearFocus()
+                            focused = false
+                        }
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen")
+                    }
                 }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    listOf("system" to "Systeem", "light" to "Licht", "dark" to "Donker").forEach { (value, label) ->
-                        DropdownMenuItem(
-                            text = { Text(if (themeChoice == value) "✓ $label" else label) },
-                            onClick = { onThemeChoice(value); menuOpen = false }
+
+                Icon(Icons.Default.FilterList, contentDescription = "Filters")
+            }
+        }
+
+        if (showSuggestions && (results.isNotEmpty() || message != null || loading)) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 6.dp)
+                ) {
+                    if (results.isNotEmpty()) {
+                        results.forEachIndexed { index, result ->
+                            if (index > 0) HorizontalDivider()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onResultSelected(result)
+                                        focused = false
+                                        focusManager.clearFocus()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.EvStation,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        result.address.ifBlank { "Laadlocatie" },
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    val secondary = listOfNotNull(
+                                        result.city.takeIf { it.isNotBlank() },
+                                        result.operatorName?.takeIf { it.isNotBlank() }
+                                    ).joinToString(" · ")
+                                    if (secondary.isNotBlank()) {
+                                        Text(
+                                            secondary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (result.totalCount > 0) {
+                                    Text(
+                                        if (result.unknownCount > 0) "?"
+                                        else "${result.availableCount}/${result.totalCount}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = when {
+                                            result.unknownCount > 0 -> ComposeColor(0xFF818D96)
+                                            result.availableCount > 0 -> ComposeColor(0xFF168653)
+                                            else -> ComposeColor(0xFFD43B3B)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    } else if (!loading && message != null) {
+                        Text(
+                            message,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            Icon(Icons.Default.FilterList, contentDescription = "Filters")
         }
     }
 }
@@ -242,7 +422,9 @@ private fun ChargeMap(
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
-    favoriteIds: Set<String>
+    favoriteIds: Set<String>,
+    cameraTarget: SearchLocation?,
+    onCameraTargetConsumed: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -343,6 +525,15 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
+                cameraTarget?.let { target ->
+                    map.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(target.latitude, target.longitude),
+                            16.0
+                        )
+                    )
+                    onCameraTargetConsumed()
+                }
                 if (currentStyleUri != styleUri) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
@@ -482,12 +673,15 @@ private fun renderNativeMarkers(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LocationSelectionSheet(
+fun LocationSelectionSheet(
     locations: List<MapLocation>,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
-    onToggleFavorite: (MapLocation) -> Unit
+    onToggleFavorite: (MapLocation) -> Unit,
+    expandedTopInset: Dp,
+    initiallyExpanded: Boolean = false,
+    compactAllowed: Boolean = true
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
@@ -497,48 +691,66 @@ private fun LocationSelectionSheet(
         enrichment = null
         if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
     }
-    // The standard partial anchor is fixed around half the window.
-    // Explicit compact/expanded states let the initial sheet fit its content.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var expanded by remember(selectedId) { mutableStateOf(false) }
-    BackHandler(enabled = expanded) { expanded = false }
-    // Material 3 only provides a partially-expanded anchor if sheet content is
-    // taller than half the available screen. Keep that anchor stable while the
-    // expanded-only details are conditionally rendered.
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val expandedSheetMaxHeight = screenHeight * 0.86f
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        modifier = Modifier.padding(top = screenHeight * 0.07f),
-        // A compact drag-handle slot avoids the large default handle area above details.
-        dragHandle = {
-            var dragAmount by remember { mutableStateOf(0f) }
+    // A standard bottom sheet supports an explicit peek height. That is what the
+    // map UX needs: compact = exactly the summary content, expanded = all detail.
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = if (initiallyExpanded) SheetValue.Expanded else SheetValue.PartiallyExpanded,
+        confirmValueChange = { next ->
+            compactAllowed || next != SheetValue.PartiallyExpanded
+        },
+        skipHiddenState = false
+    )
+    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    var compactContentHeight by remember(selectedId) { mutableStateOf(320.dp) }
+    val dragHandleHeight = 32.dp
+    val compactPeekHeight = compactContentHeight + dragHandleHeight
+    val expanded = sheetState.currentValue == SheetValue.Expanded
+
+    BackHandler {
+        if (!compactAllowed) {
+            onDismiss()
+        } else if (expanded) {
+            scope.launch { sheetState.partialExpand() }
+        } else {
+            onDismiss()
+        }
+    }
+    LaunchedEffect(sheetState.currentValue) {
+        if (sheetState.currentValue == SheetValue.Hidden) onDismiss()
+    }
+
+    BottomSheetScaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = expandedTopInset.coerceAtLeast(0.dp)),
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = if (locations.size > 1) 300.dp else compactPeekHeight,
+        sheetMaxWidth = Dp.Unspecified,
+        containerColor = ComposeColor.Transparent,
+        sheetContainerColor = MaterialTheme.colorScheme.surface,
+        sheetDragHandle = {
             Box(
-                Modifier.fillMaxWidth().height(24.dp)
-                    .pointerInput(selectedId, expanded) {
-                        detectVerticalDragGestures(
-                            onDragStart = { dragAmount = 0f },
-                            onVerticalDrag = { change, amount ->
-                                change.consume()
-                                dragAmount += amount
-                            },
-                            onDragEnd = {
-                                if (dragAmount < -25f) expanded = true
-                                if (dragAmount > 25f && expanded) expanded = false
+                Modifier.fillMaxWidth().height(dragHandleHeight)
+                    .clickable {
+                        scope.launch {
+                            if (expanded) {
+                                if (compactAllowed) sheetState.partialExpand() else sheetState.hide()
+                            } else {
+                                sheetState.expand()
                             }
-                        )
-                    }
-                    .clickable { expanded = !expanded },
+                        }
+                    },
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
-                    Modifier.padding(top = 8.dp).width(32.dp).height(4.dp)
+                    Modifier.padding(top = 10.dp).width(36.dp).height(4.dp)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
                 )
             }
-        }
-    ) {
+        },
+        sheetContent = {
         if (locations.size > 1) {
             Column(
                 modifier = Modifier
@@ -593,14 +805,27 @@ private fun LocationSelectionSheet(
             }
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(max = expandedSheetMaxHeight)
+                    .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            if (!expanded) {
+                                compactContentHeight = with(density) {
+                                    coordinates.size.height.toDp()
+                                }
+                            }
+                        }
+                        .padding(horizontal = 20.dp, vertical = 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(location.title, style = MaterialTheme.typography.headlineSmall)
+                        Text(location.title, style = MaterialTheme.typography.titleLarge)
                         location.address?.takeIf { it != location.title }?.let {
                             Text(it, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -611,77 +836,183 @@ private fun LocationSelectionSheet(
                         }
                     }
                     IconButton(onClick = { onToggleFavorite(location) }) {
-                        Icon(if (isFavorite(location)) Icons.Default.Star else Icons.Outlined.StarBorder,
-                            contentDescription = if (isFavorite(location)) "Verwijder favoriet" else "Voeg favoriet toe")
+                        val favorite = isFavorite(location)
+                        Icon(
+                            imageVector = if (favorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (favorite) "Verwijder favoriet" else "Voeg favoriet toe",
+                            tint = if (favorite) ComposeColor(0xFFF3AF25)
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.EvStation, contentDescription = null, tint = statusColor)
-                    Text(location.availability.label, style = MaterialTheme.typography.titleLarge, color = statusColor)
-                    Text(availabilityDescription(location.availability),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    when (location.availability.status) {
+                        AvailabilityStatus.Available -> {
+                            Text(location.availability.label,
+                                style = MaterialTheme.typography.titleMedium, color = statusColor)
+                            Text("laadpunten vrij", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        AvailabilityStatus.NoneAvailable -> {
+                            Text(
+                                location.availability.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = statusColor
+                            )
+                            Text(
+                                "Geen laadpunten vrij",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = statusColor
+                            )
+                        }
+                        AvailabilityStatus.Unknown -> Text(
+                            "Beschikbaarheid onbekend",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 // The summary is always visible, not only when the sheet is expanded.
                 // Never imply a single price when tariff components, VAT or conditions differ.
                 val connectors = location.connectorCategories
-                val singleConnector = connectors.singleOrNull()
-                val energyPrices = (enrichment as? EnrichmentResult.Found)?.value?.let { detail ->
-                    detail.tariffs.filter { it.type == "ENERGY" }
-                        .distinctBy { listOf(it.inclusiveAmount, it.currency, it.vat.orEmpty(), it.hasRestrictions.toString()) }
-                        .takeIf { prices ->
-                            prices?.size == 1 &&
-                                prices[0].vatKnown && !prices[0].hasRestrictions &&
-                                prices[0].currency == "EUR"
+                val detailTariffs = (enrichment as? EnrichmentResult.Found)?.value
+                val energyPrices = detailTariffs?.tariffs.orEmpty()
+                    .filter { it.type == "ENERGY" }
+                    .distinctBy {
+                        listOf(
+                            it.inclusiveAmount, it.currency, it.vat.orEmpty(),
+                            it.hasRestrictions.toString(), it.optionStatus
+                        )
+                    }
+                val hasExtraComponents = detailTariffs?.tariffs.orEmpty().any { it.type != "ENERGY" }
+                val compactProfileSelectionOnly = detailTariffs?.let { detail ->
+                    "TARIFF_TYPE_SELECTION_REQUIRED" in detail.tariffLimitations &&
+                        detail.sourceTariffTypes == setOf("REGULAR") &&
+                        detail.tariffLimitations.all {
+                            it == "TARIFF_TYPE_SELECTION_REQUIRED" || it == "CONDITIONAL"
                         }
-                }
+                } == true
+                val hasExtraConditions = hasExtraComponents ||
+                    detailTariffs?.tariffs.orEmpty().any {
+                        it.hasRestrictions && !compactProfileSelectionOnly
+                    } ||
+                    (detailTariffs?.hasComplexTariffs == true && !compactProfileSelectionOnly)
                 if (!expanded) {
-                // Show up to three actual connector categories per row; do not sum
-                // connector counts (multiple connectors may share one EVSE).
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    connectors.chunked(3).forEach { connectorRow ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            connectorRow.forEach { connector ->
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    tonalElevation = 2.dp
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val columns = if (maxWidth >= 330.dp) 3 else 2
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            connectors.chunked(columns).forEach { connectorRow ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        ConnectorSocketIcon(connector.connectorType, sizeDp = 26)
+                                    connectorRow.forEach { connector ->
+                                        Surface(
+                                            modifier = if (connectors.size == 1)
+                                                Modifier.widthIn(min = 160.dp, max = 190.dp)
+                                            else Modifier.weight(1f),
+                                            shape = RoundedCornerShape(12.dp),
+                                            tonalElevation = 2.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                ConnectorSocketIcon(connector.connectorType, sizeDp = 20)
+                                                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                                    Text(
+                                                        connectorPowerLabel(connector) ?: "— kW",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        connectorDisplayName(connector.connectorType),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (connectors.size > 1) {
+                                        repeat(columns - connectorRow.size) { Spacer(Modifier.weight(1f)) }
+                                    }
+                                }
+                            }
+
+                            energyPrices.take(2).forEach { price ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocalOffer,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Column {
                                         Text(
-                                            connectorPowerLabel(connector) ?: "— kW",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            maxLines = 1
+                                            (if (price.currency == "EUR") "€ " else "") +
+                                                (if (price.vatKnown) price.inclusiveAmount else price.amount)
+                                                    .replace('.', ',') +
+                                                "/kWh" +
+                                                (if (price.currency == "EUR") "" else " ${price.currency}"),
+                                            style = MaterialTheme.typography.titleMedium
                                         )
                                         Text(
-                                            connectorDisplayName(connector.connectorType),
+                                            if (price.vatKnown) "incl. btw" else "btw onbekend",
                                             style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                             }
-                            repeat(3 - connectorRow.size) {
-                                Spacer(Modifier.weight(1f))
+                            if (energyPrices.size > 2) {
+                                Text(
+                                    "+${energyPrices.size - 2} tarieven bekijken",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (energyPrices.isEmpty() && detailTariffs != null) {
+                                val message = when {
+                                    "SOURCE_MISSING" in detailTariffs.tariffStatuses ->
+                                        "Tariefreferentie ontbreekt in actuele bron"
+                                    "UNAVAILABLE" in detailTariffs.tariffStatuses ->
+                                        "Tarief momenteel niet toepasbaar"
+                                    "MALFORMED" in detailTariffs.tariffStatuses ->
+                                        "Tariefgegevens zijn onvolledig"
+                                    else -> null
+                                }
+                                if (message != null) Text(
+                                    message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (hasExtraConditions) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "Extra kosten of voorwaarden",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
-                    energyPrices?.singleOrNull()?.let { price ->
-                        Text(
-                            "€ ${price.inclusiveAmount.replace('.', ',')}/kWh" +
-                                if ((enrichment as? EnrichmentResult.Found)?.value?.hasComplexTariffs == true)
-                                    " · voorwaarden" else "",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
                 }
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -733,11 +1064,29 @@ private fun LocationSelectionSheet(
                         EnrichmentResult.NotFound -> Text("Geen aanvullende tarieven voor deze locatie.")
                         EnrichmentResult.Unavailable -> Text("Tariefgegevens konden niet worden opgehaald.")
                         is EnrichmentResult.Found -> {
-                            if (result.value.tariffs.isEmpty()) Text("Geen betrouwbaar tarief beschikbaar.")
+                            if (result.value.tariffs.isEmpty()) {
+                                val message = when {
+                                    "SOURCE_MISSING" in result.value.tariffStatuses ->
+                                        "Tariefreferentie ontbreekt in de actuele NDW-bron."
+                                    "UNAVAILABLE" in result.value.tariffStatuses ->
+                                        "Het gekoppelde tarief is momenteel niet toepasbaar."
+                                    "MALFORMED" in result.value.tariffStatuses ->
+                                        "Tariefgegevens zijn onvolledig of ongeldig."
+                                    else -> "Geen betrouwbaar tarief beschikbaar."
+                                }
+                                Text(message)
+                            }
                             result.value.tariffs
                                 .distinctBy { part ->
-                                    if (part.hasRestrictions) listOf(part.connectorId, part.tariffId, part.elementIndex.toString())
-                                    else listOf(part.type, part.inclusiveAmount, part.currency, part.vat.orEmpty(), "unrestricted")
+                                    listOf(
+                                        part.type,
+                                        part.inclusiveAmount,
+                                        part.currency,
+                                        part.vat.orEmpty(),
+                                        part.hasRestrictions.toString(),
+                                        part.optionStatus,
+                                        part.sourceTariffType.orEmpty()
+                                    )
                                 }
                                 .forEach { part ->
                                     val unit = when (part.type) {
@@ -757,9 +1106,11 @@ private fun LocationSelectionSheet(
                                         verticalAlignment = Alignment.Top) {
                                         Column(Modifier.weight(1f)) {
                                             Text(label, style = MaterialTheme.typography.bodyMedium)
-                                            Text(taxNote + if (part.hasRestrictions) " · voorwaarden" else "",
+                                            Text(
+                                                taxNote,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
                                         Text(if (part.currency == "EUR") "€ ${part.inclusiveAmount.replace('.', ',')}/$unit"
                                              else "${part.inclusiveAmount} ${part.currency}/$unit",
@@ -770,8 +1121,48 @@ private fun LocationSelectionSheet(
                                 Text("Prijscomponenten; je laadpasprovider kan een andere eindprijs berekenen.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (result.value.hasComplexTariffs)
-                                Text("Sommige tariefvoorwaarden zijn niet volledig geïnterpreteerd.")
+                            val sourceTypes = result.value.sourceTariffTypes.sorted()
+                            val profileSelectionOnly =
+                                "TARIFF_TYPE_SELECTION_REQUIRED" in result.value.tariffLimitations &&
+                                    result.value.tariffLimitations.all {
+                                        it == "TARIFF_TYPE_SELECTION_REQUIRED" || it == "CONDITIONAL"
+                                    }
+                            if (profileSelectionOnly && sourceTypes.size == 1) {
+                                Text(
+                                    "Tariefprofiel: ${tariffTypeLabel(sourceTypes.single())}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            } else {
+                                val visibleLimitations = result.value.tariffLimitations
+                                    .let { limitations ->
+                                        if ("TARIFF_TYPE_SELECTION_REQUIRED" in limitations)
+                                            limitations - "CONDITIONAL"
+                                        else limitations
+                                    }
+                                if (visibleLimitations.isNotEmpty()) {
+                                    Text(
+                                        "Tariefvoorwaarden",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    visibleLimitations.sorted().forEach { limitation ->
+                                        val suffix = if (
+                                            limitation == "TARIFF_TYPE_SELECTION_REQUIRED" &&
+                                            sourceTypes.isNotEmpty()
+                                        ) " (bronprofiel: ${sourceTypes.joinToString()})" else ""
+                                        Text(
+                                            "• ${tariffLimitationLabel(limitation)}$suffix",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                } else if (result.value.hasComplexTariffs) {
+                                    Text(
+                                        "Er zijn meerdere of niet volledig zekere tariefopties.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                     HorizontalDivider()
@@ -865,13 +1256,20 @@ private fun LocationSelectionSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 } else {
-                    Text("Veeg omhoog voor meer details", modifier = Modifier.clickable { expanded = true },
+                    Text(
+                        "Veeg omhoog voor meer details",
+                        modifier = Modifier.clickable { scope.launch { sheetState.expand() } },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
+        }
+    ) {
+        // Transparent scaffold body: the map and search header remain the underlying UI.
     }
 }
 
@@ -927,59 +1325,125 @@ private fun openStreetView(context: Context, location: MapLocation) {
 }
 
 private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
+    val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = Color.WHITE
-    canvas.drawCircle(56f, 56f, 49f, paint)
-    paint.color = Color.parseColor(colorHex)
-    canvas.drawCircle(56f, 56f, 45f, paint)
+
+    paint.color = Color.argb(48, 0, 0, 0)
+    canvas.drawCircle(64f, 69f, 49f, paint)
+
+    paint.color = Color.parseColor("#F5F7F8")
+    canvas.drawCircle(64f, 64f, 48f, paint)
+
+    paint.color = statusColor
+    canvas.drawCircle(64f, 64f, 44f, paint)
+
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(84, 255, 255, 255)
+    canvas.drawCircle(64f, 64f, 42.5f, paint)
+
+    paint.style = Paint.Style.FILL
     paint.color = Color.WHITE
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length > 4) 29f else 34f
-    canvas.drawText(label, 56f, 68f, paint)
-    if (isFavorite) drawFavoriteStar(canvas, 91f, 26f)
+    paint.typeface = android.graphics.Typeface.create(
+        "sans-serif-medium",
+        android.graphics.Typeface.BOLD
+    )
+    paint.textSize = if (label.length > 4) 30f else 35f
+    canvas.drawText(label, 64f, 76f, paint)
+
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 64f, 64f, 44f)
     return bitmap
 }
 
 private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(150, 150, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
+    val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = Color.WHITE
-    canvas.drawCircle(70f, 76f, 63f, paint)
-    paint.color = Color.parseColor(colorHex)
-    canvas.drawCircle(70f, 76f, 57f, paint)
-    paint.color = Color.WHITE
+
+    paint.color = Color.argb(48, 0, 0, 0)
+    canvas.drawCircle(75f, 82f, 61f, paint)
+
+    // Cluster halo stays subtle even though the marker itself is slightly larger.
+    paint.color = Color.argb(
+        70,
+        Color.red(statusColor),
+        Color.green(statusColor),
+        Color.blue(statusColor)
+    )
+    canvas.drawCircle(75f, 76f, 60f, paint)
+
+    paint.color = Color.parseColor("#F5F7F8")
+    canvas.drawCircle(75f, 76f, 53f, paint)
+
+    paint.color = statusColor
+    canvas.drawCircle(75f, 76f, 48f, paint)
+
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 3f
-    canvas.drawCircle(70f, 76f, 49f, paint)
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(84, 255, 255, 255)
+    canvas.drawCircle(75f, 76f, 46.5f, paint)
+
     paint.style = Paint.Style.FILL
+    paint.color = Color.WHITE
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length > 4) 30f else 36f
-    canvas.drawText(label, 70f, 88f, paint)
-    if (isFavorite) drawFavoriteStar(canvas, 120f, 35f)
+    paint.typeface = android.graphics.Typeface.create(
+        "sans-serif-medium",
+        android.graphics.Typeface.BOLD
+    )
+    paint.textSize = if (label.length > 4) 31f else 37f
+    canvas.drawText(label, 75f, 89f, paint)
+
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 75f, 76f, 48f)
     return bitmap
 }
 
+private fun drawFavoriteBadgeOnMarker(
+    canvas: Canvas,
+    markerCenterX: Float,
+    markerCenterY: Float,
+    markerRadius: Float
+) {
+    // Keep the badge at the same normalized top-right position for both
+    // individual markers and clusters, regardless of marker size.
+    val badgeX = markerCenterX + markerRadius * 0.91f
+    val badgeY = markerCenterY - markerRadius * 0.86f
+    drawFavoriteBadge(canvas, badgeX, badgeY)
+}
 
-// Large, outlined star stays legible on both light/dark tiles without covering the EVSE ratio.
-private fun drawFavoriteStar(canvas: Canvas, centerX: Float, centerY: Float) {
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
-        textSize = 49f
-        style = Paint.Style.STROKE
-        strokeWidth = 5f
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#26313A")
-    }
-    canvas.drawText("★", centerX, centerY + 17f, paint)
-    paint.style = Paint.Style.FILL
+private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    // Slight shadow so the yellow badge stays readable over both light and dark map tiles.
+    paint.color = Color.argb(50, 0, 0, 0)
+    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 19f, paint)
+
     paint.color = Color.parseColor("#F3AF25")
-    canvas.drawText("★", centerX, centerY + 17f, paint)
+    canvas.drawCircle(centerX, centerY, 18f, paint)
+
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(150, 38, 49, 58)
+    canvas.drawCircle(centerX, centerY, 17.5f, paint)
+
+    val star = Path()
+    val outerRadius = 10.8
+    val innerRadius = 5.0
+    for (i in 0 until 10) {
+        val radius = if (i % 2 == 0) outerRadius else innerRadius
+        val angle = -PI / 2 + i * PI / 5
+        val x = centerX + (cos(angle) * radius).toFloat()
+        val y = centerY + (sin(angle) * radius).toFloat()
+        if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
+    }
+    star.close()
+
+    paint.style = Paint.Style.FILL
+    paint.color = Color.WHITE
+    canvas.drawPath(star, paint)
 }
 
 private const val CLUSTER_DISTANCE_PX = 144.0
@@ -987,10 +1451,40 @@ private const val CLUSTER_ZOOM_STEP = 2.0
 private const val MAX_CLUSTER_ZOOM = 18.0
 private const val GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps"
 private const val LIGHT_STYLE = "https://tiles.openfreemap.org/styles/liberty"
-private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
+private const val DARK_STYLE = "https://tiles.openfreemap.org/styles/fiord"
 private const val AVAILABLE_COLOR = "#168653"
 private const val NONE_AVAILABLE_COLOR = "#D43B3B"
 private const val UNKNOWN_COLOR = "#818D96"
+
+private fun tariffTypeLabel(type: String): String = when (type) {
+    "REGULAR" -> "Regulier"
+    "AD_HOC_PAYMENT" -> "Ad-hoc betalen"
+    "PROFILE_CHEAP" -> "Goedkoop"
+    "PROFILE_FAST" -> "Snel"
+    "PROFILE_GREEN" -> "Groen"
+    else -> type
+}
+
+private fun tariffLimitationLabel(code: String): String = when (code) {
+    "CONDITIONAL" -> "Prijs hangt af van een sessievoorwaarde"
+    "TARIFF_TYPE_SELECTION_REQUIRED" -> "NDW levert een specifiek tariefprofiel; ChargeWatch kiest dit niet automatisch"
+    "UNSUPPORTED_TARIFF_TYPE" -> "Het brontarief gebruikt een onbekend tariefprofiel"
+    "UNSUPPORTED_REQUESTED_TARIFF_TYPE" -> "Het gevraagde tariefprofiel wordt niet ondersteund"
+    "UNKNOWN_RESTRICTION" -> "Het tarief bevat een voorwaarde die ChargeWatch nog niet interpreteert"
+    "TIME_ZONE_REQUIRED" -> "Tijdzone is nodig om de tijdsvoorwaarde te beoordelen"
+    "INVALID_RESTRICTION_VALUE" -> "Een tariefvoorwaarde heeft een ongeldige waarde"
+    "INVALID_RESTRICTIONS" -> "De tariefvoorwaarden hebben een ongeldig formaat"
+    "INVALID_ELEMENTS" -> "De tariefelementen hebben een ongeldig formaat"
+    "INVALID_ELEMENT" -> "Een tariefelement is ongeldig"
+    "INVALID_PRICE_COMPONENT" -> "Een prijscomponent is ongeldig"
+    "INVALID_VAT" -> "Het btw-percentage is ongeldig"
+    "INVALID_CURRENCY" -> "De valuta is ongeldig"
+    "INVALID_VALIDITY" -> "De geldigheidsperiode is ongeldig"
+    "OUTSIDE_VALIDITY" -> "Het tarief valt buiten zijn geldigheidsperiode"
+    "SOURCE_TARIFF_NOT_FOUND" -> "De tariefreferentie ontbreekt in de actuele bron"
+    "TARIFF_TYPE_MISMATCH" -> "Dit tariefprofiel past niet bij de gekozen optie"
+    else -> "Niet volledig geïnterpreteerde tariefvoorwaarde"
+}
 
 /** Preserve NDW fallback behavior; mark API-derived values as estimates/bounds. */
 private fun connectorPowerLabel(connector: NdwAvailability): String? {

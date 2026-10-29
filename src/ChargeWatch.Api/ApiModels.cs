@@ -255,4 +255,8 @@ internal sealed record MapLocationItem(
     public long? SourceAgeSeconds => SourceFreshnessHelper.AgeSeconds(LastUpdated);
     public string SourceFreshness => SourceFreshnessHelper.Classify(LastUpdated);
 }
-internal sealed record MapViewportResult(IReadOnlyList<MapLocationItem> Locations, bool Truncated);
+internal sealed record MapViewportResult(
+    IReadOnlyList<MapLocationItem> Locations,
+    bool Truncated,
+    DateTimeOffset? FeedLastObservedAt,
+    bool FeedIsStale);
