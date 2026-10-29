@@ -85,6 +85,16 @@ Nog te ontwerpen/beoordelen: definitieve grafieklegenda en toegankelijkheid, cor
 - Tik op een locatie opent ChargeWatch met een compacte keuze **Details / Navigeren**.
 - De samen bekeken configuratie-mock-up is als **richting** geaccepteerd, niet als pixel-perfect definitief ontwerp. De mock-up toont deels een vijfstappenwizard die bewust **niet** wordt overgenomen. De PNG-mock-up is opgenomen in PR #35 en hierboven gelinkt.
 
+### Implementatiebesluit — Instellingen (29 oktober 2026)
+
+Tijdens de fysieke Android-validatie is de hoofdnavigatie uitgebreid naar **Kaart · Favorieten · Instellingen**. Instellingen is een volwaardige derde tab, geen actie in de kaartzoekbalk.
+
+- **Weergave:** de expliciete thema-keuze staat uitsluitend in Instellingen als **Systeem / Licht / Donker**. De eerdere theme-knop in de kaartzoekbalk is verwijderd.
+- **ChargeWatch-data:** het scherm gebruikt het bestaande read-only `/api/v1/data-status`-contract en toont aantallen locaties, EVSE's/laadpunten, connectoren en tarieven plus de freshness/status van Locations en Tariffs. Dit scherm is observability voor de gebruiker/tester en introduceert geen nieuwe statistiekberekening.
+- **Buildidentiteit:** onder Over de app staan `versionName`, `versionCode`, de actieve API-host en een verkorte Git-SHA. PR-APK's embedden expliciet de PR-head-SHA; een tijdelijke GitHub mergecommit mag niet als app-buildidentiteit worden getoond.
+- **Visueel:** Settings volgt dezelfde Material 3 light/dark-kleuren, afgeronde kaarten en statussemantiek als Favorieten. Feedstatus gebruikt naast kleur ook tekst (`Actueel` / `Verouderd`).
+- **Scope:** geen database- of collectorwijziging voor Settings. De afzonderlijke map-viewport-feedfreshnessuitbreiding blijft read-only metadata en staat los van de data-statusweergave.
+
 ### Open ontwerp-/contractpunten
 1. Echte visuele kaartmock-up: schermhiërarchie, responsive afmetingen, marker-/ring-/stergeometrie, iconografie, kleurencontrast en light/dark.
 2. Betekenis van de noemer: de bron onderscheidt locatie/EVSE/connector. Voorkom dubbeltelling bij meerdere connectoren per EVSE; definieer expliciet het telobject voor `x/y` en de weergave bij deels onbekende status.
