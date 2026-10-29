@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -490,7 +489,9 @@ private fun LocationSelectionSheet(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // The sheet can fully expand, but never underneath the persistent search header.
+    // Limit the actual sheet height so Expanded stops below the persistent search
+    // header. Do not add top padding to the sheet surface: that creates empty space
+    // above the drag handle only in Expanded.
     val sheetTopInset = 112.dp
     val expandedSheetMaxHeight = (screenHeight - sheetTopInset - 12.dp).coerceAtLeast(360.dp)
 
@@ -499,7 +500,7 @@ private fun LocationSelectionSheet(
         sheetState = sheetState,
         // Filling the available height guarantees a real PartiallyExpanded anchor;
         // Material handles swipe up/down and nested scroll natively.
-        modifier = Modifier.padding(top = sheetTopInset).fillMaxHeight(),
+        modifier = Modifier.height(expandedSheetMaxHeight),
         dragHandle = {
             Box(
                 Modifier.fillMaxWidth().height(32.dp)
