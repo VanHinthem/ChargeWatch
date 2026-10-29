@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
@@ -90,6 +91,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
@@ -1114,59 +1118,120 @@ private fun openStreetView(context: Context, location: MapLocation) {
 }
 
 private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(116, 116, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
+    val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = Color.WHITE
-    canvas.drawCircle(56f, 56f, 49f, paint)
-    paint.color = Color.parseColor(colorHex)
-    canvas.drawCircle(56f, 56f, 45f, paint)
+
+    // Soft elevation without turning the marker into a heavy outlined button.
+    paint.color = Color.argb(48, 0, 0, 0)
+    canvas.drawCircle(58f, 62f, 45f, paint)
+
+    // Light keyline keeps the status color readable on both light and dark tiles.
+    paint.color = Color.parseColor("#F5F7F8")
+    canvas.drawCircle(58f, 58f, 44f, paint)
+
+    paint.color = statusColor
+    canvas.drawCircle(58f, 58f, 40f, paint)
+
+    // Subtle inner highlight gives the marker a little depth without changing status color.
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(90, 255, 255, 255)
+    canvas.drawCircle(58f, 58f, 38.5f, paint)
+
+    paint.style = Paint.Style.FILL
     paint.color = Color.WHITE
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length > 4) 29f else 34f
-    canvas.drawText(label, 56f, 68f, paint)
-    if (isFavorite) drawFavoriteStar(canvas, 91f, 26f)
+    paint.typeface = android.graphics.Typeface.create(
+        "sans-serif-medium",
+        android.graphics.Typeface.BOLD
+    )
+    paint.textSize = if (label.length > 4) 28f else 32f
+    canvas.drawText(label, 58f, 69f, paint)
+
+    if (isFavorite) drawFavoriteBadge(canvas, 94f, 24f)
     return bitmap
 }
 
 private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(136, 136, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
+    val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = Color.WHITE
-    canvas.drawCircle(70f, 76f, 63f, paint)
-    paint.color = Color.parseColor(colorHex)
-    canvas.drawCircle(70f, 76f, 57f, paint)
-    paint.color = Color.WHITE
+
+    paint.color = Color.argb(52, 0, 0, 0)
+    canvas.drawCircle(68f, 75f, 56f, paint)
+
+    // A status-colored halo is the only cluster-specific visual cue.
+    paint.color = Color.argb(
+        92,
+        Color.red(statusColor),
+        Color.green(statusColor),
+        Color.blue(statusColor)
+    )
+    canvas.drawCircle(68f, 70f, 56f, paint)
+
+    paint.color = Color.parseColor("#F5F7F8")
+    canvas.drawCircle(68f, 70f, 50f, paint)
+
+    paint.color = statusColor
+    canvas.drawCircle(68f, 70f, 45f, paint)
+
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 2f
-    canvas.drawCircle(70f, 76f, 49f, paint)
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(90, 255, 255, 255)
+    canvas.drawCircle(68f, 70f, 43.5f, paint)
+
     paint.style = Paint.Style.FILL
+    paint.color = Color.WHITE
     paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length > 4) 30f else 36f
-    canvas.drawText(label, 70f, 88f, paint)
-    if (isFavorite) drawFavoriteStar(canvas, 120f, 35f)
+    paint.typeface = android.graphics.Typeface.create(
+        "sans-serif-medium",
+        android.graphics.Typeface.BOLD
+    )
+    paint.textSize = if (label.length > 4) 29f else 34f
+    canvas.drawText(label, 68f, 82f, paint)
+
+    if (isFavorite) drawFavoriteBadge(canvas, 112f, 26f)
     return bitmap
 }
 
+private fun drawFavoriteBadge(canvas: Canvas, centerX: Float, centerY: Float) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-// Large, outlined star stays legible on both light/dark tiles without covering the EVSE ratio.
-private fun drawFavoriteStar(canvas: Canvas, centerX: Float, centerY: Float) {
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
-        textSize = 49f
-        style = Paint.Style.STROKE
-        strokeWidth = 5f
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#26313A")
+    paint.color = Color.argb(42, 0, 0, 0)
+    canvas.drawCircle(centerX + 1.5f, centerY + 2f, 15.5f, paint)
+
+    paint.color = Color.parseColor("#F5F7F8")
+    canvas.drawCircle(centerX, centerY, 14.5f, paint)
+
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.5f
+    paint.color = Color.argb(150, 38, 49, 58)
+    canvas.drawCircle(centerX, centerY, 14f, paint)
+
+    val star = Path()
+    val outerRadius = 9.2
+    val innerRadius = 4.2
+    for (i in 0 until 10) {
+        val radius = if (i % 2 == 0) outerRadius else innerRadius
+        val angle = -PI / 2 + i * PI / 5
+        val x = centerX + (cos(angle) * radius).toFloat()
+        val y = centerY + (sin(angle) * radius).toFloat()
+        if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
     }
-    canvas.drawText("★", centerX, centerY + 17f, paint)
+    star.close()
+
     paint.style = Paint.Style.FILL
     paint.color = Color.parseColor("#F3AF25")
-    canvas.drawText("★", centerX, centerY + 17f, paint)
+    canvas.drawPath(star, paint)
+
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.2f
+    paint.strokeJoin = Paint.Join.ROUND
+    paint.color = Color.parseColor("#26313A")
+    canvas.drawPath(star, paint)
 }
 
 private const val CLUSTER_DISTANCE_PX = 144.0
