@@ -95,6 +95,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -567,7 +568,9 @@ private fun SearchHeader(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Spacer(Modifier.height(if (canReturnToDestination) 104.dp else 52.dp))
+                    // Only the compact 48 dp handle + 1 dp divider reserves
+                    // space. The optional return action now lives in the handle.
+                    Spacer(Modifier.height(52.dp))
                     QuickFilterRow(filters, onQuickFilter)
                 }
             Surface(
@@ -607,9 +610,9 @@ private fun SearchHeader(
                             }
                             .clickable { onNearbyExpandedChanged(!nearbyExpanded) }
                             .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(start = 16.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.EvStation, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -622,29 +625,29 @@ private fun SearchHeader(
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleSmall
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        // Independent action: tapping the target restores the
+                        // existing overview without expanding the results.
+                        IconButton(
+                            onClick = onReturnToDestination,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MyLocation,
+                                contentDescription = "Terug naar zoekadres",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.width(1.dp).height(20.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant)
                         )
                         Icon(
                             if (nearbyExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = if (nearbyExpanded) "Lijst inklappen" else "Lijst uitklappen"
                         )
-                    }
-                    AnimatedVisibility(
-                        visible = canReturnToDestination,
-                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
-                    ) {
-                        Column {
-                            HorizontalDivider()
-                            TextButton(
-                                onClick = onReturnToDestination,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.MyLocation, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Terug naar zoekadres")
-                            }
-                        }
                     }
                     AnimatedVisibility(
                         visible = nearbyExpanded,
