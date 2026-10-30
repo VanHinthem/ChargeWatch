@@ -19,8 +19,6 @@ data class ChargingFilters(
 
     fun toggleQuick(id: String): ChargingFilters = when (id) {
         "free" -> copy(minFree = if (minFree > 0) 0 else 1)
-        "ccs2" -> copy(connectorTypes = if ("ccs2" in connectorTypes)
-            connectorTypes - "ccs2" else connectorTypes + "ccs2")
         "lt50" -> copy(power = if (power == "lt50") null else "lt50")
         "gte150" -> copy(power = if (power == "gte150") null else "gte150")
         else -> this

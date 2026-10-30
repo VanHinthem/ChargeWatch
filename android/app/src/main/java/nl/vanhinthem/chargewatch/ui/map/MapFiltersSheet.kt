@@ -3,6 +3,7 @@ package nl.vanhinthem.chargewatch.ui.map
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,29 +39,36 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 
 @Composable
 fun QuickFilterRow(filters: ChargingFilters, onToggle: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(
-            Triple("free", "Vrij", filters.minFree > 0),
-            Triple("ccs2", "CCS2", "ccs2" in filters.connectorTypes),
-            Triple("lt50", "<50 kW", filters.power == "lt50"),
-            Triple("gte150", "≥150 kW", filters.power == "gte150")
-        ).forEach { (key, label, selected) ->
-            FilterChip(
-                selected = selected,
-                onClick = { onToggle(key) },
-                label = { Text(label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+    // Box has the same width as SearchHeader's search field; wrap-content
+    // scrolling Row is centered when the three chips fit on the screen.
+    // Horizontal scrolling remains available on narrow displays / large fonts.
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                Triple("free", "Vrij", filters.minFree > 0),
+                Triple("lt50", "<50 kW", filters.power == "lt50"),
+                Triple("gte150", "≥150 kW", filters.power == "gte150")
+            ).forEach { (key, label, selected) ->
+                FilterChip(
+                    selected = selected,
+                    onClick = { onToggle(key) },
+                    label = { Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 )
-            )
+            }
         }
     }
 }

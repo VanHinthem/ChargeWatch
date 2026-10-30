@@ -7,11 +7,13 @@ import org.junit.Test
 class ChargingFiltersTest {
     @Test fun quickFiltersAreReversibleAndPowerBandsExclusive() {
         val initial = ChargingFilters()
-        val active = initial.toggleQuick("free").toggleQuick("ccs2")
+        val active = initial.toggleQuick("free")
             .toggleQuick("lt50").toggleQuick("gte150")
-        assertEquals(3, active.activeCount)
+        assertEquals(2, active.activeCount)
         assertEquals("gte150", active.power)
         assertTrue(active.active)
+        // CCS2 remains available in the full filtersheet, not a quick action.
+        assertEquals(initial, initial.toggleQuick("ccs2"))
         assertFalse(active.toggleQuick("free").minFree > 0)
         assertNull(active.toggleQuick("gte150").power)
     }
