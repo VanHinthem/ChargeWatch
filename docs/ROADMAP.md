@@ -1,6 +1,19 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
-**Status:** Plan; geen werk gestart of afgerond. Fasen zijn afhankelijk van de resultaten van datavalidatie.
+**Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
+
+## Vastgestelde volgorde Android-vervolgwerk — 30 oktober 2026
+
+De gebruiker heeft na afronding en Samsung-acceptatie van [issue #95](https://github.com/VanHinthem/ChargeWatch/issues/95) de volgende **strikte prioriteitsvolgorde** gekozen. Werk de stappen in deze volgorde af; vervolgissues kunnen vóór de uitvoering worden verfijnd, maar een wijziging van prioriteit vereist een nieuw productbesluit.
+
+1. **[P1 — GPS / huidige locatie en nabije alternatieven (#99)](https://github.com/VanHinthem/ChargeWatch/issues/99).** Toestelpositie met expliciete permissie en bruikbare fallback; vanaf een laadlocatie geschikte alternatieven in de buurt vinden. Bestaande PDOK-pin, vijf-nearest en filtering behouden. **Eerstvolgende actieve feature; start met UX en technisch ontwerp.**
+2. **[P2 — Native Android-widget met lokale favorieten (#101)](https://github.com/VanHinthem/ChargeWatch/issues/101).** Compacte en uitgebreidere widgets, configuratie met favoriete locaties, betrouwbare beschikbaarheid, bronversheid en Android-conforme refresh.
+3. **[P3 — Statistieken, 90-daagse uptime en publicatiekwaliteit (#103)](https://github.com/VanHinthem/ChargeWatch/issues/103).** Eerst datakwaliteits-/API-publicatiecriteria valideren; daarna historische weekdag-/uurweergave en EVSE-betrouwbaarheid afronden. Geen percentages op basis van experimentele of ongeldige data.
+4. **[P4 — Android-kwaliteitsronde en releasevoorbereiding (#104)](https://github.com/VanHinthem/ChargeWatch/issues/104).** Integrale Samsung-/offline-/toegankelijkheid-/performance-/release- en securitycheck. Geen release of NAS-deploy zonder afzonderlijk akkoord.
+
+**Buiten deze vier stappen:** [#79](https://github.com/VanHinthem/ChargeWatch/issues/79) is een **uitgestelde** roadmaptaak voor een uitgebreider datakwaliteitsdashboard, geen voorwaarde om P1 te starten. De vroegere Android-kaartfilters en PDOK-bestemmingzoekfunctie (#95, PR #97) zijn afgerond. Deze volgordewijziging is een **planningbesluit**, geen implementatie- of deploymentautorisatie.
+
+
 
 ## Fase 0 — Datafundament (eerste stap)
 
