@@ -22,11 +22,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
@@ -139,16 +140,15 @@ private fun Choice(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapFiltersSheet(
-    initial: ChargingFilters,
+    filters: ChargingFilters,
     operators: List<String>?,
     operatorLoading: Boolean,
     operatorError: String?,
     onOperatorSectionOpened: () -> Unit,
-    onApply: (ChargingFilters) -> Unit,
+    onFiltersChanged: (ChargingFilters) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var draft by remember { mutableStateOf(initial) }
     var expanded by remember { mutableStateOf(setOf("power")) }
     var operatorQuery by remember { mutableStateOf("") }
     fun toggle(section: String) {
@@ -157,62 +157,75 @@ fun MapFiltersSheet(
     LaunchedEffect("operator" in expanded) {
         if ("operator" in expanded && operators == null && !operatorLoading) onOperatorSectionOpened()
     }
-    // Open fully: with a partially expanded sheet the footer could be off-screen.
+    // Filter changes are applied immediately; no apply footer is needed.
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
-            Text(
-                "Laadlocaties filteren",
-                modifier = Modifier.padding(horizontal = 20.dp),
-                style = MaterialTheme.typography.titleLarge
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 20.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Laadlocaties filteren",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(
+                    enabled = filters.active,
+                    onClick = { onFiltersChanged(ChargingFilters()) }
+                ) {
+                    Icon(Icons.Default.RestartAlt,
+                        contentDescription = "Alle filters wissen")
+                }
+            }
             Spacer(Modifier.height(10.dp))
-            // Only the filter groups scroll. The actions are a separate, fixed footer.
+            // Only the filter groups scroll; no fixed footer obscures content.
             Column(
                 Modifier.weight(1f).padding(horizontal = 20.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 FilterSection("Aansluitingstype", "connector" in expanded,
-                    draft.connectorTypes.isNotEmpty(), { toggle("connector") }) {
-                    Choice("Alle aansluitingstypen", draft.connectorTypes.isEmpty()) {
-                        draft = draft.copy(connectorTypes = emptySet())
+                    filters.connectorTypes.isNotEmpty(), { toggle("connector") }) {
+                    Choice("Alle aansluitingstypen", filters.connectorTypes.isEmpty()) {
+                        onFiltersChanged(filters.copy(connectorTypes = emptySet()))
                     }
                     listOf("type2" to "Type 2", "ccs2" to "CCS2",
                         "chademo" to "CHAdeMO", "other" to "Overige").forEach { (id, label) ->
-                        Choice(label, id in draft.connectorTypes) {
-                            draft = draft.copy(connectorTypes =
-                                if (id in draft.connectorTypes) draft.connectorTypes - id
-                                else draft.connectorTypes + id)
+                        Choice(label, id in filters.connectorTypes) {
+                            onFiltersChanged(filters.copy(connectorTypes =
+                                if (id in filters.connectorTypes) filters.connectorTypes - id
+                                else filters.connectorTypes + id))
                         }
                     }
                 }
                 FilterSection("Laadtype", "mode" in expanded,
-                    draft.modes.isNotEmpty(), { toggle("mode") }) {
+                    filters.modes.isNotEmpty(), { toggle("mode") }) {
                     listOf(null to "Alle (AC en DC)", "ac" to "AC", "dc" to "DC").forEach { (value, label) ->
-                        Choice(label, if (value == null) draft.modes.isEmpty()
-                            else draft.modes == setOf(value)) {
-                            draft = draft.copy(modes = if (value == null) emptySet() else setOf(value))
+                        Choice(label, if (value == null) filters.modes.isEmpty()
+                            else filters.modes == setOf(value)) {
+                            onFiltersChanged(filters.copy(modes = if (value == null) emptySet() else setOf(value)))
                         }
                     }
                 }
                 FilterSection("Laadvermogen", "power" in expanded,
-                    draft.power != null, { toggle("power") }) {
+                    filters.power != null, { toggle("power") }) {
                     listOf(null to "Alle vermogens", "lt50" to "<50 kW",
                         "gte50" to "≥50 kW", "gte150" to "≥150 kW",
                         "gte300" to "≥300 kW").forEach { (value, label) ->
-                        Choice(label, draft.power == value) { draft = draft.copy(power = value) }
+                        Choice(label, filters.power == value) { onFiltersChanged(filters.copy(power = value)) }
                     }
                 }
                 FilterSection("Beschikbaarheid", "free" in expanded,
-                    draft.minFree > 0, { toggle("free") }) {
+                    filters.minFree > 0, { toggle("free") }) {
                     listOf(0 to "Alle locaties", 1 to "Minimaal 1 vrij",
                         2 to "Minimaal 2 vrij").forEach { (value, label) ->
-                        Choice(label, draft.minFree == value) { draft = draft.copy(minFree = value) }
+                        Choice(label, filters.minFree == value) { onFiltersChanged(filters.copy(minFree = value)) }
                     }
                 }
                 FilterSection("Operators", "operator" in expanded,
-                    draft.operators.isNotEmpty(), { toggle("operator") }) {
-                    Choice("Alle operators", draft.operators.isEmpty()) {
-                        draft = draft.copy(operators = emptySet())
+                    filters.operators.isNotEmpty(), { toggle("operator") }) {
+                    Choice("Alle operators", filters.operators.isEmpty()) {
+                        onFiltersChanged(filters.copy(operators = emptySet()))
                     }
                     OutlinedTextField(value = operatorQuery, onValueChange = { operatorQuery = it },
                         label = { Text("Zoek operator") }, singleLine = true,
@@ -229,28 +242,14 @@ fun MapFiltersSheet(
                             if (visible.isEmpty()) Text("Geen operators gevonden.")
                             LazyColumn(Modifier.fillMaxWidth().height(210.dp)) {
                                 items(visible, key = { it }) { operator ->
-                                    Choice(operator, operator in draft.operators) {
-                                        draft = draft.copy(operators =
-                                            if (operator in draft.operators) draft.operators - operator
-                                            else draft.operators + operator)
+                                    Choice(operator, operator in filters.operators) {
+                                        onFiltersChanged(filters.copy(operators =
+                                            if (operator in filters.operators) filters.operators - operator
+                                            else filters.operators + operator))
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            }
-            Surface(tonalElevation = 3.dp) {
-                Column {
-                    HorizontalDivider()
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(onClick = { draft = ChargingFilters() }) {
-                            Text("Alles wissen")
-                        }
-                        Button(onClick = { onApply(draft) }) { Text("Toepassen") }
                     }
                 }
             }
