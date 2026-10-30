@@ -32,6 +32,33 @@ class ChargingFiltersTest {
         assertEquals("2", url.queryParameter("minFree"))
     }
 
+    @Test fun liveSelectionAndResetKeepAllGroupsConsistent() {
+        // Mirrors the immutable filter values delivered directly by each sheet choice.
+        val selected = ChargingFilters()
+            .copy(connectorTypes = setOf("type2", "ccs2"))
+            .copy(power = "gte150")
+            .copy(minFree = 2)
+            .copy(operators = setOf("Fastned"))
+        assertEquals(4, selected.activeCount)
+        assertEquals(setOf("type2", "ccs2"), selected.connectorTypes)
+        assertEquals("gte150", selected.power)
+
+        // Selecting a different power replaces the band; other groups remain set.
+        val changed = selected.copy(power = "lt50")
+        assertEquals(4, changed.activeCount)
+        assertEquals("lt50", changed.power)
+        assertEquals(selected.operators, changed.operators)
+
+        // Header reset sends a new empty value, just like turning quick chips off.
+        val reset = ChargingFilters()
+        assertFalse(reset.active)
+        assertEquals(0, reset.activeCount)
+        assertTrue(reset.connectorTypes.isEmpty())
+        assertNull(reset.power)
+        assertEquals(0, reset.minFree)
+        assertTrue(reset.operators.isEmpty())
+    }
+
     @Test fun legacyServerCannotSilentlyIgnoreActiveFilters() {
         assertTrue(supportsFiltering(false, null))
         assertFalse(supportsFiltering(true, null))
