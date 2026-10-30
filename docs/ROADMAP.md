@@ -1,6 +1,21 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
-**Status:** Plan; geen werk gestart of afgerond. Fasen zijn afhankelijk van de resultaten van datavalidatie.
+**Status (30 oktober 2026):** dit document bevat een historische checklist voor het volledige project; veel taken uit fases 0–2 zijn inmiddels gerealiseerd. De actuele technische voortgang staat in [STATUS.md](STATUS.md). **Actuele Android-v1-werkvolgorde** hieronder is leidend voor de resterende features. De landelijke backend, kaart, PDOK-zoekfunctie, filters, lokale favorieten, locatie-details en actuele tariefpresentatie bestaan al; [PR #97](https://github.com/VanHinthem/ChargeWatch/pull/97) is op 30 oktober naar `main` gemerged.
+
+## Vastgelegde Android-v1-vervolgvolgorde (30 oktober 2026)
+
+De gebruiker heeft na het afronden van Android-zoek- en filterfunctionaliteit deze vier werkblokken in deze volgorde gekozen. **Eén actieve feature tegelijk**; geen automatische merge of deployment.
+
+1. **[Widget op lokale favorieten — #100](https://github.com/VanHinthem/ChargeWatch/issues/100):** maak een native Android-widget (compact/uitgebreid, circa 2–5 gekozen favorieten per widget), met betrouwbare beschikbaarheid en versheid, configureerbare selectie, refresh en correcte tapnavigatie. Hergebruik `FavoritesRepository`, `FavoritesAvailabilityClient` en `favoriteAvailability`. Start met technisch ontwerp, updatebeleid, lege/foutstaten en toestelbeoordeling; **geen tweede cloudfavorietensysteem**.
+2. **[Statistieken, 90-daagse uptime en datakwaliteit — #102](https://github.com/VanHinthem/ChargeWatch/issues/102):** bestaande experimentele uurwaarden en het backend-publicatiecontract inventariseren, meetdekking/publicatiegate valideren en vervolgens betrouwbare historische indicatoren en EVSE-uptime zichtbaar maken. Geen `null` of niet-gevalideerde EWMA-kans als vast percentage publiceren. Backend/NAS-besluiten afzonderlijk goedkeuren.
+3. **[Nabije alternatieven en optionele GPS — #105](https://github.com/VanHinthem/ChargeWatch/issues/105):** vanaf een gekozen laadlocatie/favoriet passende alternatieven vinden met bestaand nearest- en filtercontract; optioneel een 'mijn locatie'-actie met expliciete Android-voorgrondpermissie. Kaart/Pdok blijven zonder locatiepermissie functioneren; geen achtergrondtracking.
+4. **[Android-kwaliteitsronde en releasevoorbereiding — #106](https://github.com/VanHinthem/ChargeWatch/issues/106):** regressie, light/dark, toegankelijkheid, responsiviteit, offline/stale/partiële fouten, performance, widget-batterijverbruik en veilige release-signing, plus afzonderlijke security- en distributiegates. Release/publicatie alleen na expliciet akkoord.
+
+De eerder vastgelegde **widget-UX-richting** in [ANDROID_DESIGN.md](ANDROID_DESIGN.md) blijft uitgangspunt. Het [technische widget-startontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md) beschrijft de bestaande code, data-/cachegrenzen, drie formaatvarianten en het toetsplan; updatebeleid en navigatie worden vóór implementatie beoordeeld. [Issue #79](https://github.com/VanHinthem/ChargeWatch/issues/79) blijft een uitgesteld monitoringdashboard en is **geen Android-v1-blocker**. Open [PR #54](https://github.com/VanHinthem/ChargeWatch/pull/54) is een zelfstandige documentatienotitie.
+
+---
+
+
 
 ## Fase 0 — Datafundament (eerste stap)
 
