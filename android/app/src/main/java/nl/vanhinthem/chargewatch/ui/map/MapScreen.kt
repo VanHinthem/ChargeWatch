@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -491,6 +492,35 @@ private fun SearchHeader(
     var focused by remember { mutableStateOf(false) }
     val suggestVisible = focused && !searchSelected && query.trim().length >= 2
     val nearbyPanelVisible = destination != null && showNearbyPanel && !(focused && !searchSelected)
+    // A continuous search-to-drawer silhouette: instead of leaving the search
+    // bar's rounded lower corners sticking out above a narrower rectangular
+    // panel, gently taper its last 12 dp into the inset drawer side edges.
+    val connectedSearchShape = remember(density) {
+        val inset = with(density) { 12.dp.toPx() }
+        val corner = with(density) { 22.dp.toPx() }
+        GenericShape { size, _ ->
+            val width = size.width
+            val height = size.height
+            moveTo(corner, 0f)
+            lineTo(width - corner, 0f)
+            quadraticTo(width, 0f, width, corner)
+            lineTo(width, height - inset)
+            cubicTo(
+                width, height - inset * 0.45f,
+                width - inset, height - inset * 0.55f,
+                width - inset, height
+            )
+            lineTo(inset, height)
+            cubicTo(
+                inset, height - inset * 0.55f,
+                0f, height - inset * 0.45f,
+                0f, height - inset
+            )
+            lineTo(0f, corner)
+            quadraticTo(0f, 0f, corner, 0f)
+            close()
+        }
+    }
 
     Column(
         modifier = modifier.fillMaxWidth()
@@ -505,7 +535,7 @@ private fun SearchHeader(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
             },
-            shape = RoundedCornerShape(22.dp),
+            shape = if (nearbyPanelVisible) connectedSearchShape else RoundedCornerShape(22.dp),
             tonalElevation = 5.dp
         ) {
             Row(
