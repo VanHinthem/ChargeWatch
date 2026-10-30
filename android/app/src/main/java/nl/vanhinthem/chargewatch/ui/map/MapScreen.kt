@@ -499,14 +499,12 @@ private fun SearchHeader(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Search and nearby results are visually one control when an address is selected.
-        Column(verticalArrangement = Arrangement.spacedBy(if (nearbyPanelVisible) 0.dp else 2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (nearbyPanelVisible) 3.dp else 2.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
             },
-            shape = if (nearbyPanelVisible)
-                RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-                else RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(22.dp),
             tonalElevation = 5.dp
         ) {
             Row(
@@ -569,15 +567,25 @@ private fun SearchHeader(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Spacer(Modifier.height(if (canReturnToDestination) 96.dp else 48.dp))
+                    Spacer(Modifier.height(if (canReturnToDestination) 104.dp else 52.dp))
                     QuickFilterRow(filters, onQuickFilter)
                 }
             Surface(
-                modifier = Modifier.fillMaxWidth().zIndex(1f),
-                shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
+                // A slightly narrower drawer and a hairline distinguish the
+                // nearby results from the search bar without changing behavior.
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).zIndex(1f),
+                shape = RoundedCornerShape(
+                    topStart = 10.dp, topEnd = 10.dp,
+                    bottomStart = 22.dp, bottomEnd = 22.dp
+                ),
                 tonalElevation = 5.dp
             ) {
                 Column {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
