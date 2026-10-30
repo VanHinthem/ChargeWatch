@@ -3,6 +3,7 @@ package nl.vanhinthem.chargewatch.ui.map
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,8 +64,13 @@ fun QuickFilterRow(filters: ChargingFilters, onToggle: (String) -> Unit) {
                 // 48 dp touch target, with a compact 36 dp visible chip.
                 // Top alignment preserves the tight spacing below the search field.
                 Box(
+                    // No ripple on the outer 48 dp hit area: it would draw
+                    // a large rectangular flash behind the visible 36 dp pill.
+                    // The selected pill color remains the visual interaction feedback.
                     modifier = Modifier.height(48.dp).toggleable(
                         value = selected,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
                         role = Role.Checkbox,
                         onValueChange = { onToggle(key) }
                     ),
