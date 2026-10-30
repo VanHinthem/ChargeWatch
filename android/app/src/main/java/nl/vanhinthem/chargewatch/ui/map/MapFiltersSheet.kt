@@ -2,6 +2,7 @@ package nl.vanhinthem.chargewatch.ui.map
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,13 +25,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
+import kotlin.math.abs
 import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 
@@ -137,10 +137,10 @@ private fun Choice(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapFiltersSheet(
+fun MapFiltersPanel(
     filters: ChargingFilters,
+    maxHeight: Dp,
     operators: List<String>?,
     operatorLoading: Boolean,
     operatorError: String?,
@@ -148,7 +148,6 @@ fun MapFiltersSheet(
     onFiltersChanged: (ChargingFilters) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var expanded by remember { mutableStateOf(setOf("power")) }
     var operatorQuery by remember { mutableStateOf("") }
     fun toggle(section: String) {
@@ -157,40 +156,48 @@ fun MapFiltersSheet(
     LaunchedEffect("operator" in expanded) {
         if ("operator" in expanded && operators == null && !operatorLoading) onOperatorSectionOpened()
     }
-    // Match the search bar's Surface exactly in light and dark themes:
-    // same surface container color and the same 5.dp tonal elevation.
-    // ModalBottomSheet otherwise uses its own default container tone.
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 5.dp
-    ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .padding(start = 20.dp, end = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Laadlocaties filteren",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                IconButton(
-                    enabled = filters.active,
-                    onClick = { onFiltersChanged(ChargingFilters()) }
-                ) {
-                    Icon(Icons.Default.RestartAlt,
-                        contentDescription = "Alle filters wissen")
+    // Embedded below the search bar instead of a screen-bottom modal.
+    // Limit its total height; only filter sections scroll, and values apply live.
+    Column(Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .pointerInput(onDismiss) {
+                    var dragY = 0f
+                    detectVerticalDragGestures(
+                        onDragStart = { dragY = 0f },
+                        onVerticalDrag = { change, amount ->
+                            dragY += amount
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            if (dragY < -24.dp.toPx()) onDismiss()
+                        }
+                    )
                 }
-            }
-            Spacer(Modifier.height(10.dp))
-            // Only the filter groups scroll; no fixed footer obscures content.
-            Column(
-                Modifier.weight(1f).padding(horizontal = 20.dp)
-                    .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Laadlocaties filteren",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium
+            )
+            IconButton(
+                enabled = filters.active,
+                onClick = { onFiltersChanged(ChargingFilters()) }
             ) {
+                Icon(Icons.Default.RestartAlt, contentDescription = "Alle filters wissen")
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Filters inklappen")
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        // Independent vertical scrolling within the maximum 70%-screen panel.
+        Column(
+            Modifier.weight(1f, fill = false).padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
                 FilterSection("Aansluitingstype", "connector" in expanded,
                     filters.connectorTypes.isNotEmpty(), { toggle("connector") }) {
                     Choice("Alle aansluitingstypen", filters.connectorTypes.isEmpty()) {
@@ -260,6 +267,5 @@ fun MapFiltersSheet(
                     }
                 }
             }
-        }
     }
 }
