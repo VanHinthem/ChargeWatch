@@ -26,6 +26,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -108,6 +110,7 @@ fun MapFiltersSheet(
     onApply: (ChargingFilters) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember { mutableStateOf(initial) }
     var expanded by remember { mutableStateOf(setOf("power")) }
     var operatorQuery by remember { mutableStateOf("") }
@@ -117,11 +120,20 @@ fun MapFiltersSheet(
     LaunchedEffect("operator" in expanded) {
         if ("operator" in expanded && operators == null && !operatorLoading) onOperatorSectionOpened()
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f).padding(horizontal = 20.dp)) {
-            Text("Laadlocaties filteren", style = MaterialTheme.typography.titleLarge)
+    // Open fully: with a partially expanded sheet the footer could be off-screen.
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
+            Text(
+                "Laadlocaties filteren",
+                modifier = Modifier.padding(horizontal = 20.dp),
+                style = MaterialTheme.typography.titleLarge
+            )
             Spacer(Modifier.height(10.dp))
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // Only the filter groups scroll. The actions are a separate, fixed footer.
+            Column(
+                Modifier.weight(1f).padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 FilterSection("Aansluitingstype", "connector" in expanded,
                     draft.connectorTypes.isNotEmpty(), { toggle("connector") }) {
                     Choice("Alle aansluitingstypen", draft.connectorTypes.isEmpty()) {
@@ -191,11 +203,19 @@ fun MapFiltersSheet(
                     }
                 }
             }
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = { draft = ChargingFilters() }) { Text("Alles wissen") }
-                Button(onClick = { onApply(draft) }) { Text("Toepassen") }
+            Surface(tonalElevation = 3.dp) {
+                Column {
+                    HorizontalDivider()
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(onClick = { draft = ChargingFilters() }) {
+                            Text("Alles wissen")
+                        }
+                        Button(onClick = { onApply(draft) }) { Text("Toepassen") }
+                    }
+                }
             }
         }
     }
