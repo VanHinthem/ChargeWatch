@@ -89,6 +89,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
@@ -159,6 +160,8 @@ fun MapScreen(
     val pdokClient = remember { PdokDestinationClient() }
     val operatorClient = remember { OperatorOptionsClient() }
     val filterScope = rememberCoroutineScope()
+    val mapFocusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val filters by viewModel.filters
     var filterSheetOpen by remember { mutableStateOf(false) }
     var operatorChoices by viewModel.operatorChoices
@@ -335,6 +338,12 @@ fun MapScreen(
                 selectedLocations = tapped
                 if (tapped.isNotEmpty()) nearbyExpanded = false
             },
+            onMapTapped = {
+                // MapLibre's AndroidView does not automatically clear Compose
+                // BasicTextField focus. A blank search should show the chips again.
+                mapFocusManager.clearFocus(force = true)
+                keyboardController?.hide()
+            },
             favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
             destination = destination,
@@ -483,6 +492,9 @@ private fun SearchHeader(
             },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Keep chips closer to the search field without reducing the spacing
+        // before the destination suggestions or the nearby results panel.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
@@ -543,6 +555,7 @@ private fun SearchHeader(
         }
 
         if (!(focused && !searchSelected)) QuickFilterRow(filters, onQuickFilter)
+        }
 
         if (suggestVisible && (results.isNotEmpty() || message != null || loading)) {
             Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
@@ -745,6 +758,7 @@ private fun ChargeMap(
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
+    onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
     cameraTarget: CameraTarget?,
     destination: Destination?,
@@ -760,6 +774,7 @@ private fun ChargeMap(
     val currentLocations = rememberUpdatedState(locations)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
+    val currentMapTapHandler = rememberUpdatedState(onMapTapped)
     val currentDestination = rememberUpdatedState(destination)
     val currentMapIdleHandler = rememberUpdatedState(onMapCameraIdle)
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
@@ -820,6 +835,7 @@ private fun ChargeMap(
                         true
                     }
                     map.addOnMapClickListener {
+                        currentMapTapHandler.value()
                         currentSelectionHandler.value(emptyList())
                         false
                     }

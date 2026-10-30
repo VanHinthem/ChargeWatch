@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -40,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
@@ -59,15 +61,25 @@ fun QuickFilterRow(filters: ChargingFilters, onToggle: (String) -> Unit) {
                 Triple("lt50", "<50 kW", filters.power == "lt50"),
                 Triple("gte150", "≥150 kW", filters.power == "gte150")
             ).forEach { (key, label, selected) ->
-                FilterChip(
-                    selected = selected,
-                    onClick = { onToggle(key) },
-                    label = { Text(label) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                // The search field uses Surface with tonalElevation = 5.dp.
+                // Give each chip the same opaque, elevated surface and rounded
+                // shape instead of the contrasting outlined FilterChip default.
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    tonalElevation = 5.dp
+                ) {
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onToggle(key) },
+                        label = { Text(label) },
+                        shape = RoundedCornerShape(22.dp),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
-                )
+                }
             }
         }
     }
