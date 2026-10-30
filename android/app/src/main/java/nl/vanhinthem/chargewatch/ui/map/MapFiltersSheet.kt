@@ -157,8 +157,15 @@ fun MapFiltersSheet(
     LaunchedEffect("operator" in expanded) {
         if ("operator" in expanded && operators == null && !operatorLoading) onOperatorSectionOpened()
     }
-    // Filter changes are applied immediately; no apply footer is needed.
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    // Match the search bar's Surface exactly in light and dark themes:
+    // same surface container color and the same 5.dp tonal elevation.
+    // ModalBottomSheet otherwise uses its own default container tone.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 5.dp
+    ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
             Row(
                 modifier = Modifier.fillMaxWidth()
