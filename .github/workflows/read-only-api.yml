@@ -136,3 +136,69 @@ jobs:
           assert status['evseCount']==146 and status['connectorCount']==146,status
           print('Active-only API location, detail, viewport and data-status contract passed.')
           PY
+
+      - name: Verify map filters and nearest selection against isolated HTTP API
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f db/tests/023_map_filters_fixture.sql
+          export CW_API_CONNECTION="Host=localhost;Port=5432;Username=chargewatch_read;Password=read-test-only;Database=chargewatch"
+          ASPNETCORE_URLS=http://127.0.0.1:5090 dotnet run --project src/ChargeWatch.Api --configuration Release --no-launch-profile > /tmp/cw-api-filters.log 2>&1 &
+          service=$!
+          trap 'kill "$service" 2>/dev/null || true; cat /tmp/cw-api-filters.log' EXIT
+          for retry in $(seq 1 70); do
+            if curl -fsS 'http://127.0.0.1:5090/api/v1/data-status' >/dev/null; then break; fi
+            if ! kill -0 "$service" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse, urllib.error
+          base='http://127.0.0.1:5090/api/v1/'
+          def get(path, params=None):
+              url=base+path
+              if params: url+='?'+urllib.parse.urlencode(params,doseq=True)
+              with urllib.request.urlopen(url,timeout=20) as response:
+                  return json.load(response), response.headers
+          nearest=dict(latitude=51.76,longitude=5.55,radiusMeters=25000,limit=5)
+          base_results,_=get('locations',nearest)
+          assert len(base_results)==5
+          qs=dict(nearest,connectorType='ccs2',power='gte150')
+          matching,headers=get('locations',qs)
+          assert headers.get('X-ChargeWatch-Filter-Version')=='1'
+          assert [r['sourceId'] for r in matching]==['F2','F4','F6','F8','F10'], matching
+          free,_=get('locations',dict(qs,minFree=1))
+          assert [r['sourceId'] for r in free]==['F4','F6','F8','F10','F14'],free
+          # Unfiltered viewport honestly rejects >999 locations; filtered viewport
+          # must still succeed when >1000 nonmatching rows are in the bbox.
+          try: get('map/viewport',dict(bbox='5.54,51.755,5.58,51.77'))
+          except urllib.error.HTTPError as exc: assert exc.code==413
+          else: raise AssertionError('Unfiltered >999-row viewport was not rejected')
+          ccspower,_=get('map/viewport',dict(bbox='5.54,51.755,5.58,51.77',
+                                            connectorType='ccs2',power='gte150'))
+          ids=[i['featureId'] for i in ccspower['locations']]
+          assert 'NL-FTR-F12' not in ids and 'NL-FTR-F16' not in ids,ids
+          ten=next(x for x in ccspower['locations'] if x['featureId']=='NL-FTR-F10')
+          assert ten['totalCount']==1 and ten['availableCount']==1,ten
+          # DC 1000 V x 150 A is a calculated, usable 150 kW filter value.
+          derived,_=get('locations',dict(latitude=51.76,longitude=5.564,
+                                         radiusMeters=25000,limit=1,
+                                         connectorType='ccs2',power='gte150'))
+          assert [x['sourceId'] for x in derived]==['F14'],derived
+          # Two available connectors on one EVSE do not count as two free EVSEs.
+          two,_=get('locations',dict(qs,minFree=2))
+          assert two==[],two
+          # OR within connector types, AND with selected power on the SAME connector.
+          combined,_=get('map/viewport',dict(bbox='5.54,51.755,5.58,51.77',
+                 connectorType=['ccs2','type2'],power='gte150'))
+          assert 'NL-FTR-F12' in [x['featureId'] for x in combined['locations']]
+          less,_=get('locations',dict(nearest,power='lt50',limit=20))
+          assert 'F16' not in [x['sourceId'] for x in less],less
+          names,_=get('operators')
+          assert 'Fastned' in names and 'Vattenfall InCharge' in names,names
+          with urllib.request.urlopen(base+'locations?limit=1') as response:
+              assert response.headers.get('X-ChargeWatch-Filter-Version') is None
+          try: get('locations',dict(nearest,power='invalid'))
+          except urllib.error.HTTPError as exc: assert exc.code==400
+          else: raise AssertionError('Invalid filter did not return 400')
+          print('EVSE-accurate filtered viewport, nearest, power, operators and compatibility passed')
+          PY

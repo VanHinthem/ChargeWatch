@@ -31,7 +31,7 @@ internal sealed class ApiDatabase(ApiOptions options)
     }
 
     public async Task<IReadOnlyList<LocationListItem>> SearchLocations(
-        string? query, Bbox? bbox, double? latitude, double? longitude, int? radiusMeters, int limit)
+        string? query, Bbox? bbox, double? latitude, double? longitude, int? radiusMeters, int limit, MapFilter? filters = null)
     {
         if (latitude is not null && (latitude < -90 || latitude > 90))
             throw new ArgumentOutOfRangeException(nameof(latitude));
@@ -42,13 +42,14 @@ internal sealed class ApiDatabase(ApiOptions options)
         if (radiusMeters is not null && (radiusMeters < 100 || radiusMeters > 100000))
             throw new ArgumentOutOfRangeException(nameof(radiusMeters), "radiusMeters must be between 100 and 100000.");
 
+        filters ??= MapFilter.None;
         var useNear = latitude is not null;
         int? effectiveRadius = useNear ? radiusMeters ?? 5000 : null;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
         var feedObservedAt = await GetFeedLastObservedAt(connection);
 
-        await using var command = new NpgsqlCommand("""
+        await using var command = new NpgsqlCommand($"""
             SELECT l.id,l.country_code,l.party_id,l.source_id,l.address,l.city,l.operator_name,
                    l.latitude,l.longitude,
                    count(e.id) FILTER (WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('REMOVED','PLANNED'))::int AS evse_count,
@@ -69,6 +70,7 @@ internal sealed class ApiDatabase(ApiOptions options)
                    ST_Intersects(l.position,ST_MakeEnvelope($2,$3,$4,$5,4326)::geography))
               AND ($7::double precision IS NULL OR
                    ST_DWithin(l.position,ST_SetSRID(ST_MakePoint($8,$7),4326)::geography,$9))
+              {filters.LocationPredicate(10)}
             GROUP BY l.id
             ORDER BY
               CASE WHEN $1::text IS NOT NULL AND trim($1) <> '' THEN
@@ -95,6 +97,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         AddNullableDouble(command, longitude);
         command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Integer, Value = effectiveRadius is null ? DBNull.Value : effectiveRadius.Value });
 
+        filters.AddParameters(command);
         var result = new List<LocationListItem>();
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -114,18 +117,20 @@ internal sealed class ApiDatabase(ApiOptions options)
 
     // A dedicated map path: a bounded, read-only viewport query. Never return
     // a deceptively complete partial result when the viewport exceeds the cap.
-    public async Task<MapViewportResult> GetMapViewport(Bbox bbox)
+    public async Task<MapViewportResult> GetMapViewport(Bbox bbox, MapFilter? filters = null)
     {
+        filters ??= MapFilter.None;
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
         var feedObservedAt = await GetFeedLastObservedAt(connection);
-        await using var command = new NpgsqlCommand("""
+        await using var command = new NpgsqlCommand($"""
             WITH selected AS (
                 SELECT id,country_code,party_id,source_id,address,operator_name,
                        longitude,latitude,source_last_updated
-                FROM charging_location
-                WHERE is_active AND position IS NOT NULL
+                FROM charging_location l
+                WHERE l.is_active AND l.position IS NOT NULL
                   AND ST_Intersects(position, ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)
+                  {filters.LocationPredicate(5)}
                 ORDER BY id LIMIT 1000
             )
             SELECT l.country_code,l.party_id,l.source_id,l.address,l.operator_name,
@@ -154,6 +159,7 @@ internal sealed class ApiDatabase(ApiOptions options)
         command.Parameters.AddWithValue(bbox.MinLat);
         command.Parameters.AddWithValue(bbox.MaxLon);
         command.Parameters.AddWithValue(bbox.MaxLat);
+        filters.AddParameters(command);
         var locations = new List<MapLocationItem>();
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -193,6 +199,22 @@ internal sealed class ApiDatabase(ApiOptions options)
             locations.Count >= 1000,
             feedObservedAt,
             IsStale(feedObservedAt));
+    }
+
+    public async Task<IReadOnlyList<string>> GetOperators()
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT DISTINCT btrim(operator_name) AS name
+            FROM charging_location
+            WHERE is_active AND operator_name IS NOT NULL AND btrim(operator_name) <> ''
+            ORDER BY name
+            """, connection);
+        var result = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) result.Add(reader.GetString(0));
+        return result;
     }
 
     // Resolve by the compound OCPI key. Never infer identity from nearby coordinates.

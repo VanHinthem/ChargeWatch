@@ -2,6 +2,12 @@
 
 **Status:** Importer, PostgreSQL/PostGIS, read-only API, compacte statistieken en Android-client zijn operationeel. De data-audit tot en met tarief- en connectoraanwezigheid is geïmplementeerd; productie-uitrol blijft per release een afzonderlijk beslismoment.
 
+## Mapfilters — read-only API additie (issue #95, PR #97)
+
+Bestaande `GET /api/v1/map/viewport` en `GET /api/v1/locations` accepteren optionele herhaalbare `connectorType=type2|ccs2|chademo|other`, `mode=ac|dc` en `operator=<bronoperatornaam>`, exclusieve `power=lt50|gte50|gte150|gte300`, en `minFree=0|1|2`. Binnen één filtergroep is selectie OF, tussen groepen EN; connectortype + AC/DC + vermogen matchen op dezelfde actieve connector binnen één actieve operationele EVSE. Per EVSE is maximaal één beschikbaarheidsmatch. Vermogensbanden gebruiken expliciet **en** berekend `effectivePowerWatts` identiek, ontbrekende/0-watts waarden matchen geen band. Operatornamen komen uit ongewijzigde `charging_location.operator_name` en een read-only `GET /api/v1/operators`. Locaties worden gefilterd vóór de 1.000-viewport-cap en vóór de vijf nearest-resultaten.
+
+Zonder filter blijft de bestaande API/NDW-fallback/marker- en locatietelling identiek. Met filters bevestigt de API `X-ChargeWatch-Filter-Version: 1` op beide success-responses; een oude of onbereikbare NAS-API en directe NDW-GeoJSON-resultaten mogen niet stilzwijgend als gefilterde locaties worden getoond. Filters worden alleen in de Android-appsessie onthouden; geen opslag in DB of DataStore. Deze nieuwe endpoints worden pas beschikbaar op de NAS na expliciet afzonderlijk deploymentakkoord en een backendrelease.
+
 ## Hoofdopzet — versie 1
 
 ```text
