@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -504,8 +505,16 @@ private fun SearchHeader(
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    val suggestVisible = !filterPanelOpen && focused && !searchSelected && query.trim().length >= 2
-    val nearbyPanelVisible = !filterPanelOpen && destination != null &&
+    // Animate the filter drawer from the search bar, and wait for it to
+    // disappear completely before restoring the nearby drawer / quick chips.
+    val filterTransition = remember { MutableTransitionState(false) }
+    LaunchedEffect(filterPanelOpen) {
+        filterTransition.targetState = filterPanelOpen
+    }
+    val filterDrawerVisible = filterPanelOpen ||
+        filterTransition.currentState || filterTransition.targetState
+    val suggestVisible = !filterDrawerVisible && focused && !searchSelected && query.trim().length >= 2
+    val nearbyPanelVisible = !filterDrawerVisible && destination != null &&
         showNearbyPanel && !(focused && !searchSelected)
     val filterMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.70f
     Column(
@@ -513,14 +522,14 @@ private fun SearchHeader(
             .onGloballyPositioned { coordinates ->
                 // Keep the nearest-camera fit stable while the filter overlay is
                 // open. Its 70%-screen body is not part of the map's fit padding.
-                if (!filterPanelOpen)
+                if (!filterDrawerVisible)
                     onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
             },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Search and nearby results are visually one control when an address is selected.
         Column(verticalArrangement = Arrangement.spacedBy(
-            if (nearbyPanelVisible || filterPanelOpen) 0.dp else 2.dp
+            if (nearbyPanelVisible || filterDrawerVisible) 0.dp else 2.dp
         )) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
@@ -591,10 +600,14 @@ private fun SearchHeader(
             }
         }
 
-        if (filterPanelOpen) {
-            // The attached filter drawer replaces the nearby drawer while open.
-            // Only the drawer scrolls; it overlays the map and temporarily
-            // hides quick filter chips without changing the camera.
+        if (filterDrawerVisible) {
+            // The attached filter drawer slides down from the search bar.
+            // Do not restore nearby results/chips until its exit completes.
+            AnimatedVisibility(
+                visibleState = filterTransition,
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+            ) {
             Surface(
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp).zIndex(2f),
@@ -621,6 +634,7 @@ private fun SearchHeader(
                         onDismiss = onCloseFilters
                     )
                 }
+            }
             }
         } else if (nearbyPanelVisible) {
             // A short drawer handle is always attached directly to the search bar.
