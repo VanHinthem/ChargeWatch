@@ -1,6 +1,7 @@
 package nl.vanhinthem.chargewatch.ui.map
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,8 +24,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -41,8 +40,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 
@@ -61,24 +60,36 @@ fun QuickFilterRow(filters: ChargingFilters, onToggle: (String) -> Unit) {
                 Triple("lt50", "<50 kW", filters.power == "lt50"),
                 Triple("gte150", "≥150 kW", filters.power == "gte150")
             ).forEach { (key, label, selected) ->
-                // The search field uses Surface with tonalElevation = 5.dp.
-                // Give each chip the same opaque, elevated surface and rounded
-                // shape instead of the contrasting outlined FilterChip default.
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    tonalElevation = 5.dp
+                // 48 dp touch target, with a compact 36 dp visible chip.
+                // Top alignment preserves the tight spacing below the search field.
+                Box(
+                    modifier = Modifier.height(48.dp).toggleable(
+                        value = selected,
+                        role = Role.Checkbox,
+                        onValueChange = { onToggle(key) }
+                    ),
+                    contentAlignment = Alignment.TopCenter
                 ) {
-                    FilterChip(
-                        selected = selected,
-                        onClick = { onToggle(key) },
-                        label = { Text(label) },
-                        shape = RoundedCornerShape(22.dp),
-                        border = null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color.Transparent,
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    )
+                    val chipColor = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surface
+                    Surface(
+                        modifier = Modifier.height(36.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        color = chipColor,
+                        tonalElevation = 5.dp
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 15.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
             }
         }
