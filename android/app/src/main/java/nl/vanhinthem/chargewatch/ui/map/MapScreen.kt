@@ -385,6 +385,7 @@ fun MapScreen(
             nearLoading = nearLoading,
             nearMessage = nearMessage,
             nearbyExpanded = nearbyExpanded,
+            canReturnToDestination = canReturnToDestination,
             onReturnToDestination = ::returnToDestination,
             showNearbyPanel = selectedLocations.isEmpty(),
             onNearbyExpandedChanged = { nearbyExpanded = it },
@@ -473,6 +474,7 @@ private fun SearchHeader(
     nearLoading: Boolean,
     nearMessage: String?,
     nearbyExpanded: Boolean,
+    canReturnToDestination: Boolean,
     onReturnToDestination: () -> Unit,
     showNearbyPanel: Boolean,
     onNearbyExpandedChanged: (Boolean) -> Unit,
@@ -498,7 +500,7 @@ private fun SearchHeader(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Search and nearby results are visually one control when an address is selected.
-        Column(verticalArrangement = Arrangement.spacedBy(if (nearbyPanelVisible) 3.dp else 2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (nearbyPanelVisible) 0.dp else 2.dp)) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
@@ -572,11 +574,11 @@ private fun SearchHeader(
                     QuickFilterRow(filters, onQuickFilter)
                 }
             Surface(
-                // A slightly narrower drawer and a hairline distinguish the
-                // nearby results from the search bar without changing behavior.
+                // Connected to the search field, but inset horizontally.
+                // The subtle top divider and narrower width distinguish the drawer.
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).zIndex(1f),
                 shape = RoundedCornerShape(
-                    topStart = 10.dp, topEnd = 10.dp,
+                    topStart = 0.dp, topEnd = 0.dp,
                     bottomStart = 22.dp, bottomEnd = 22.dp
                 ),
                 tonalElevation = 5.dp
@@ -626,22 +628,25 @@ private fun SearchHeader(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
-                        // Independent action: tapping the target restores the
-                        // existing overview without expanding the results.
-                        IconButton(
-                            onClick = onReturnToDestination,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.MyLocation,
-                                contentDescription = "Terug naar zoekadres",
-                                tint = MaterialTheme.colorScheme.primary
+                        // The target only appears when the camera is away from the
+                        // fitted pin + five-nearest overview, including manual pans.
+                        // The action is independent of the results toggle.
+                        if (canReturnToDestination) {
+                            IconButton(
+                                onClick = onReturnToDestination,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.MyLocation,
+                                    contentDescription = "Terug naar zoekadres",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Box(
+                                modifier = Modifier.width(1.dp).height(20.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
                             )
                         }
-                        Box(
-                            modifier = Modifier.width(1.dp).height(20.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant)
-                        )
                         Icon(
                             if (nearbyExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = if (nearbyExpanded) "Lijst inklappen" else "Lijst uitklappen"
