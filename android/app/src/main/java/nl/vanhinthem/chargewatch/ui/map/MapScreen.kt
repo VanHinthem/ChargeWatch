@@ -431,14 +431,15 @@ fun MapScreen(
 
     if (filterSheetOpen) {
         MapFiltersSheet(
-            initial = filters,
+            filters = filters,
             operators = operatorChoices,
             operatorLoading = operatorLoading,
             operatorError = operatorError,
             onOperatorSectionOpened = ::loadOperators,
-            onApply = { next ->
+            onFiltersChanged = { next ->
+                // Keep the sheet open while map and nearest chargers refresh.
+                // The ViewModel ignores no-op selections and discards stale requests.
                 selectedLocations = emptyList()
-                filterSheetOpen = false
                 viewModel.applyFilters(next)
             },
             onDismiss = { filterSheetOpen = false }
