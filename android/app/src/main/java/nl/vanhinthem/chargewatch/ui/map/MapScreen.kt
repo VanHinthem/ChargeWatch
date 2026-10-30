@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -84,14 +85,19 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -116,6 +122,8 @@ import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
+import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import nl.vanhinthem.chargewatch.data.search.SearchResult
@@ -155,6 +163,26 @@ fun MapScreen(
     val favoriteIds = favorites.map { it.featureId }.toSet()
     val nearestClient = remember { LocationSearchClient() }
     val pdokClient = remember { PdokDestinationClient() }
+    val operatorClient = remember { OperatorOptionsClient() }
+    val filterScope = rememberCoroutineScope()
+    val mapFocusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val filters by viewModel.filters
+    var filterSheetOpen by remember { mutableStateOf(false) }
+    var operatorChoices by viewModel.operatorChoices
+    var operatorLoading by remember { mutableStateOf(false) }
+    var operatorError by remember { mutableStateOf<String?>(null) }
+    fun loadOperators() {
+        if (operatorLoading || operatorChoices != null) return
+        operatorLoading = true
+        operatorError = null
+        filterScope.launch {
+            runCatching { operatorClient.load() }
+                .onSuccess { operatorChoices = it }
+                .onFailure { operatorError = it.message ?: "Operators ophalen mislukt." }
+            operatorLoading = false
+        }
+    }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
     var searchPanelBottomPx by remember { mutableStateOf(0) }
@@ -165,6 +193,7 @@ fun MapScreen(
     var searchSelected by viewModel.searchSelected
     var selectedSuggestion by remember { mutableStateOf<DestinationSuggestion?>(null) }
     var destination by viewModel.destination
+    var overviewRequest by remember { mutableStateOf<CameraTarget?>(null) }
     var cameraTarget by remember {
         mutableStateOf(viewModel.overview.value?.let { CameraTarget(it.latitude, it.longitude, it.zoom) }
             ?: destination?.let { CameraTarget(it.latitude, it.longitude, 14.0) })
@@ -212,7 +241,9 @@ fun MapScreen(
                     viewModel.nearLoadedFor.value = null
                     destination = response.destination
                     canReturnToDestination = false
-                    nearbyExpanded = true
+                    // The map still fits the blue pin and five nearest chargers,
+                    // but the nearby-results drawer starts collapsed.
+                    nearbyExpanded = false
                     cameraTarget = CameraTarget(response.destination.latitude, response.destination.longitude, 14.0)
                 }
                 is DestinationLookupResult.Failure -> searchMessage = response.message
@@ -222,7 +253,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(destination) {
+    LaunchedEffect(destination, filters) {
         val chosen = destination
         if (chosen == null) {
             viewModel.overview.value = null
@@ -233,15 +264,18 @@ fun MapScreen(
             return@LaunchedEffect
         }
         // Returning from another app tab must not fetch again or undo manual panning.
-        if (viewModel.nearLoadedFor.value == chosen) return@LaunchedEffect
+        if (viewModel.nearLoadedFor.value == chosen && viewModel.nearLoadedWith.value == filters) return@LaunchedEffect
+        val keepCamera = canReturnToDestination
+        viewModel.overview.value = null
         nearLoading = true
         nearLocations = emptyList()
         nearMessage = null
         try {
-            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude)) {
+            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude, filters = filters)) {
                 is SearchResult.Success -> {
                     nearLocations = response.locations
-                    nearMessage = if (response.locations.isEmpty()) "Geen laadlocaties binnen 25 km." else null
+                    nearMessage = if (response.locations.isEmpty())
+                        (if (filters.active) "Geen passende laadlocaties binnen 25 km." else "Geen laadlocaties binnen 25 km.") else null
                 }
                 is SearchResult.Failure -> nearMessage = response.message
             }
@@ -249,11 +283,14 @@ fun MapScreen(
             nearLoading = false
         }
         viewModel.nearLoadedFor.value = chosen
+        viewModel.nearLoadedWith.value = filters
         // The list expands via animation. Fit only once after its height settles;
         // never refit when the user toggles it or manually moves the map.
         delay(420)
-        cameraTarget = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
+        val request = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
             nearby = nearLocations.toList(), panelBottomPx = searchPanelBottomPx)
+        if (!keepCamera && !canReturnToDestination) cameraTarget = request
+        else overviewRequest = request
     }
 
     fun onQueryChanged(value: String) {
@@ -280,6 +317,7 @@ fun MapScreen(
         searchMessage = null
         selectedLocations = emptyList()
         selectedSuggestion = item
+        nearbyExpanded = false
     }
 
     fun returnToDestination() {
@@ -306,11 +344,23 @@ fun MapScreen(
             onViewportChanged = viewModel::onViewportChanged,
             onLocationsSelected = { tapped ->
                 selectedLocations = tapped
-                if (tapped.isNotEmpty()) nearbyExpanded = false
+                if (tapped.isNotEmpty()) {
+                    nearbyExpanded = false
+                    filterSheetOpen = false
+                }
+            },
+            onMapTapped = {
+                // Tapping the map dismisses search focus and any expanded list.
+                mapFocusManager.clearFocus(force = true)
+                keyboardController?.hide()
+                nearbyExpanded = false
+                filterSheetOpen = false
             },
             favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
             destination = destination,
+            overviewRequest = overviewRequest,
+            onOverviewConsumed = { overviewRequest = null },
             onMapCameraIdle = { lat, lon, zoom ->
                 // Compare with the *fitted* overview, not the original fixed zoom 14.
                 canReturnToDestination = shouldShowReturnToDestination(
@@ -344,9 +394,33 @@ fun MapScreen(
             canReturnToDestination = canReturnToDestination,
             onReturnToDestination = ::returnToDestination,
             showNearbyPanel = selectedLocations.isEmpty(),
+            filterPanelOpen = filterSheetOpen,
+            operators = operatorChoices,
+            operatorLoading = operatorLoading,
+            operatorError = operatorError,
+            onOperatorSectionOpened = ::loadOperators,
+            onFiltersChanged = { next ->
+                selectedLocations = emptyList()
+                viewModel.applyFilters(next)
+            },
+            onCloseFilters = { filterSheetOpen = false },
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
+            filters = filters,
+            onQuickFilter = { id ->
+                selectedLocations = emptyList()
+                viewModel.applyFilters(filters.toggleQuick(id))
+            },
+            onOpenFilters = {
+                selectedLocations = emptyList()
+                // Never show the nearest drawer and the filter drawer together.
+                if (!filterSheetOpen) {
+                    mapFocusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                }
+                filterSheetOpen = !filterSheetOpen
+            },
             onBottomChanged = { searchHeaderBottom = it },
             onPanelBottomChanged = { searchPanelBottomPx = it }
         )
@@ -374,6 +448,10 @@ fun MapScreen(
                 )
             }
         }
+    }
+
+    BackHandler(enabled = filterSheetOpen) {
+        filterSheetOpen = false
     }
 
     if (selectedLocations.isNotEmpty()) {
@@ -408,29 +486,58 @@ private fun SearchHeader(
     canReturnToDestination: Boolean,
     onReturnToDestination: () -> Unit,
     showNearbyPanel: Boolean,
+    filterPanelOpen: Boolean,
+    operators: List<String>?,
+    operatorLoading: Boolean,
+    operatorError: String?,
+    onOperatorSectionOpened: () -> Unit,
+    onFiltersChanged: (ChargingFilters) -> Unit,
+    onCloseFilters: () -> Unit,
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
+    filters: ChargingFilters,
+    onQuickFilter: (String) -> Unit,
+    onOpenFilters: () -> Unit,
     onBottomChanged: (Dp) -> Unit = {},
     onPanelBottomChanged: (Int) -> Unit = {}
 ) {
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    val suggestVisible = focused && !searchSelected && query.trim().length >= 2
-
+    // Animate the filter drawer from the search bar, and wait for it to
+    // disappear completely before restoring the nearby drawer / quick chips.
+    val filterTransition = remember { MutableTransitionState(false) }
+    LaunchedEffect(filterPanelOpen) {
+        filterTransition.targetState = filterPanelOpen
+    }
+    val filterDrawerVisible = filterPanelOpen ||
+        filterTransition.currentState || filterTransition.targetState
+    val suggestVisible = !filterDrawerVisible && focused && !searchSelected && query.trim().length >= 2
+    val nearbyPanelVisible = !filterDrawerVisible && destination != null &&
+        showNearbyPanel && !(focused && !searchSelected)
+    val filterMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.70f
     Column(
         modifier = modifier.fillMaxWidth()
             .onGloballyPositioned { coordinates ->
-                onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
+                // Keep the nearest-camera fit stable while the filter overlay is
+                // open. Its 70%-screen body is not part of the map's fit padding.
+                if (!filterDrawerVisible)
+                    onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
             },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Search and nearby results are visually one control when an address is selected.
+        Column(verticalArrangement = Arrangement.spacedBy(
+            if (nearbyPanelVisible || filterDrawerVisible) 0.dp else 2.dp
+        )) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
             },
-            shape = RoundedCornerShape(22.dp),
+            // All four corners have a standard radius. The inset of the attached
+            // drawer matches this radius exactly at the bottom edge.
+            shape = RoundedCornerShape(16.dp),
             tonalElevation = 5.dp
         ) {
             Row(
@@ -442,7 +549,10 @@ private fun SearchHeader(
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
+                    modifier = Modifier.weight(1f).onFocusChanged {
+                        focused = it.isFocused
+                        if (it.isFocused && filterPanelOpen) onCloseFilters()
+                    },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -474,62 +584,88 @@ private fun SearchHeader(
                         focused = false
                     }) { Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen") }
                 }
-                // Filter implementation is phase B of issue #95.
-                Icon(Icons.Default.FilterList, contentDescription = "Filters (volgt later)")
-            }
-        }
-
-        if (suggestVisible && (results.isNotEmpty() || message != null || loading)) {
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
-                Column(modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())
-                    .padding(vertical = 6.dp)) {
-                    results.forEachIndexed { index, item ->
-                        if (index > 0) HorizontalDivider()
-                        Row(modifier = Modifier.fillMaxWidth().clickable {
-                            onResultSelected(item)
-                            focused = false
-                            focusManager.clearFocus()
-                        }.padding(horizontal = 16.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Default.Navigation, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.label, style = MaterialTheme.typography.titleSmall)
-                                Text(when (item.type) {
-                                    "adres" -> "Adres"
-                                    "postcode" -> "Postcode"
-                                    "weg" -> "Straat"
-                                    "woonplaats" -> "Plaats"
-                                    "gemeente" -> "Gemeente"
-                                    else -> "Bestemming"
-                                }, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    if (results.isEmpty() && !loading && message != null) {
-                        Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                IconButton(onClick = onOpenFilters) {
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = if (filterPanelOpen) "Filters inklappen" else "Filters openen",
+                        tint = if (filterPanelOpen) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                if (filters.activeCount > 0) {
+                    Text(filters.activeCount.toString(),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
-        if (searchSelected && destination == null && !loading && message != null) {
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                Text(message, modifier = Modifier.padding(16.dp))
-            }
-        }
-        // Keep the selected destination pinned while another address is being typed,
-        // but give autocomplete priority over the nearby-charger panel.
-        if (destination != null && showNearbyPanel && !(focused && !searchSelected)) {
+
+        if (filterDrawerVisible) {
+            // The attached filter drawer slides down from the search bar.
+            // Do not restore nearby results/chips until its exit completes.
+            AnimatedVisibility(
+                visibleState = filterTransition,
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+            ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                tonalElevation = 6.dp
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp).zIndex(2f),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp, topEnd = 0.dp,
+                    bottomStart = 16.dp, bottomEnd = 16.dp
+                ),
+                tonalElevation = 5.dp
             ) {
                 Column {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+                    MapFiltersPanel(
+                        filters = filters,
+                        maxHeight = filterMaxHeight,
+                        operators = operators,
+                        operatorLoading = operatorLoading,
+                        operatorError = operatorError,
+                        onOperatorSectionOpened = onOperatorSectionOpened,
+                        onFiltersChanged = onFiltersChanged,
+                        onDismiss = onCloseFilters
+                    )
+                }
+            }
+            }
+        } else if (nearbyPanelVisible) {
+            // A short drawer handle is always attached directly to the search bar.
+            // The full list overlays the chips; it never pushes them farther down.
+            Box(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    // Only the compact 48 dp handle + 1 dp divider reserves
+                    // space. The optional return action now lives in the handle.
+                    Spacer(Modifier.height(52.dp))
+                    QuickFilterRow(filters, onQuickFilter)
+                }
+            Surface(
+                // The 16 dp inset starts exactly where the search field's
+                // lower corner radius ends. Keep the top flat and retain
+                // a subtle divider to distinguish the drawer.
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).zIndex(1f),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp, topEnd = 0.dp,
+                    bottomStart = 16.dp, bottomEnd = 16.dp
+                ),
+                tonalElevation = 5.dp
+            ) {
+                Column {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -550,45 +686,48 @@ private fun SearchHeader(
                                 )
                             }
                             .clickable { onNearbyExpandedChanged(!nearbyExpanded) }
-                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                            .heightIn(min = 48.dp)
+                            .padding(start = 16.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.EvStation, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Laadlocaties in de buurt", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                when {
-                                    nearLoading -> "Dichtstbijzijnde locaties ophalen…"
-                                    nearMessage != null && nearLocations.isEmpty() -> nearMessage
-                                    else -> nearestLocationsCountLabel(nearLocations.size)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = when {
+                                nearLoading -> "Laadlocaties ophalen…"
+                                nearMessage != null && nearLocations.isEmpty() -> nearMessage
+                                else -> nearestLocationsCountLabel(nearLocations.size)
+                            },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        // The target only appears when the camera is away from the
+                        // fitted pin + five-nearest overview, including manual pans.
+                        // The action is independent of the results toggle.
+                        if (canReturnToDestination) {
+                            IconButton(
+                                onClick = onReturnToDestination,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.MyLocation,
+                                    contentDescription = "Terug naar zoekadres",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Box(
+                                modifier = Modifier.width(1.dp).height(20.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
                             )
                         }
                         Icon(
                             if (nearbyExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = if (nearbyExpanded) "Lijst inklappen" else "Lijst uitklappen"
                         )
-                    }
-                    AnimatedVisibility(
-                        visible = canReturnToDestination,
-                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
-                    ) {
-                        Column {
-                            HorizontalDivider()
-                            TextButton(
-                                onClick = onReturnToDestination,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.MyLocation, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Terug naar zoekadres")
-                            }
-                        }
                     }
                     AnimatedVisibility(
                         visible = nearbyExpanded,
@@ -655,7 +794,55 @@ private fun SearchHeader(
                     }
                 }
             }
+            }
+        } else if (!(focused && !searchSelected)) {
+            QuickFilterRow(filters, onQuickFilter)
         }
+        }
+
+        if (suggestVisible && (results.isNotEmpty() || message != null || loading)) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
+                Column(modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())
+                    .padding(vertical = 6.dp)) {
+                    results.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider()
+                        Row(modifier = Modifier.fillMaxWidth().clickable {
+                            onResultSelected(item)
+                            focused = false
+                            focusManager.clearFocus()
+                        }.padding(horizontal = 16.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Navigation, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.label, style = MaterialTheme.typography.titleSmall)
+                                Text(when (item.type) {
+                                    "adres" -> "Adres"
+                                    "postcode" -> "Postcode"
+                                    "weg" -> "Straat"
+                                    "woonplaats" -> "Plaats"
+                                    "gemeente" -> "Gemeente"
+                                    else -> "Bestemming"
+                                }, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    if (results.isEmpty() && !loading && message != null) {
+                        Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        if (searchSelected && destination == null && !loading && message != null) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Text(message, modifier = Modifier.padding(16.dp))
+            }
+        }
+
     }
 }
 
@@ -680,9 +867,12 @@ private fun ChargeMap(
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
+    onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
     cameraTarget: CameraTarget?,
     destination: Destination?,
+    overviewRequest: CameraTarget?,
+    onOverviewConsumed: () -> Unit,
     onMapCameraIdle: (Double, Double, Double) -> Unit,
     onOverviewCalculated: (DestinationOverview) -> Unit,
     onCameraTargetConsumed: () -> Unit
@@ -693,6 +883,7 @@ private fun ChargeMap(
     val currentLocations = rememberUpdatedState(locations)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
+    val currentMapTapHandler = rememberUpdatedState(onMapTapped)
     val currentDestination = rememberUpdatedState(destination)
     val currentMapIdleHandler = rememberUpdatedState(onMapCameraIdle)
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
@@ -753,6 +944,7 @@ private fun ChargeMap(
                         true
                     }
                     map.addOnMapClickListener {
+                        currentMapTapHandler.value()
                         currentSelectionHandler.value(emptyList())
                         false
                     }
@@ -804,6 +996,10 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
+                overviewRequest?.let { request ->
+                    currentOverviewHandler.value(fitDestinationOverview(map, view, request))
+                    onOverviewConsumed()
+                }
                 cameraTarget?.let { target ->
                     val result = if (target.nearby != null) {
                         fitDestinationOverview(map, view, target)
