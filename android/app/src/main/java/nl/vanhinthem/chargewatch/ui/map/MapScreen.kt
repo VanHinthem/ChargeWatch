@@ -88,6 +88,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -342,13 +343,17 @@ fun MapScreen(
             onViewportChanged = viewModel::onViewportChanged,
             onLocationsSelected = { tapped ->
                 selectedLocations = tapped
-                if (tapped.isNotEmpty()) nearbyExpanded = false
+                if (tapped.isNotEmpty()) {
+                    nearbyExpanded = false
+                    filterSheetOpen = false
+                }
             },
             onMapTapped = {
                 // Tapping the map dismisses search focus and any expanded list.
                 mapFocusManager.clearFocus(force = true)
                 keyboardController?.hide()
                 nearbyExpanded = false
+                filterSheetOpen = false
             },
             favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
@@ -388,6 +393,16 @@ fun MapScreen(
             canReturnToDestination = canReturnToDestination,
             onReturnToDestination = ::returnToDestination,
             showNearbyPanel = selectedLocations.isEmpty(),
+            filterPanelOpen = filterSheetOpen,
+            operators = operatorChoices,
+            operatorLoading = operatorLoading,
+            operatorError = operatorError,
+            onOperatorSectionOpened = ::loadOperators,
+            onFiltersChanged = { next ->
+                selectedLocations = emptyList()
+                viewModel.applyFilters(next)
+            },
+            onCloseFilters = { filterSheetOpen = false },
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
@@ -398,7 +413,12 @@ fun MapScreen(
             },
             onOpenFilters = {
                 selectedLocations = emptyList()
-                filterSheetOpen = true
+                // Never show the nearest drawer and the filter drawer together.
+                if (!filterSheetOpen) {
+                    mapFocusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                }
+                filterSheetOpen = !filterSheetOpen
             },
             onBottomChanged = { searchHeaderBottom = it },
             onPanelBottomChanged = { searchPanelBottomPx = it }
@@ -429,21 +449,8 @@ fun MapScreen(
         }
     }
 
-    if (filterSheetOpen) {
-        MapFiltersSheet(
-            filters = filters,
-            operators = operatorChoices,
-            operatorLoading = operatorLoading,
-            operatorError = operatorError,
-            onOperatorSectionOpened = ::loadOperators,
-            onFiltersChanged = { next ->
-                // Keep the sheet open while map and nearest chargers refresh.
-                // The ViewModel ignores no-op selections and discards stale requests.
-                selectedLocations = emptyList()
-                viewModel.applyFilters(next)
-            },
-            onDismiss = { filterSheetOpen = false }
-        )
+    BackHandler(enabled = filterSheetOpen) {
+        filterSheetOpen = false
     }
 
     if (selectedLocations.isNotEmpty()) {
@@ -478,6 +485,13 @@ private fun SearchHeader(
     canReturnToDestination: Boolean,
     onReturnToDestination: () -> Unit,
     showNearbyPanel: Boolean,
+    filterPanelOpen: Boolean,
+    operators: List<String>?,
+    operatorLoading: Boolean,
+    operatorError: String?,
+    onOperatorSectionOpened: () -> Unit,
+    onFiltersChanged: (ChargingFilters) -> Unit,
+    onCloseFilters: () -> Unit,
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
@@ -490,17 +504,24 @@ private fun SearchHeader(
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    val suggestVisible = focused && !searchSelected && query.trim().length >= 2
-    val nearbyPanelVisible = destination != null && showNearbyPanel && !(focused && !searchSelected)
+    val suggestVisible = !filterPanelOpen && focused && !searchSelected && query.trim().length >= 2
+    val nearbyPanelVisible = !filterPanelOpen && destination != null &&
+        showNearbyPanel && !(focused && !searchSelected)
+    val filterMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.70f
     Column(
         modifier = modifier.fillMaxWidth()
             .onGloballyPositioned { coordinates ->
-                onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
+                // Keep the nearest-camera fit stable while the filter overlay is
+                // open. Its 70%-screen body is not part of the map's fit padding.
+                if (!filterPanelOpen)
+                    onPanelBottomChanged(coordinates.boundsInRoot().bottom.roundToInt())
             },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Search and nearby results are visually one control when an address is selected.
-        Column(verticalArrangement = Arrangement.spacedBy(if (nearbyPanelVisible) 0.dp else 2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(
+            if (nearbyPanelVisible || filterPanelOpen) 0.dp else 2.dp
+        )) {
         Surface(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
                 onBottomChanged(with(density) { coordinates.boundsInRoot().bottom.toDp() })
@@ -519,7 +540,10 @@ private fun SearchHeader(
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
+                    modifier = Modifier.weight(1f).onFocusChanged {
+                        focused = it.isFocused
+                        if (it.isFocused && filterPanelOpen) onCloseFilters()
+                    },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -552,7 +576,12 @@ private fun SearchHeader(
                     }) { Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen") }
                 }
                 IconButton(onClick = onOpenFilters) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filters openen")
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = if (filterPanelOpen) "Filters inklappen" else "Filters openen",
+                        tint = if (filterPanelOpen) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                    )
                 }
                 if (filters.activeCount > 0) {
                     Text(filters.activeCount.toString(),
@@ -562,7 +591,38 @@ private fun SearchHeader(
             }
         }
 
-        if (nearbyPanelVisible) {
+        if (filterPanelOpen) {
+            // The attached filter drawer replaces the nearby drawer while open.
+            // Only the drawer scrolls; it overlays the map and temporarily
+            // hides quick filter chips without changing the camera.
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp).zIndex(2f),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp, topEnd = 0.dp,
+                    bottomStart = 16.dp, bottomEnd = 16.dp
+                ),
+                tonalElevation = 5.dp
+            ) {
+                Column {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+                    MapFiltersPanel(
+                        filters = filters,
+                        maxHeight = filterMaxHeight,
+                        operators = operators,
+                        operatorLoading = operatorLoading,
+                        operatorError = operatorError,
+                        onOperatorSectionOpened = onOperatorSectionOpened,
+                        onFiltersChanged = onFiltersChanged,
+                        onDismiss = onCloseFilters
+                    )
+                }
+            }
+        } else if (nearbyPanelVisible) {
             // A short drawer handle is always attached directly to the search bar.
             // The full list overlays the chips; it never pushes them farther down.
             Box(Modifier.fillMaxWidth()) {
