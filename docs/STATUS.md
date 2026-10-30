@@ -1,3 +1,18 @@
+## Android — vastgestelde prioriteiten richting v1 (30 oktober 2026)
+
+**Productbesluit:** na de op Samsung goedgekeurde en naar `main` gemergede PDOK-/kaartfilterfunctionaliteit (issue #95, PR #97) heeft de gebruiker deze volgorde expliciet vastgesteld:
+
+1. **[GPS / huidige locatie en nabije alternatieven — #99](https://github.com/VanHinthem/ChargeWatch/issues/99)**: eerstvolgende feature; ontwerp permissie-/GPS-fallback, kaartnavigatie en alternatieven vanaf bestaande laadlocatie, zonder regressie van adreszoeken en filters.
+2. **[Native Android-widget met bestaande lokale favorieten — #101](https://github.com/VanHinthem/ChargeWatch/issues/101)**: compacte/uitgebreide weergave, verversen en correcte bronstatus/versheid.
+3. **[Statistieken en 90-daagse uptime — #103](https://github.com/VanHinthem/ChargeWatch/issues/103)**: datakwaliteits- en publicatiecriteria vóór betrouwbaar tonen van historische kans, dekking en uptime.
+4. **[Laatste Android-kwaliteitsronde en v1-releasevoorbereiding — #104](https://github.com/VanHinthem/ChargeWatch/issues/104)**: praktijk-, offline-/fout-, toegankelijkheid-, performance-, signing- en beveiligingscontrole.
+
+**Huidige technische stand:** kaart, PDOK-zoekfunctie, vijf-nearest, filters, favorieten, tarieven en details zijn gerealiseerd en beoordeeld. Deze planning start **geen implementatie** en autoriseert geen deployment of publicatie. Open GitHub-[issue #79](https://github.com/VanHinthem/ChargeWatch/issues/79) blijft apart uitgesteld voor bredere monitoring; [PR #54](https://github.com/VanHinthem/ChargeWatch/pull/54) blijft een onafhankelijke documentatienotitie. De oorspronkelijke `docs/ROADMAP.md`-fasechecklists bevatten historische open vinkjes en weerspiegelen niet overal de actuele voortgang.
+
+**Volgende actie:** werk eerst de functionele en technische aanpak voor **#99 (GPS + nabije alternatieven)** uit, inclusief behandeling van toestemmingsweigering en de relatie met het bestaande PDOK-/filteroverzicht; pas na review coderen. Widgets, statistieken en release volgen expliciet in die volgorde.
+
+---
+
 ## Android — kaartfilters en PDOK-bestemming (issue #95, fase B; 30 oktober 2026)
 
 **Afgerond en op Samsung goedgekeurd:** Android-implementatie van kaartfilters, operatorselectie, compacte snelfilters en de geïntegreerde zoek-/resultaten-/filterpanelen in [PR #97](https://github.com/VanHinthem/ChargeWatch/pull/97). De backendcontracten voor correcte EVSE-/connectorfilters en operatoren staan al op `main` sinds [PR #98](https://github.com/VanHinthem/ChargeWatch/pull/98), squash-commit `473e64c5`. De gebruiker bevestigde op 30 oktober dat die backend op de NAS is uitgerold en dat de filtering in de Android-app werkt. De laatste Android-UX is vervolgens op de fysieke Samsung expliciet goed bevonden en er is akkoord gegeven om PR #97 na controles te squash-mergen.
