@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.*
 import nl.vanhinthem.chargewatch.BuildConfig
+import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
+import nl.vanhinthem.chargewatch.data.filters.supportsFiltering
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,11 +21,12 @@ class ChargeWatchMapClient(
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
 ) {
-    suspend fun load(viewport: NdwViewport): NdwResult = withContext(Dispatchers.IO) {
+    suspend fun load(viewport: NdwViewport, filters: ChargingFilters = ChargingFilters()): NdwResult = withContext(Dispatchers.IO) {
         if (!baseUrl.startsWith("https://"))
             return@withContext NdwResult.Unavailable("ChargeWatch API is niet geconfigureerd.")
         val url = (baseUrl.trimEnd('/') + "/api/v1/map/viewport").toHttpUrl()
-            .newBuilder().addQueryParameter("bbox", viewport.bounded().asBboxParameter()).build()
+            .newBuilder().addQueryParameter("bbox", viewport.bounded().asBboxParameter())
+            .let(filters::appendTo).build()
         try {
             client.newCall(Request.Builder().url(url).header("Accept", "application/json").build())
                 .execute().use { response ->
@@ -33,6 +36,8 @@ class ChargeWatchMapClient(
                         return@use NdwResult.Unavailable("Meer dan 999 locaties in dit kaartgebied. Zoom verder in.")
                     if (!response.isSuccessful)
                         return@use NdwResult.Unavailable("ChargeWatch API gaf HTTP ${response.code}.")
+                    if (!supportsFiltering(filters.active, response.header("X-ChargeWatch-Filter-Version")))
+                        return@use NdwResult.Unavailable("Filters vereisen een bijgewerkte ChargeWatch API.")
                     val raw = response.body?.string()
                         ?: return@use NdwResult.Unavailable("Lege API-response.")
                     runCatching {

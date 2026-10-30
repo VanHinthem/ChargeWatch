@@ -116,6 +116,8 @@ import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
+import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import nl.vanhinthem.chargewatch.data.search.SearchResult
@@ -155,6 +157,24 @@ fun MapScreen(
     val favoriteIds = favorites.map { it.featureId }.toSet()
     val nearestClient = remember { LocationSearchClient() }
     val pdokClient = remember { PdokDestinationClient() }
+    val operatorClient = remember { OperatorOptionsClient() }
+    val filterScope = rememberCoroutineScope()
+    val filters by viewModel.filters
+    var filterSheetOpen by remember { mutableStateOf(false) }
+    var operatorChoices by viewModel.operatorChoices
+    var operatorLoading by remember { mutableStateOf(false) }
+    var operatorError by remember { mutableStateOf<String?>(null) }
+    fun loadOperators() {
+        if (operatorLoading || operatorChoices != null) return
+        operatorLoading = true
+        operatorError = null
+        filterScope.launch {
+            runCatching { operatorClient.load() }
+                .onSuccess { operatorChoices = it }
+                .onFailure { operatorError = it.message ?: "Operators ophalen mislukt." }
+            operatorLoading = false
+        }
+    }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
     var searchPanelBottomPx by remember { mutableStateOf(0) }
@@ -165,6 +185,7 @@ fun MapScreen(
     var searchSelected by viewModel.searchSelected
     var selectedSuggestion by remember { mutableStateOf<DestinationSuggestion?>(null) }
     var destination by viewModel.destination
+    var overviewRequest by remember { mutableStateOf<CameraTarget?>(null) }
     var cameraTarget by remember {
         mutableStateOf(viewModel.overview.value?.let { CameraTarget(it.latitude, it.longitude, it.zoom) }
             ?: destination?.let { CameraTarget(it.latitude, it.longitude, 14.0) })
@@ -222,7 +243,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(destination) {
+    LaunchedEffect(destination, filters) {
         val chosen = destination
         if (chosen == null) {
             viewModel.overview.value = null
@@ -233,15 +254,18 @@ fun MapScreen(
             return@LaunchedEffect
         }
         // Returning from another app tab must not fetch again or undo manual panning.
-        if (viewModel.nearLoadedFor.value == chosen) return@LaunchedEffect
+        if (viewModel.nearLoadedFor.value == chosen && viewModel.nearLoadedWith.value == filters) return@LaunchedEffect
+        val keepCamera = canReturnToDestination
+        viewModel.overview.value = null
         nearLoading = true
         nearLocations = emptyList()
         nearMessage = null
         try {
-            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude)) {
+            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude, filters = filters)) {
                 is SearchResult.Success -> {
                     nearLocations = response.locations
-                    nearMessage = if (response.locations.isEmpty()) "Geen laadlocaties binnen 25 km." else null
+                    nearMessage = if (response.locations.isEmpty())
+                        (if (filters.active) "Geen passende laadlocaties binnen 25 km." else "Geen laadlocaties binnen 25 km.") else null
                 }
                 is SearchResult.Failure -> nearMessage = response.message
             }
@@ -249,11 +273,14 @@ fun MapScreen(
             nearLoading = false
         }
         viewModel.nearLoadedFor.value = chosen
+        viewModel.nearLoadedWith.value = filters
         // The list expands via animation. Fit only once after its height settles;
         // never refit when the user toggles it or manually moves the map.
         delay(420)
-        cameraTarget = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
+        val request = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
             nearby = nearLocations.toList(), panelBottomPx = searchPanelBottomPx)
+        if (!keepCamera && !canReturnToDestination) cameraTarget = request
+        else overviewRequest = request
     }
 
     fun onQueryChanged(value: String) {
@@ -311,6 +338,8 @@ fun MapScreen(
             favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
             destination = destination,
+            overviewRequest = overviewRequest,
+            onOverviewConsumed = { overviewRequest = null },
             onMapCameraIdle = { lat, lon, zoom ->
                 // Compare with the *fitted* overview, not the original fixed zoom 14.
                 canReturnToDestination = shouldShowReturnToDestination(
@@ -347,6 +376,15 @@ fun MapScreen(
             onNearbyExpandedChanged = { nearbyExpanded = it },
             onNearestSelected = ::selectNearestCharger,
             onResultSelected = ::selectSearchResult,
+            filters = filters,
+            onQuickFilter = { id ->
+                selectedLocations = emptyList()
+                viewModel.applyFilters(filters.toggleQuick(id))
+            },
+            onOpenFilters = {
+                selectedLocations = emptyList()
+                filterSheetOpen = true
+            },
             onBottomChanged = { searchHeaderBottom = it },
             onPanelBottomChanged = { searchPanelBottomPx = it }
         )
@@ -374,6 +412,22 @@ fun MapScreen(
                 )
             }
         }
+    }
+
+    if (filterSheetOpen) {
+        MapFiltersSheet(
+            initial = filters,
+            operators = operatorChoices,
+            operatorLoading = operatorLoading,
+            operatorError = operatorError,
+            onOperatorSectionOpened = ::loadOperators,
+            onApply = { next ->
+                selectedLocations = emptyList()
+                filterSheetOpen = false
+                viewModel.applyFilters(next)
+            },
+            onDismiss = { filterSheetOpen = false }
+        )
     }
 
     if (selectedLocations.isNotEmpty()) {
@@ -411,6 +465,9 @@ private fun SearchHeader(
     onNearbyExpandedChanged: (Boolean) -> Unit,
     onNearestSelected: (SearchLocation) -> Unit,
     onResultSelected: (DestinationSuggestion) -> Unit,
+    filters: ChargingFilters,
+    onQuickFilter: (String) -> Unit,
+    onOpenFilters: () -> Unit,
     onBottomChanged: (Dp) -> Unit = {},
     onPanelBottomChanged: (Int) -> Unit = {}
 ) {
@@ -474,10 +531,18 @@ private fun SearchHeader(
                         focused = false
                     }) { Icon(Icons.Default.Close, contentDescription = "Zoekopdracht wissen") }
                 }
-                // Filter implementation is phase B of issue #95.
-                Icon(Icons.Default.FilterList, contentDescription = "Filters (volgt later)")
+                IconButton(onClick = onOpenFilters) {
+                    Icon(Icons.Default.FilterList, contentDescription = "Filters openen")
+                }
+                if (filters.activeCount > 0) {
+                    Text(filters.activeCount.toString(),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
+
+        if (!(focused && !searchSelected)) QuickFilterRow(filters, onQuickFilter)
 
         if (suggestVisible && (results.isNotEmpty() || message != null || loading)) {
             Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), tonalElevation = 6.dp) {
@@ -683,6 +748,8 @@ private fun ChargeMap(
     favoriteIds: Set<String>,
     cameraTarget: CameraTarget?,
     destination: Destination?,
+    overviewRequest: CameraTarget?,
+    onOverviewConsumed: () -> Unit,
     onMapCameraIdle: (Double, Double, Double) -> Unit,
     onOverviewCalculated: (DestinationOverview) -> Unit,
     onCameraTargetConsumed: () -> Unit
@@ -804,6 +871,10 @@ private fun ChargeMap(
         },
         update = { view ->
             view.getMapAsync { map ->
+                overviewRequest?.let { request ->
+                    currentOverviewHandler.value(fitDestinationOverview(map, view, request))
+                    onOverviewConsumed()
+                }
                 cameraTarget?.let { target ->
                     val result = if (target.nearby != null) {
                         fitDestinationOverview(map, view, target)

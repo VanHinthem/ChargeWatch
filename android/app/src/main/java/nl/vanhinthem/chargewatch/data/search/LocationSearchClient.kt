@@ -11,6 +11,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nl.vanhinthem.chargewatch.BuildConfig
+import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
+import nl.vanhinthem.chargewatch.data.filters.supportsFiltering
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -44,7 +46,7 @@ class LocationSearchClient(
         .build()
 ) {
     /** Existing PostGIS nearest-charger endpoint; no distance calculation in Android. */
-    suspend fun nearby(latitude: Double, longitude: Double, radiusMeters: Int = 25000, limit: Int = 5): SearchResult =
+    suspend fun nearby(latitude: Double, longitude: Double, radiusMeters: Int = 25000, limit: Int = 5, filters: ChargingFilters = ChargingFilters()): SearchResult =
         withContext(Dispatchers.IO) {
             if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0)
                 return@withContext SearchResult.Failure("Ongeldige bestemmingscoördinaten.")
@@ -56,12 +58,15 @@ class LocationSearchClient(
                 .addQueryParameter("longitude", longitude.toString())
                 .addQueryParameter("radiusMeters", radiusMeters.coerceIn(100, 100000).toString())
                 .addQueryParameter("limit", limit.coerceIn(1, 20).toString())
+                .let(filters::appendTo)
                 .build()
             try {
                 client.newCall(Request.Builder().url(url).header("Accept", "application/json").build())
                     .execute().use { response ->
                         if (!response.isSuccessful)
                             return@use SearchResult.Failure("Laadlocaties ophalen gaf HTTP ${response.code}.")
+                        if (!supportsFiltering(filters.active, response.header("X-ChargeWatch-Filter-Version")))
+                            return@use SearchResult.Failure("Filters vereisen een bijgewerkte ChargeWatch API.")
                         val raw = response.body?.string()
                             ?: return@use SearchResult.Failure("Lege laadlocatierespons.")
                         runCatching { SearchResult.Success(parseSearchLocations(raw)) }

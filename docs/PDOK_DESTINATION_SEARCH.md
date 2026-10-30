@@ -44,3 +44,7 @@ Geen publieke Nominatim; PDOK's Suggest is expliciet geschikt voor autocomplete.
 - Test behoud van de blauwe pin tijdens kaartbeweging, opnieuw typen, nabije laadlocatie aantikken en wisselen tussen Kaart/Favorieten/Instellingen; wissen moet de pin verwijderen. Test light/dark, zoom/cluster, favorieten en onbekende/stale feed.
 - Meet op Samsung wanneer de eerste bruikbare suggesties verschijnen (niet alleen netwerkduur). Controleer gedrag bij offline, timeouts en hoge latency.
 - Geen NAS-deployment, merge of productiestatus claimen voordat expliciet akkoord is gegeven.
+
+## Fase B — samenloop met kaartfilters (Android PR #97; API PR #98; 30 oktober 2026)
+
+De geselecteerde blauwe pin blijft staan bij filterwijzigingen. De bestaande `/api/v1/locations?latitude&longitude&radiusMeters=25000&limit=5` ontvangt dezelfde optionele EVSE-filterparameters als `/api/v1/map/viewport`; de server filtert **vóór de nearest-top-vijf**. Locaties die technisch niet passen verdwijnen; er worden nooit nieuwe locaties toegevoegd of markerstaten veranderd. Geen extra PDOK-aanroep. Bij nul matches verschijnt 'Geen passende laadlocaties binnen 25 km.'. De kaart fit alleen automatisch als de gebruiker nog op het bestemmingsoverzicht staat; anders blijft de camerastand behouden en kan 'Terug naar zoekadres' het nieuwe overzicht herstellen. Filters blijven niet bestaan na app-herstart.

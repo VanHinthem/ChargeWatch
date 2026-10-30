@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.search.Destination
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
 import nl.vanhinthem.chargewatch.data.ndw.ChargeWatchMapClient
@@ -34,6 +35,9 @@ class MapViewModel(
     val nearbyExpanded = mutableStateOf(false)
     internal val overview = mutableStateOf<DestinationOverview?>(null)
     val nearLoadedFor = mutableStateOf<Destination?>(null)
+    val nearLoadedWith = mutableStateOf(ChargingFilters())
+    val filters = mutableStateOf(ChargingFilters())
+    val operatorChoices = mutableStateOf<List<String>?>(null)
 
     private var lastRequestedViewport: NdwViewport? = null
     private var requestSequence: Long = 0
@@ -58,7 +62,24 @@ class MapViewModel(
         coordinator.submit(viewport)
     }
 
+    fun applyFilters(next: ChargingFilters) {
+        if (filters.value == next) return
+        filters.value = next
+        nearLoadedFor.value = null
+        requestSequence++
+        coordinator.cancel()
+        _uiState.value = _uiState.value.copy(
+            source = if (next.active) "ChargeWatch" else _uiState.value.source,
+            locations = emptyList(), message = null
+        )
+        retry()
+    }
+
     fun setSource(source: String) {
+        if (filters.value.active && source == "NDW") {
+            _uiState.value = _uiState.value.copy(message = "Schakel filters uit om de directe NDW-bron te gebruiken.")
+            return
+        }
         if (source !in listOf("NDW", "ChargeWatch") || source == _uiState.value.source) return
         // Invalidate all in-flight loads before changing the source.
         requestSequence++
@@ -77,13 +98,14 @@ class MapViewModel(
     private suspend fun load(viewport: NdwViewport) {
         val requestId = ++requestSequence
         val source = _uiState.value.source
+        val requestedFilters = filters.value
         _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false)
         val started = System.nanoTime()
-        val primaryResult = if (source == "ChargeWatch") chargeWatchClient.load(viewport) else client.load(viewport)
+        val primaryResult = if (source == "ChargeWatch") chargeWatchClient.load(viewport, requestedFilters) else client.load(viewport)
         // Only fall back for a genuine API failure, not for a capped viewport:
         // NDW may reject large viewports independently, and silently hiding
         // the cap would make parity testing misleading.
-        val fallbackEligible = source == "ChargeWatch" && when (primaryResult) {
+        val fallbackEligible = !requestedFilters.active && source == "ChargeWatch" && when (primaryResult) {
             is NdwResult.RateLimited -> true
             is NdwResult.Unavailable -> !primaryResult.message.startsWith("Meer dan 999 locaties")
             is NdwResult.Success -> false
@@ -93,7 +115,7 @@ class MapViewModel(
         val usedFallback = fallbackEligible && result !== primaryResult
         val elapsed = (System.nanoTime() - started) / 1_000_000
         // A response from an earlier source selection must never overwrite a newer choice.
-        if (requestId != requestSequence || _uiState.value.source != source) return
+        if (requestId != requestSequence || _uiState.value.source != source || filters.value != requestedFilters) return
         when (result) {
             is NdwResult.Success -> {
                 _uiState.value = MapUiState(
@@ -101,7 +123,8 @@ class MapViewModel(
                     fetchedAt = Instant.now(),
                     loading = false,
                     message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."
-                        else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null,
+                        else if (result.locations.isEmpty())
+                            (if (requestedFilters.active) "Geen passende laadlocaties in dit kaartgebied." else "Geen laadlocaties in dit kaartgebied.") else null,
                     source = source, loadMillis = elapsed
                 )
             }

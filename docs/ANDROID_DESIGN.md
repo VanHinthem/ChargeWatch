@@ -1,3 +1,17 @@
+## Kaartfilters — Android-UX en client in PR #97 (30 oktober 2026; backend apart in PR #98)
+
+**Gedrag:** op de bestaande kaartlocaties filteren zonder nieuwe marker-/kleurtoestanden of aangepast ongefilterd telcontract. Compact filtericoon met teller naast de PDOK-zoekbalk, onder de balk één horizontale rij snelfilterchips: **Vrij / CCS2 / <50 kW / ≥150 kW**. De chips werken direct en zijn gesynchroniseerd met de volledige bottom sheet. Tijdens actief typen verdwijnt de rij tijdelijk ten gunste van PDOK-autocomplete.
+
+**Volledige sheet:** verticaal scrollbaar, vijf afzonderlijk uitklapbare secties voor aansluitingstype (Type 2 / CCS2 / CHAdeMO / Overige, multi-select), AC/DC (alle/AC/DC), vermogen (alle/<50/≥50/≥150/≥300 kW; exclusief), beschikbaarheid (alle/≥1/≥2 passende EVSE's vrij) en operators (uitklapbaar, zoekveld, scrollbare multi-select op authentieke NDW-operatornamen). Vaste onderacties **Alles wissen** en **Toepassen**; wijzigingen in de sheet activeren pas bij toepassen. Favorieten zijn geen apart kaartfilter. Filters zijn alleen in het geheugen van `MapViewModel`, niet in DataStore.
+
+**Resultaten en camera:** dezelfde filters sturen `/api/v1/map/viewport` en de 25km-PostGIS-nearest-query `/api/v1/locations`, met filtering vóór rangschikking/limiet vijf. De bestaande PDOK suggest/lookup en de blauwe pin blijven ongemoeid; na filterwijzigingen op het overzicht wordt opnieuw gefit op pin + maximaal vijf passende locaties binnen de bestaande zoomlimieten. Heeft de gebruiker handmatig verplaatst/gezoomd of bewust een lijstitem gekozen, dan blijft de camera staan en berekent ChargeWatch uitsluitend het nieuwe doel voor 'Terug naar zoekadres'.
+
+**API-afhankelijkheid:** de zelfstandige read-only backend-implementatie staat in [PR #98](https://github.com/VanHinthem/ChargeWatch/pull/98). De API moet na expliciet akkoord naar de NAS zijn uitgerold voor een volledige fysieke filtertest.
+
+**Contract:** backend matcht connector/vermogen op dezelfde connector, telt per EVSE uniek en gebruikt `ConnectorPower.Estimate`-equivalente waarden ongeacht expliciete/berekende herkomst. Map-/lijstresponse behoudt de bestaande ongefilterde beschikbaarheidstelling/markers; de filters bepalen zichtbaarheid. Bij actieve filters is een succesvolle `X-ChargeWatch-Filter-Version: 1` verplicht. Direct NDW-GeoJSON of een oudere NAS-API kan geen EVSE-correcte filters garanderen en wordt dan niet als gefilterd resultaat getoond. Zonder filters blijft bestaande fallback werken.
+
+**Validatie:** `Android` CI, `Read-only API` CI met echte geïsoleerde PostGIS-HTTP-fixtures en fysieke Samsung UX-review. Een groene PR-CI is geen productie- of deploybewijs. Geen accounts, persistente filters, schemawijziging of collectorwerk.
+
 ## Vastgestelde Android-zoek-UX — 29 oktober 2026 (issue #95 fase A, PR #96)
 
 De gebruiker heeft op de Samsung de definitieve zoekervaring beoordeeld en goedgekeurd. De adres-/postcode-/straat-/plaatszoeker gebruikt **gratis PDOK Locatieserver 3.1 rechtstreeks in Android** (geen backendproxy en geen vereiste POI's). Bij het selecteren van een adres toont de kaart een onafhankelijke **blauwe bestemmingspin** en zoekt via de bestaande ChargeWatch-API maximaal vijf nabije laadlocaties.
