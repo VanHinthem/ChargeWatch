@@ -6,6 +6,7 @@ if (args.Length == 1 && args[0] == "--self-test")
 {
     ApiOptions.SelfTest();
     OcpiTariffEvaluatorTests.Run();
+    MapFilter.SelfTest();
     return;
 }
 
@@ -61,8 +62,11 @@ app.MapGet("/api/v1/locations", async (
     double? longitude,
     int? radiusMeters,
     int? limit,
+    HttpContext context,
     ApiDatabase database) =>
 {
+    if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
+        return Results.BadRequest(new { error = filterError });
     Bbox? parsed = null;
     if (!string.IsNullOrWhiteSpace(bbox))
     {
@@ -73,7 +77,8 @@ app.MapGet("/api/v1/locations", async (
 
     try
     {
-        var result = await database.SearchLocations(q,parsed,latitude,longitude,radiusMeters,ApiOptions.ParseLimit(limit));
+        var result = await database.SearchLocations(q,parsed,latitude,longitude,radiusMeters,ApiOptions.ParseLimit(limit),filters);
+        if (filters.Active) context.Response.Headers["X-ChargeWatch-Filter-Version"] = "1";
         return Results.Ok(result);
     }
     catch (ArgumentException e)
@@ -85,17 +90,22 @@ app.MapGet("/api/v1/locations", async (
 
 // Full-map coverage is required for an honest benchmark. On overflow ask the
 // Android client to zoom in; do not return a partial map as if complete.
-app.MapGet("/api/v1/map/viewport", async (string? bbox, ApiDatabase database) =>
+app.MapGet("/api/v1/map/viewport", async (string? bbox, HttpContext context, ApiDatabase database) =>
 {
+    if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
+        return Results.BadRequest(new { error = filterError });
     if (!ApiOptions.TryParseBbox(bbox, out var parsed))
         return Results.BadRequest(new { error = "Valid bbox is required." });
     if ((parsed.MaxLon-parsed.MinLon)*(parsed.MaxLat-parsed.MinLat) > 1.0)
         return Results.BadRequest(new { error = "Zoom further in." });
-    var result = await database.GetMapViewport(parsed);
+    var result = await database.GetMapViewport(parsed,filters);
+    if (filters.Active) context.Response.Headers["X-ChargeWatch-Filter-Version"] = "1";
     return result.Truncated
         ? Results.Json(new { error = "Viewport exceeds 999 locations; zoom in." }, statusCode: 413)
         : Results.Ok(result);
 });
+
+app.MapGet("/api/v1/operators", async (ApiDatabase database) => Results.Ok(await database.GetOperators()));
 
 app.MapGet("/api/v1/locations/{id:long}", async (long id,ApiDatabase database) =>
 {
