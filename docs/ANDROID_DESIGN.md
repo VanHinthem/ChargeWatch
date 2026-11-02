@@ -1,3 +1,9 @@
+## Widgetverversing — direct zichtbaar per laadlocatie (2 november 2026)
+
+Na de directe `Verversen…`-actie moet een snel binnenkomende locatie zijn nieuwe `vrij/totaal` direct tonen, **zonder** te wachten op eventuele trage tweede favorieten. Beperk gecombineerde kaartgebieden tot echt nabije favorieten; laad verder onafhankelijke compacte viewports parallel. Een gevalideerde response mag zijn locatiebadge direct verversen, met dezelfde groen/rood/`?`-semantiek en betrouwbare bronmetadata. Laat `Verversen…` staan zolang andere locaties nog worden opgehaald; toon nooit ten onrechte een globale succesvolle verversing voordat alles voltooid is. Deze wijziging verkort het kritieke pad van verwerking en weergave, maar kan netwerkvertragingen niet volledig uitschakelen.
+
+---
+
 ## Native widget — onmiddellijk opslaan en handmatig verversen (2 november 2026)
 
 **Door Samsung-test vastgesteld:** visuele wijzigingen in de widgetconfiguratie verschijnen te laat en een handmatig refreshverzoek komt niet snel genoeg op gang. UX-contract aangescherpt: na `Widget opslaan` worden geselecteerde favorieten en hun volgorde **meteen uit de lokale DataStore weergegeven**, met bestaande gecachte waarden (of `?` als er nog geen betrouwbare waarden zijn). Handmatige refresh en configuratie starten meteen een API-first fetch, tonen direct `Verversen…` zonder betrouwbare oude cijfers te wissen en vullen de standen aan zodra de bron antwoordt. De app/launcher hoeft niet opnieuw geopend te worden. Echte netwerkvertraging blijft afhankelijk van het netwerk en de bestaande API/NDW-fallback.
