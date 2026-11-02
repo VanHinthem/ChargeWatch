@@ -10,6 +10,16 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Directe widgetconfiguratie en refresh — vijfde Samsung-feedback
+
+Gebruiker meldt dat **opslaan van favorieten en handmatige dataverversing te traag reageren**. Root cause in oude Android-code: de widget tekent een vooraf gelezen snapshot en kan actief blijven zonder recompositie op DataStore-wijzigingen; daarnaast werd handmatig refreshen in WorkManager gequeued met KEEP-policy en de 60s gedeelde throttle.
+
+**Correctie:** lokale selectie opslaan en **direct** tekenen via `states.collectAsState()` en `favorites.collectAsState()` *binnen Glance `provideContent`*. Verversactie + het opslaan van de configuratie laten via een procesbrede coroutine meteen de bestaande `FavoritesAvailabilityClient` op IO draaien, gecoördineerd door één Mutex. Zet status `Verversen…` direct en vervang de ratio alleen bij betrouwbare teruggeleverde gegevens. Een aparte expedited WorkManager request (Android 12+, oudere versies gewone backup) biedt herstel als Android het proces beëindigt; periodiek 15 minuten blijft best effort. Expliciet gebruik heeft korte 2s dubbelklikbescherming, periodiek gebruik behoudt 60s throttle. Het inlezen van onafhankelijke adresmetadata blokkeert de EVSE-update niet. Maak op voorhand geen belofte van instant netwerkantwoord.
+
+**Tests:** handmatig bypass van 60s, uitgestelde periodieke request, geen dubbele taps, cacheloos geselecteerd favoriet, loadingstatus na proceskill en regressie voor bestaande kleuren/adressen/layout. Samsung-test: widget herconfigureren (selectie, volgorde, alias), direct aantallen ophalen via verversknop, offline/vangnet en bronversheid. **Nog geen merge/deploy.**
+
+---
+
 ## Vierde Samsung-acceptatieronde: compact 2×2 en 4×1-bronversheid
 
 Bij de door gebruiker aangeleverde screenshots werkt de echte **4×1-resizetoestand op Samsung**. 4×2 toont alle twee favorieten correct; 2×2 is te krap om de lange titel, twee adressen en hoge ratio's tegelijk leesbaar te houden. De vervolgimplementatie op PR #112 laat de 4×2-renderer ongewijzigd, maar introduceert voor smalle widgets (`widthDp < 230`, behalve de 4×1-sizeclass) een afzonderlijke 2×2-presentatie met klein logo en refresh, twee kleine rijen, ratio en een footer. Gebruik een in de UI-state expliciet **betrouwbaar vastgestelde city** voor de tweede regel, in plaats van afgekapt volledig adres. Dit volgt de productprioriteit bezetting > volledige adresregel op kleine schermen.
