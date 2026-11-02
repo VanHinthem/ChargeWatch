@@ -1,3 +1,11 @@
+## Native widget — onmiddellijk opslaan en handmatig verversen (2 november 2026)
+
+**Door Samsung-test vastgesteld:** visuele wijzigingen in de widgetconfiguratie verschijnen te laat en een handmatig refreshverzoek komt niet snel genoeg op gang. UX-contract aangescherpt: na `Widget opslaan` worden geselecteerde favorieten en hun volgorde **meteen uit de lokale DataStore weergegeven**, met bestaande gecachte waarden (of `?` als er nog geen betrouwbare waarden zijn). Handmatige refresh en configuratie starten meteen een API-first fetch, tonen direct `Verversen…` zonder betrouwbare oude cijfers te wissen en vullen de standen aan zodra de bron antwoordt. De app/launcher hoeft niet opnieuw geopend te worden. Echte netwerkvertraging blijft afhankelijk van het netwerk en de bestaande API/NDW-fallback.
+
+**Techniek:** Glance `provideContent` observeert `WidgetStore.states` en `FavoritesRepository.favorites` rechtstreeks (niet één voor-render snapshot), expliciete acties starten onmiddellijke IO-coördinator, WorkManager is alleen intervalplanner en betrouwbaarheidsvangnet. Eén gedeelde mutex, 2 sec herhaalklikbeveiliging en periodieke 60 sec grens; geen nieuwe backend, geen extra permissions, geen onbeperkte polling. Samsung-heracceptatie + CI vereist.
+
+---
+
 ## Native widget — vierde Samsung-review: 2×2 en 4×1 (2 november 2026)
 
 De feitelijke test van 4×1, 4×2 en 2×2 bevestigt: **4×1 en 4×2 werken**, maar de smalle **2×2** kapt `ChargeWatch`, de naam en de adresregel onacceptabel af. Het `+1 meer`-label van de 4×1 overschrijft bovendien de bronversheid bij meerdere geselecteerde favorieten. Dit zijn UI-verfijningen van bestaand widgetissue #101, geen nieuwe feature.
