@@ -824,19 +824,26 @@ private fun SearchHeader(
                         }
                         Icon(Icons.Default.EvStation, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            text = when {
-                                nearLoading -> "Laadlocaties ophalen…"
-                                nearMessage != null && nearLocations.isEmpty() -> nearMessage
-                                nearbyContext != null -> nearbyLabel(nearbyContext, nearLocations.size)
-                                else -> nearestLocationsCountLabel(nearLocations.size)
-                            },
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when {
+                                    nearLoading -> "Laadlocaties ophalen…"
+                                    nearMessage != null && nearLocations.isEmpty() -> nearMessage
+                                    nearbyContext != null -> nearbyLabel(nearbyContext, nearLocations.size)
+                                    else -> nearestLocationsCountLabel(nearLocations.size)
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (nearbyContext is NearbyContext.Alternatives) {
+                                Text("Vanaf " + nearbyContext.origin.name,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                         // The target only appears when the camera is away from the
                         // fitted pin + five-nearest overview, including manual pans.
                         // The action is independent of the results toggle.
