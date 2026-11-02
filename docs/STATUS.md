@@ -1,3 +1,15 @@
+## Kaart-clusterontwerp — eerste voorstel voor bespreking (2 november 2026)
+
+Na bevestiging van landelijke dekking is het eerste **concrete zoom-/cluster-/tap- en bronkwaliteitsontwerp** toegevoegd aan [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), onderdeel *Eerste interactie-/clusterregels*. Dit is **nog geen expliciet goedgekeurd definitief gedrag**, behalve het eerder vastgelegde doel: landelijke zoomdekking, filtercorrectheid en geen stille truncatie.
+
+**Onderzoeksvoorstel:** vaste, zoomafhankelijke wereldraster-/tilecellen in Web Mercator, consistente clusteridentiteit binnen cel/zoom/filterversie, individuele markers als er slechts één locatie in de cel zit, stabiele clusters voor meerdere locaties. Onderzoek een clustermarker met **aantal laadlocaties in het midden** en statusverdeling van locaties in een groen/rode/onbekende ring. Een losse locatie blijft `vrij/totaal` tonen. Clustertap zoomt op celbounds; bij maximaal bruikbare zoom en samenvallende locaties volgt een begrensde locatieselectie. Bekende lokale favorieten blijven apparaatprivé en krijgen geen misleidende ster als filterlidmaatschap onbekend is.
+
+**Betrouwbaarheidsgrondslag uit bestaande code:** `ClusterAvailability.summarizeCluster` geeft een geaggregeerde `vrij/totaal`-ratio alleen als **alle** leden betrouwbare aantallen hebben; anders `?`. Een toekomstig ringdiagram mag onbekende locaties niet als bezet of beschikbaar meetellen; filter eerst, tel per operationele EVSE maximaal één keer en laat aantallen locaties niet doorgaan voor aantal EVSE's. Voor volledige landelijke cellen vs. pan-buffer moeten totalen zonder dubbeltellingen te valideren zijn.
+
+**Open UX-keuze voor de gebruiker:** clusters altijd een `locationCount`-middenlabel + statusring (aanbevolen) versus op kleine clusters de huidige geaggregeerde EVSE-ratio blijven tonen. Geen API-/Android-implementatie, geen NAS-deploy of merge; draft-PR #114.
+
+---
+
 ## Vastgesteld kaartdoel #113 — heel Nederland op elk zoomniveau (2 november 2026)
 
 **Expliciet productakkoord van gebruiker:** de kaart moet **heel Nederland kunnen weergeven**, ook wanneer sterk uitgezoomd. Op lage zoom levert de API vooral grotere clusters; op middelmatige zoom een **mix van clusters en losse locaties**; bij inzoomen vallen clusters uiteen tot individuele laadlocaties. Bestaande **kaartfilters blijven volledig correct werken vóór aggregatie** en er mogen geen onderliggende locaties stilzwijgend worden weggelaten wegens de huidige 999-grens. Dit is een **vastgesteld product- en UX-doel**, geen keuze voor een specifiek raster, vector tiles, routecontract of implementatie.
