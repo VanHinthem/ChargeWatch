@@ -141,6 +141,9 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
                     })
                 ))
         } else {
+            // Center a short favorites list in the free space between header and footer.
+            // Extra space collapses naturally on small 2x2 launchers.
+            Spacer(GlanceModifier.defaultWeight())
             visible.forEach { row ->
                 val badge = when (row.status) {
                     AvailabilityStatus.Available -> if (dark) Color(0xFF214F39) else Color(0xFFD8F1E3)
