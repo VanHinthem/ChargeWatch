@@ -1,5 +1,13 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Aanvullende responsiviteitscorrecties (#101, 2 november 2026)
+
+Initieel toevoegen kan op Samsung een tijdelijk nog niet actief gemeld widget-ID opleveren. Een expliciete opslaatactie start nu ook dan de direct achtergrondophaalroute op basis van de net opgeslagen per-widgetselectie; `onEnabled` blijft de periodieke planning verzorgen. Adres-/plaatsmetadata heeft nu een **afzonderlijke mutex**: een trage metadatafallback houdt niet langer een nieuwe, expliciete beschikbaarheidsrefresh tegen. Bronstatus en aantallen worden vóór eventuele adresverrijking bijgewerkt. De directe gebruikersroute is veilig tegen snelle dubbeltikken en behoudt een betrouwbare vorige ratio bij falende bronnen.
+
+Bij het verschijnen van `Verversen…` geldt een 30-secondenmaximale *geldigheid bij de volgende render*; een launcher die niet opnieuw rendert kan de laatste RemoteViews langer vasthouden. Een nieuw verzoek, geopende app of de volgende achtergrondupdate ververst deze toestand. Geen polling om een animatie te simuleren.
+
+---
+
 ## Widgetresponsiviteit — directe configuratie en verversing (#101, 2 november 2026)
 
 **Nieuwe Samsung-feedback:** widgetconfiguratie, namen/volgorde en beschikbaarheidsaantallen reageren te traag. Technische diagnose: `WidgetWork.refresh()` plaatste expliciete gebruikersacties uitsluitend als **unieke gewone WorkManager-taak**; `ExistingWorkPolicy.KEEP` en de gedeelde **60-seconden-throttle** konden vertragen of overslaan. Daarnaast laadde `ChargeWatchWidget.provideGlance()` favorieten en widgetconfiguratie maar één keer vóór `provideContent`, zodat een nog actieve Glance-compositie nieuwe DataStore-waarden niet noodzakelijk meteen toonde.
@@ -8,7 +16,7 @@
 - **Opslaan direct zichtbaar:** configuratie eerst atomair naar DataStore, live `collectAsState` van `WidgetStore.states` en `FavoritesRepository.favorites` *binnen* de Glance-compositie. Geen herstart of WorkManager nodig om naam, selectie en volgorde te zien.
 - **Direct gegevens ophalen na instellen of refresh:** uit een procesbrede IO-scope meteen de bestaande API-first/NDW-fallback client aanroepen, zonder 60-sec WorkManager-uitstel. Periodieke achtergrondtaak (15 min, best effort) behouden; extra WorkManager eenmalige fallback bij expliciete interacties (expedited op Android 12+, reguliere backup op 26-30).
 - **Gedeelde coördinator:** Mutex voorkomt overlappende requests; 2s dubbelklikbeveiliging voor expliciet verversen of ontbrekende cache, 60s voor ongevraagde periodieke updates. Nieuwe favorieten zonder cache krijgen voorrang, maar nooit frequente onbegrensde polling. Bestaande geldige cache blijft zichtbaar en wordt pas met nieuwe betrouwbare data overschreven.
-- **Feedback:** tijdens ophalen toont de widget `Verversen…`; na afronden opnieuw eigen, betrouwbare status en bronmoment. Een afgebroken proces kan maximaal 30 seconden een loadingstatus tonen. Adresmetadata blijft een aparte, lokaal gecachte request zodat hij het publiceren van bezetting niet blokkeert.
+- **Feedback:** tijdens ophalen toont de widget `Verversen…`; na afronden opnieuw eigen, betrouwbare status en bronmoment. Na een procesonderbreking geldt de loadingstatus alleen als actief bij een nieuwe render binnen 30 seconden; Android bepaalt wanneer de launcher vervolgens opnieuw rendert. Adresmetadata blijft een aparte, lokaal gecachte request zodat hij het publiceren van bezetting niet blokkeert.
 
 Gerichte regressietests voor handmatige versus periodieke throttle, nieuwe selectie en tijdelijke loadingstatus toegevoegd. **Nieuwe Android-CI en fysieke Samsung-acceptatie vereist.** De 15-minutenachtergrondupdate is geen realtimegarantie; de directe gebruikersactie begint onmiddellijk, maar blijft afhankelijk van daadwerkelijke netwerk-/bronrespons. Geen backend/NAS-wijziging en geen merge/deployment zonder apart expliciet akkoord.
 
