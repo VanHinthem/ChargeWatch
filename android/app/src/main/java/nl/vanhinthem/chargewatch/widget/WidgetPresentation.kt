@@ -66,7 +66,7 @@ fun widgetRow(
  */
 fun widgetFavoriteCity(favorite: FavoriteLocation): String? {
     val address = favorite.address?.takeIf { it.isNotBlank() } ?: favorite.title
-    val parts = address.split(',').map(String::trim).filter(String::isNotBlank)
+    val parts = address.split(',').map { it.trim() }.filter { it.isNotBlank() }
     if (parts.size < 2) return null
 
     val withoutCountry = if (parts.last().lowercase() in setOf(
@@ -77,7 +77,7 @@ fun widgetFavoriteCity(favorite: FavoriteLocation): String? {
     val candidate = withoutCountry.last()
         .replace(Regex("""^\d{4}\s?[A-Za-z]{2}\s+"""), "")
         .trim()
-    return candidate.takeIf { it.isNotEmpty() && it.any(Char::isLetter) && it.length <= 80 }
+    return candidate.takeIf { it.isNotEmpty() && it.any { char -> char.isLetter() } && it.length <= 80 }
 }
 
 /** Show user alias; otherwise keep the street but avoid repeating city in both lines. */
