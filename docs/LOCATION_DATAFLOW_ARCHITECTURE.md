@@ -1,6 +1,6 @@
 # ChargeWatch — locatie-dataflow en gerichte opvraagstrategie (#113)
 
-**Status:** eerste technische inventarisatie ter bespreking, **nog geen API-contract of implementatiebesluit**.  
+**Status:** eerste technische inventarisatie; **landelijke kaartdekking met zoomafhankelijke clusters als productdoel vastgesteld**, nog geen API-contract, clusteringtechniek of implementatiebesluit.  
 **Datum:** 2 november 2026.  
 **Tracking:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113). Bestaande widget-feature [#101](https://github.com/VanHinthem/ChargeWatch/issues/101) / [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) blijft onafhankelijk en wordt niet in deze ontwerpbranch gemerged.
 
@@ -36,6 +36,73 @@ De `LocationEnrichmentClient` doet de tweede call **na** de eerste (sequentieel)
 De interne PostgreSQL-`charging_location.id` is een `long`. De Android-favoriet bevat **niet** die interne sleutel, maar `featureId`, opgebouwd uit de OCPI-sleutel (country code, party id, source/location id). De bestaande `GET /api/v1/locations/by-ndw-id/{featureId}` route parseert dit ID en gebruikt `FindLocationId(key)` alvorens `GetLocation(id)` aan te roepen.
 
 Voorkeur voor onderzoek: behoud het stabiele publieke OCPI/NDW-identiteitscontract; valideer de bestaande parser en unieke database-index, match-/missinggevallen, migratie of inactivatie. Gebruik coördinaten **niet** om identiteit te raden.
+
+## 3. Kaart eerst: landelijke dekking en zoomafhankelijke aggregatie (productbesluit 2 november 2026)
+
+### Vastgestelde productuitgangspunten
+
+Na de code-audit van de bestaande kaart heeft de gebruiker twee ideeën voorgesteld en expliciet de landelijke variant bevestigd:
+
+1. **De kaart haalt uitsluitend de minimaal benodigde markerinformatie op**, met **behoud van alle bestaande kaartfilters** en hun EVSE-semantiek. De compacte/uitgebreide detailsheet haalt additionele gegevens doelgericht op.
+2. **Nederland moet ook volledig op de kaart kunnen worden getoond bij sterk uitzoomen**, zonder `Zoom verder in` en zonder stilzwijgend locaties kwijt te raken: grotere aggregaties bij lage zoom, een **mix van clusters en individuele locaties** op middelste zoomniveaus, en afzonderlijke locaties bij voldoende inzoomen.
+3. De server levert een **beheersbaar aantal visuele kaartobjecten**, onafhankelijk van hoeveel onderliggende laadlocaties zich in het gebied bevinden. De huidige **999-locatiegrens is geen productvereiste** voor dit nieuwe contract; hij blijft alleen gelden voor het oude endpoint tijdens de overgang.
+4. Filters (operator, connector type, AC/DC, vermogen, minimaal vrij) worden **vóór clustering** toegepast. Clusteraantallen en kleuren slaan uitsluitend op de gefilterde set; geen filterversoepeling tijdens fallback.
+5. NDW blijft de waarheid achter de ingelezen database; bestaande betrouwbare groen/rood/unknown-logica blijft gelden. **Geen implementatie-, merge- of NAS-deployakkoord**: dit is akkoord op doel/UX, niet op algoritme of API-contract.
+
+### Gecontroleerde huidige implementatie en concrete bottlenecks
+
+- `GET /api/v1/map/viewport?bbox=...` selecteert in `ApiDatabase.GetMapViewport` maximaal **1.000 individuele locaties**. Bij `locations.Count >= 1000` geeft `Program.cs` een **HTTP 413** met `Viewport exceeds 999 locations; zoom in.`; de Android-client weigert bewust een onvolledig resultaat als een volledige kaart.
+- Het huidige endpoint accepteert geografische oppervlakte tot **1.0 graad²**, met dezelfde maximumgrens ook aan Android-zijde. Dat is geen nationaal dekkend contract.
+- De API produceert al onder andere **volledige connectorcategorieën** per locatie; de kaart toont hoofdzakelijk positie, kleur, `vrij/totaal`, cluster en lokale favorietbadge. Onderzoek welke minimale velden voor snelle markerweergave echt essentieel zijn en welke voorlopig nodig blijven voor onmiddellijk compacte sheet.
+- Clustering gebeurt vandaag **op Android** in `MapScreen.renderNativeMarkers()`, nadat alle individuele `MapLocation`-records zijn opgehaald. De code hergroepeert markers op schermafstand, doorloopt clusters herhaaldelijk en voert `map.clear()` uit. Dit verhoogt de rekentijd en tekenkosten bij meer locaties.
+- Nu toont clustertikken afhankelijk van zoom een zoomactie of selectielijst. De nieuwe server-cluster kent **niet alle individuele onderliggende IDs in de Android-response**; de clusterklik moet daarom bij lagere zoom *inzoomen/gebied navigeren*, en pas bij afzonderlijke locaties de detailsheet openen. Gedrag bij sterk ingezoomde overlappende locaties blijft een UX-onderzoekspunt.
+
+### Kandidaatcontract, nog NIET besloten
+
+```text
+GET /api/v1/map/overview?bbox=minLon,minLat,maxLon,maxLat&zoom=<mapZoom>&filters...
+    → { coverage, feedLastObservedAt, feedIsStale, markers: [
+          { kind: "cluster", clusterId, latitude, longitude,
+            locationCount, availableCount?, totalCount?, countQuality? },
+          { kind: "location", featureId, latitude, longitude,
+            availableCount?, totalCount?, countQuality? }
+       ] }
+```
+
+Dit is een *schematische richting*; routenaam, exacte velden, foutcontract, cacheheaders en typebepaling zijn nog open. **LocationCount = aantal individuele laadlocaties** in een cluster, **niet** aantal EVSE's of connectoren. Ratio's zijn EVSE-totalen; tel elk operationeel EVSE maximaal één keer, sluit `PLANNED`/`REMOVED` uit en onderscheid onbekende data. Clusterkleur kan niet uitsluitend gebaseerd worden op één ambigu optelgetal: onderzoek betrouwbare populatietelling, partial/unknown mix en staleness. Geen `0` afleiden uit ontbrekende brondata. Bron-/feedwaarneming blijft zichtbaar waar relevant.
+
+### Clusteringopties en afweging
+
+| Optie | Gedrag | Plus | Onderzoek/risico |
+|---|---|---|---|
+| A. Dynamische **server-side rasterclustering** o.b.v. bbox + zoom | SQL/PostGIS levert zichtbare clusters én losse locaties | Klein payloadbudget, eigen endpointcontract en geleidelijke migratie | Gridstabiliteit bij pannen/zoom, randcellen/dubbeltellingen, DB CPU bij veel concurrente requests |
+| B. Vooraf geaggregeerde zoom-/gridlagen | Materialisatie/caching per zoomgebied en bronstatus | Snel voor landelijke overview | Filters maken vooraf aggregaties moeilijk; verversing/feed-actualiteit en opslag |
+| C. **Vector tiles/MVT** en MapLibre-clusterlayers | Ruimtelijke tiles naar client, markertekening GPU-vriendelijk | Potentieel schaalbaar en cachebaar | Grote Android/UI-refactor, interactie/clicktargets/labels, filtervarianten, datakwaliteit |
+| D. Meer locaties ophalen, Android-clustering behouden | Huidige API-limiet verhogen | Kleine eerste wijziging | Grote payloads, CPU/GC en rendering blijven bottleneck; voldoet niet goed aan landelijke dekking |
+
+**Werkhypothese voor de benchmark:** eerst A onderzoeken en afzetten tegen C, zonder de beslissing al vast te leggen. Beheerbare kaartobjecten als **budget** is iets anders dan onderliggende locaties trunceren. Als een API-bestek niet kan worden gehaald, mag hij **niet** stilzwijgend relevante delen van Nederland laten wegvallen: zoomniveau/aggregatie verhogen, duidelijk statuscontract of gecontroleerde fout, te valideren.
+
+### UX- en databetrouwbaarheidspunten die nog uitgewerkt moeten worden
+
+- **Zoom & pan:** landelijke begin-/uitzoomkaart mogelijk; clusters vallen steeds verder uiteen tot individuele locaties. Stabiele clusterposities over pan-/zoomovergangen, geen markerflits of onverwachte lege regio's.
+- **Clustertik:** bij lager zoomniveau gericht inzoomen op clusterregio; pas een enkele locatie opent de bestaande compacte sheet. Bij maximumzoom en meerdere exact samenliggende locaties moet een expliciete selectie mogelijk blijven (niet eindeloos inzoomen).
+- **Favorieten:** de server kent geen lokale favorieten. Overweeg client-overlay van lokale favorietmarkeringen, voorkom dubbele pins bovenop clusters en pas kleur/sterregels consistent toe. Geen alias of lijst naar server versturen.
+- **Filter-pariteit:** clusterlocaties én aantallen komen voort uit exact dezelfde gefilterde dataset als een volledig ingezoomde kaart; voorwaarden voor `minFree` en connectorfilters niet verwarren met de in de badge getoonde *volledige* EVSE-ratio. Onduidelijke filtersemantiek expliciet testen.
+- **NDW-fallback:** directe NDW GeoJSON biedt niet vanzelf hetzelfde server-geaggregeerde contract. Ontwerp een zichtbaar degradatiepad zonder stilzwijgend ongefilterde/partiële clusters te tonen.
+- **Minimale kaartdata versus direct bruikbare sheet:** een lightweight object kan slechts coords, featureId, aantallen, kwaliteit en bronversheid dragen. Bepaal de minimale *gewenste sheet-first-frame*, en of beperkte naam/adresinformatie eventueel in een cache mee moet om plotselinge lege compacte sheets te voorkomen.
+- **Rekenkosten:** vermijd per pan opnieuw alle EVSE/connector-joins over de hele Nederlandse catalogus. Onderzoek index- en queryplannen, cachingstrategie, rastercelresolutie, huidige `MapFilter`-predicate en eventuele materialisatie; geen nieuwe index/schema zonder meetresultaten.
+
+### Meet- en acceptatiekader (nog geen getallen gefingeerd)
+
+1. Baseline huidige `/map/viewport` op een straat, Oss, druk stadscentrum en groot gebied: p50/p95 API, bytes, querytijd, Android-renderduur, geheugen en aantal individuele punten.
+2. Proefopzet voor landelijk overzicht, regionaal niveau en straatniveau: aantallen **te tekenen objecten** versus werkelijk aanwezige/gefiterde locaties, SQL `EXPLAIN (ANALYZE, BUFFERS)`, API p50/p95, bytes en MapLibre redraw/camera stutter.
+3. Invarianten: de som van `locationCount` over disjuncte clusters plus losse markers is gelijk aan alle actieve, gematchte locaties in het getoonde gebied (met helder randbeleid), zowel ongefilterd als met representatieve combinatiefilters. Geen dubbeltellingen of verborgen restresultaten.
+4. Fouten: onbekende EVSE-status, stale feed, lege filtering, veel locaties op één coördinaat, cluster op tile-/bboxrand, pan/zoom-inflight races, snelle filterwissel en falende API/NDW.
+5. Pas na meting grenzen voor kaartobjectbudget, zoomresoluties, clustering- of cachetechniek, responstijd en eventuele landelijk zichtbare data-aggregatie kiezen.
+
+**Prioriteit binnen #113:** de gebruiker wil **eerst de kaartlaag** grondig ontwerpen en optimaliseren; hierna pas de gerichte sheet- en favorieten-/widgetrequests. Maak de API-aggregatie eventueel een afgebakende volgende PR, niet in widget-PR #112.
+
+---
 
 ## 3. Mogelijke architectuur — voorstellen, geen besluiten
 
