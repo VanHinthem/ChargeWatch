@@ -14,6 +14,8 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
@@ -58,7 +60,11 @@ object WidgetWork {
 }
 
 class WidgetRefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun doWork(): Result {
+    companion object { private val refreshMutex = Mutex() }
+
+    override suspend fun doWork(): Result = refreshMutex.withLock { performRefresh() }
+
+    private suspend fun performRefresh(): Result {
         val context = applicationContext
         if (!WidgetWork.hasWidgets(context)) return Result.success()
         val store = WidgetStore(context)
