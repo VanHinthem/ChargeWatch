@@ -1,3 +1,17 @@
+## Native Android-widget — definitieve minimalistische UX (#101; 2 november 2026)
+
+**Goedgekeurd:** richting A, één resizable startschermwidget in de bestaande APK, maximaal vijf per-widget geselecteerde lokale favorieten, géén mini-kaart, minigrafieken, tarieven, connectorvermogen of afstand. Responsive richtformaten **2×2 (maximaal twee zichtbare rijen)**, **4×2 (drie)** en **4×3 (vijf)**; daadwerkelijke ruimte/tekstschaling bepaalt het aantal en `+N meer` meldt overflow. Ieder formaat heeft dezelfde velden: ChargeWatch-titel, refresh, favorietennaam links, betrouwbare groene/rode `vrij/totaal`-badge rechts en expliciete bron-/cacheversheid. Geen ster per rij, want iedere rij is een favoriet. Material3-achtige afgeronde kaart met bestaande ChargeWatch licht/donker-instelling.
+
+**Configuratie:** één scherm met live preview, selectie uit bestaande `FavoritesRepository`, max vijf, onafhankelijke volgorde en selectie **per widgetinstantie**, later opnieuw instelbaar. Aliaswijzigingen werken overal door, verwijderen reconcilieert de selecties. Bij geen favorieten of geen selectie een configureerbare leegstatus.
+
+**Betrouwbaarheid:** geldige `x/y` altijd groen bij `x>0` en rood bij `x=0, y>0`, ook als een bronobject oud is. Onduidelijke/onbetrouwbare aantallen of daadwerkelijk onbetrouwbare feed: `?`. Een succesvolle maar oude waarneming of eerder geldige offlinecache mag als **laatst bekend** getoond worden, mét waarschuwing en leeftijd, niet als live stand. Feedwaarneming, bronrecordleeftijd en lokale ophaaltijd onderscheiden.
+
+**Interactie:** tik op een rij opent de bestaande ChargeWatch-detailsheet voor exact de gekozen `featureId` (Details, Navigeren, Alternatieven). Refreshknop handmatige controle, titel opent de kaart. Automatische update met Android-conforme best-effort achtergrondtaak (~15 minuten), één gedeelde update voor meerdere widgetinstanties; geen harde realtime-belofte.
+
+Zie [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md) voor technische keuzes, foutscenario's en testplan. **UX-ontwerp goedgekeurd; implementatie pas na afzonderlijk akkoord.** Eerdere mockups met grafieken en overige opties hieronder zijn historische richting, geen v1-vereiste.
+
+---
+
 ## Nabije alternatieven — statuskleuren bevestigd (2 november 2026, PR #109)
 
 In de lijst voor GPS, PDOK-nearest en alternatieven zijn geldige `vrij/totaal`-aantallen **altijd groen als minstens één EVSE vrij is en rood als er geen EVSE vrij is**, ook wanneer `isStale=true` voor een ouder bronrecord. Geen grijze cijfers vanwege alleen bronouderdom. Bij onvolledige/onbekende EVSE-status, ongeldige aantallen of niet-aantoonbaar verse feed blijft `?` neutraal. Groen/rood is de bekende bezettingsstatus uit de bron, geen garantie op live-beschikbaarheid. Samsung-review verlangde deze kleurlogica na eerste #109-test.
