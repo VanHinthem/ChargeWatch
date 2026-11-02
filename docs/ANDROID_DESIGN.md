@@ -1,3 +1,11 @@
+## Native widget — vierde Samsung-review: 2×2 en 4×1 (2 november 2026)
+
+De feitelijke test van 4×1, 4×2 en 2×2 bevestigt: **4×1 en 4×2 werken**, maar de smalle **2×2** kapt `ChargeWatch`, de naam en de adresregel onacceptabel af. Het `+1 meer`-label van de 4×1 overschrijft bovendien de bronversheid bij meerdere geselecteerde favorieten. Dit zijn UI-verfijningen van bestaand widgetissue #101, geen nieuwe feature.
+
+**Definitieve compacte richtingen ter heracceptatie:** 2×2 toont 2 geselecteerde favorieten, alleen ⚡+refresh boven, namen/gekleurde `vrij/totaal`-badges in kleinere maat, **uitsluitend plaatsnaam** op de tweede regel als deze uit bestaande gevalideerde adresmetadata bekend is, en een beknopte bronfooter. De volledige adresregel blijft voor **4×1 en grotere** layouts. 4×1 toont een onopvallend `+N`-label naast het logo als meer dan één favoriet geselecteerd is; het beschikbaarheidsmoment blijft altijd onder de badge zichtbaar. Bewaar de leesbare 4×2-layout en bestaande groen/rood/`?`-regels. Fysieke Samsung-controle na volgende build vereist.
+
+---
+
 ## Native widget — horizontale 4×1-variant (#101, 2 november 2026)
 
 De derde fysieke Samsung-screenshot toont twee correct ingelezen favorieten, betrouwbare groene `2/2`, naam + adres/plaats en een bronfooter. De gebruiker kiest voor **één favoriet een 4×1-variant**. In 4×1 wordt **niet** de 4×2-layout verkleind: de hoge ChargeWatch-titel en footer verdwijnen. Links staat een klein ChargeWatch-bliksemsymbool (opent de kaart), daarna groot de eigen favorietennaam met adres/plaats als tweede regel, rechts de groen/rode `vrij/totaal`-badge met compact statusmoment, plus een aparte refreshactie. Bij laatst bekende gegevens staat `Laatst bekend`, bij onbetrouwbare telling `Onbekend`, zonder een versheidsclaim te verzinnen. Bij meer geselecteerde favorieten toont de 4×1 alleen de eerste en `+N meer`; volgorde blijft lokaal.
