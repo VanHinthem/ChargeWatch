@@ -85,7 +85,8 @@ class ChargeWatchWidget : GlanceAppWidget() {
                 widgetRow(favorite.featureId, widgetFavoriteName(favorite, detail),
                     state.snapshots[favorite.featureId], state.lastAttemptMillis,
                     System.currentTimeMillis(),
-                    subtitle = widgetFavoriteSubtitle(favorite, detail))
+                    subtitle = widgetFavoriteSubtitle(favorite, detail),
+                    city = widgetFavoriteCity(favorite, detail))
             }
         }
         val appearance = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
@@ -106,6 +107,10 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
     val size = LocalSize.current
     if (isSingleRowWidget(size.width.value, size.height.value)) {
         SingleRowWidgetContent(context, widgetId, rows, hasFavorites, dark)
+        return
+    }
+    if (size.width.value < 230f) {
+        SmallSquareWidgetContent(context, widgetId, rows, hasFavorites, dark)
         return
     }
     val maxRows = visibleWidgetRows(size.width.value, size.height.value)
@@ -199,6 +204,89 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
 }
 
 /**
+ * 2x2 layout on Samsung One UI. A full 'ChargeWatch' title and full street
+ * cannot coexist with two legible ratios at this width; prefer city and availability.
+ * This layout is deliberately separate from the larger, unchanged 4x2 widget.
+ */
+@Composable
+private fun SmallSquareWidgetContent(
+    context: Context,
+    widgetId: Int,
+    rows: List<WidgetRow>,
+    hasFavorites: Boolean,
+    dark: Boolean
+) {
+    val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
+    val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
+    val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
+    val visible = rows.take(2)
+    Column(
+        modifier = GlanceModifier.fillMaxSize().background(surface).cornerRadius(18.dp)
+            .padding(horizontal = 7.dp, vertical = 7.dp)
+    ) {
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("⚡", modifier = GlanceModifier.defaultWeight()
+                .clickable(actionStartActivity(homeIntent(context, widgetId))),
+                style = TextStyle(color = foreground, fontSize = 19.sp))
+            Text("⟳", modifier = GlanceModifier.padding(horizontal = 3.dp, vertical = 2.dp)
+                .clickable(actionRunCallback<WidgetRefreshAction>()),
+                style = TextStyle(color = foreground, fontSize = 19.sp))
+        }
+        if (visible.isEmpty()) {
+            Text(
+                if (hasFavorites) "Widget instellen" else "Geen favorieten",
+                maxLines = 2, style = TextStyle(color = secondary, fontSize = 12.sp)
+            )
+        } else {
+            visible.forEach { row ->
+                val badge = when (row.status) {
+                    AvailabilityStatus.Available -> if (dark) Color(0xFF214F39) else Color(0xFFD8F1E3)
+                    AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFF572A30) else Color(0xFFFCE1E1)
+                    AvailabilityStatus.Unknown -> if (dark) Color(0xFF414B52) else Color(0xFFE4E9ED)
+                }
+                val badgeText = when (row.status) {
+                    AvailabilityStatus.Available -> if (dark) Color(0xFF74D7A1) else Color(0xFF168653)
+                    AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
+                    AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
+                }
+                Row(GlanceModifier.fillMaxWidth().height(43.dp)
+                    .clickable(actionStartActivity(widgetFavoriteIntent(context, widgetId, row.featureId))),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(GlanceModifier.defaultWeight(),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(row.name, maxLines = 1,
+                            style = TextStyle(color = foreground, fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium))
+                        compactWidgetSubtitle(row)?.let { city ->
+                            Text(city, maxLines = 1,
+                                style = TextStyle(color = secondary, fontSize = 11.sp))
+                        }
+                    }
+                    Spacer(GlanceModifier.width(3.dp))
+                    Text(row.label, maxLines = 1,
+                        modifier = GlanceModifier.background(badge).cornerRadius(7.dp)
+                            .padding(horizontal = 5.dp, vertical = 4.dp),
+                        style = TextStyle(color = ColorProvider(badgeText),
+                            fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                }
+            }
+        }
+        Spacer(GlanceModifier.defaultWeight())
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (visible.isEmpty()) "ChargeWatch" else compactSquareFooter(visible),
+                modifier = GlanceModifier.defaultWeight(),
+                maxLines = 1, style = TextStyle(color = secondary, fontSize = 10.sp)
+            )
+            if (rows.size > visible.size) {
+                Text("+" + (rows.size - visible.size) + " meer", maxLines = 1,
+                    style = TextStyle(color = secondary, fontSize = 9.sp))
+            }
+        }
+    }
+}
+
+/**
  * Dedicated 4x1 composition. Removing the tall widget's title and footer allows
  * two readable location lines, the EVSE ratio, freshness and refresh in one cell.
  * Android controls the actual grid dimensions; this is intentionally height-driven.
@@ -226,8 +314,16 @@ private fun SingleRowWidgetContent(
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("⚡", modifier = GlanceModifier.clickable(actionStartActivity(homeIntent(context, widgetId))),
-            style = TextStyle(color = primary, fontSize = 19.sp))
+        Column(
+            modifier = GlanceModifier.clickable(actionStartActivity(homeIntent(context, widgetId))),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("⚡", style = TextStyle(color = primary, fontSize = 19.sp))
+            if (rows.size > 1) {
+                Text("+" + (rows.size - 1),
+                    style = TextStyle(color = secondary, fontSize = 9.sp))
+            }
+        }
         Spacer(GlanceModifier.width(7.dp))
         if (row == null) {
             Text(if (hasFavorites) "Widget instellen" else "Nog geen favorieten",
@@ -266,7 +362,7 @@ private fun SingleRowWidgetContent(
                         style = TextStyle(color = ColorProvider(badgeText),
                             fontSize = 19.sp, fontWeight = FontWeight.Bold))
                     Text(
-                        if (rows.size > 1) "+" + (rows.size - 1) + " meer" else compactWidgetFreshness(row),
+                        compactWidgetFreshness(row),
                         maxLines = 1, style = TextStyle(color = secondary, fontSize = 9.sp)
                     )
                 }
