@@ -148,3 +148,13 @@ fun compactWidgetFreshness(row: WidgetRow): String = when {
 
 /** A cramped 2×2 widget shows only a verified city on the second line, never a guessed one. */
 fun compactWidgetSubtitle(row: WidgetRow): String? = row.city?.trim()?.takeIf { it.isNotBlank() }
+
+/** Compact two-row footer: never imply all cached favorites share a fresh source check. */
+fun compactSquareFooter(rows: List<WidgetRow>): String = when {
+    rows.isEmpty() -> "Geen favorieten"
+    rows.all { it.status == AvailabilityStatus.Unknown } -> "Onbekend"
+    rows.any { it.status == AvailabilityStatus.Unknown } -> "Deels onbekend"
+    rows.any { it.isLastKnown } -> "Laatst bekend"
+    rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment verschilt"
+    else -> compactWidgetFreshness(rows.first())
+}
