@@ -33,7 +33,7 @@ internal fun nearbyLabel(context: NearbyContext, count: Int): String {
     val noun = if (count == 1) "locatie" else "locaties"
     return when (context) {
         is NearbyContext.Address -> nearestLocationsCountLabel(count)
-        is NearbyContext.Gps -> "$count $noun bij mijn positie"
+        is NearbyContext.Gps -> "$count $noun bij mijn positie" + if (context.position.approximate) " (geschat)" else ""
         is NearbyContext.Alternatives -> "$count nabije " + if (count == 1) "alternatief" else "alternatieven"
     }
 }
