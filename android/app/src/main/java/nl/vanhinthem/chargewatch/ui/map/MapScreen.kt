@@ -196,9 +196,9 @@ fun MapScreen(
                         viewModel.activateNearby(NearbyContext.Gps(result.position))
                         viewModel.nearLoadedFor.value = null
                     }
-                    PositionResult.PermissionMissing -> gpsMessage = "Locatietoestemming ontbreekt."
-                    PositionResult.Disabled -> gpsMessage = "Schakel locatievoorzieningen in bij Android-instellingen."
-                    PositionResult.Unavailable -> gpsMessage = "Je huidige positie is niet beschikbaar. Probeer opnieuw."
+                    PositionResult.PermissionMissing -> { viewModel.disableGps(); gpsMessage = "Locatietoestemming ontbreekt." }
+                    PositionResult.Disabled -> { viewModel.disableGps(); gpsMessage = "Schakel locatievoorzieningen in bij Android-instellingen." }
+                    PositionResult.Unavailable -> { viewModel.disableGps(); gpsMessage = "Je huidige positie is niet beschikbaar. Probeer opnieuw." }
                 }
             } finally {
                 gpsLoading = false
@@ -209,7 +209,7 @@ fun MapScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
         if (granted.values.any { it }) acquireGps()
-        else gpsMessage = "Geen locatietoestemming. Je kunt deze wijzigen bij Instellingen."
+        else { viewModel.disableGps(); gpsMessage = "Geen locatietoestemming. Je kunt deze wijzigen bij Instellingen." }
     }
     fun onGpsClicked() {
         if (!locationEnabled) return
