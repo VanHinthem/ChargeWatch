@@ -11,6 +11,7 @@ import java.time.Instant
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.search.Destination
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
+import nl.vanhinthem.chargewatch.data.location.DevicePosition
 import nl.vanhinthem.chargewatch.data.ndw.ChargeWatchMapClient
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwClient
@@ -34,10 +35,42 @@ class MapViewModel(
     val nearMessage = mutableStateOf<String?>(null)
     val nearbyExpanded = mutableStateOf(false)
     internal val overview = mutableStateOf<DestinationOverview?>(null)
-    val nearLoadedFor = mutableStateOf<Destination?>(null)
+    val activeNearby = mutableStateOf<NearbyContext?>(null)
+    val previousNearby = mutableStateOf<NearbyContext?>(null)
+    val gpsPosition = mutableStateOf<DevicePosition?>(null)
+    val nearCache = mutableMapOf<Pair<NearbyContext, ChargingFilters>, NearbyCacheEntry>()
+    val nearLoadedFor = mutableStateOf<NearbyContext?>(null)
     val nearLoadedWith = mutableStateOf(ChargingFilters())
     val filters = mutableStateOf(ChargingFilters())
     val operatorChoices = mutableStateOf<List<String>?>(null)
+
+    fun activateNearby(next: NearbyContext) {
+        if (activeNearby.value == next) return
+        previousNearby.value = activeNearby.value
+        activeNearby.value = next
+        nearLoadedFor.value = null
+        nearbyExpanded.value = false
+    }
+
+    fun backToPreviousNearby() {
+        val previous = previousNearby.value ?: return
+        previousNearby.value = null
+        activeNearby.value = previous
+        nearLoadedFor.value = null
+        nearbyExpanded.value = false
+    }
+
+    fun disableGps() {
+        gpsPosition.value = null
+        if (activeNearby.value is NearbyContext.Gps) {
+            activeNearby.value = previousNearby.value?.takeUnless { it is NearbyContext.Gps }
+            previousNearby.value = null
+            nearLoadedFor.value = null
+        } else if (previousNearby.value is NearbyContext.Gps) {
+            previousNearby.value = null
+        }
+        nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
+    }
 
     private var lastRequestedViewport: NdwViewport? = null
     private var requestSequence: Long = 0

@@ -26,6 +26,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +49,11 @@ fun SettingsScreen(
     dataStatus: ChargeWatchDataStatus?,
     loading: Boolean,
     error: String?,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    locationEnabled: Boolean,
+    onLocationEnabled: (Boolean) -> Unit,
+    permissionStatus: String,
+    onManagePermission: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -95,6 +101,25 @@ fun SettingsScreen(
                         } else null
                     )
                 }
+            }
+        }
+
+        SettingsCard(title = "Locatie") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Mijn locatie gebruiken", style = MaterialTheme.typography.titleMedium)
+                    Text("GPS en laadlocaties bij mijn positie",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = locationEnabled, onCheckedChange = onLocationEnabled)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text("Android-locatietoestemming", style = MaterialTheme.typography.titleMedium)
+            Text(permissionStatus, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = onManagePermission) {
+                Text("Toestemming beheren")
             }
         }
 

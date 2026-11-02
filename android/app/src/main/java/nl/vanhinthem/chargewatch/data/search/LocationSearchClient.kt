@@ -30,7 +30,8 @@ data class SearchLocation(
     val totalCount: Int,
     val unknownCount: Int,
     val distanceMeters: Double? = null,
-    val feedIsStale: Boolean? = null
+    val feedIsStale: Boolean? = null,
+    val isStale: Boolean? = null
 )
 
 sealed interface SearchResult {
@@ -131,6 +132,7 @@ internal fun parseSearchLocations(raw: String): List<SearchLocation> =
             totalCount = obj["evseCount"]?.jsonPrimitive?.intOrNull ?: 0,
             unknownCount = obj["unknownCount"]?.jsonPrimitive?.intOrNull ?: Int.MAX_VALUE,
             distanceMeters = obj["distanceMeters"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() && it >= 0.0 },
-            feedIsStale = obj["feedIsStale"]?.jsonPrimitive?.booleanOrNull
+            feedIsStale = obj["feedIsStale"]?.jsonPrimitive?.booleanOrNull,
+            isStale = obj["isStale"]?.jsonPrimitive?.booleanOrNull
         )
     }

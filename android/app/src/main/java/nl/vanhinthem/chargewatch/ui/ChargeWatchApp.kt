@@ -23,6 +23,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import nl.vanhinthem.chargewatch.data.location.locationPermissionStatus
+import nl.vanhinthem.chargewatch.ui.map.NearbyContext
+import nl.vanhinthem.chargewatch.ui.map.NearbyOrigin
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.ui.map.MapViewModel
@@ -62,14 +70,26 @@ fun ChargeWatchApp() {
         themeChoice = selected
         prefs.edit().putString("theme", selected).apply()
     }
+    val locationPrefs = remember(context) {
+        context.getSharedPreferences("location_settings", android.content.Context.MODE_PRIVATE)
+    }
+    var locationEnabled by remember { mutableStateOf(locationPrefs.getBoolean("enabled", true)) }
+    var permissionStatus by remember { mutableStateOf(locationPermissionStatus(context)) }
     val repository = remember(context) { FavoritesRepository(context) }
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val mapViewModel: MapViewModel = viewModel()
     val mapState by mapViewModel.uiState.collectAsState()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val status = locationPermissionStatus(context)
+        permissionStatus = status
+        if (status == "Niet toegestaan") mapViewModel.disableGps()
+    }
+
     var selectedTab by remember { mutableIntStateOf(0) }
     var detailOpen by remember { mutableStateOf(false) }
     var favoriteDetail by remember { mutableStateOf<MapLocation?>(null) }
+    var pendingAlternative by remember { mutableStateOf<NearbyOrigin?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val settingsClient = remember { SettingsDataClient() }
@@ -162,7 +182,10 @@ fun ChargeWatchApp() {
         if (selectedTab == 1 && favorites.isNotEmpty()) refresh()
     }
     LaunchedEffect(selectedTab) {
-        if (selectedTab == 2) refreshSettings()
+        if (selectedTab == 2) {
+            permissionStatus = locationPermissionStatus(context)
+            refreshSettings()
+        }
     }
 
 
@@ -172,6 +195,9 @@ fun ChargeWatchApp() {
             if (selectedTab == 0) {
                 MapScreen(
                     viewModel = mapViewModel,
+                    locationEnabled = locationEnabled,
+                    alternativeRequest = pendingAlternative,
+                    onAlternativeRequestConsumed = { pendingAlternative = null },
                     darkTheme = useDarkTheme,
                     onDetailVisibilityChanged = { detailOpen = it },
                     favorites = favorites,
@@ -229,7 +255,18 @@ fun ChargeWatchApp() {
                     dataStatus = settingsData,
                     loading = settingsLoading,
                     error = settingsError,
-                    onRefresh = { scope.launch { refreshSettings() } }
+                    onRefresh = { scope.launch { refreshSettings() } },
+                    locationEnabled = locationEnabled,
+                    onLocationEnabled = { enabled ->
+                        locationEnabled = enabled
+                        locationPrefs.edit().putBoolean("enabled", enabled).apply()
+                        if (!enabled) mapViewModel.disableGps()
+                    },
+                    permissionStatus = permissionStatus,
+                    onManagePermission = {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null)))
+                    }
                 )
             }
 
@@ -242,7 +279,12 @@ fun ChargeWatchApp() {
                     onToggleFavorite = { item -> scope.launch { repository.toggle(item) } },
                     expandedTopInset = 16.dp,
                     initiallyExpanded = true,
-                    compactAllowed = false
+                    compactAllowed = false,
+                    onShowAlternatives = { selected ->
+                        pendingAlternative = NearbyOrigin(selected.featureId, selected.title, selected.latitude, selected.longitude)
+                        favoriteDetail = null
+                        selectedTab = 0
+                    }
                 )
             }
 
