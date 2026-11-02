@@ -1,3 +1,19 @@
+# ChargeWatch — actuele overdracht (2 november 2026)
+
+## Android P2 — Native widget met lokale favorieten (#101)
+
+**Huidige hoofdprioriteit:** [issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101). Gebruiker heeft op 2 november **minimalistische widget-UX richting A** goedgekeurd; volgende stap is review van het technische ontwerp in [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md). De widget is **nog niet geïmplementeerd** en er is **nog geen akkoord om Android-code te schrijven**. Documentatie- en statusupdate in de zelfstandige branch `docs/android-widget-101-design`; geen commits op main, geen merge of deployment zonder apart expliciet akkoord.
+
+**UX-contract:** één APK, één resizable Glance-widget, richtformaten 2×2 (2 rijen), 4×2 (3) en 4×3 (5); maximaal vijf lokale favorieten per widgetinstantie met eigen selectie/volgorde, naam plus `vrij/totaal`, korte versheid en refresh. Geldige tellingen groen bij minstens één vrij, rood bij nul vrij, nooit grijs uitsluitend vanwege oude bronrecordwijziging. Ambigue tellingen `?`; offline eerdere waarden uitsluitend herkenbaar als `Laatst bekend`. Alle widgetinstanties delen een batterijvriendelijke update (~15 min best effort) en bestaande GET-only API/NDW-fallback. Tik op rij opent de juiste bestaande detailsheet. Geen grafieken, tarieven, backend- of NAS-uitbreiding voor #101.
+
+**Codebasis:** `FavoritesRepository` = bestaande lokale DataStore met `featureId`/alias/volgorde; `FavoritesAvailabilityClient` = viewport-API/NDW-fallback; `favoriteAvailability` = betrouwbaarheid/feedversheid; `ChargeWatchApp` = huidige in-memory favorietstatussen. Nog te maken: persistente widgetcache/config, Glance-provider, WorkManager-coordinator en specifieke ID-deeplink. Deze ontwerpstap kent **geen codebuild, CI of fysieke widgettest**.
+
+**Aparte roadmapwens:** [Android Auto-verkenning #110](https://github.com/VanHinthem/ChargeWatch/issues/110): later POI-favorietenlijst en navigatie via externe auto-navigatie-app; aangekondigde mobiele widgets op Android Auto alleen na beschikbaarheidscheck. **Niet** onderdeel van #101.
+
+**Eerstvolgende beslismoment:** gebruiker beoordeelt technisch ontwerp en geeft eventueel **apart akkoord voor de implementatiebranch** `feature/android-favorites-widget`. PR #108 bevat oud, conflicterend planningsconcept en wordt niet als nieuwe implementatie- of mergeroute gebruikt.
+
+---
+
 ## Android — GPS/huidige locatie en nabije alternatieven (#99; 2 november 2026)
 
 **Productbesluiten:** GPS-optie A (tik `Mijn locatie` → één verse foreground-fix → maximaal vijf nearest in 25 km; resultatenlade standaard ingeklapt). Alternatieven-optie A (alleen bestaande actieve kaartfilters, géén automatisch overgenomen connector-/vermogenseisen). Ook goedgekeurd: sectie *Locatie* in Instellingen met lokale schakelaar standaard aan en afzonderlijk Android-permissiebeheer. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99).
@@ -8,7 +24,7 @@
 
 **Samsung-bevinding en correctie (2 november 2026):** de eerste alternatievenlijst toonde onterecht `?` naast kaartmarkers met numerieke aantallen. Oorzaak: Android behandelde `isStale` (leeftijd van het bronrecord) als onbekende beschikbaarheid. Correctie in PR #109: geldige `vrij/totaal`-waarden blijven zichtbaar en hebben **altijd groen bij minstens één vrije EVSE, rood bij nul vrije EVSE's** (ook als `isStale=true`); werkelijk onvolledige of onbetrouwbare aantallen/feed geven `?`. Gerichte regressietests voor de kleuren en parser toegevoegd. **Gebruiker bevestigde op 2 november: "Ja prima zo" na deze kleurcorrectie.** De kleurlogica is daarmee als gewenst bevestigd; dit is geen afzonderlijk merge-/deploymentakkoord en niet automatisch volledige acceptatie van alle GPS-permissie- en offline-scenario's.
 
-**Acceptatiepad:** test op Samsung Galaxy S23 Ultra (precieze/geschatte/geweigerde locatietoestemming, GPS uit of geen fix, instelling uit/aan, 0/1/5 nearest, PDOK ↔ GPS ↔ alternatieven, fav-route, kaartfilters, cameraterugactie, onbekende/stale beschikbaarheid, licht/donker en offline). Corrigeer eventuele bevindingen in dezelfde PR. **Geen merge of NAS-deployment zonder expliciet afzonderlijk akkoord.**
+**Afronding #99 (2 november 2026):** gebruiker heeft de GPS-/alternatievenfeature op Samsung getest, de kleurcorrectie bevestigd en daarna expliciet toestemming gegeven voor squash-merge. [PR #109](https://github.com/VanHinthem/ChargeWatch/pull/109) is gemerged op commit `3cb82ae684f1c9a986888fcdce9da3f786c8ea49`; [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99) is gesloten. CI op de definitieve PR-head was groen. Er vond **geen NAS-deployment** plaats. Niet alle denkbare GPS-/offline-randscenario's zijn als fysiek getest geclaimd.
 
 **Vervolgprioriteiten na goedgekeurde #99:** #101 Android-widget op lokale favorieten, daarna #103 statistieken/uptime en #104 kwaliteitsronde/release. Issue #79 monitoring blijft uitgesteld.
 
