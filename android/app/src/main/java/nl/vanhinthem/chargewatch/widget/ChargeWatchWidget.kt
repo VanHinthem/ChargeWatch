@@ -103,7 +103,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
     val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
     Column(
-        modifier = GlanceModifier.fillMaxSize().background(surface).cornerRadius(18.dp).padding(12.dp),
+        modifier = GlanceModifier.fillMaxSize().background(surface).cornerRadius(18.dp).padding(10.dp),
         verticalAlignment = Alignment.Top
     ) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -115,7 +115,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
                 .clickable(actionRunCallback<WidgetRefreshAction>()),
                 style = TextStyle(color = foreground, fontSize = 20.sp))
         }
-        Spacer(GlanceModifier.height(6.dp))
+        Spacer(GlanceModifier.height(4.dp))
         if (rows.isEmpty()) {
             val label = if (hasFavorites) "Widget instellen" else "Nog geen favorieten"
             Text(label, style = TextStyle(color = secondary, fontSize = 12.sp),
@@ -139,7 +139,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
                     AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
                     AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
                 }
-                Row(GlanceModifier.fillMaxWidth().height(29.dp).clickable(
+                Row(GlanceModifier.fillMaxWidth().height(25.dp).clickable(
                     actionStartActivity(widgetFavoriteIntent(context, widgetId, row.featureId))
                 ), verticalAlignment = Alignment.CenterVertically) {
                     Text(row.name, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
@@ -158,6 +158,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
         val footer = when {
             rows.isEmpty() -> "Open ChargeWatch om favorieten te kiezen"
             rows.any { it.isLastKnown } -> "Deels verouderd · laatst bekend"
+            rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment per locatie verschilt"
             else -> rows.first().freshness
         }
         Row(GlanceModifier.fillMaxWidth()) {
