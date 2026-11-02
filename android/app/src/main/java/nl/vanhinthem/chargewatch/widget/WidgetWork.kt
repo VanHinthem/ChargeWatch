@@ -95,6 +95,10 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
                 store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
             }
         }
+        // Publish availability immediately. Address lookups are independent and
+        // must not leave fresh counts hidden behind '?' while metadata is loading.
+        ChargeWatchWidget().updateAll(context)
+
         // Addresses are separate metadata. A failed lookup cannot alter availability.
         // Reuse the existing detail endpoint only for missing cities; cache successes.
         val addressClient = WidgetAddressClient()
