@@ -77,6 +77,22 @@ class WidgetStore(context: Context) {
         current.copy(refreshingSinceMillis = startedAtMillis)
     }
 
+    /** Save a completed small viewport immediately, without ending the whole refresh. */
+    suspend fun recordIncremental(
+        locations: Map<String, MapLocation>,
+        atMillis: Long
+    ) = update { current ->
+        val needed = current.configurations.values.flatten().toSet()
+        val updated = current.snapshots.toMutableMap()
+        locations.forEach { (id, location) ->
+            if (id in needed) {
+                updated[id] = mergeWidgetSnapshot(updated[id],
+                    location.toWidgetSnapshot(atMillis))
+            }
+        }
+        current.copy(snapshots = updated.filterKeys { it in needed })
+    }
+
     suspend fun recordRefresh(
         locations: Map<String, MapLocation>,
         atMillis: Long,
@@ -87,15 +103,7 @@ class WidgetStore(context: Context) {
         var invalidResults = false
         locations.forEach { (id, location) ->
             if (id !in needed) return@forEach
-            val available = location.availability
-            val proposed = WidgetSnapshot(
-                free = available.available,
-                total = available.total,
-                reliability = available.reliability.name,
-                feedObservedAt = location.feedLastObservedAt,
-                feedIsStale = location.feedIsStale,
-                fetchedAtMillis = atMillis
-            )
+            val proposed = location.toWidgetSnapshot(atMillis)
             // A partial/ambiguous NDW response must never erase the previous
             // *reliable* ratio. On the next render the old ratio is "Laatst bekend".
             if (!proposed.hasReliableCounts()) invalidResults = true
@@ -159,3 +167,13 @@ fun isWidgetRefreshing(state: WidgetState, nowMillis: Long): Boolean {
     val started = state.refreshingSinceMillis ?: return false
     return started > 0L && nowMillis - started in 0L..29_999L
 }
+
+/** Both partial and final results use precisely the same EVSE reliability mapping. */
+private fun MapLocation.toWidgetSnapshot(atMillis: Long): WidgetSnapshot = WidgetSnapshot(
+    free = availability.available,
+    total = availability.total,
+    reliability = availability.reliability.name,
+    feedObservedAt = feedLastObservedAt,
+    feedIsStale = feedIsStale,
+    fetchedAtMillis = atMillis
+)
