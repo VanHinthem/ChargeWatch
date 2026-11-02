@@ -1,5 +1,18 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Vierde Samsung-review — 4×1 bevestigd, 2×2 compact maken (2 november 2026)
+
+De gebruiker heeft drie screenshots van dezelfde debug-APK met **4×1, 4×2 en 2×2** gedeeld. **4×1 werkt fysiek op Samsung One UI**: het horizontale formaat toont de eerste geselecteerde favoriet met correct `2/2` groen, de alias en `Schietspoel 18, Oss`. Omdat twee favorieten geselecteerd zijn, staat `+1 meer` onder de badge; dit verdringt de bronversheid. **4×2 is geslaagd**: twee leesbare rijen, nu ook actuele `1/2` voor Koetseland. **2×2 is nog niet geslaagd**: titel `ChargeW...`, onleesbaar afgekorte namen/adressen, te grote ratio's voor de beperkte breedte.
+
+**Gerichte UX-aanpassing binnen [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112):**
+- **2×2:** aparte compacte Glance-indeling zonder lange merknaam, alleen ⚡ links en verversen rechts. Twee rijen blijven zichtbaar met kleinere maar leesbare badges/namen, alleen de **betrouwbaar opgeslagen plaatsnaam** op regel 2 (geen onbewezen plaats uit straattekst), compacte bronfooter, geen onnodige verticale uitrekking.
+- **4×1:** bij meerdere geselecteerde favorieten verschijnt `+N` klein onder ⚡, zodat **de tijd-/bronstatus altijd onder de beschikbare-aantallenbadge zichtbaar blijft**. Selectie/volgorde ongewijzigd.
+- **4×2 en groter:** ongewijzigde layout en beschikbaarheidsregels. Per-favoriet `vrij/totaal` altijd groen/rood bij betrouwbare status; bij ontbreken van data of oude cache expliciete indicatie.
+
+Gerichte tests voor compact adres, onbekende toestand en versheidsfooter toegevoegd. **CI en fysieke Samsung-review op de nieuwe APK volgen**; geen merge/deploy.
+
+---
+
 ## Samsung-review — twee favorieten geslaagd, 4×1-uitbreiding in test (2 november 2026)
 
 De derde Samsung-screenshot bevestigt dat **twee favorieten met alias/adres/plaats**, de correcte groene `2/2`-aantallen en de bronversheid nu zichtbaar zijn. De gebruiker vindt de widget functioneel goed, maar wil dat **één gekozen favoriet past in een horizontale 4×1-gridcel**. In [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) een aparte responsive 4×1-compositie toegevoegd: geen grote ChargeWatch-titel/footer, alleen klein herkenbaar ⚡-icoon, **favorietennaam en tweede adresregel**, prominente groen/rode `vrij/totaal`-badge, compacte versheid onder de badge en zelfstandige refreshactie. Lange titel en volledige footer blijven behouden bij 4×2 en groter. Bij meerdere geselecteerde favorieten en een tot 4×1 verkleinde widget verschijnt de eerste favoriet met `+N meer`; de selectie en volgorde veranderen niet.
