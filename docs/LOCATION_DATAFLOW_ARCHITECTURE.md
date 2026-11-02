@@ -109,6 +109,34 @@ Dit is een *schematische richting*; routenaam, exacte velden, foutcontract, cach
 
 ---
 
+### Live telling versus per-locatie-samenvatting — technische afweging (2 november 2026)
+
+**Codecontrole:** `BulkImporter.Import` start één PostgreSQL-transactie vóór de bulk-staging en commit pas na de catalogus-/EVSE-/connectorwijzigingen en de bijbehorende import/checkpoint-/statistiekmutaties (`src/ChargeWatch.Importer/BulkImporter.cs`, `BeginTransactionAsync` en `CommitAsync`). Dit maakt een **transactioneel consistente uitbreiding** met locatiebeschikbaarheid in beginsel mogelijk, maar bewijst niet dat een dergelijke tabel al aanwezig is. Voor een v2-maprequest met meerdere SQL-statements is expliciete consistentie nodig: onder standaard `READ COMMITTED` kunnen losse statements namelijk verschillende gecommitte snapshots zien. Voor een momentopname over meerdere queries kan een read-only `REPEATABLE READ`-transactie of een zorgvuldig enkel-statementplan nodig zijn.
+
+| Variant | Querypad | Voordelen | Risico's / toets |
+|---|---|---|---|
+| **A. Live EVSE-aggregatie** | PostGIS locatie-/filterselectie → actieve EVSE's → beschikbaarheidsstatus per locatie → vaste rastercelgroepering | Geen schema-/importwijziging; bron van telling blijft rechtstreeks de actuele catalogus; snel te prototypen | Landelijke volle kaart en herhaalde filtering kunnen veel EVSE's scannen; zonder index-/planmetingen onbekende p95 |
+| **B. Compacte per-locatie status** | Collector onderhoudt `location_availability_summary` in **dezelfde** gepubliceerde transacties → kaart selecteert lichte samenvatting met spatial/filtercondities → rasteraggregatie | Vermijdt bij veel kaartrequests herhaald tellen van dezelfde EVSE's; andere locatie-/widget-endpoints kunnen hergebruiken | Schema-/importwerk, backfill, status-invariant en atomische updates; **technische connectorfilters blijven een aanvullende join/existence-check** |
+| **C. Voorberekende clusters/tiles** | Aggregaties per zoomcel/cache vastleggen en incrementeel invalideren | Veel sneller hergebruik bij landelijke kaart en veel clients | Combinatorische filtersets, invalidatie bij EVSE-statuswijziging, bronversheid, opslag en verhoogde importerbelasting |
+
+**Bewust geen vooraf gemaakte keuze:** begin met A als gecontroleerde baseline/prototype en meet B als echte verbetering alleen wanneer A onvoldoende presteert. C is pas zinvol bij aantoonbare server-/clientbelasting. Onderzoek bovendien een hybride variant: lichte **per-locatie numerieke status** plus live `EXISTS` voor technische filters. Dan blijft de statusring gebaseerd op de **hele laadlocatie** zoals nu, terwijl het filter slechts selecteert *welke locaties* meetellen. Een `minFree`-filter met connector/powerfilter moet op de **passende operationele EVSE's** blijven rekenen en kan niet zonder meer door één totale availableCount uit een samenvatting worden vervangen.
+
+**Veiligheid van statusinformatie:** `AVAILABLE` is de groene EVSE-status; operationele capaciteit telt actieve EVSE's behalve `PLANNED` en `REMOVED`; nul totale capaciteit of incomplete/onbetrouwbare status is niet automatisch een rode locatie. Eenzelfde locatie mag niet groen in kaart en grijs in bulk/favorieten worden door uiteenlopende semantiek. Bepaal expliciet of onbekende EVSE-statussen op een locatie tot `locationsUnknown` moeten leiden; hergebruik bestaande betrouwbaarheidstests, voeg regressietests voor partial source toe.
+
+**Opmerkingen over fysieke indexen:** init-schema bevat `ix_location_position` GiST en unieke `evse(location_id,source_uid)` (waardoor via B-tree-prefix een lookup per locatie mogelijk is). Dit betekent **niet** dat bij een grote, ongefilterde landelijke aggregatie noodzakelijk een indexscan optimaal is; de planner kan terecht een sequential scan of hash-join kiezen. Verifieer werkelijke NAS-indexen en meet `EXPLAIN (ANALYZE,BUFFERS)`; nieuw `evse(status)`- of summary-index niet vooraf verzinnen.
+
+#### Benchmarks en bewijscriteria
+
+- **Representatieve API-queries:** ongefilterd NL en regio; operator-only; `minFree=1/2`; CC(S)2/AC/DC/vermogen gecombineerd; enkele dense stads-tiles; 1000+ records zonder afkapping.
+- **A/B-metingen:** tijd in geografische selectie, locatie-filter, EVSE-aggregatie en gridgroepering afzonderlijk; SQL buffer hits/reads, CPU, responsebytes, p50/p95 en MapLibre frametijd op fysieke Samsung. Meet cold/warm cache en verschillen tussen ingelezen data- en feedpollversie.
+- **Consistentie:** tel alle geselecteerde `location_id` exact eenmaal, controleer filtermembership tegen huidige `MapFilter` en statuscounts tegen huidige kaart; verifieer nieuwe tabeltransacties bij rollback, mislukte/partial import, inactivatie, verdwenen EVSE, null/onbekende status en gelijktijdige lezers.
+- **Kwaliteit:** maak onderscheid tussen laatste **bronstatuswijziging**, geaccepteerde **feedwaarneming** en aantoonbare **gepubliceerde data-/catalogusversie**; een unchanged poll is geen nieuw EVSE-statusbewijs. Maak geen onware claims over verse individuele EVSE's.
+- **Beslisregel:** accepteer A zonder nieuwe tabel zolang de meetbare prestaties en CPU-/batterijlast voldoen; ontwerp B pas bij aantoonbare winst en voorzie een veilige backfill/upgrade; C pas bij verdere bewezen schaalproblemen.
+
+Dit is een **ontwerp-/meetplan, geen uitgevoerde PostgreSQL-benchmark en geen toestemming voor een migratie**.
+
+---
+
 ### Clusteringopties en afweging
 
 | Optie | Gedrag | Plus | Onderzoek/risico |
