@@ -56,8 +56,12 @@ object WidgetWork {
      */
     fun refresh(context: Context, force: Boolean = true) {
         val appContext = context.applicationContext
-        if (!hasWidgets(appContext)) return
-        ensure(appContext)
+        val boundWidgets = hasWidgets(appContext)
+        // During the initial configuration Android may not yet expose the new
+        // widget in getAppWidgetIds(), although its saved selection already exists.
+        // A deliberate save must still trigger its first fetch immediately.
+        if (!boundWidgets && !force) return
+        if (boundWidgets) ensure(appContext)
         activeScope.launch { WidgetRefreshCoordinator.refresh(appContext, force = force) }
         if (force) {
             // Pre-Android 12 expedited jobs require foreground notification
@@ -90,8 +94,10 @@ internal object WidgetRefreshCoordinator {
     private val refreshMutex = Mutex()
 
     suspend fun refresh(context: Context, force: Boolean = false) = refreshMutex.withLock {
-        if (!WidgetWork.hasWidgets(context)) return@withLock
         val store = WidgetStore(context)
+        if (!WidgetWork.hasWidgets(context) && store.read().configurations.isEmpty()) {
+            return@withLock
+        }
         val favorites = FavoritesRepository(context).favorites.first()
         store.reconcile(favorites.map { it.featureId }.toSet())
         val current = store.read()
