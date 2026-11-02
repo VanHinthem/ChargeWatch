@@ -174,6 +174,7 @@ fun MapScreen(
     val locationProvider = remember(context) { DeviceLocationProvider(context) }
     var gpsLoading by remember { mutableStateOf(false) }
     var gpsMessage by remember { mutableStateOf<String?>(null) }
+    var gpsRequestVersion by remember { mutableStateOf(0) }
     var gpsPosition by viewModel.gpsPosition
     var activeNearby by viewModel.activeNearby
     val previousNearby by viewModel.previousNearby
@@ -186,7 +187,9 @@ fun MapScreen(
             try {
                 when (val result = locationProvider.acquire()) {
                     is PositionResult.Found -> {
+                        if (!locationEnabled) return@launch
                         gpsPosition = result.position
+                        gpsRequestVersion++
                         viewModel.nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
                         viewModel.activateNearby(NearbyContext.Gps(result.position))
                         viewModel.nearLoadedFor.value = null
@@ -318,7 +321,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(activeNearby, filters) {
+    LaunchedEffect(activeNearby, filters, gpsRequestVersion) {
         val chosen = activeNearby
         if (chosen == null) {
             viewModel.overview.value = null
@@ -328,7 +331,7 @@ fun MapScreen(
             nearLoading = false
             return@LaunchedEffect
         }
-        if (viewModel.nearLoadedFor.value == chosen && viewModel.nearLoadedWith.value == filters) return@LaunchedEffect
+        if (viewModel.nearLoadedFor.value == chosen && viewModel.nearLoadedWith.value == filters && chosen !is NearbyContext.Gps) return@LaunchedEffect
         val keepCamera = canReturnToDestination
         viewModel.overview.value = null
         nearLoading = true
