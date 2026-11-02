@@ -21,7 +21,7 @@ class NearbyAvailabilityTest {
         // Regression #99: map shows 2/2 while alternatives mistakenly show '?'.
         val result = nearbyAvailabilityDisplay(charger(sourceStale = true))
         assertEquals("2/2", result.label)
-        assertEquals(NearbyAvailabilityTone.OlderSource, result.tone)
+        assertEquals(NearbyAvailabilityTone.Available, result.tone)
     }
 
     @Test fun APIresponseWithOldSourceAndFreshFeedStillShowsCount() {
@@ -33,6 +33,12 @@ class NearbyAvailabilityTest {
         ).single()
         assertEquals("2/2", nearbyAvailabilityDisplay(item).label)
         assertEquals(NearbyAvailabilityTone.OlderSource, nearbyAvailabilityDisplay(item).tone)
+    }
+
+    @Test fun oldSourceUpdateStillShowsRedWhenNoEvseIsFree() {
+        val result = nearbyAvailabilityDisplay(charger(free = 0, total = 2, sourceStale = true))
+        assertEquals("0/2", result.label)
+        assertEquals(NearbyAvailabilityTone.NoneAvailable, result.tone)
     }
 
     @Test fun freshKnownCountsKeepAvailabilityColors() {
