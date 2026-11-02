@@ -497,6 +497,10 @@ Leg per case en variant vast: omvang geïnspecteerde records, werkelijke `matche
 
 ---
 
+### Concrete SQL-proefquery A1 — gereed voor review (2 november 2026)
+
+De eerste, **niet uitgevoerde**, ongefilterde PostGIS-grid-`SELECT` staat in [MAP_GRID_A1_SQL_PROBE.md](MAP_GRID_A1_SQL_PROBE.md). Deze gebruikt de bestaande GiST-locatieindex en actieve EVSE-relatie, een vaste Mercator-cell-ID, één statusaggregatie per locatie en vervolgens `locationsWithFree/NoFree/Unknown` per gridcel. Hij bevat expliciete read-only transactie en conservatieve timeouts. Dit is een **klein Oss-proefgebied**, niet de daadwerkelijke volledige-cel- of landelijke API-implementatie; filters, bronbetrouwbaarheid en gridboundary-consistentie moeten vóór productie verder gevalideerd worden. Geen echte SQL-executie, benchmark of NAS-toegang uitgevoerd.
+
 ## 7. Fasering en beslismomenten
 
 **Fase 0 — ontwerp:** exacte veld-/requestmatrix, identiteits-/broncontract, querykosten, alternatieven, UX voor compact/expanded en favorieten-widget, risico's. Gebruiker beoordeelt en kiest architectuurrichting. Geen code of deployment.
