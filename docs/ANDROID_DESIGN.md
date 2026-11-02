@@ -1,3 +1,9 @@
+## Native widget — Samsung-review: typografie en plaatsnaam (2 november 2026)
+
+De gebruiker bevestigde dat twee bewust geselecteerde favorieten correct groen `2/2` tonen maar te klein ogen, met veel verticale witruimte. **Bijstelling voor PR #112:** kop, favorietnaam en statusbadge groter; een tweede, secundaire regel met de plaatsnaam (uitsluitend indien betrouwbaar beschikbaar uit het reeds opgeslagen favoriete adres). Voor favorieten zonder eigen alias wordt dezelfde plaats achter de straatnaam niet dubbel getoond. De versheidsfooter onderaan uitlijnen; compacte formaten prioriteren leesbaarheid boven het eerder geschatte maximum van 2/3/5 rijen. `+N meer` blijft zichtbaar als niet alle geselecteerde favorieten passen; tot vijf rijen bij voldoende widgethoogte. Geen extra API of geocoding, geen wijziging van statuskleursemantiek. Nieuwe fysieke Samsung-review volgt.
+
+---
+
 ## Native Android-widget — definitieve minimalistische UX (#101; 2 november 2026)
 
 **Goedgekeurd:** richting A, één resizable startschermwidget in de bestaande APK, maximaal vijf per-widget geselecteerde lokale favorieten, géén mini-kaart, minigrafieken, tarieven, connectorvermogen of afstand. Responsive richtformaten **2×2 (maximaal twee zichtbare rijen)**, **4×2 (drie)** en **4×3 (vijf)**; daadwerkelijke ruimte/tekstschaling bepaalt het aantal en `+N meer` meldt overflow. Ieder formaat heeft dezelfde velden: ChargeWatch-titel, refresh, favorietennaam links, betrouwbare groene/rode `vrij/totaal`-badge rechts en expliciete bron-/cacheversheid. Geen ster per rij, want iedere rij is een favoriet. Material3-achtige afgeronde kaart met bestaande ChargeWatch licht/donker-instelling.
