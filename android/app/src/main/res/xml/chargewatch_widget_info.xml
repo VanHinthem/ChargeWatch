@@ -12,6 +12,6 @@
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/chargewatch_widget_placeholder"
-    android:description="@string/app_name"
+    android:description="@string/widget_description"
     android:configure="nl.vanhinthem.chargewatch.widget.WidgetConfigurationActivity"
     android:widgetFeatures="reconfigurable" />
