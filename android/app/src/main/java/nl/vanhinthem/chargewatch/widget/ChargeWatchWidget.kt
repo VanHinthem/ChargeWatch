@@ -182,12 +182,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
         }
         // Give the selected rows room while keeping source freshness at the bottom.
         Spacer(GlanceModifier.defaultWeight())
-        val footer = when {
-            rows.isEmpty() -> "Open ChargeWatch om favorieten te kiezen"
-            rows.any { it.isLastKnown } -> "Deels verouderd · laatst bekend"
-            rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment per locatie verschilt"
-            else -> rows.first().freshness
-        }
+        val footer = widgetFooter(rows)
         val footerText = if (narrow) footer.removePrefix("Bron gecontroleerd · ") else footer
         Row(GlanceModifier.fillMaxWidth()) {
             Text(footerText, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
