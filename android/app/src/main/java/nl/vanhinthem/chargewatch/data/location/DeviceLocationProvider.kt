@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.CancellationSignal
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -73,6 +74,8 @@ class DeviceLocationProvider(private val context: Context) {
                 found.latitude !in -90.0..90.0 || found.longitude !in -180.0..180.0
             ) PositionResult.Unavailable
             else PositionResult.Found(DevicePosition(found.latitude, found.longitude, found.accuracy, !fine))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: SecurityException) {
             PositionResult.PermissionMissing
         } catch (_: Exception) {
