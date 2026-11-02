@@ -1,3 +1,13 @@
+## API-contractvoorstel kaart v2 — #113 (2 november 2026)
+
+**Ontwerpfase:** eerste concreet, nog niet definitief goedgekeurd contract in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). Schematische `GET /api/v1/map/overview?bbox=...&zoom=...&<filters>` met getypeerde `cluster`- en `location`-items. Eén neutraal clustercentrum toont `locationCount`, de ring wordt bepaald door exacte `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`. Een individueel locatieobject krijgt ID, coördinaten, betrouwbare `vrij/totaal` en bronmetadata. Filterpariteit met huidige `MapFilter` blijft verplicht.
+
+**Volledigheid:** `coverage.complete`, cell IDs, daadwerkelijk `gridLevel`, genormaliseerde filterset, aantoonbaar consistente publicatieversie en `coverage.locationCount` geven de client expliciete dekking. Geldige invariant: som van clusterlocaties plus losse items = totaal, elke onderliggende locatie exact eenmaal; geen stille truncatie, geen verschillende statusversies als één actueel geheel. Fictieve voorbeeldresponse en testmatrix opgenomen. Een NDW-pollcheckpoint is **niet automatisch** een consistente catalogusversie.
+
+**Nog open:** route/veldnaam en minimale eerste-frame sheetvelden, tegel-/gridschema, foutcontract en cacheversie, landelijke performance, bron-fallback, afgewogen responsive zoomresolutie. **Geen backend- of Android-code, geen NAS-deploy of merge; draft-PR #114.**
+
+---
+
 ## Kaartnavigatie en tile-cache — onderzoek #113 (2 november 2026)
 
 **Ontwerpuitwerking in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** tijdens slepen/zoomen bestaande geldige markers laten staan, alleen bij camera-idle of cachemiss complete geografische raster-/tilecellen ophalen, en bij korte pans aangrenzende cellen cachen/prefetchen. Een **begrensde in-memory tile-LRU** is de eerste benchmarkkandidaat; een ring aangrenzende cellen is slechts een te meten uitgangsscenario. Geen vastgelegde TTL, kaartobjectlimiet of nieuwe debounce zonder NAS-/Samsung-metingen.
