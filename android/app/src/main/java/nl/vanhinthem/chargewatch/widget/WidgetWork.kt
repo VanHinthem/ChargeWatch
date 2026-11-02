@@ -10,10 +10,15 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
@@ -24,6 +29,8 @@ import java.util.concurrent.TimeUnit
 object WidgetWork {
     private const val PERIODIC = "chargewatch_widget_periodic"
     private const val ON_DEMAND = "chargewatch_widget_one_time"
+    // Not tied to a configuration Activity or Glance's click callback lifetime.
+    private val activeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun hasWidgets(context: Context): Boolean =
         AppWidgetManager.getInstance(context).getAppWidgetIds(
@@ -40,15 +47,24 @@ object WidgetWork {
         )
     }
 
-    fun refresh(context: Context) {
-        if (!hasWidgets(context)) return
-        ensure(context)
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            ON_DEMAND, ExistingWorkPolicy.KEEP,
-            // A user-triggered refresh should also run while offline, so that the
-            // previously cached ratio is immediately marked as last-known.
-            OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build()
-        )
+    /**
+     * User actions and widget configuration start the fetch in the live app
+     * process immediately; they do not wait for WorkManager to schedule the job.
+     * Expedited WorkManager is a persistence fallback if Android kills the process.
+     */
+    fun refresh(context: Context, force: Boolean = true) {
+        val appContext = context.applicationContext
+        if (!hasWidgets(appContext)) return
+        ensure(appContext)
+        activeScope.launch { WidgetRefreshCoordinator.refresh(appContext, force = force) }
+        if (force) {
+            WorkManager.getInstance(appContext).enqueueUniqueWork(
+                ON_DEMAND, ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .build()
+            )
+        }
     }
 
     fun stopIfUnused(context: Context) {
@@ -59,14 +75,16 @@ object WidgetWork {
     }
 }
 
-class WidgetRefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    companion object { private val refreshMutex = Mutex() }
+/**
+ * All refresh paths share a single mutex, cache, and the existing API-first
+ * FavoritesAvailabilityClient. Periodic work may be delayed by Android, but
+ * an explicit user action is attempted immediately.
+ */
+internal object WidgetRefreshCoordinator {
+    private val refreshMutex = Mutex()
 
-    override suspend fun doWork(): Result = refreshMutex.withLock { performRefresh() }
-
-    private suspend fun performRefresh(): Result {
-        val context = applicationContext
-        if (!WidgetWork.hasWidgets(context)) return Result.success()
+    suspend fun refresh(context: Context, force: Boolean = false) = refreshMutex.withLock {
+        if (!WidgetWork.hasWidgets(context)) return@withLock
         val store = WidgetStore(context)
         val favorites = FavoritesRepository(context).favorites.first()
         store.reconcile(favorites.map { it.featureId }.toSet())
@@ -75,14 +93,18 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
         val targets = favorites.filter { it.featureId in selected }
         if (targets.isEmpty()) {
             ChargeWatchWidget().updateAll(context)
-            return Result.success()
+            return@withLock
         }
+
         val now = System.currentTimeMillis()
-        // One shared throttle for all widgets and refresh buttons. Failures remain retryable
-        // at the next 60-second boundary; old successful cache timestamps are not advanced.
-        // Throttle status polling, but still permit a one-time address metadata lookup
-        // after an APK upgrade or when another widget was recently refreshed.
-        if (now - current.lastAttemptMillis !in 0..59_999L) {
+        val needsInitialData = targets.any { current.snapshots[it.featureId] == null }
+        if (shouldFetchWidgetAvailability(
+                nowMillis = now,
+                previousAttemptMillis = current.lastAttemptMillis,
+                force = force,
+                needsInitialData = needsInitialData
+            )
+        ) {
             try {
                 when (val result = FavoritesAvailabilityClient().refresh(targets)) {
                     is FavoriteRefreshResult.Success ->
@@ -92,32 +114,55 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
                         store.recordRefresh(result.locations, System.currentTimeMillis(), true)
                 }
             } catch (_: Exception) {
+                // The old trustworthy ratio remains in cache, now marked last-known.
                 store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
             }
         }
-        // Publish availability immediately. Address lookups are independent and
-        // must not leave fresh counts hidden behind '?' while metadata is loading.
+
+        // Publish new ratios first, rather than waiting for address metadata.
         ChargeWatchWidget().updateAll(context)
 
-        // Addresses are separate metadata. A failed lookup cannot alter availability.
-        // Reuse the existing detail endpoint only for missing cities; cache successes.
         val addressClient = WidgetAddressClient()
-        var lookupCount = 0
+        var attempted = 0
         for (favorite in targets) {
-            if (lookupCount >= 10) break
+            if (attempted >= 10) break
             val state = store.read()
-            if (widgetFavoriteCity(favorite) == null &&
+            if (widgetFavoriteCity(favorite, state.addresses[favorite.featureId]) == null &&
                 shouldFetchWidgetAddress(
                     state.addresses[favorite.featureId],
                     state.addressAttempts[favorite.featureId], System.currentTimeMillis()
                 )
             ) {
-                lookupCount++
+                attempted++
                 val address = addressClient.load(favorite.featureId)
                 store.recordAddressLookup(favorite.featureId, address, System.currentTimeMillis())
             }
         }
-        ChargeWatchWidget().updateAll(context)
+        if (attempted > 0) ChargeWatchWidget().updateAll(context)
+    }
+}
+
+/**
+ * Explicit refresh: no 60-second WorkManager debounce, only a short safeguard
+ * against accidental rapid double taps. New selections with no cached counts
+ * are fetched immediately even after another widget was recently updated.
+ */
+internal fun shouldFetchWidgetAvailability(
+    nowMillis: Long,
+    previousAttemptMillis: Long,
+    force: Boolean,
+    needsInitialData: Boolean
+): Boolean {
+    val elapsed = nowMillis - previousAttemptMillis
+    if (previousAttemptMillis <= 0 || elapsed < 0) return true
+    val threshold = if (force || needsInitialData) 2_000L else 60_000L
+    return elapsed >= threshold
+}
+
+class WidgetRefreshWorker(context: Context, params: WorkerParameters) :
+    CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        WidgetRefreshCoordinator.refresh(applicationContext)
         return Result.success()
     }
 }
