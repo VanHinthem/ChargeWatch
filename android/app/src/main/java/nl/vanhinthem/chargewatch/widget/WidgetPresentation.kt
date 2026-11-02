@@ -131,3 +131,15 @@ fun widgetFooter(rows: List<WidgetRow>): String = when {
     rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment per locatie verschilt"
     else -> rows.first().freshness
 }
+
+// A 4x1 Android launcher row is substantially shorter than the regular widget.
+// This size class uses a dedicated horizontal composition, not a scaled-down 4x2.
+fun isSingleRowWidget(widthDp: Float, heightDp: Float): Boolean =
+    widthDp >= 235f && heightDp < 100f
+
+/** Compact, unambiguous source feedback under the 4x1 ratio. */
+fun compactWidgetFreshness(row: WidgetRow): String = when {
+    row.status == AvailabilityStatus.Unknown -> "Onbekend"
+    row.isLastKnown -> "Laatst bekend"
+    else -> row.freshness.substringAfter(" · ", "Gecontroleerd").removeSuffix(" geleden")
+}
