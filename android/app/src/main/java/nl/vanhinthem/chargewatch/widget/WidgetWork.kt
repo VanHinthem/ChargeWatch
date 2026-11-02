@@ -62,19 +62,22 @@ object WidgetWork {
         // widget in getAppWidgetIds(), although its saved selection already exists.
         // A deliberate save must still trigger its first fetch immediately.
         if (!boundWidgets && !force) return
-        if (boundWidgets) ensure(appContext)
+        // Do not synchronously initialize WorkManager on the widget's UI/click
+        // thread. First start the actual API request; schedule persistence work
+        // independently so saving a configuration can render immediately.
         activeScope.launch { WidgetRefreshCoordinator.refresh(appContext, force = force) }
-        if (force) {
-            // Pre-Android 12 expedited jobs require foreground notification
-            // plumbing. The direct coroutine handles foreground responsiveness
-            // on all API levels; use a regular backup work request on API 26-30.
-            val request = OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                request.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        activeScope.launch {
+            if (boundWidgets) ensure(appContext)
+            if (force) {
+                // Android 12+ expedited fallback, older devices regular backup.
+                val request = OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    request.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                }
+                WorkManager.getInstance(appContext).enqueueUniqueWork(
+                    ON_DEMAND, ExistingWorkPolicy.KEEP, request.build()
+                )
             }
-            WorkManager.getInstance(appContext).enqueueUniqueWork(
-                ON_DEMAND, ExistingWorkPolicy.KEEP, request.build()
-            )
         }
     }
 
