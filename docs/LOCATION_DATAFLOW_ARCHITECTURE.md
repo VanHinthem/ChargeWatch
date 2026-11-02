@@ -82,6 +82,65 @@ Dit is een *schematische richting*; routenaam, exacte velden, foutcontract, cach
 
 **Werkhypothese voor de benchmark:** eerst A onderzoeken en afzetten tegen C, zonder de beslissing al vast te leggen. Beheerbare kaartobjecten als **budget** is iets anders dan onderliggende locaties trunceren. Als een API-bestek niet kan worden gehaald, mag hij **niet** stilzwijgend relevante delen van Nederland laten wegvallen: zoomniveau/aggregatie verhogen, duidelijk statuscontract of gecontroleerde fout, te valideren.
 
+### Eerste interactie-/clusterregels — voorstel ter UX-review (2 november 2026)
+
+Deze sectie werkt de **bevestigde landelijke zoomdoelen** uit. De clusterweergave, labels en kleurinterpretatie hieronder zijn **aanbevelingen**, nog geen expliciet akkoord van de gebruiker. Huidig gedrag ter vergelijking is gecontroleerd in `ClusterAvailability.kt`, `MapInteraction.kt` en `MapScreen.kt`.
+
+#### A. Rasterresolutie en objectidentiteit
+
+1. Gebruik bij voorkeur een **wereldwijd vast raster in Web Mercator/tilecoördinaten**, met zoomafhankelijke celgrootte, niet een steeds opnieuw op de actuele scherm-bbox gecentreerd raster. Daarmee springen clusters minder bij een kleine pan.
+2. Vraag een op volledige cellen/tiles **afgerond gebied met kleine buffer** op; groepeer altijd op dezezelfde vaste cellen. Laat de client alleen de werkelijk zichtbare cellen renderen. Een cluster telt alle gefilterde locaties **in zijn volledige cel**, zodat de teller niet verandert door een paar pixels camera-pan.
+3. Elke cel met **precies één** actieve, gefilterde locatie wordt een individuele marker; een cel met **meerdere** wordt een cluster. Lage zoom heeft grotere cellen, hoge zoom kleinere. Geen harde handmatig gedefinieerde straal in kilometers als universele grens.
+4. De cel-/clusteridentiteit is tijdelijk en gebonden aan `zoomBucket + gridCell + filterHash + dataVersion`; niet verwarren met de stabiele publieke `featureId` van een locatie. Klikacties gebruiken beschikbare **celbounds**, niet een database-ID als cluster.
+5. Niet alle punten worden vanzelf individueel bij hoge zoom: verschillende locaties met **exact dezelfde coördinaten** kunnen in één cel blijven. Hiervoor is een eindige, gepagineerde locatieselectie nodig in plaats van oneindig inzoomen.
+6. De invariant over volledigheid moet gelden voor **de aangevraagde, disjuncte tile/celverzameling**, inclusief de buffer. Nooit `locationCount` bij overlappende celresultaten dubbel sommeren. Nog te bepalen: overlap, grensgevallen, laagwissel en stabiel cachen.
+
+#### B. Bepalen van label en kleur
+
+**Huidig gedrag:** `ClusterAvailability.summarizeCluster()` geeft een exacte `vrij/totaal`-som van operationele EVSE's alleen wanneer **alle** samenstellende locaties geldige, niet-ambigue tellingen hebben; anders `?`. Gecombineerd krijgt de cluster groen bij `available>0`, rood bij `available=0` met positieve capaciteit, anders grijs. Dit blijft de betrouwbaarheidsgedachte voor een exacte ratio.
+
+**Voorstel voor landelijke UX (nog ter goedkeuring):**
+
+| Object | Middenlabel | Kleur/ring | Betekenis |
+|---|---|---|---|
+| Cluster van N locaties | **N** | Ring met groen aandeel locaties met ten minste één betrouwbare vrije EVSE, rood aandeel locaties met betrouwbaar nul vrij, afzonderlijk onbekend aandeel | N is **aantal laadlocaties**, geen aantal EVSE's |
+| Individuele locatie | **vrij/totaal** of **?** | Bestaande groene/rode/onbekende marker | Telling van operationele EVSE's op die ene locatie |
+| Kleine cluster (optioneel) | Ook **N**, geen wisselend labeltype | Zelfde ring als grote clusters; details bij inzoomen | Semantisch consequent bij elke zoom |
+
+**Voorgestelde onderliggende aggregaatvelden:** `locationCount`, `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`, `availableEvseCount?`, `totalOperationalEvseCount?`, `countsComplete`. De laatste twee EVSE-aantallen gelden alleen als **alle** samenstellende locaties betrouwbare aantallen hebben. Somcontrole:
+`locationsWithFree + locationsWithNoFree + locationsUnknown == locationCount` en `0 <= availableEvseCount <= totalOperationalEvseCount` wanneer `countsComplete=true`. Een cluster met 1 bekende vrije locatie en 200 onbekende locaties wordt nooit geclaimd als `1/200` EVSE's.
+
+Kleursemantiek voor ringsegmenten is gebaseerd op **aantal locaties in statuscategorie**, niet op EVSE-capaciteit; voorkom dat één grote laadlocatie de kleuren van een heel stadscluster domineert. Een volledig groene ring betekent dat **alle** meegenomen locaties minstens één betrouwbaar vrije EVSE hebben. Volledig rood betekent dat alle locaties betrouwbare tellingen hebben en er geen enkele vrije EVSE is. Een ring met onbekend aandeel mag dit niet als volledig bezet/volledig vrij presenteren.
+
+**Filtercontract:** `MapFilter.LocationPredicate` werkt op locatie-/EVSE-existentiële condities. **Eerst** filteren, **dan** exact dezelfde status-/clusteraggregatie; `minFree` telt bij technische filters passende beschikbare EVSE's, terwijl de bestaande mapbadge de totale operationele locatiebeschikbaarheid toont. Niet ongemerkt overschakelen naar *alleen connector-match*-tellingen zonder apart productbesluit.
+
+**Bronversheid:** `feedLastObservedAt`, `feedIsStale`, bronstatus en client-fetchmoment zijn onderscheiden. Een cluster met uiteenlopende bronkwaliteit mag geen uniforme `recent`-claim doen; onderzoek of `unknownCount`, `staleCount` of `dataQuality` in de compacte respons nodig zijn.
+
+#### C. Clustertap en sheetgedrag
+
+| Gebaar/object | Voorgesteld gedrag |
+|---|---|
+| Tap losse laadlocatie | Compacte sheet onmiddellijk op basis van reeds ontvangen minimumdata; overige details doelgericht op ID laden |
+| Tap cluster op lage/middelste zoom | Animatie naar **bounds van de clustercel**, met marge voor zoekbalk/panel; inzoomen totdat clusters kleiner worden; geen volle lijst van N locaties ophalen |
+| Tap cluster op maximale bruikbare zoom | Als nog meerdere locaties in dezelfde cel/coördinaat vallen: compacte **locatiekeuzelijst** via een beperkt/pagineerbaar ID- of bbox-contract; geen onbegrensde response |
+| Pan of zoom tijdens laden | Laat geldige oudere markers waar passend staan tot nieuwe complete celverzameling beschikbaar is; oude responses mogen na cameraverandering of filterupdate niet over nieuwere heen tekenen |
+| Kaartfilter veranderen | Cluster-/tile-cache per **genormaliseerde filterset** scheiden; geen verouderde ongefilterde kaart tonen alsof nieuwe filters toegepast zijn |
+
+**Lokale favorieten:** een individuele bekende favoriet behoudt de eigen gele ster. Een servercluster weet niet welke favorieten lokaal opgeslagen zijn. Onderzoek hoe lokaal bekende favorietcoördinaten aan vaste rastercellen kunnen worden gekoppeld **zonder favoriete IDs of aliases naar de API te sturen**. Toon alleen een cluster-favorietindicatie als zeker is dat die locatie **in de gefilterde set** zit; anders geen misleidende ster. Eventuele aparte overlaypins mogen clusters niet dubbeltellen.
+
+#### D. Responsgrootte, caching en verificatie
+
+- Verzend **lichte, getypeerde kaartobjecten** `location | cluster`, met alleen noodzakelijke attributen. **Clusters bevatten niet alle kindlocaties**; details worden pas na keuze opgevraagd. Een klant mag nooit `MapLocation` voor een cluster fingeren.
+- Server bewaakt een **te tekenen objectbudget** door voldoende grof te aggregeren. Geen `LIMIT N` op onderliggende locaties vóór clustering, geen stilzwijgend ontbrekende markers; als de gekozen zoom/celresolutie te veel objecten oplevert, is een expliciet contract voor server-side resolutieaanpassing/overzicht of zichtbare fout nodig.
+- Beoordeel de impact van ruimtelijke PostGIS-indexen, unieke EVSE-tellingen, gematerialiseerde statussamenvattingen, tile-cache en filtercombinaties. Geen claims over optimale querykosten zonder `EXPLAIN ANALYZE` op echte data.
+- Controleer bij uiteenlopende zoomniveaus, dichtbevolkte steden en landelijk overzicht dat **alle relevante locaties exact eenmaal** in de volledige celdekking zijn opgenomen; na filteractie moeten clustertelling en individueel ingezoomde leden overeenkomen.
+- Voor de NDW-fallback is nog geen gelijkwaardig geaggregeerd landelijk endpoint aanwezig. De app mag bij storing **niet** stilzwijgend een incomplete landelijke kaart teruggeven. Ontwerp zichtbare degradatie met cache en/of begrensde lokale fallback.
+- Laat fysieke Samsung-kaartinteractie (zoomanimatie, tapvertraging, markerstabiliteit, zoekbalk/panel-ruimte en lokale favorieten) een aparte acceptatiestap zijn.
+
+**Open beslispunt voor de gebruiker:** op clusters altijd **aantal laadlocaties in het midden + statusverdeling in een groen/rode/onbekende ring** (aanbevolen voor nationale schaal), of op kleine clusters vasthouden aan de huidige **EVSE-vrij/totaal**-ratio? Het eerste is consequent schaalbaar; het tweede geeft meer directe EVSE-informatie maar past bij zeer grote clusters minder goed en kan van betekenis wisselen bij zoomen.
+
+---
+
 ### UX- en databetrouwbaarheidspunten die nog uitgewerkt moeten worden
 
 - **Zoom & pan:** landelijke begin-/uitzoomkaart mogelijk; clusters vallen steeds verder uiteen tot individuele locaties. Stabiele clusterposities over pan-/zoomovergangen, geen markerflits of onverwachte lege regio's.
