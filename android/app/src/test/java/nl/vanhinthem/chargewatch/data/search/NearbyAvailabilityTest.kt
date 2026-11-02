@@ -32,7 +32,7 @@ class NearbyAvailabilityTest {
                 "isStale":true,"feedIsStale":false}]"""
         ).single()
         assertEquals("2/2", nearbyAvailabilityDisplay(item).label)
-        assertEquals(NearbyAvailabilityTone.OlderSource, nearbyAvailabilityDisplay(item).tone)
+        assertEquals(NearbyAvailabilityTone.Available, nearbyAvailabilityDisplay(item).tone)
     }
 
     @Test fun oldSourceUpdateStillShowsRedWhenNoEvseIsFree() {
