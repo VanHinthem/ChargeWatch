@@ -1,6 +1,6 @@
 # Android-startschermwidget — UX-contract en technisch ontwerp (#101)
 
-**Status (2 november 2026):** minimalistische UX-richting A door gebruiker goedgekeurd. Dit document is een **implementatievoorstel voor review**, geen akkoord om code te schrijven, te mergen of te deployen. Canoniek issue: [#101](https://github.com/VanHinthem/ChargeWatch/issues/101). De oude documentatie-PR #108 (`docs/android-v1-next-steps`) heeft een conflicterende historische roadmap en is **niet** de implementatiebasis; de relevante punten zijn hier opnieuw tegen `main` beoordeeld.
+**Status (2 november 2026):** minimalistische UX-richting A goedgekeurd en vervolgens expliciet akkoord gegeven voor Android-implementatie. Uitvoering op `feature/android-favorites-widget` in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112). CI en Samsung-validatie nog te voltooien; **geen merge of deploy zonder afzonderlijk expliciet akkoord**. Canoniek issue: [#101](https://github.com/VanHinthem/ChargeWatch/issues/101). De oude documentatie-PR #108 (`docs/android-v1-next-steps`) heeft een conflicterende historische roadmap en is **niet** de implementatiebasis; de relevante punten zijn hier opnieuw tegen `main` beoordeeld.
 
 ## Doel en productgrenzen
 
@@ -96,7 +96,7 @@ Dit zijn **richtmaten**: daadwerkelijke `DpSize` na resizing, launcher-padding, 
 
 ## Volgende menselijke beslissing
 
-**UX-richting is akkoord; technisch ontwerp en implementation scope worden nu ter review aangeboden.** Het maken van deze documentatiebranch/PR is **geen akkoord om Android-code te implementeren**. Na review van dit contract kan een aparte implementatiebranch worden gestart zodra de gebruiker dat expliciet bevestigt.
+**Uitvoering door gebruiker geautoriseerd op 2 november 2026.** De technische ontwerpkeuzes zijn binnen #101 in PR #112 geïmplementeerd/in uitwerking. Eerst CI, eventuele correcties en fysieke Samsung-test; daarna expliciet apart mergeakkoord vragen.
 
 ## Afzonderlijke roadmapwens: Android Auto
 
