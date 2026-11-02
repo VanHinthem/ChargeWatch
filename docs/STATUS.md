@@ -1,3 +1,11 @@
+## A1 SQL-proefquery voor review — #113 (2 november 2026)
+
+**Nieuw:** [MAP_GRID_A1_SQL_PROBE.md](MAP_GRID_A1_SQL_PROBE.md) bevat de eerste expliciet **niet uitgevoerde**, ongefilterde PostGIS-`SELECT` voor een klein Oss-proefgebied. Pipeline: geografische selectie via bestaande `charging_location.position` → actieve EVSE's per locatie tellen → vaste Web Mercator-gridcellen → `locationCount/free/noFree/unknown` en singleton-ID. Korte `REPEATABLE READ READ ONLY`-transactie, conservatieve SQL-timeouts en `ROLLBACK` staan in het reviewvoorbeeld.
+
+**Grenzen:** geen technische `MapFilter`-equivalentie in deze eerste proef, nog geen volledig gevulde tile-/celcoverage voor verschuivende viewport en bronbetrouwbaarheid nog te verfijnen. Geen PostgreSQL-parser-/benchmarkuitvoering, geen NAS-toegang, geen schema-/codewijzigingen, geen merge of deployment. Eerst SQL en kwaliteitsinvarianten reviewen, daarna afzonderlijk akkoord voor een gecontroleerde test.
+
+---
+
 ## Read-only benchmarkprotocol — kaart v2 / #113 (2 november 2026)
 
 **Vastgelegd, nog niet uitgevoerd:** [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) bevat nu een gecontroleerd benchmarkprotocol voor huidige kaartquery (A0), live PostGIS-gridaggregatie (A1), eventuele per-locatie-availabilitysummary in een **geïsoleerde proefdatabase** (B) en optionele tilecache (C). Scenario's: straat Oss, Oss/Elst, druk stadscentrum, Noord-Brabant, volledig Nederland, technische en statusfilters, lege/ambigue resultaten, gridranden.
