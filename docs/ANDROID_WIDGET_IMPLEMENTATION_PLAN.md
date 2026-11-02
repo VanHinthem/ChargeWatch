@@ -10,6 +10,16 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Vierde Samsung-acceptatieronde: compact 2×2 en 4×1-bronversheid
+
+Bij de door gebruiker aangeleverde screenshots werkt de echte **4×1-resizetoestand op Samsung**. 4×2 toont alle twee favorieten correct; 2×2 is te krap om de lange titel, twee adressen en hoge ratio's tegelijk leesbaar te houden. De vervolgimplementatie op PR #112 laat de 4×2-renderer ongewijzigd, maar introduceert voor smalle widgets (`widthDp < 230`, behalve de 4×1-sizeclass) een afzonderlijke 2×2-presentatie met klein logo en refresh, twee kleine rijen, ratio en een footer. Gebruik een in de UI-state expliciet **betrouwbaar vastgestelde city** voor de tweede regel, in plaats van afgekapt volledig adres. Dit volgt de productprioriteit bezetting > volledige adresregel op kleine schermen.
+
+In de 4×1-renderer verhuist `+N` bij meer geselecteerde favorieten naast het logo; de korte bronstatus onder de ratio blijft altijd zichtbaar, ook wanneer niet alle favorieten passen. Bij onbekende telling is dit `Onbekend`, bij historische geldige telling `Laatst bekend`; beide mogen nooit als verse beschikbaarheid gepresenteerd worden.
+
+Tests dekken compact stadslabel, verdeling van onbekende en laatst bekende waarden en 4×1-versheidslabel af. Fysieke Samsung-test na succesvolle CI: breedte 2×2, terug naar 4×2, 4×1 met 1 én 2 geselecteerde favorieten; leesbaarheid, refresh, tap-intent en cache.
+
+---
+
 ## Derde Samsung-feedback: één favoriet op 4×1
 
 De nieuwe Samsung-screenshot bevestigt herstel van **alias/adres/plaats**, groen `2/2` en bronversheid voor twee geselecteerde favorieten. Nieuwe eis: bij **één geselecteerde favoriet** moet de widget naar **4 kolommen × 1 rij** verkleind kunnen worden en leesbaar blijven. Daarom: `appwidget-provider` ondersteunen `minResizeHeight=52dp` (default 4×2), `SizeMode.Responsive` uitbreiden met 260×62dp, en een specifieke horizontale samenstelling. Klein ChargeWatch-symbool, twee regels favorieteninformatie, groen/rode ratio, compacte leeftijd of `Laatst bekend`/`Onbekend` en afzonderlijk refreshicoon. De grote titel en footer passen niet in 4×1 en verdwijnen daar. Als een widget met meerdere favorieten tot 4×1 wordt verkleind, uitsluitend de eerste favoriet + `+N meer` tonen (geen stilzwijgende wijziging van selectie). Eén APK; huidige favorieten, cache en updatecoordinator ongewijzigd.
