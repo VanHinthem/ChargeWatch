@@ -1,3 +1,9 @@
+## A1 SQL-review — twee correcties (2 november 2026)
+
+De niet-uitgevoerde `docs/MAP_GRID_A1_SQL_PROBE.md` is inhoudelijk herzien. (1) De proef selecteert enkel punten binnen de bbox en kan daardoor **geen volledige rastercellen aan de bboxrand garanderen**; productiekaart v2 moet bbox-grenzen eerst naar hele gridcellen afronden. (2) Niet-herkende operationele EVSE-statussen werden als `0 vrij / >0 totaal` impliciet rood; proef classificeert zulke locaties voorlopig conservatief als **unknown**. De definitieve NDW-/bronkwaliteitssemantiek en huidige `MapFilter`-pariteit blijven open voor tests. Geen SQL-uitvoering of NAS-metingen, geen code, merge of deployment.
+
+---
+
 ## A1 SQL-proefquery voor review — #113 (2 november 2026)
 
 **Nieuw:** [MAP_GRID_A1_SQL_PROBE.md](MAP_GRID_A1_SQL_PROBE.md) bevat de eerste expliciet **niet uitgevoerde**, ongefilterde PostGIS-`SELECT` voor een klein Oss-proefgebied. Pipeline: geografische selectie via bestaande `charging_location.position` → actieve EVSE's per locatie tellen → vaste Web Mercator-gridcellen → `locationCount/free/noFree/unknown` en singleton-ID. Korte `REPEATABLE READ READ ONLY`-transactie, conservatieve SQL-timeouts en `ROLLBACK` staan in het reviewvoorbeeld.
