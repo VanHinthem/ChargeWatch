@@ -17,7 +17,7 @@ GPS-optie A en alternatieven-optie A zijn goedgekeurd. Zie [issue #99](https://g
 - Vanuit de kaartdetails en vanuit een favoriet: *Alternatieven in de buurt*. Sluit details, open de kaart, zoek binnen 25 km rond de oorspronkelijke laadlocatie; sluit oorspronkelijke OCPI featureId uit en toon maximaal vijf alternatieven op hemelsbrede afstand.
 - Neem uitsluitend de **huidige actieve kaartfilters** over (geen automatisch afgeleide stekkers, vermogen of operator). Gebruik maximaal zes kandidaten wanneer de huidige locatie in top-vijf kan zitten; neem de eerste vijf resterende in API-afstandsvolgorde. Lege en gedeeltelijke lijsten zijn geldig.
 - Het paneel is standaard ingeklapt; de oorspronkelijke laadlocatie blijft als referentie in het overzicht zichtbaar. Tik op resultaat centreert alleen kaart, niet de detailsheet. Terug naar vorig overzicht is contextwissel; doelwit-icoon herstelt alleen de camerafit.
-- Status is locatiebreed, niet per gekozen connector. Toon verouderde/unknown bron niet als vers/zeker vrij; een actieve minFree-parameter blijft door de backend gematcht volgens bestaande filtercontract.
+- Status is locatiebreed, niet per gekozen connector. Gebruik voor geldige locatiebrede aantallen dezelfde bezettingskleuren als kaartmarkers: groen bij minstens één vrije EVSE, rood bij nul vrije EVSE's, **ook bij een oudere bronupdate** (`isStale=true`). Gebruik `?`/onbekend uitsluitend wanneer de feed ouderdom onbekend/verouderd is, EVSE-status onvolledig is of aantallen ongeldig zijn. Een kleur is geen garantie dat die laadplek op dit moment vrij is. Een actieve minFree-parameter blijft door de backend gematcht volgens bestaande filtercontract.
 
 ### Overzicht/terugnavigatie
 
