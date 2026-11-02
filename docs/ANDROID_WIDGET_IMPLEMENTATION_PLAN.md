@@ -10,6 +10,14 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Samsung-bijsturing (2 november 2026)
+
+- Screenshot van een daadwerkelijk geïnstalleerde widget met twee bewust gekozen favorieten: correcte groene `2/2`-waarden en bronversheid, maar letter-/badgeformaat te klein en onnodig veel lege ruimte.
+- Namen en groene/rode `vrij/totaal`-badges worden groter; plaatsnaam als tweede regel met kleinere, contrasterende tekst. Haal die uitsluitend uit `FavoriteLocation.address` of het reeds lokaal opgeslagen adrestitle (zoals `Schietspoel 18, Oss`). Als een plaatsnaam niet betrouwbaar uit de komma-gescheiden adresinformatie volgt, laat de tweede regel weg. Bij geen alias wordt de stad niet ook in de straatregel herhaald. Geen geocoder, backendverandering of extra request.
+- Bronversheid wordt aan de onderkant van het widgetoppervlak uitgelijnd.
+- Nieuwe uitleesbare rijhoogte betekent dat 2×2/4×2 minder rijen kunnen tonen dan de oorspronkelijke voorlopige richtgetallen. We vergroten responsive hoogtematen zodat maximaal vijf zichtbaar blijven op voldoende hoge widgets. Tekst en ratio worden nooit tot onleesbaarheid geschaald.
+- Pas dezelfde naam-/plaatsweergave toe op de configuratie-preview; voeg regressietests toe voor plaatsnamen met/zonder alias, ontbrekende plaats, Nederlandse postcode/land en widgetrijcapaciteit. CI en nieuwe Samsung-test vereist; geen merge tot apart akkoord.
+
 ## Definitieve minimalistische UX
 
 | Android-gridrichtmaat | Zichtbare rijen | Inhoud |
