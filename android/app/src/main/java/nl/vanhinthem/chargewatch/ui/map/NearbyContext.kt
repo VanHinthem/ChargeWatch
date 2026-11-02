@@ -45,3 +45,12 @@ internal fun visibleNearbyCandidates(context: NearbyContext, items: List<SearchL
         .distinctBy { it.featureId }
         .take(5)
         .toList()
+
+/** One nearest result set is reusable for quick context switching, not indefinitely. */
+data class NearbyCacheEntry(
+    val locations: List<SearchLocation>,
+    val createdNanos: Long
+) {
+    fun isFresh(nowNanos: Long, maxAgeNanos: Long = 120_000_000_000L): Boolean =
+        nowNanos >= createdNanos && nowNanos - createdNanos <= maxAgeNanos
+}
