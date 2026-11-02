@@ -34,10 +34,11 @@ class LocationSearchClientTest {
             """[{"countryCode":"NL","partyId":"VAN","sourceId":"near",
                 "address":"Adres","city":"Oss","latitude":51.765,"longitude":5.525,
                 "evseCount":2,"availableCount":1,"unknownCount":1,
-                "feedIsStale":true,"distanceMeters":375.4}]"""
+                "feedIsStale":true,"isStale":true,"distanceMeters":375.4}]"""
         ).single()
         assertEquals(375.4, item.distanceMeters!!, 0.001)
         assertEquals(true, item.feedIsStale)
+        assertEquals(true, item.isStale)
         assertEquals(1, item.unknownCount)
     }
 
