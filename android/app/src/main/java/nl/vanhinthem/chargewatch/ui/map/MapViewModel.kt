@@ -38,7 +38,7 @@ class MapViewModel(
     val activeNearby = mutableStateOf<NearbyContext?>(null)
     val previousNearby = mutableStateOf<NearbyContext?>(null)
     val gpsPosition = mutableStateOf<DevicePosition?>(null)
-    val nearCache = mutableMapOf<Pair<NearbyContext, ChargingFilters>, List<SearchLocation>>()
+    val nearCache = mutableMapOf<Pair<NearbyContext, ChargingFilters>, NearbyCacheEntry>()
     val nearLoadedFor = mutableStateOf<NearbyContext?>(null)
     val nearLoadedWith = mutableStateOf(ChargingFilters())
     val filters = mutableStateOf(ChargingFilters())
