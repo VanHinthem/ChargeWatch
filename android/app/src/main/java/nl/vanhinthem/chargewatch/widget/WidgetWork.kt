@@ -95,6 +95,24 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
         } catch (_: Exception) {
             store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
         }
+        // Addresses are separate metadata. A failed lookup cannot alter availability.
+        // Reuse the existing detail endpoint only for missing cities; cache successes.
+        val addressClient = WidgetAddressClient()
+        var lookupCount = 0
+        for (favorite in targets) {
+            if (lookupCount >= 10) break
+            val state = store.read()
+            if (widgetFavoriteCity(favorite) == null &&
+                shouldFetchWidgetAddress(
+                    state.addresses[favorite.featureId],
+                    state.addressAttempts[favorite.featureId], System.currentTimeMillis()
+                )
+            ) {
+                lookupCount++
+                val address = addressClient.load(favorite.featureId)
+                store.recordAddressLookup(favorite.featureId, address, System.currentTimeMillis())
+            }
+        }
         ChargeWatchWidget().updateAll(context)
         return Result.success()
     }
