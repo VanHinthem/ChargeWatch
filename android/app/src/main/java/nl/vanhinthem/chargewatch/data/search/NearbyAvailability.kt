@@ -3,13 +3,13 @@ package nl.vanhinthem.chargewatch.data.search
 /**
  * A location's source-update age is independent of whether the currently polled
  * NDW availability counts are complete. Preserve valid counts even if its source
- * timestamp is old, but do not present them as freshly verified availability.
+ * timestamp is old. The list uses the same green/red occupancy colors as map markers.
  *
  * Keep the existing stricter behavior for unknown EVSE states and an unverified
  * or stale feed: neither is evidence for the displayed availability ratio.
  */
 internal enum class NearbyAvailabilityTone {
-    Available, NoneAvailable, Unknown, OlderSource
+    Available, NoneAvailable, Unknown
 }
 
 internal data class NearbyAvailabilityDisplay(
@@ -23,10 +23,7 @@ internal fun nearbyAvailabilityDisplay(item: SearchLocation): NearbyAvailability
     ) return NearbyAvailabilityDisplay("?", NearbyAvailabilityTone.Unknown)
 
     val count = "${item.availableCount}/${item.totalCount}"
-    val tone = when {
-        item.isStale == true -> NearbyAvailabilityTone.OlderSource
-        item.availableCount > 0 -> NearbyAvailabilityTone.Available
-        else -> NearbyAvailabilityTone.NoneAvailable
-    }
+    val tone = if (item.availableCount > 0) NearbyAvailabilityTone.Available
+        else NearbyAvailabilityTone.NoneAvailable
     return NearbyAvailabilityDisplay(count, tone)
 }
