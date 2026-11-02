@@ -14,6 +14,7 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -105,6 +106,10 @@ internal object WidgetRefreshCoordinator {
                 needsInitialData = needsInitialData
             )
         ) {
+            // Immediately recompose the widget with its existing trusted counts
+            // and a visible "Verversen..." indicator before the network request.
+            store.markRefreshing(now)
+            ChargeWatchWidget().updateAll(context)
             try {
                 when (val result = FavoritesAvailabilityClient().refresh(targets)) {
                     is FavoriteRefreshResult.Success ->
@@ -113,7 +118,8 @@ internal object WidgetRefreshCoordinator {
                     is FavoriteRefreshResult.Partial ->
                         store.recordRefresh(result.locations, System.currentTimeMillis(), true)
                 }
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
                 // The old trustworthy ratio remains in cache, now marked last-known.
                 store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
             }
