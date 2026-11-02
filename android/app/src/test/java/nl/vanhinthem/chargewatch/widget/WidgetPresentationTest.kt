@@ -149,6 +149,15 @@ class WidgetPresentationTest {
             mergeWidgetSnapshot(null, snapshot(null, 2)), now, now).label)
     }
 
+    @Test fun unknownCountsAreNotMislabelledAsLastKnown() {
+        val unknown = widgetRow("a", "Thuis", null, now, now)
+        assertEquals("Beschikbaarheid onbekend", widgetFooter(listOf(unknown)))
+        val green = widgetRow("b", "Werk", snapshot(2, 2), now - 30_000, now)
+        assertEquals("Niet alle aantallen betrouwbaar", widgetFooter(listOf(unknown, green)))
+        val stale = widgetRow("c", "Familie", snapshot(2, 4, fetched = now - 600_000), now, now)
+        assertEquals("Deels verouderd · laatst bekend", widgetFooter(listOf(stale)))
+    }
+
     @Test fun addressMetadataIsRateLimitedAfterFailedAttempt() {
         assertTrue(shouldFetchWidgetAddress(null, null, now))
         assertFalse(shouldFetchWidgetAddress(null, now - 30_000, now))
