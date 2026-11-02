@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
@@ -91,71 +92,78 @@ object WidgetWork {
  * an explicit user action is attempted immediately.
  */
 internal object WidgetRefreshCoordinator {
-    private val refreshMutex = Mutex()
+    private val availabilityMutex = Mutex()
+    private val addressMutex = Mutex()
 
-    suspend fun refresh(context: Context, force: Boolean = false) = refreshMutex.withLock {
-        val store = WidgetStore(context)
-        if (!WidgetWork.hasWidgets(context) && store.read().configurations.isEmpty()) {
-            return@withLock
-        }
-        val favorites = FavoritesRepository(context).favorites.first()
-        store.reconcile(favorites.map { it.featureId }.toSet())
-        val current = store.read()
-        val selected = current.configurations.values.flatten().toSet()
-        val targets = favorites.filter { it.featureId in selected }
-        if (targets.isEmpty()) {
-            ChargeWatchWidget().updateAll(context)
-            return@withLock
-        }
-
-        val now = System.currentTimeMillis()
-        val needsInitialData = targets.any { current.snapshots[it.featureId] == null }
-        if (shouldFetchWidgetAvailability(
-                nowMillis = now,
-                previousAttemptMillis = current.lastAttemptMillis,
-                force = force,
-                needsInitialData = needsInitialData
-            )
-        ) {
-            // Immediately recompose the widget with its existing trusted counts
-            // and a visible "Verversen..." indicator before the network request.
-            store.markRefreshing(now)
-            ChargeWatchWidget().updateAll(context)
-            try {
-                when (val result = FavoritesAvailabilityClient().refresh(targets)) {
-                    is FavoriteRefreshResult.Success ->
-                        store.recordRefresh(result.locations, System.currentTimeMillis(),
-                            result.locations.size < targets.size)
-                    is FavoriteRefreshResult.Partial ->
-                        store.recordRefresh(result.locations, System.currentTimeMillis(), true)
-                }
-            } catch (error: Exception) {
-                if (error is CancellationException) throw error
-                // The old trustworthy ratio remains in cache, now marked last-known.
-                store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
+    suspend fun refresh(context: Context, force: Boolean = false) {
+        // Location metadata must never block a subsequent manual availability refresh.
+        val targets = availabilityMutex.withLock {
+            val store = WidgetStore(context)
+            if (!WidgetWork.hasWidgets(context) && store.read().configurations.isEmpty()) {
+                return@withLock emptyList<FavoriteLocation>()
             }
-        }
+            val favorites = FavoritesRepository(context).favorites.first()
+            store.reconcile(favorites.map { it.featureId }.toSet())
+            val current = store.read()
+            val selected = current.configurations.values.flatten().toSet()
+            val targets = favorites.filter { it.featureId in selected }
+            if (targets.isEmpty()) {
+                ChargeWatchWidget().updateAll(context)
+                return@withLock emptyList<FavoriteLocation>()
+            }
 
-        // Publish new ratios first, rather than waiting for address metadata.
-        ChargeWatchWidget().updateAll(context)
-
-        val addressClient = WidgetAddressClient()
-        var attempted = 0
-        for (favorite in targets) {
-            if (attempted >= 10) break
-            val state = store.read()
-            if (widgetFavoriteCity(favorite, state.addresses[favorite.featureId]) == null &&
-                shouldFetchWidgetAddress(
-                    state.addresses[favorite.featureId],
-                    state.addressAttempts[favorite.featureId], System.currentTimeMillis()
+            val now = System.currentTimeMillis()
+            val needsInitialData = targets.any { current.snapshots[it.featureId] == null }
+            if (shouldFetchWidgetAvailability(
+                    nowMillis = now,
+                    previousAttemptMillis = current.lastAttemptMillis,
+                    force = force,
+                    needsInitialData = needsInitialData
                 )
             ) {
-                attempted++
-                val address = addressClient.load(favorite.featureId)
-                store.recordAddressLookup(favorite.featureId, address, System.currentTimeMillis())
+                store.markRefreshing(now)
+                ChargeWatchWidget().updateAll(context)
+                try {
+                    when (val result = FavoritesAvailabilityClient().refresh(targets)) {
+                        is FavoriteRefreshResult.Success ->
+                            store.recordRefresh(result.locations, System.currentTimeMillis(),
+                                result.locations.size < targets.size)
+                        is FavoriteRefreshResult.Partial ->
+                            store.recordRefresh(result.locations, System.currentTimeMillis(), true)
+                    }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
+                }
             }
+
+            ChargeWatchWidget().updateAll(context)
+            targets
         }
-        if (attempted > 0) ChargeWatchWidget().updateAll(context)
+
+        if (targets.isEmpty()) return
+        // Address requests are independent and can take several seconds each,
+        // especially on fallback. Never hold the availability lock for them.
+        addressMutex.withLock {
+            val store = WidgetStore(context)
+            val addressClient = WidgetAddressClient()
+            var attempted = 0
+            for (favorite in targets) {
+                if (attempted >= 10) break
+                val state = store.read()
+                if (widgetFavoriteCity(favorite, state.addresses[favorite.featureId]) == null &&
+                    shouldFetchWidgetAddress(
+                        state.addresses[favorite.featureId],
+                        state.addressAttempts[favorite.featureId], System.currentTimeMillis()
+                    )
+                ) {
+                    attempted++
+                    val address = addressClient.load(favorite.featureId)
+                    store.recordAddressLookup(favorite.featureId, address, System.currentTimeMillis())
+                }
+            }
+            if (attempted > 0) ChargeWatchWidget().updateAll(context)
+        }
     }
 }
 
