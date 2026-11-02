@@ -35,6 +35,7 @@ data class WidgetState(
     val addresses: Map<String, WidgetAddress> = emptyMap(),
     val addressAttempts: Map<String, Long> = emptyMap(),
     val lastAttemptMillis: Long = 0L,
+    val refreshingSinceMillis: Long? = null,
     val refreshFailed: Boolean = false
 )
 
@@ -72,6 +73,10 @@ class WidgetStore(context: Context) {
             addressAttempts = current.addressAttempts.filterKeys { it in needed })
     }
 
+    suspend fun markRefreshing(startedAtMillis: Long) = update { current ->
+        current.copy(refreshingSinceMillis = startedAtMillis)
+    }
+
     suspend fun recordRefresh(
         locations: Map<String, MapLocation>,
         atMillis: Long,
@@ -99,6 +104,7 @@ class WidgetStore(context: Context) {
         current.copy(
             snapshots = updated,
             lastAttemptMillis = atMillis,
+            refreshingSinceMillis = null,
             refreshFailed = failed || invalidResults || locations.size < needed.size
         )
     }
@@ -147,3 +153,9 @@ fun shouldFetchWidgetAddress(
 fun mergeWidgetSnapshot(previous: WidgetSnapshot?, incoming: WidgetSnapshot): WidgetSnapshot =
     if (incoming.hasReliableCounts()) incoming
     else previous?.takeIf { it.hasReliableCounts() } ?: incoming
+
+/** If Android kills an update mid-request, never show a permanent busy state. */
+fun isWidgetRefreshing(state: WidgetState, nowMillis: Long): Boolean {
+    val started = state.refreshingSinceMillis ?: return false
+    return started > 0L && nowMillis - started in 0L..29_999L
+}
