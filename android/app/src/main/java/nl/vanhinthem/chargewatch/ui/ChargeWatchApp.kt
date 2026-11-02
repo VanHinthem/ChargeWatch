@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
@@ -48,6 +50,12 @@ import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
 import nl.vanhinthem.chargewatch.data.favorites.favoritesNeedingFetch
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
+import nl.vanhinthem.chargewatch.data.ndw.CountReliability
+import nl.vanhinthem.chargewatch.widget.ChargeWatchWidget
+import nl.vanhinthem.chargewatch.widget.WidgetStore
+import nl.vanhinthem.chargewatch.widget.WidgetWork
+import androidx.glance.appwidget.updateAll
 import nl.vanhinthem.chargewatch.data.settings.ChargeWatchDataStatus
 import nl.vanhinthem.chargewatch.data.settings.SettingsDataClient
 import nl.vanhinthem.chargewatch.data.settings.SettingsDataResult
@@ -57,7 +65,7 @@ import nl.vanhinthem.chargewatch.ui.map.LocationSelectionSheet
 import nl.vanhinthem.chargewatch.ui.settings.SettingsScreen
 
 @Composable
-fun ChargeWatchApp() {
+fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE) }
     var themeChoice by remember { mutableStateOf(prefs.getString("theme", "system") ?: "system") }
@@ -154,6 +162,58 @@ fun ChargeWatchApp() {
         } finally {
             statusCheckedAt = Instant.now()
             refreshing = false
+        }
+    }
+
+    // The repository remains the sole favorite/alias source; app edits repaint widgets.
+    LaunchedEffect(Unit) {
+        repository.favorites.collect { saved ->
+            if (WidgetWork.hasWidgets(context)) {
+                WidgetStore(context).reconcile(saved.map { it.featureId }.toSet())
+                ChargeWatchWidget().updateAll(context)
+                WidgetWork.refresh(context)
+            }
+        }
+    }
+    LaunchedEffect(themeChoice) {
+        if (WidgetWork.hasWidgets(context)) ChargeWatchWidget().updateAll(context)
+    }
+
+    // Both a cold start and an onNewIntent route here; never guess the first favorite.
+    LaunchedEffect(widgetTarget) {
+        val targetId = widgetTarget ?: return@LaunchedEffect
+        try {
+            val favorite = repository.favorites.first().firstOrNull { it.featureId == targetId }
+            if (favorite == null) {
+                snackbarHostState.showSnackbar("Deze favoriet is niet meer beschikbaar")
+            } else {
+                selectedTab = 1
+                favoriteDetail = latestStatuses[targetId] ?: mapStatuses[targetId] ?: MapLocation(
+                    featureId = favorite.featureId,
+                    longitude = favorite.longitude, latitude = favorite.latitude,
+                    title = favorite.title, address = favorite.address,
+                    operatorName = favorite.operatorName,
+                    lastUpdated = null,
+                    availability = AvailabilitySummary(null, null, CountReliability.Ambiguous)
+                )
+                scope.launch {
+                    try {
+                        val refreshed = when (val result = availabilityClient.refresh(listOf(favorite))) {
+                            is FavoriteRefreshResult.Success -> result.locations
+                            is FavoriteRefreshResult.Partial -> result.locations
+                        }
+                        if (refreshed.isNotEmpty()) {
+                            latestStatuses = latestStatuses + refreshed
+                            if (favoriteDetail?.featureId == targetId)
+                                refreshed[targetId]?.let { favoriteDetail = it }
+                        }
+                    } catch (_: Exception) {
+                        // Keep the correct location open with an unknown availability.
+                    }
+                }
+            }
+        } finally {
+            onWidgetTargetConsumed()
         }
     }
 
