@@ -10,6 +10,13 @@ import android.graphics.Path
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import nl.vanhinthem.chargewatch.data.location.DeviceLocationProvider
+import nl.vanhinthem.chargewatch.data.location.DevicePosition
+import nl.vanhinthem.chargewatch.data.location.PositionResult
+import nl.vanhinthem.chargewatch.data.location.locationPermissionStatus
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandVertically
@@ -157,9 +164,66 @@ fun MapScreen(
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
     darkTheme: Boolean = false,
+    locationEnabled: Boolean = true,
+    alternativeRequest: NearbyOrigin? = null,
+    onAlternativeRequestConsumed: () -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val locationProvider = remember(context) { DeviceLocationProvider(context) }
+    var gpsLoading by remember { mutableStateOf(false) }
+    var gpsMessage by remember { mutableStateOf<String?>(null) }
+    var gpsPosition by viewModel.gpsPosition
+    var activeNearby by viewModel.activeNearby
+    val previousNearby by viewModel.previousNearby
+    val gpsScope = rememberCoroutineScope()
+    fun acquireGps() {
+        if (!locationEnabled || gpsLoading) return
+        gpsLoading = true
+        gpsMessage = null
+        gpsScope.launch {
+            try {
+                when (val result = locationProvider.acquire()) {
+                    is PositionResult.Found -> {
+                        gpsPosition = result.position
+                        viewModel.nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
+                        viewModel.activateNearby(NearbyContext.Gps(result.position))
+                        viewModel.nearLoadedFor.value = null
+                    }
+                    PositionResult.PermissionMissing -> gpsMessage = "Locatietoestemming ontbreekt."
+                    PositionResult.Disabled -> gpsMessage = "Schakel locatievoorzieningen in bij Android-instellingen."
+                    PositionResult.Unavailable -> gpsMessage = "Je huidige positie is niet beschikbaar. Probeer opnieuw."
+                }
+            } finally {
+                gpsLoading = false
+            }
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        if (granted.values.any { it }) acquireGps()
+        else gpsMessage = "Geen locatietoestemming. Je kunt deze wijzigen bij Instellingen."
+    }
+    fun onGpsClicked() {
+        if (!locationEnabled) return
+        if (locationPermissionStatus(context) == "Niet toegestaan") {
+            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        } else acquireGps()
+    }
+    LaunchedEffect(locationEnabled) {
+        if (!locationEnabled) {
+            viewModel.disableGps()
+            gpsMessage = null
+        }
+    }
+    LaunchedEffect(alternativeRequest) {
+        alternativeRequest?.let { origin ->
+            viewModel.activateNearby(NearbyContext.Alternatives(origin))
+            onAlternativeRequestConsumed()
+        }
+    }
     val favoriteIds = favorites.map { it.featureId }.toSet()
     val nearestClient = remember { LocationSearchClient() }
     val pdokClient = remember { PdokDestinationClient() }
@@ -240,6 +304,7 @@ fun MapScreen(
                     viewModel.overview.value = null
                     viewModel.nearLoadedFor.value = null
                     destination = response.destination
+                    viewModel.activateNearby(NearbyContext.Address(response.destination))
                     canReturnToDestination = false
                     // The map still fits the blue pin and five nearest chargers,
                     // but the nearby-results drawer starts collapsed.
@@ -253,8 +318,8 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(destination, filters) {
-        val chosen = destination
+    LaunchedEffect(activeNearby, filters) {
+        val chosen = activeNearby
         if (chosen == null) {
             viewModel.overview.value = null
             viewModel.nearLoadedFor.value = null
@@ -263,30 +328,42 @@ fun MapScreen(
             nearLoading = false
             return@LaunchedEffect
         }
-        // Returning from another app tab must not fetch again or undo manual panning.
         if (viewModel.nearLoadedFor.value == chosen && viewModel.nearLoadedWith.value == filters) return@LaunchedEffect
         val keepCamera = canReturnToDestination
         viewModel.overview.value = null
         nearLoading = true
         nearLocations = emptyList()
         nearMessage = null
-        try {
-            when (val response = nearestClient.nearby(chosen.latitude, chosen.longitude, filters = filters)) {
-                is SearchResult.Success -> {
-                    nearLocations = response.locations
-                    nearMessage = if (response.locations.isEmpty())
-                        (if (filters.active) "Geen passende laadlocaties binnen 25 km." else "Geen laadlocaties binnen 25 km.") else null
+        val cacheKey = chosen to filters
+        val cached = viewModel.nearCache[cacheKey]
+        val locations = if (cached != null) cached else {
+            val result = nearestClient.nearby(
+                chosen.latitude, chosen.longitude,
+                limit = if (chosen is NearbyContext.Alternatives) 6 else 5, filters = filters
+            )
+            if (activeNearby != chosen || viewModel.filters.value != filters) return@LaunchedEffect
+            when (result) {
+                is SearchResult.Success -> visibleNearbyCandidates(chosen, result.locations).also {
+                    viewModel.nearCache[cacheKey] = it
                 }
-                is SearchResult.Failure -> nearMessage = response.message
+                is SearchResult.Failure -> {
+                    nearMessage = result.message
+                    null
+                }
             }
-        } finally {
-            nearLoading = false
         }
+        if (activeNearby != chosen || viewModel.filters.value != filters) return@LaunchedEffect
+        if (locations != null) {
+            nearLocations = locations
+            nearMessage = if (locations.isEmpty())
+                (if (filters.active) "Geen passende laadlocaties binnen 25 km." else "Geen laadlocaties binnen 25 km.")
+                else null
+        }
+        nearLoading = false
         viewModel.nearLoadedFor.value = chosen
         viewModel.nearLoadedWith.value = filters
-        // The list expands via animation. Fit only once after its height settles;
-        // never refit when the user toggles it or manually moves the map.
         delay(420)
+        if (activeNearby != chosen || viewModel.filters.value != filters) return@LaunchedEffect
         val request = CameraTarget(chosen.latitude, chosen.longitude, 14.0,
             nearby = nearLocations.toList(), panelBottomPx = searchPanelBottomPx)
         if (!keepCamera && !canReturnToDestination) cameraTarget = request
@@ -296,6 +373,10 @@ fun MapScreen(
     fun onQueryChanged(value: String) {
         searchQuery = value
         searchSelected = false
+        if (activeNearby !is NearbyContext.Address) {
+            activeNearby = null
+            viewModel.previousNearby.value = null
+        }
         // Editing an address must not discard the previously selected destination.
         // Only explicitly clearing the search removes its blue marker and nearby list.
         selectedSuggestion = null
@@ -303,6 +384,7 @@ fun MapScreen(
         if (value.isBlank()) {
             viewModel.overview.value = null
             viewModel.nearLoadedFor.value = null
+            if (activeNearby is NearbyContext.Address) activeNearby = null
             canReturnToDestination = false
             nearbyExpanded = false
             nearLocations = emptyList()
@@ -321,7 +403,7 @@ fun MapScreen(
     }
 
     fun returnToDestination() {
-        val selected = destination ?: return
+        val selected = activeNearby ?: return
         nearbyExpanded = false
         val overview = viewModel.overview.value
         cameraTarget = if (overview != null)
@@ -364,7 +446,8 @@ fun MapScreen(
             onMapCameraIdle = { lat, lon, zoom ->
                 // Compare with the *fitted* overview, not the original fixed zoom 14.
                 canReturnToDestination = shouldShowReturnToDestination(
-                    destination, lat, lon, zoom, overview = viewModel.overview.value
+                    activeNearby?.let { Destination("", it.latitude, it.longitude, "") },
+                    lat, lon, zoom, overview = viewModel.overview.value
                 )
                 // Do not redraw all markers for insignificant camera movement.
                 val region = (lat * 10).roundToInt() / 10.0 to (lon * 10).roundToInt() / 10.0
@@ -379,13 +462,19 @@ fun MapScreen(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            query = searchQuery,
+            query = if (activeNearby is NearbyContext.Gps || activeNearby is NearbyContext.Alternatives) "" else searchQuery,
             onQueryChange = ::onQueryChanged,
             results = searchResults,
             loading = searchLoading,
             message = searchMessage,
             searchSelected = searchSelected,
             destination = destination,
+            nearbyContext = activeNearby,
+            hasPreviousNearby = previousNearby != null,
+            onPreviousNearby = {
+                viewModel.backToPreviousNearby()
+                canReturnToDestination = false
+            },
             nearLocations = nearLocations,
             favoriteIds = favoriteIds,
             nearLoading = nearLoading,
@@ -425,6 +514,27 @@ fun MapScreen(
             onPanelBottomChanged = { searchPanelBottomPx = it }
         )
 
+        if (locationEnabled && selectedLocations.isEmpty()) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
+                shape = RoundedCornerShape(50),
+                tonalElevation = 6.dp,
+                shadowElevation = 3.dp
+            ) {
+                IconButton(onClick = ::onGpsClicked, enabled = !gpsLoading,
+                    modifier = Modifier.size(52.dp)) {
+                    if (gpsLoading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.MyLocation, contentDescription = "Mijn locatie",
+                        tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        gpsMessage?.let { message ->
+            Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 16.dp, end = 76.dp),
+                shape = RoundedCornerShape(12.dp), tonalElevation = 6.dp) {
+                Text(message, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+            }
+        }
         if (state.loading) {
             CircularProgressIndicator(
                 modifier = Modifier
@@ -461,7 +571,14 @@ fun MapScreen(
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
             onToggleFavorite = onToggleFavorite,
-            expandedTopInset = searchHeaderBottom + 8.dp
+            expandedTopInset = searchHeaderBottom + 8.dp,
+            onShowAlternatives = { location ->
+                selectedLocations = emptyList()
+                viewModel.activateNearby(NearbyContext.Alternatives(
+                    NearbyOrigin(location.featureId, location.title, location.latitude, location.longitude)
+                ))
+                canReturnToDestination = false
+            }
         )
     }
 
