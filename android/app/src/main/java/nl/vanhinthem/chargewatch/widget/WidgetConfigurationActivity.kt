@@ -106,13 +106,16 @@ class WidgetConfigurationActivity : ComponentActivity() {
                                 saving = true
                                 scope.launch {
                                     try {
-                                        // Save selection first. Start the foreground fetch before
-                                        // Glance rendering so the network is not delayed by layout work.
+                                        // Persist and show the new selection first. Neither a
+                                        // network request nor WorkManager scheduling is needed to
+                                        // display the chosen names/order immediately.
                                         WidgetStore(this@WidgetConfigurationActivity).configure(widgetId, selected)
-                                        WidgetWork.refresh(this@WidgetConfigurationActivity, force = true)
                                         val glanceId = GlanceAppWidgetManager(this@WidgetConfigurationActivity)
                                             .getGlanceIdBy(widgetId)
                                         ChargeWatchWidget().update(this@WidgetConfigurationActivity, glanceId)
+                                        // Now start fresh counts asynchronously without waiting for
+                                        // the API to return before closing the configuration screen.
+                                        WidgetWork.refresh(this@WidgetConfigurationActivity, force = true)
                                         setResult(Activity.RESULT_OK, result)
                                         finish()
                                     } catch (_: Exception) {
