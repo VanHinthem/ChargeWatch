@@ -3,6 +3,7 @@ package nl.vanhinthem.chargewatch.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.os.Build
 import androidx.glance.appwidget.updateAll
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -59,11 +60,15 @@ object WidgetWork {
         ensure(appContext)
         activeScope.launch { WidgetRefreshCoordinator.refresh(appContext, force = force) }
         if (force) {
+            // Pre-Android 12 expedited jobs require foreground notification
+            // plumbing. The direct coroutine handles foreground responsiveness
+            // on all API levels; use a regular backup work request on API 26-30.
+            val request = OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                request.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
             WorkManager.getInstance(appContext).enqueueUniqueWork(
-                ON_DEMAND, ExistingWorkPolicy.KEEP,
-                OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
-                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .build()
+                ON_DEMAND, ExistingWorkPolicy.KEEP, request.build()
             )
         }
     }
