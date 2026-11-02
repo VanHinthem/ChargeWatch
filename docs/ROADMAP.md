@@ -2,6 +2,16 @@
 
 **Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
 
+## Nieuwe architectuurprioriteit — 2 november 2026: locatie-dataflow #113
+
+De gebruiker heeft na het onderzoeken van de huidige **kaart → sheet → favorieten/widget**-aanroepen gevraagd hiervoor een **aparte feature** te maken en de volledige data-ophaalstrategie eerst zorgvuldig uit te werken en te optimaliseren. [Issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) en [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) vormen de ontwerp-/meetagenda.
+
+**Planning:** onderzoek en ontwerp van #113 krijgen nu de aandacht **vóór verdere architectuurveranderingen aan de widget**, zonder #101/#112 samen te voegen of de al gebouwde widget als afgerond te verklaren. Eerst gegevens-/ID-contract, API-last, lazy sheetverrijking, bulkalternatieven en performance-baselines bespreken; **pas na een afzonderlijk ontwerp-/implementatieakkoord code schrijven**. De onderstaande P1–P4-volgorde was het eerdere v1-plan van 30 oktober en blijft historisch; dit nieuwe besluit voegt een gerichte architectuurverbetering toe, geen onbeperkte nieuwe roadmapfase.
+
+**Niet besloten:** een bulkavailability-endpoint of nieuwe DB-index is nog geen vaststaand contract. Inzicht in bestaand direct-ID-detail, bronversheid, operationele EVSE-counting en NDW-fallback gaat vóór keuze. Geen backenduitrol/NAS-deploy of merge zonder expliciet akkoord.
+
+---
+
 ## Vastgestelde volgorde Android-vervolgwerk — 30 oktober 2026
 
 De gebruiker heeft na afronding en Samsung-acceptatie van [issue #95](https://github.com/VanHinthem/ChargeWatch/issues/95) de volgende **strikte prioriteitsvolgorde** gekozen. Werk de stappen in deze volgorde af; vervolgissues kunnen vóór de uitvoering worden verfijnd, maar een wijziging van prioriteit vereist een nieuw productbesluit.
