@@ -130,6 +130,25 @@ class WidgetPresentationTest {
         assertFalse(snapshot(0, 0).hasReliableCounts())
     }
 
+    @Test fun unknownNewResponsePreservesPriorGreenOrRedCounts() {
+        val green = snapshot(2, 2, fetched = now - 600_000)
+        val red = snapshot(0, 2, fetched = now - 600_000)
+        val unknown = snapshot(null, null, reliability = "Ambiguous")
+        assertEquals(green, mergeWidgetSnapshot(green, unknown))
+        assertEquals(red, mergeWidgetSnapshot(red, unknown))
+        assertTrue(widgetRow("a", "Thuis", mergeWidgetSnapshot(green, unknown), now, now)
+            .isLastKnown)
+    }
+
+    @Test fun validNewResponseReplacesOldCacheWithoutInventingFreePorts() {
+        val older = snapshot(2, 4, fetched = now - 600_000)
+        val fresh = snapshot(0, 4)
+        assertEquals(fresh, mergeWidgetSnapshot(older, fresh))
+        assertEquals("0/4", widgetRow("a", "Werk", fresh, now - 30_000, now).label)
+        assertEquals("?", widgetRow("a", "Werk",
+            mergeWidgetSnapshot(null, snapshot(null, 2)), now, now).label)
+    }
+
     @Test fun addressMetadataIsRateLimitedAfterFailedAttempt() {
         assertTrue(shouldFetchWidgetAddress(null, null, now))
         assertFalse(shouldFetchWidgetAddress(null, now - 30_000, now))
