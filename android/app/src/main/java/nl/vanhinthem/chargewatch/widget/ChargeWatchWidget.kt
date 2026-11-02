@@ -107,21 +107,22 @@ class ChargeWatchWidget : GlanceAppWidget() {
                             city = widgetFavoriteCity(favorite, detail))
                     }
                 }
-            WidgetContent(context, widgetId, rows, favorites.isNotEmpty(), dark)
+            WidgetContent(context, widgetId, rows, favorites.isNotEmpty(), dark,
+                refreshing = isWidgetRefreshing(state, System.currentTimeMillis()))
         }
     }
 }
 
 @Composable
 private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>,
-                          hasFavorites: Boolean, dark: Boolean) {
+                          hasFavorites: Boolean, dark: Boolean, refreshing: Boolean) {
     val size = LocalSize.current
     if (isSingleRowWidget(size.width.value, size.height.value)) {
-        SingleRowWidgetContent(context, widgetId, rows, hasFavorites, dark)
+        SingleRowWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
         return
     }
     if (size.width.value < 230f) {
-        SmallSquareWidgetContent(context, widgetId, rows, hasFavorites, dark)
+        SmallSquareWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
         return
     }
     val maxRows = visibleWidgetRows(size.width.value, size.height.value)
@@ -203,7 +204,7 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
         }
         // Give the selected rows room while keeping source freshness at the bottom.
         Spacer(GlanceModifier.defaultWeight())
-        val footer = widgetFooter(rows)
+        val footer = if (refreshing) "Verversen…" else widgetFooter(rows)
         val footerText = if (narrow) footer.removePrefix("Bron gecontroleerd · ") else footer
         Row(GlanceModifier.fillMaxWidth()) {
             Text(footerText, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
@@ -225,7 +226,8 @@ private fun SmallSquareWidgetContent(
     widgetId: Int,
     rows: List<WidgetRow>,
     hasFavorites: Boolean,
-    dark: Boolean
+    dark: Boolean,
+    refreshing: Boolean
 ) {
     val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
@@ -285,7 +287,7 @@ private fun SmallSquareWidgetContent(
         Spacer(GlanceModifier.defaultWeight())
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (visible.isEmpty()) "ChargeWatch" else compactSquareFooter(visible),
+                if (refreshing) "Verversen…" else if (visible.isEmpty()) "ChargeWatch" else compactSquareFooter(visible),
                 modifier = GlanceModifier.defaultWeight(),
                 maxLines = 1, style = TextStyle(color = secondary, fontSize = 10.sp)
             )
@@ -308,7 +310,8 @@ private fun SingleRowWidgetContent(
     widgetId: Int,
     rows: List<WidgetRow>,
     hasFavorites: Boolean,
-    dark: Boolean
+    dark: Boolean,
+    refreshing: Boolean
 ) {
     val primary = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
@@ -373,7 +376,7 @@ private fun SingleRowWidgetContent(
                         style = TextStyle(color = ColorProvider(badgeText),
                             fontSize = 19.sp, fontWeight = FontWeight.Bold))
                     Text(
-                        compactWidgetFreshness(row),
+                        (if (refreshing) "Verversen…" else compactWidgetFreshness(row)),
                         maxLines = 1, style = TextStyle(color = secondary, fontSize = 9.sp)
                     )
                 }
