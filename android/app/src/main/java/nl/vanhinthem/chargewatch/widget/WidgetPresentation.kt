@@ -121,3 +121,13 @@ fun visibleWidgetRows(widthDp: Float, heightDp: Float): Int {
     val heightCapacity = ((heightDp - reservedDp) / rowDp).toInt().coerceAtLeast(1)
     return minOf(5, if (widthDp < 230f) 2 else 5, heightCapacity)
 }
+
+/** Never call a '?' with no trustworthy cache "last known". */
+fun widgetFooter(rows: List<WidgetRow>): String = when {
+    rows.isEmpty() -> "Open ChargeWatch om favorieten te kiezen"
+    rows.all { it.status == AvailabilityStatus.Unknown } -> "Beschikbaarheid onbekend"
+    rows.any { it.status == AvailabilityStatus.Unknown } -> "Niet alle aantallen betrouwbaar"
+    rows.any { it.isLastKnown } -> "Deels verouderd · laatst bekend"
+    rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment per locatie verschilt"
+    else -> rows.first().freshness
+}
