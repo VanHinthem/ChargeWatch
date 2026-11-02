@@ -80,20 +80,20 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
         val now = System.currentTimeMillis()
         // One shared throttle for all widgets and refresh buttons. Failures remain retryable
         // at the next 60-second boundary; old successful cache timestamps are not advanced.
-        if (now - current.lastAttemptMillis in 0..59_999L) {
-            ChargeWatchWidget().updateAll(context)
-            return Result.success()
-        }
-        try {
-            when (val result = FavoritesAvailabilityClient().refresh(targets)) {
-                is FavoriteRefreshResult.Success ->
-                    store.recordRefresh(result.locations, System.currentTimeMillis(),
-                        result.locations.size < targets.size)
-                is FavoriteRefreshResult.Partial ->
-                    store.recordRefresh(result.locations, System.currentTimeMillis(), true)
+        // Throttle status polling, but still permit a one-time address metadata lookup
+        // after an APK upgrade or when another widget was recently refreshed.
+        if (now - current.lastAttemptMillis !in 0..59_999L) {
+            try {
+                when (val result = FavoritesAvailabilityClient().refresh(targets)) {
+                    is FavoriteRefreshResult.Success ->
+                        store.recordRefresh(result.locations, System.currentTimeMillis(),
+                            result.locations.size < targets.size)
+                    is FavoriteRefreshResult.Partial ->
+                        store.recordRefresh(result.locations, System.currentTimeMillis(), true)
+                }
+            } catch (_: Exception) {
+                store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
             }
-        } catch (_: Exception) {
-            store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
         }
         // Addresses are separate metadata. A failed lookup cannot alter availability.
         // Reuse the existing detail endpoint only for missing cities; cache successes.
