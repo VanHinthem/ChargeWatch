@@ -1,3 +1,11 @@
+## Clusterberekening: live SQL versus locatiesamenvatting (#113; 2 november 2026)
+
+**Codecontrole:** `BulkImporter` verwerkt de NDW-locaties, EVSE's en checkpoint-/statistiekupdates in één PostgreSQL-transactie; init-schema bevat een GiST-positionindex en unieke `evse(location_id,source_uid)`. Dat biedt aanknopingspunten voor zowel live aggregatie als eventueel een transactioneel bijgewerkte per-locatie-`availability_summary`, **maar die extra samenvatting bestaat nog niet**. Bijkomend aandachtspunt: meerdere SELECT-statements bij standaard `READ COMMITTED` kunnen tussentijds verschillende gecommitte importerstatussen zien; een consistent snapshot voor een complete kaartresponse moet worden gegarandeerd.
+
+**Afweging in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** A — live filter-/EVSE-aggregatie vanuit PostGIS en actieve EVSE's (geen migratie, eerst benchmarken); B — compacte status per locatie atomair onderhouden tijdens de importertransactie (snellere hergebruikte read, wel backfill/migratie en extra schrijfwerk); C — vooraf berekende clusters/tiles (alleen na aantoonbare schaalbehoefte). Ook bij B blijven technische connector-/vermogensfilters hun bestaande EVSE-`EXISTS`-semantiek vereisen. NDW-polltijd is geen individuele statusverificatie. **Nog geen SQL-benchmark of implementatie-/merge-/deployakkoord.**
+
+---
+
 ## API-contractvoorstel kaart v2 — #113 (2 november 2026)
 
 **Ontwerpfase:** eerste concreet, nog niet definitief goedgekeurd contract in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). Schematische `GET /api/v1/map/overview?bbox=...&zoom=...&<filters>` met getypeerde `cluster`- en `location`-items. Eén neutraal clustercentrum toont `locationCount`, de ring wordt bepaald door exacte `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`. Een individueel locatieobject krijgt ID, coördinaten, betrouwbare `vrij/totaal` en bronmetadata. Filterpariteit met huidige `MapFilter` blijft verplicht.
