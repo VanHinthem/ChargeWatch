@@ -175,6 +175,7 @@ fun MapScreen(
     var gpsLoading by remember { mutableStateOf(false) }
     var gpsMessage by remember { mutableStateOf<String?>(null) }
     var gpsRequestVersion by remember { mutableStateOf(0) }
+    var canReturnToDestination by remember { mutableStateOf(false) }
     var gpsPosition by viewModel.gpsPosition
     var activeNearby by viewModel.activeNearby
     val previousNearby by viewModel.previousNearby
@@ -190,6 +191,7 @@ fun MapScreen(
                         if (!locationEnabled) return@launch
                         gpsPosition = result.position
                         gpsRequestVersion++
+                        canReturnToDestination = false
                         viewModel.nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
                         viewModel.activateNearby(NearbyContext.Gps(result.position))
                         viewModel.nearLoadedFor.value = null
@@ -224,6 +226,7 @@ fun MapScreen(
     LaunchedEffect(alternativeRequest) {
         alternativeRequest?.let { origin ->
             viewModel.activateNearby(NearbyContext.Alternatives(origin))
+            canReturnToDestination = false
             onAlternativeRequestConsumed()
         }
     }
@@ -270,7 +273,6 @@ fun MapScreen(
     var nearLoading by remember { mutableStateOf(false) }
     var nearMessage by viewModel.nearMessage
     var nearbyExpanded by viewModel.nearbyExpanded
-    var canReturnToDestination by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery, searchSelected) {
         val query = searchQuery.trim()
