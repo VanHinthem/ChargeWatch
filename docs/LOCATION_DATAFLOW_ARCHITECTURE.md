@@ -203,6 +203,44 @@ Dit **vervangt** de eerdere open vraag of kleine clusters de huidige EVSE-ratio 
 - **Minimale kaartdata versus direct bruikbare sheet:** een lightweight object kan slechts coords, featureId, aantallen, kwaliteit en bronversheid dragen. Bepaal de minimale *gewenste sheet-first-frame*, en of beperkte naam/adresinformatie eventueel in een cache mee moet om plotselinge lege compacte sheets te voorkomen.
 - **Rekenkosten:** vermijd per pan opnieuw alle EVSE/connector-joins over de hele Nederlandse catalogus. Onderzoek index- en queryplannen, cachingstrategie, rastercelresolutie, huidige `MapFilter`-predicate en eventuele materialisatie; geen nieuwe index/schema zonder meetresultaten.
 
+### Kaartnavigatie, prefetch en cache — UX- en technische ontwerprichting (2 november 2026)
+
+**Gebruiker akkoord met verder uitwerken**, niet met implementatie of definitieve getallen. Doel: een kaart die tijdens pannen en zoomen stabiel blijft en alleen ontbrekende geografische cellen opvraagt.
+
+#### UX-contract (voorgesteld)
+
+1. **Tijdens slepen/pinchen:** laat het laatst geldige beeld staan; geen wit/lege kaart of opzettelijk `map.clear()` voordat vervangende data beschikbaar is. Het basiskaartbeeld beweegt gewoon met de camera mee. Verouderde laadmarkerstatus mag niet als verse meting worden voorgesteld.
+2. **Camera idle:** laad nieuwe data op basis van de geëindigde camera (`bbox`, `zoomBucket`, filters). Onderdruk duplicaten en voorkom verzoeken bij onbeduidende bewegingen die binnen volledig gedekte cachecellen blijven. De bestaande 500 ms-debounce is een *huidige waarde*, geen gekozen nieuwe SLA.
+3. **Prefetch:** haal complete tile-/gridcellen op die in beeld liggen plus een **kleine configureerbare ring aangrenzende cellen**; dit maakt korte verplaatsingen vaak cache-only. De precieze omvang (nul/één/meerdere ringen, afhankelijk van netwerk en zoom) moet worden gemeten, niet nu gefixeerd.
+4. **Zoomen:** toon tijdelijk het geldige oude raster terwijl nieuw niveau wordt geladen; verwissel **atomair per complete coverage-set** of met ondubbelzinnig clip-/coverage-beleid. Een cluster en zijn losse kinderen mogen niet tegelijk tellen/tekenen als doublures. Bij een cachehit voor het nieuwe zoomniveau mag de transitie direct plaatsvinden.
+5. **Filters wijzigen:** cache op genormaliseerde filterhash scheiden; resultaten van de oude filters niet ongemerkt tonen als resultaten van nieuwe filters. Een expliciete loadingindicator en duidelijk overgangsgedrag zijn nodig, zonder verzonnen of niet-matchende markers als definitieve resultaten.
+6. **Fouten/offline:** laatst bekende kaartdata mag zichtbaar blijven met duidelijke cache-/fout-/bronindicatie en zonder te suggereren dat het nieuwe gebied compleet is; cachemissgebieden blijven expliciet niet geladen. De huidige echte NDW-geojsonfallback moet nog worden vergeleken met een clustered landelijke API; nooit gedeeltelijke kaart als volledige dekking presenteren.
+7. **Markers en sheets:** dezelfde wereldwijde grid-/celsleutels geven stabiele identiteit tijdens kleine pans. Een geopende individuele detailsheet blijft gekoppeld aan de publieke `featureId`, ook als marker-zoomniveau verandert; selectie en lokale favorieten gaan niet verloren bij een cache-update.
+
+#### Schets van cache-identiteit en invalidatie
+
+`(apiContractVersion, gridLevel, tileX, tileY, normalizedFilterHash, publishedDataVersion)` -> volledige, getypeerde `location | cluster`-inhoud van die cel/tile.
+
+- **Cache-entry is een complete cel:** persistente voorkeur is niet noodzakelijk in v1; begin met begrensde in-memory LRU en meet geheugen/allocaties. Eén request mag meerdere cellen omvatten mits de responscellen duidelijk identificeerbaar en volledig zijn.
+- **Data version/TTL:** cache de geografische *lidmaatschaps-/positioneringslaag* mogelijk langer dan bezettingsaggregaten. Beschikbaarheidspercentages kunnen veranderen na een NDW-import en vereisen een betrouwbaar snapshot-/versiecontract, age-indicator of targeted refresh. `feedLastObservedAt` alleen is geen bewijs dat individuele EVSE-statussen veranderd zijn.
+- **Stale-while-revalidate:** oude correcte posities en tellingen mogen tijdelijk zichtbaar blijven als `Laatst bekend`; revalidatie mag niet tot flikkerende lege frames leiden. Laat niet twee verschillende filter-/datasetversies als één gezamenlijk actueel resultaat doorgaan.
+- **In-flight deduplicatie:** meerdere aanvragen voor dezelfde tile/filter/versie delen één operatie. Nieuwe camera-/filterrequest mag oude response niet als de huidige weergave installeren. Annuleren moet efficiënt zijn, maar resultaten die nog geldige cachecellen opleveren kunnen eventueel gecachet worden zonder UI-overschrijving.
+- **Budget:** beperk zowel aantallen tegelijk zichtbare kaartobjecten als hoeveelheid prefetch-/cachegegevens; geen onbeperkte tile-ring op landelijk zoomniveau, geen onbegrensd aantal serverqueries of remote downloads.
+- **Camera-afhankelijk:** serverbepaalde gridLevel moet terugkomen in de response. Een viewport mag niet worden gemarkeerd als compleet wanneer sommige gevraagde cellen ontbreken of de API een resolutie degradeerde.
+
+#### Tests en metingen voor de navigatiekwaliteit
+
+- Kleine pan binnen gecachte cellen: **nul nieuwe netwerkrequests** zolang data geldig is; slepen blijft vloeiend.
+- Pan over celrand: alleen werkelijk ontbrekende cellen aanvragen, reeds gecachte objecten behouden; exact één representatie per locatie binnen de nieuwe coverage.
+- Snel heen-en-weer pannen: geen response-race, dubbele markers, oneindige requests of terugschakelen naar verouderde filters.
+- Zoom 4 → 7 → 12 → 17 en terug: stabiele clusters/individuele locaties, bruikbare cross-zoom-cache en geen zichtbare lege kaart tijdens normale overgang.
+- Activatie/uitzetten filter, donker/licht thema, favorietenoverlay, zoekpin, geopend detail, gesimuleerde offline-/timeoutstatus.
+- Meet netwerkcalls per beweging, responsebytes, cachehitratio, end-to-end tijd tot correcte kaart, frame-renderlatentie/stutters, API p50/p95 en batterij-/geheugenkosten. Stel grenzen pas na fysieke Samsung- en NAS-metingen vast.
+
+**Ontwerpadvies:** begin met complete vaste tiles en één configureerbare prefetch-ring als benchmarkscenario, maar behandel dat *niet* als vaste productparameter. Kies eerst een coherente coverage-/versioningstrategie; anders kan een ogenschijnlijk snelle cache onderling inconsistente clusterkleuren of dubbele locaties tonen.
+
+---
+
 ### Meet- en acceptatiekader (nog geen getallen gefingeerd)
 
 1. Baseline huidige `/map/viewport` op een straat, Oss, druk stadscentrum en groot gebied: p50/p95 API, bytes, querytijd, Android-renderduur, geheugen en aantal individuele punten.
