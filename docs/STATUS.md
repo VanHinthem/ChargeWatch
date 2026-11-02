@@ -1,3 +1,11 @@
+## A1b — volledige rastercellen en filterpariteit (2 november 2026)
+
+**SQL-ontwerp aangevuld:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) onderzoekt het uitlijnen van de zichtbare bbox naar volledige Web Mercator-gridcellen en de combinatie van technische, operator- en `minFree`-filters. De review toont het risico van **gedupliceerde filterpredicaten**: een handmatige SQL-kopie wijkt nog af bij enkele vermogensbanden en `minFree` met technische filters. **De schets is daarom nadrukkelijk geen goedgekeurde of uitvoeringsklare benchmarkquery**. De definitieve query moet `MapFilter.LocationPredicate` hergebruiken of een centraal geteste helper gebruiken, met expliciet semi-open celgrensbeleid en source-quality-regressietests.
+
+**Geen SQL uitgevoerd op NAS; geen API-/Android-code, schemawijziging, merge of deployment.** De eerstvolgende taak is de query/pariteit en gridranden corrigeren voordat we een meetakkoord vragen.
+
+---
+
 ## A1 SQL-review — twee correcties (2 november 2026)
 
 De niet-uitgevoerde `docs/MAP_GRID_A1_SQL_PROBE.md` is inhoudelijk herzien. (1) De proef selecteert enkel punten binnen de bbox en kan daardoor **geen volledige rastercellen aan de bboxrand garanderen**; productiekaart v2 moet bbox-grenzen eerst naar hele gridcellen afronden. (2) Niet-herkende operationele EVSE-statussen werden als `0 vrij / >0 totaal` impliciet rood; proef classificeert zulke locaties voorlopig conservatief als **unknown**. De definitieve NDW-/bronkwaliteitssemantiek en huidige `MapFilter`-pariteit blijven open voor tests. Geen SQL-uitvoering of NAS-metingen, geen code, merge of deployment.
