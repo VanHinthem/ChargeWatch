@@ -1,3 +1,9 @@
+## Nabije alternatieven — statuskleuren bevestigd (2 november 2026, PR #109)
+
+In de lijst voor GPS, PDOK-nearest en alternatieven zijn geldige `vrij/totaal`-aantallen **altijd groen als minstens één EVSE vrij is en rood als er geen EVSE vrij is**, ook wanneer `isStale=true` voor een ouder bronrecord. Geen grijze cijfers vanwege alleen bronouderdom. Bij onvolledige/onbekende EVSE-status, ongeldige aantallen of niet-aantoonbaar verse feed blijft `?` neutraal. Groen/rood is de bekende bezettingsstatus uit de bron, geen garantie op live-beschikbaarheid. Samsung-review verlangde deze kleurlogica na eerste #109-test.
+
+---
+
 ## GPS en nabije alternatieven — issue #99 (2 november 2026)
 
 GPS-optie A: foreground-toestelpositie na expliciete gebruikersactie, direct vijf nearest-resultaten met standaard ingeklapte resultatenlade. Alternatieven-optie A: zoek vanaf een geselecteerde laadlocatie, uitsluitend met bestaande kaartfilters, zonder automatische connector-/vermogenovername. Het geselecteerde PDOK-adres blijft als aparte blauwe pin bewaard. Het instellingenscherm krijgt een lokaal onthouden `Mijn locatie gebruiken`-schakelaar (standaard aan) en afzonderlijke Android-permissiestatus/beheer. Geen background tracking, serveropslag of backendwijzigingen. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) voor interacties, datakwaliteit, foutscenario's en acceptatie.
