@@ -33,3 +33,11 @@ Voeg een sectie **Locatie** toe met `Mijn locatie gebruiken` (standaard aan, Dat
 - Test GPS vijf-nearest, 0/1/5 resultaten, filterwijzigingen, contextwisselingen PDOK ↔ GPS ↔ alternatieven, kaart pan/zoom en terugnavigatie zonder onnodige queries.
 - Test alternatieven vanaf kaart én favoriet en geen oorspronkelijke locatie tussen resultaten; geen dubbele sheet en correcte markersemantiek.
 - Android tests en build/CI aantoonbaar uitgevoerd; `docs/STATUS.md` mergeklaar vóór definitief PR-reviewverzoek. Geen backendwijzigingen, merge of deploy zonder expliciet akkoord.
+
+## Implementatienotities — PR #109
+
+- Android `DeviceLocationProvider` gebruikt `LocationManager` zonder nieuwe Play Services-afhankelijkheid: foreground fine/coarse-permissies, eenmalige GPS-fix en een verse netwerk-fallback, maximumleeftijd van een locatie-fix 120 seconden.
+- De lokaal onthouden schakelaar is een private Android `SharedPreferences`-voorkeur (geen account, GPS-coördinaten of permissiehistorie in persistente opslag). Android-toestemming blijft onafhankelijk en wordt bij terugkeer naar de app opnieuw gecontroleerd.
+- `NearbyContext` scheidt Address/Gps/Alternatives en houdt het geselecteerde PDOK-adres apart. De nearest-resultaten worden maximaal twee minuten in sessiegeheugen gecachet voor snelle contextwisselingen; oudere beschikbaarheidsresultaten worden niet onbeperkt hergebruikt.
+- Bestaande ChargeWatch API, actieve filtercontracten, locatiebrede aantallen en bronversheid blijven de enige bron voor de lijst. Geen nieuwe backendserver, tarieven per lijstitem of automatische koppeling aan voertuig-/connectorprofielen.
+- Acceptatie op fysiek toestel omvat de Android-permissiedialogen, instellingen, GPS uit, nauwkeurigheid, camerafit en kaartoverlays. Unit-tests en Android-CI zijn aparte technische controles; groen CI is geen Samsung-goedkeuring.
