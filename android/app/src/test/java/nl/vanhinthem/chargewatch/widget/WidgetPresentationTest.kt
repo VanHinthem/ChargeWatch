@@ -1,5 +1,6 @@
 package nl.vanhinthem.chargewatch.widget
 
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,9 +62,41 @@ class WidgetPresentationTest {
         assertEquals("2/2", result.label)
     }
 
-    @Test fun responsiveLayoutUsesConservativeRowLimits() {
-        assertEquals(2, visibleWidgetRows(150f, 215f))
-        assertEquals(3, visibleWidgetRows(285f, 140f))
-        assertEquals(5, visibleWidgetRows(285f, 215f))
+    @Test fun responsiveLayoutPrioritizesLargerTextWithoutClippingRows() {
+        assertEquals(2, visibleWidgetRows(150f, 140f))
+        assertEquals(2, visibleWidgetRows(285f, 140f))
+        assertEquals(3, visibleWidgetRows(285f, 215f))
+        assertEquals(4, visibleWidgetRows(285f, 270f))
+        assertEquals(5, visibleWidgetRows(285f, 320f))
     }
+
+    @Test fun cityIsTakenFromSavedAddressNotInferredFromCoordinates() {
+        val home = favorite(alias = "Thuis", address = "Schietspoel 18, Oss")
+        assertEquals("Thuis", widgetFavoriteName(home))
+        assertEquals("Oss", widgetFavoriteCity(home))
+        assertEquals("Oss", widgetRow("a", widgetFavoriteName(home),
+            snapshot(2, 2), now - 30_000, now, widgetFavoriteCity(home)).city)
+    }
+
+    @Test fun cityIsNotDuplicatedWhenNoAliasExists() {
+        val street = favorite(alias = null, address = "Koetseland 4, Oss")
+        assertEquals("Koetseland 4", widgetFavoriteName(street))
+        assertEquals("Oss", widgetFavoriteCity(street))
+    }
+
+    @Test fun missingCityIsOmittedRatherThanGuessed() {
+        val street = favorite(alias = "Thuis", address = "Schietspoel 18")
+        assertEquals(null, widgetFavoriteCity(street))
+        assertEquals("Thuis", widgetFavoriteName(street))
+    }
+
+    @Test fun postalCodeAndCountryAreNotPresentedAsCity() {
+        val street = favorite(alias = null, address = "Schietspoel 18, 5343 AB Oss, Nederland")
+        assertEquals("Oss", widgetFavoriteCity(street))
+    }
+
+    private fun favorite(alias: String?, address: String) = FavoriteLocation(
+        featureId = "NL-NUO-A", title = address, latitude = 51.76,
+        longitude = 5.53, address = address, alias = alias
+    )
 }
