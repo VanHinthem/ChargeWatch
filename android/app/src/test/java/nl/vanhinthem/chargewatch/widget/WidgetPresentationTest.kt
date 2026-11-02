@@ -107,6 +107,41 @@ class WidgetPresentationTest {
         assertEquals("Laatst bekend", compactSquareFooter(listOf(recent, stale)))
     }
 
+    @Test fun manualRefreshDoesNotWaitForPeriodicSixtySecondThrottle() {
+        assertTrue(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = now - 3_000,
+            force = true, needsInitialData = false))
+        assertFalse(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = now - 3_000,
+            force = false, needsInitialData = false))
+    }
+
+    @Test fun newlySelectedFavoriteFetchesImmediatelyRegardlessOfOtherWidget() {
+        assertTrue(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = now - 3_000,
+            force = false, needsInitialData = true))
+        assertTrue(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = 0L,
+            force = false, needsInitialData = false))
+    }
+
+    @Test fun repeatedRapidTapsDoNotTriggerConcurrentExtraNetworkRequests() {
+        assertFalse(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = now - 300,
+            force = true, needsInitialData = true))
+        assertTrue(shouldFetchWidgetAvailability(
+            nowMillis = now, previousAttemptMillis = now - 60_000,
+            force = false, needsInitialData = false))
+    }
+
+    @Test fun loadingStateExpiresIfWorkerWasKilled() {
+        val running = WidgetState(refreshingSinceMillis = now - 1_000)
+        val interrupted = WidgetState(refreshingSinceMillis = now - 60_000)
+        assertTrue(isWidgetRefreshing(running, now))
+        assertFalse(isWidgetRefreshing(interrupted, now))
+        assertFalse(isWidgetRefreshing(WidgetState(), now))
+    }
+
     @Test fun cityIsTakenFromSavedAddressNotInferredFromCoordinates() {
         val home = favorite(alias = "Thuis", address = "Schietspoel 18, Oss")
         assertEquals("Thuis", widgetFavoriteName(home))
