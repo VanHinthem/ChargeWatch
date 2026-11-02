@@ -6,7 +6,7 @@ Bij de verdere analyse van de configuratieflow bleek `WidgetWork.refresh()` het 
 
 **Aanpassing:** eerst de geselecteerde IDs naar lokale DataStore schrijven en direct de bijbehorende Glance-widget renderen; pas daarna wordt de netwerkrefresh gestart. Binnen `WidgetWork.refresh` starten zowel de onmiddellijke IO-fetch als WorkManager-planning in aparte application-scoped coroutines: de gebruiker wacht niet meer op het inplannen van periodiek of fallback work. Aansluitend volgen betrouwbare aantallen afzonderlijk zodra de API antwoordt; `Verversen…` blijft de feedback tijdens een request. De nieuw toegevoegde per-locatie parallelle kleine viewports en incrementele updates blijven van kracht.
 
-Eerste CI van de onafhankelijke viewports [Android #41501325416](https://github.com/VanHinthem/ChargeWatch/actions/runs/41501325416) was groen. **De finale gecombineerde Android-build en fysieke Samsung-test na de UI-ordering-update volgen nog.** Geen merge of deployment zonder apart akkoord.
+Eerste CI van de onafhankelijke viewports [Android #41501325416](https://github.com/VanHinthem/ChargeWatch/actions/runs/41501325416) was groen. **Definitieve Android-CI [#41501885736](https://github.com/VanHinthem/ChargeWatch/actions/runs/41501885736) is groen** op code-en-documentatiecommit `622d688f2741805b7905755791535ad75334b959`: unit-tests, debug-APK-build en artifact `chargewatch-debug-apk`. [Read-only API-CI #41501885761](https://github.com/VanHinthem/ChargeWatch/actions/runs/41501885761) is eveneens groen. Alleen de fysieke Samsung-test van deze nieuwe APK staat nog open; geen merge of deployment zonder afzonderlijk akkoord. Geen merge of deployment zonder apart akkoord.
 
 ---
 
