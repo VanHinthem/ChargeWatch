@@ -1,3 +1,13 @@
+## Vastgesteld kaartdoel #113 — heel Nederland op elk zoomniveau (2 november 2026)
+
+**Expliciet productakkoord van gebruiker:** de kaart moet **heel Nederland kunnen weergeven**, ook wanneer sterk uitgezoomd. Op lage zoom levert de API vooral grotere clusters; op middelmatige zoom een **mix van clusters en losse locaties**; bij inzoomen vallen clusters uiteen tot individuele laadlocaties. Bestaande **kaartfilters blijven volledig correct werken vóór aggregatie** en er mogen geen onderliggende locaties stilzwijgend worden weggelaten wegens de huidige 999-grens. Dit is een **vastgesteld product- en UX-doel**, geen keuze voor een specifiek raster, vector tiles, routecontract of implementatie.
+
+**Gecontroleerd huidig gedrag:** `GetMapViewport` selecteert maximaal 1000 individuele locaties en retourneert bij `>=1000` HTTP 413; het gebied is daarnaast begrensd op 1.0 graad². Android groepeert deze individuele resultaten pas na downloaden met herhaalde clusterberekeningen en `map.clear()`. De API retourneert tevens connectorcategorieën die voor louter een kaartmarker mogelijk overbodig zijn. Daarom is **server-side zoomafhankelijke clustering + minimale kaartpayload** de leidende *onderzoekshypothese* voor #113, te benchmarken tegenover geaggregeerde vector tiles en caching/vooraggregatie. Clusterkleuren moeten betrouwbaar blijven; `locationCount` mag nooit met aantal EVSE's worden verward. Lokale favorieten blijven privé. Het bestaande endpoint en zijn volledigheidsgarantie blijven intact tot een nieuw contract daadwerkelijk is goedgekeurd.
+
+**Uitwerking:** zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), sectie *Kaart eerst*. Eerst de concrete UX- en datacontracten, aggregatie-/querykosten en meetcriteria; daarna eventueel een aparte API-/Android-PR na expliciet implementatieakkoord. Ontwerp-PR [#114](https://github.com/VanHinthem/ChargeWatch/pull/114) blijft draft; widget-PR #112 blijft onaangeroerd. **Geen codewijziging, NAS-deploy of merge.**
+
+---
+
 ## Actieve architectuurverkenning — gerichte locatiegegevens #113 (2 november 2026)
 
 **Nieuw productbesluit:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) is een **zelfstandige feature** om de volledige laadlocatie-datastroom slimmer en sneller te maken: kaart, compacte/uitgebreide detailsheet, favorieten en native widget. De gebruiker heeft expliciet gekozen om **eerst architectuur, betrouwbare data en performance samen uit te werken**, vóór een nieuwe API-/Android-implementatie. Inventarisatie en alternatieven staan in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). De voorgestelde bulk-ID-API, gedeelde samenvatting en lazy statistieken zijn **nog geen goedgekeurde technische keuzes**.
