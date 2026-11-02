@@ -1,27 +1,14 @@
-## Android P1 — GPS en nabije alternatieven (#99; implementatiebranch, 2 november 2026)
+## Android — GPS/huidige locatie en nabije alternatieven (#99; 2 november 2026)
 
-**Featurebranch:** `feature/android-gps-nearby-alternatives` vanaf `f91e7f68`. Het definitieve UX-ontwerp is vastgelegd in [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99). Goedgekeurd: GPS-optie A (5 nearest, paneel ingeklapt), alternatieven-optie A (alleen bestaande actieve kaartfilters) en de locatie-instelling standaard aan.
+**Productbesluiten:** GPS-optie A (tik `Mijn locatie` → één verse foreground-fix → maximaal vijf nearest in 25 km; resultatenlade standaard ingeklapt). Alternatieven-optie A (alleen bestaande actieve kaartfilters, géén automatisch overgenomen connector-/vermogenseisen). Ook goedgekeurd: sectie *Locatie* in Instellingen met lokale schakelaar standaard aan en afzonderlijk Android-permissiebeheer. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99).
 
-**Werk op deze branch:** Android foreground-locatiepermissie en eenmalige positiebepaling; gedeelde Address/Gps/Alternatives-nearbycontext; alternatievenactie in de gedeelde detailsheet, ook bij favorieten; eigen GPS-marker, terugactie en contextbewuste resultaten; permissiestatus en toggle in Instellingen. Bestaande read-only nearest-API en NDW-data blijven ongewijzigd.
+**Android-implementatie en PR:** de samenhangende feature is gebouwd in [PR #109](https://github.com/VanHinthem/ChargeWatch/pull/109). Eenmalige locatiebepaling via Android `LocationManager` met fine/coarse-permissie, GPS-/netwerkfallback, 120-seconden-fixleeftijdscontrole en foutacties naar Android-instellingen; GPS-marker en bestaande camerafit; één Address/Gps/Alternatives-resultatenlade; actie vanuit kaartdetails én favorieten; terugnavigatie zonder onnodige nearest-queries; maximaal twee minuten caching van resultaten; bron-/feedstaleness in het bestaande nearest-model; persistent lokaal *Mijn locatie gebruiken* zonder GPS-dataopslag. De bestaande PDOK-pin, kaartfilters en read-only API blijven behouden.
 
-**Verificatie:** implementatiecode is geschreven, maar Android-unit-tests, APK-build, CI en fysieke Samsung-review moeten nog worden gecontroleerd. Tot die verificatie gelden eventuele PR-claims als voorlopig; niet mergen of deployen. De app staat nog niet vrijgegeven voor eindgebruikers.
+**Technische controles:** Android-unit-tests + debug-APK-build + artifact-upload zijn groen op de feitelijke Android-code in [Android CI #41444584062](https://github.com/VanHinthem/ChargeWatch/actions/runs/41444584062) (codecommit `f4fa51d3`); de [read-only API CI #41444583959](https://github.com/VanHinthem/ChargeWatch/actions/runs/41444583959) is eveneens groen. Laatste wijzigingen daarna zijn documentatie. Fysieke Samsung-acceptatie is **nog niet uitgevoerd**; CI-groen is geen bewijs van werkelijk GPS-/sheetgedrag of permissiedialogen op toestel.
 
-**Volgende actie:** draai Android-CI op de featurebranch, herstel eventuele compile-/testfouten, controleer gebruikersinteracties en maak de STATUS vóór definitief reviewverzoek mergeklaar. Daarna pas issue #101 (widget), #103 (statistieken) en #104 (release).
+**Acceptatiepad:** test op Samsung Galaxy S23 Ultra (precieze/geschatte/geweigerde locatietoestemming, GPS uit of geen fix, instelling uit/aan, 0/1/5 nearest, PDOK ↔ GPS ↔ alternatieven, fav-route, kaartfilters, cameraterugactie, onbekende/stale beschikbaarheid, licht/donker en offline). Corrigeer eventuele bevindingen in dezelfde PR. **Geen merge of NAS-deployment zonder expliciet afzonderlijk akkoord.**
 
----
-
-## Android — vastgestelde prioriteiten richting v1 (30 oktober 2026)
-
-**Productbesluit:** na de op Samsung goedgekeurde en naar `main` gemergede PDOK-/kaartfilterfunctionaliteit (issue #95, PR #97) heeft de gebruiker deze volgorde expliciet vastgesteld:
-
-1. **[GPS / huidige locatie en nabije alternatieven — #99](https://github.com/VanHinthem/ChargeWatch/issues/99)**: eerstvolgende feature; ontwerp permissie-/GPS-fallback, kaartnavigatie en alternatieven vanaf bestaande laadlocatie, zonder regressie van adreszoeken en filters.
-2. **[Native Android-widget met bestaande lokale favorieten — #101](https://github.com/VanHinthem/ChargeWatch/issues/101)**: compacte/uitgebreide weergave, verversen en correcte bronstatus/versheid.
-3. **[Statistieken en 90-daagse uptime — #103](https://github.com/VanHinthem/ChargeWatch/issues/103)**: datakwaliteits- en publicatiecriteria vóór betrouwbaar tonen van historische kans, dekking en uptime.
-4. **[Laatste Android-kwaliteitsronde en v1-releasevoorbereiding — #104](https://github.com/VanHinthem/ChargeWatch/issues/104)**: praktijk-, offline-/fout-, toegankelijkheid-, performance-, signing- en beveiligingscontrole.
-
-**Huidige technische stand:** kaart, PDOK-zoekfunctie, vijf-nearest, filters, favorieten, tarieven en details zijn gerealiseerd en beoordeeld. Deze planning start **geen implementatie** en autoriseert geen deployment of publicatie. Open GitHub-[issue #79](https://github.com/VanHinthem/ChargeWatch/issues/79) blijft apart uitgesteld voor bredere monitoring; [PR #54](https://github.com/VanHinthem/ChargeWatch/pull/54) blijft een onafhankelijke documentatienotitie. De oorspronkelijke `docs/ROADMAP.md`-fasechecklists bevatten historische open vinkjes en weerspiegelen niet overal de actuele voortgang.
-
-**Volgende actie:** werk eerst de functionele en technische aanpak voor **#99 (GPS + nabije alternatieven)** uit, inclusief behandeling van toestemmingsweigering en de relatie met het bestaande PDOK-/filteroverzicht; pas na review coderen. Widgets, statistieken en release volgen expliciet in die volgorde.
+**Vervolgprioriteiten na goedgekeurde #99:** #101 Android-widget op lokale favorieten, daarna #103 statistieken/uptime en #104 kwaliteitsronde/release. Issue #79 monitoring blijft uitgesteld.
 
 ---
 
