@@ -17,7 +17,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-data class DevicePosition(val latitude: Double, val longitude: Double, val accuracyMeters: Float, val approximate: Boolean)
+data class DevicePosition(
+    val latitude: Double,
+    val longitude: Double,
+    val accuracyMeters: Float,
+    val approximate: Boolean
+)
 
 sealed interface PositionResult {
     data class Found(val position: DevicePosition) : PositionResult
@@ -36,40 +41,21 @@ fun locationPermissionStatus(context: Context): String {
     }
 }
 
+/** One-shot foreground fix. Never return an unverified cached Android last-known location. */
 class DeviceLocationProvider(private val context: Context) {
     suspend fun acquire(): PositionResult = withContext(Dispatchers.Main) {
         val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (!fine && !coarse) return@withContext PositionResult.PermissionMissing
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val provider = when {
-            fine && manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-            manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-            else -> return@withContext PositionResult.Disabled
-        }
+        val gpsEnabled = fine && runCatching { manager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false)
+        val networkEnabled = runCatching { manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false)
+        if (!gpsEnabled && !networkEnabled) return@withContext PositionResult.Disabled
         try {
-            val found = withTimeoutOrNull(12_000) {
-                suspendCancellableCoroutine<Location?> { continuation ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        val signal = CancellationSignal()
-                        continuation.invokeOnCancellation { signal.cancel() }
-                        manager.getCurrentLocation(provider, signal, ContextCompat.getMainExecutor(context)) { result ->
-                            if (continuation.isActive) continuation.resume(result)
-                        }
-                    } else {
-                        val listener = object : LocationListener {
-                            override fun onLocationChanged(location: Location) {
-                                if (continuation.isActive) continuation.resume(location)
-                            }
-                            override fun onProviderDisabled(provider: String) {
-                                if (continuation.isActive) continuation.resume(null)
-                            }
-                        }
-                        manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
-                        continuation.invokeOnCancellation { manager.removeUpdates(listener) }
-                    }
-                }
-            }
+            // Prefer GPS for fine permission, but allow a fresh network fix if GPS cannot lock.
+            val fromGps = if (gpsEnabled) acquireOnce(manager, LocationManager.GPS_PROVIDER, 8_000) else null
+            val found = fromGps ?: if (networkEnabled)
+                acquireOnce(manager, LocationManager.NETWORK_PROVIDER, 5_000) else null
             if (found == null || !found.latitude.isFinite() || !found.longitude.isFinite() ||
                 found.latitude !in -90.0..90.0 || found.longitude !in -180.0..180.0
             ) PositionResult.Unavailable
@@ -82,4 +68,28 @@ class DeviceLocationProvider(private val context: Context) {
             PositionResult.Unavailable
         }
     }
+
+    private suspend fun acquireOnce(manager: LocationManager, provider: String, timeoutMs: Long): Location? =
+        withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine<Location?> { continuation ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val signal = CancellationSignal()
+                    continuation.invokeOnCancellation { signal.cancel() }
+                    manager.getCurrentLocation(provider, signal, ContextCompat.getMainExecutor(context)) { result ->
+                        if (continuation.isActive) continuation.resume(result)
+                    }
+                } else {
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            if (continuation.isActive) continuation.resume(location)
+                        }
+                        override fun onProviderDisabled(provider: String) {
+                            if (continuation.isActive) continuation.resume(null)
+                        }
+                    }
+                    manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+                    continuation.invokeOnCancellation { manager.removeUpdates(listener) }
+                }
+            }
+        }
 }
