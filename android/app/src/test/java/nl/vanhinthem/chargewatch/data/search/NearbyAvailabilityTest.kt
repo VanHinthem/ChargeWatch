@@ -24,6 +24,17 @@ class NearbyAvailabilityTest {
         assertEquals(NearbyAvailabilityTone.OlderSource, result.tone)
     }
 
+    @Test fun APIresponseWithOldSourceAndFreshFeedStillShowsCount() {
+        val item = parseSearchLocations(
+            """[{"countryCode":"NL","partyId":"EFL","sourceId":"alternative",
+                "latitude":51.765,"longitude":5.525,
+                "evseCount":2,"availableCount":2,"unknownCount":0,
+                "isStale":true,"feedIsStale":false}]"""
+        ).single()
+        assertEquals("2/2", nearbyAvailabilityDisplay(item).label)
+        assertEquals(NearbyAvailabilityTone.OlderSource, nearbyAvailabilityDisplay(item).tone)
+    }
+
     @Test fun freshKnownCountsKeepAvailabilityColors() {
         val available = nearbyAvailabilityDisplay(charger(free = 3, total = 4))
         assertEquals("3/4", available.label)
