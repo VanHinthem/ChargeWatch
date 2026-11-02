@@ -10,6 +10,12 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Tweede Samsung-feedback: concrete adresregels + betrouwbaarheidscache
+
+De gebruiker bevestigde opnieuw te kleine/onjuiste presentatie: nog geen tweede adresregel en de twee eerder groene `2/2`-waarden zijn `?`. **Gewenst:** alias + volledig adres en plaats op de tweede regel; zonder alias adres boven en plaats onder. De `FavoriteLocation`-objecten bevatten op de kaart niet gegarandeerd de stad. Haal uitsluitend bij ontbrekende stad (maximaal 5–10 geselecteerde favorieten, throttled) `address` en `city` op van het **bestaande** GET `/api/v1/locations/by-ndw-id/{id}`, sla deze lokaal in widget-DataStore op en behoud reeds opgeslagen alias/volgorde. Extra lookup is *uitsluitend metadata*, nooit bron voor verzonnen beschikbaarheidscijfers. Alias: naam + `adres, plaats`; geen alias: adres + `plaats`. Zonder betrouwbare plaats geen gok.
+
+Verbeter cache-merge zodat een `Safe`/`Estimated`-snapshot met `0..total` alleen door een **andere betrouwbare** snapshot kan worden vervangen. Een ambigue/malforme nieuwe respons zorgt voor `Laatst bekend` en oorspronkelijke leeftijd; nooit beschikbare cijfers wissen of feedtijd onterecht verversen. Nieuwe tests voor deze regressie en adrespresentatie. Ruimteverdeling en hogere tekst/badges aangepast; de originele gekozen twee favorieten blijven zichtbaar bij 4×2. **PR #112 blijft draft; wacht op verse groene CI en fysieke Samsung-goedkeuring.**
+
 ## Samsung-bijsturing (2 november 2026)
 
 - Screenshot van een daadwerkelijk geïnstalleerde widget met twee bewust gekozen favorieten: correcte groene `2/2`-waarden en bronversheid, maar letter-/badgeformaat te klein en onnodig veel lege ruimte.
