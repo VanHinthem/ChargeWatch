@@ -1,5 +1,6 @@
 package nl.vanhinthem.chargewatch.widget
 
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
 import nl.vanhinthem.chargewatch.data.ndw.CountReliability
@@ -12,7 +13,8 @@ data class WidgetRow(
     val label: String,
     val status: AvailabilityStatus,
     val isLastKnown: Boolean,
-    val freshness: String
+    val freshness: String,
+    val city: String? = null
 )
 
 fun widgetRow(
@@ -20,10 +22,11 @@ fun widgetRow(
     name: String,
     snapshot: WidgetSnapshot?,
     lastAttemptMillis: Long,
-    nowMillis: Long
+    nowMillis: Long,
+    city: String? = null
 ): WidgetRow {
     if (snapshot == null) return WidgetRow(
-        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd"
+        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd", city
     )
     val reliability = CountReliability.entries.firstOrNull { it.name == snapshot.reliability }
         ?: CountReliability.Ambiguous
@@ -53,13 +56,46 @@ fun widgetRow(
     return WidgetRow(
         featureId, name,
         if (status == AvailabilityStatus.Unknown) "?" else sum.label,
-        status, lastKnown, freshness
+        status, lastKnown, freshness, city
     )
 }
 
-/** Width/height in dp are launcher dependent, never assume a fixed Samsung cell size. */
-fun visibleWidgetRows(widthDp: Float, heightDp: Float): Int = when {
-    widthDp < 230f -> 2
-    heightDp < 185f -> 3
-    else -> 5
+/**
+ * Existing favorites already hold NDW's address text, e.g. "Schietspoel 18, Oss".
+ * Never geocode or guess a city; omit it if the address has no unambiguous suffix.
+ */
+fun widgetFavoriteCity(favorite: FavoriteLocation): String? {
+    val address = favorite.address?.takeIf { it.isNotBlank() } ?: favorite.title
+    val parts = address.split(',').map(String::trim).filter(String::isNotBlank)
+    if (parts.size < 2) return null
+
+    val withoutCountry = if (parts.last().lowercase() in setOf(
+            "nederland", "the netherlands", "netherlands", "nl"
+        )) parts.dropLast(1) else parts
+    if (withoutCountry.size < 2) return null
+
+    val candidate = withoutCountry.last()
+        .replace(Regex("""^\d{4}\s?[A-Za-z]{2}\s+"""), "")
+        .trim()
+    return candidate.takeIf { it.isNotEmpty() && it.any(Char::isLetter) && it.length <= 80 }
+}
+
+/** Show user alias; otherwise keep the street but avoid repeating city in both lines. */
+fun widgetFavoriteName(favorite: FavoriteLocation): String {
+    favorite.alias?.trim()?.takeIf(String::isNotBlank)?.let { return it }
+    val city = widgetFavoriteCity(favorite) ?: return favorite.title
+    val title = favorite.title.trim()
+    return title.removeSuffix(", $city").trim().ifBlank { title }
+}
+
+/**
+ * Height-aware limits prioritize legibility over the original 2/3/5-row estimates.
+ * A taller launcher widget may show all five, but never shrink the status ratios.
+ */
+fun visibleWidgetRows(widthDp: Float, heightDp: Float): Int {
+    val compact = heightDp < 190f
+    val reservedDp = if (compact) 62f else 70f
+    val rowDp = if (compact) 38f else 48f
+    val heightCapacity = ((heightDp - reservedDp) / rowDp).toInt().coerceAtLeast(1)
+    return minOf(5, if (widthDp < 230f) 2 else 5, heightCapacity)
 }
