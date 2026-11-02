@@ -293,7 +293,7 @@ Accept: application/json
     "bounds": [4.1, 51.2, 5.5, 52.1],
     "filterKey": "canonical-filter-key",
     "publishedVersion": "catalog-snapshot-version",
-    "locationCount": 120
+    "locationCount": 101
   },
   "feed": {
     "lastObservedAt": "2026-11-02T18:00:00Z",
@@ -325,7 +325,7 @@ Accept: application/json
 }
 ```
 
-**Belangrijk:** dit voorbeeld is **schematisch**. De `coverage.cellIds` zijn illustratief en nog geen echte Web Mercator-tegelindices; `bounds` en aantallen zijn eveneens fictief. In deze voorbeeldresponse tellen `items` samen **101** locaties, niet de `120` in `coverage.locationCount`; een werkelijke geldige response moet aan de exacte gelijkheidsinvariant hieronder voldoen. Het voorbeeld dient alleen om veldtypes te bespreken, niet als fixture of testgolden. **Voor een contracttest gebruiken we een rekenkundig consistent fixture.**
+**Belangrijk:** dit voorbeeld is **schematisch**. De `coverage.cellIds` zijn illustratief en nog geen echte Web Mercator-tegelindices; `bounds` en aantallen zijn eveneens fictief. De voorbeeldresponse toont slechts twee cellen en laat daarmee een **rekenkundig consistente fictieve dekking** zien: 100 locaties in het cluster plus één losse locatie = `coverage.locationCount` 101. De illustratieve coördinaten en celindices zijn nog geen geldige geografische testfixture; daarvoor moeten de cellen, bounds en posities geometrisch kloppen.
 
 ### Betekenis van de belangrijkste velden
 
@@ -348,7 +348,7 @@ Accept: application/json
 ### Verplichte integriteitsregels
 
 1. Per cluster: `locationsWithFree + locationsWithNoFree + locationsUnknown == locationCount` (gehele getallen, allemaal >= 0).
-2. Per volledige disjuncte request-coverage: `sum(cluster.locationCount) + numberOfIndividualLocationItems == coverage.locationCount`. In het voorbeeld hierboven zou `coverage.locationCount` dus **101** moeten zijn, niet 120; het is geen te accepteren testresultaat.
+2. Per volledige disjuncte request-coverage: `sum(cluster.locationCount) + numberOfIndividualLocationItems == coverage.locationCount`. In het illustratieve voorbeeld hierboven is dat **100 + 1 = 101**.
 3. Alle items zijn berekend uit dezelfde filterset en publicatieversie; dezelfde locatie hoort bij precies één volledig uitgerenderde cel. Geen directe onzichtbare ruwe LIMIT.
 4. `complete = true` is nooit toegestaan bij timeout, gedeeltelijke SQL-resultaten, onbekende relevante cel of afgebroken antwoord. HTTP-success moet contractueel onderscheiden blijven van volledige datasetdekking.
 5. De ring gebruikt de exacte tellerfracties: groen `free/locationCount`, rood `noFree/locationCount`, onbekend `unknown/locationCount`. Android mag niet eerst afronden en daardoor segmenten missen.
