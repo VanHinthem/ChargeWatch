@@ -179,7 +179,10 @@ fun ChargeWatchApp() {
         if (selectedTab == 1 && favorites.isNotEmpty()) refresh()
     }
     LaunchedEffect(selectedTab) {
-        if (selectedTab == 2) refreshSettings()
+        if (selectedTab == 2) {
+            permissionStatus = locationPermissionStatus(context)
+            refreshSettings()
+        }
     }
 
 
