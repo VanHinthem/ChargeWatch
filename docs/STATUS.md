@@ -1,5 +1,19 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Widgetresponsiviteit — directe configuratie en verversing (#101, 2 november 2026)
+
+**Nieuwe Samsung-feedback:** widgetconfiguratie, namen/volgorde en beschikbaarheidsaantallen reageren te traag. Technische diagnose: `WidgetWork.refresh()` plaatste expliciete gebruikersacties uitsluitend als **unieke gewone WorkManager-taak**; `ExistingWorkPolicy.KEEP` en de gedeelde **60-seconden-throttle** konden vertragen of overslaan. Daarnaast laadde `ChargeWatchWidget.provideGlance()` favorieten en widgetconfiguratie maar één keer vóór `provideContent`, zodat een nog actieve Glance-compositie nieuwe DataStore-waarden niet noodzakelijk meteen toonde.
+
+**Gerichte oplossing in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112):**
+- **Opslaan direct zichtbaar:** configuratie eerst atomair naar DataStore, live `collectAsState` van `WidgetStore.states` en `FavoritesRepository.favorites` *binnen* de Glance-compositie. Geen herstart of WorkManager nodig om naam, selectie en volgorde te zien.
+- **Direct gegevens ophalen na instellen of refresh:** uit een procesbrede IO-scope meteen de bestaande API-first/NDW-fallback client aanroepen, zonder 60-sec WorkManager-uitstel. Periodieke achtergrondtaak (15 min, best effort) behouden; extra WorkManager eenmalige fallback bij expliciete interacties (expedited op Android 12+, reguliere backup op 26-30).
+- **Gedeelde coördinator:** Mutex voorkomt overlappende requests; 2s dubbelklikbeveiliging voor expliciet verversen of ontbrekende cache, 60s voor ongevraagde periodieke updates. Nieuwe favorieten zonder cache krijgen voorrang, maar nooit frequente onbegrensde polling. Bestaande geldige cache blijft zichtbaar en wordt pas met nieuwe betrouwbare data overschreven.
+- **Feedback:** tijdens ophalen toont de widget `Verversen…`; na afronden opnieuw eigen, betrouwbare status en bronmoment. Een afgebroken proces kan maximaal 30 seconden een loadingstatus tonen. Adresmetadata blijft een aparte, lokaal gecachte request zodat hij het publiceren van bezetting niet blokkeert.
+
+Gerichte regressietests voor handmatige versus periodieke throttle, nieuwe selectie en tijdelijke loadingstatus toegevoegd. **Nieuwe Android-CI en fysieke Samsung-acceptatie vereist.** De 15-minutenachtergrondupdate is geen realtimegarantie; de directe gebruikersactie begint onmiddellijk, maar blijft afhankelijk van daadwerkelijke netwerk-/bronrespons. Geen backend/NAS-wijziging en geen merge/deployment zonder apart expliciet akkoord.
+
+---
+
 ## Vierde Samsung-review — 4×1 bevestigd, 2×2 compact maken (2 november 2026)
 
 De gebruiker heeft drie screenshots van dezelfde debug-APK met **4×1, 4×2 en 2×2** gedeeld. **4×1 werkt fysiek op Samsung One UI**: het horizontale formaat toont de eerste geselecteerde favoriet met correct `2/2` groen, de alias en `Schietspoel 18, Oss`. Omdat twee favorieten geselecteerd zijn, staat `+1 meer` onder de badge; dit verdringt de bronversheid. **4×2 is geslaagd**: twee leesbare rijen, nu ook actuele `1/2` voor Koetseland. **2×2 is nog niet geslaagd**: titel `ChargeW...`, onleesbaar afgekorte namen/adressen, te grote ratio's voor de beperkte breedte.
