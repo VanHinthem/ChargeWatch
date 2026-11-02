@@ -9,6 +9,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.CancellationSignal
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +57,9 @@ class DeviceLocationProvider(private val context: Context) {
             val fromGps = if (gpsEnabled) acquireOnce(manager, LocationManager.GPS_PROVIDER, 8_000) else null
             val found = fromGps ?: if (networkEnabled)
                 acquireOnce(manager, LocationManager.NETWORK_PROVIDER, 5_000) else null
-            if (found == null || !found.latitude.isFinite() || !found.longitude.isFinite() ||
+            val ageMs = found?.let { (SystemClock.elapsedRealtimeNanos() - it.elapsedRealtimeNanos) / 1_000_000L }
+            if (found == null || ageMs == null || ageMs !in 0L..120_000L ||
+                !found.latitude.isFinite() || !found.longitude.isFinite() ||
                 found.latitude !in -90.0..90.0 || found.longitude !in -180.0..180.0
             ) PositionResult.Unavailable
             else PositionResult.Found(DevicePosition(found.latitude, found.longitude, found.accuracy, !fine))
