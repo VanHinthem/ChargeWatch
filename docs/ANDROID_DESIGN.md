@@ -1,3 +1,11 @@
+## Native widget — horizontale 4×1-variant (#101, 2 november 2026)
+
+De derde fysieke Samsung-screenshot toont twee correct ingelezen favorieten, betrouwbare groene `2/2`, naam + adres/plaats en een bronfooter. De gebruiker kiest voor **één favoriet een 4×1-variant**. In 4×1 wordt **niet** de 4×2-layout verkleind: de hoge ChargeWatch-titel en footer verdwijnen. Links staat een klein ChargeWatch-bliksemsymbool (opent de kaart), daarna groot de eigen favorietennaam met adres/plaats als tweede regel, rechts de groen/rode `vrij/totaal`-badge met compact statusmoment, plus een aparte refreshactie. Bij laatst bekende gegevens staat `Laatst bekend`, bij onbetrouwbare telling `Onbekend`, zonder een versheidsclaim te verzinnen. Bij meer geselecteerde favorieten toont de 4×1 alleen de eerste en `+N meer`; volgorde blijft lokaal.
+
+4×1 is een **responsive resize-toestand van dezelfde bestaande APK/widget**, geen aparte widget-app of backend. Ondersteunde hoogte wordt aangepast in provider XML, met een aparte Glance-responsieve klasse. Android/One UI bepaalt de daadwerkelijke cellen; **Samsung-acceptatie nodig**. 4×2/4×3 blijven ongewijzigd. Geen merge zonder apart akkoord.
+
+---
+
 ## Widgetcorrectie na tweede Samsung-screenshot (2 november 2026)
 
 **Vastgestelde UX-eis:** bij een favoriet met eigen alias boven **alias**, eronder **adres + plaats** (bijv. `Thuis` / `Schietspoel 18, Oss`). Zonder alias boven het **adres**, eronder alleen de **plaats** (bijv. `Koetseland 4` / `Oss`): adres dus niet op beide regels herhalen. Het oorspronkelijke adres uit de NDW-kaart bevat niet altijd de plaats. Gebruik de reeds bestaande API-detailvelden `address` en `city` met een kleine lokale metadata-cache (los van de beschikbaarheidscache); geen verzonnen geografie en geen nieuwe backendfunctionaliteit. Lokaal adres kan worden getoond wanneer detail-API niet bereikbaar is, stad blijft dan leeg als onbekend.
