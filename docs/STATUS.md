@@ -1,3 +1,15 @@
+## Android P1 — GPS en nabije alternatieven (#99; implementatiebranch, 2 november 2026)
+
+**Featurebranch:** `feature/android-gps-nearby-alternatives` vanaf `f91e7f68`. Het definitieve UX-ontwerp is vastgelegd in [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99). Goedgekeurd: GPS-optie A (5 nearest, paneel ingeklapt), alternatieven-optie A (alleen bestaande actieve kaartfilters) en de locatie-instelling standaard aan.
+
+**Werk op deze branch:** Android foreground-locatiepermissie en eenmalige positiebepaling; gedeelde Address/Gps/Alternatives-nearbycontext; alternatievenactie in de gedeelde detailsheet, ook bij favorieten; eigen GPS-marker, terugactie en contextbewuste resultaten; permissiestatus en toggle in Instellingen. Bestaande read-only nearest-API en NDW-data blijven ongewijzigd.
+
+**Verificatie:** implementatiecode is geschreven, maar Android-unit-tests, APK-build, CI en fysieke Samsung-review moeten nog worden gecontroleerd. Tot die verificatie gelden eventuele PR-claims als voorlopig; niet mergen of deployen. De app staat nog niet vrijgegeven voor eindgebruikers.
+
+**Volgende actie:** draai Android-CI op de featurebranch, herstel eventuele compile-/testfouten, controleer gebruikersinteracties en maak de STATUS vóór definitief reviewverzoek mergeklaar. Daarna pas issue #101 (widget), #103 (statistieken) en #104 (release).
+
+---
+
 ## Android — vastgestelde prioriteiten richting v1 (30 oktober 2026)
 
 **Productbesluit:** na de op Samsung goedgekeurde en naar `main` gemergede PDOK-/kaartfilterfunctionaliteit (issue #95, PR #97) heeft de gebruiker deze volgorde expliciet vastgesteld:
