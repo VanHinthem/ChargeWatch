@@ -907,11 +907,11 @@ private fun SearchHeader(
                                             tint = ComposeColor(0xFFF3AF25)
                                         )
                                     }
-                                    Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false) "?"
+                                    Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false || item.isStale != false) "?"
                                         else "${item.availableCount}/${item.totalCount}",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = when {
-                                            item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false -> ComposeColor(0xFF818D96)
+                                            item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false || item.isStale != false -> ComposeColor(0xFF818D96)
                                             item.availableCount > 0 -> ComposeColor(0xFF168653)
                                             else -> ComposeColor(0xFFD43B3B)
                                         })
