@@ -1,5 +1,15 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Widgetstatus sneller per locatie — vervolg op Samsung-test (#101, 2 november 2026)
+
+**Gebruikersobservatie:** `Verversen…` verschijnt meteen, maar nieuwe geselecteerde favorieten en vooral vrij/totaal-statussen komen nog vertraagd binnen. Dit bewijst dat de directe actie werkt, maar niet dat de hele keten al vlot is. Codeonderzoek laat een **concrete extra prestatieoorzaak** zien: `favoriteViewports()` groepeerde locaties zolang het gezamenlijke bounding box-oppervlak onder `0.05` vierkante graden lag; ook locaties in **verschillende steden (bijv. Oss/Elst)** kunnen daardoor één zeer groot kaartgebied vormen. `FavoritesAvailabilityClient.refresh()` wachtte bovendien met het publiceren van resultaten op **alle** viewportrequests, inclusief eventuele langzame API/NDW-fallback.
+
+**Gerichte correctie in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112):** alleen echt dichtbijgelegen favorieten combineren (max. 0.015° breedte/hoogte én 0.0002°² oppervlakte), verder afzonderlijke kleine `±0.002°`-viewports die parallel geladen worden. De bestaande client heeft een **optionele per-viewport callback** gekregen; `WidgetStore.recordIncremental` schrijft afgeronde gevalideerde favorietstatussen meteen, zonder de lopende overall refresh te beëindigen of een oude betrouwbare waarde te overschrijven. Glance werkt direct de ontvangen cijfers bij; de langzamere volgende regio hoeft niet meer afgewacht te worden. Bij finalisatie blijven bestaande `Partial`-/fallback-/NDW-bronregels gelden.
+
+Gerichte tests toegevoegd: Oss en Elst niet samen in één brede viewport, nabijgelegen locaties wel gecombineerd; status-/cache-regels blijven via bestaande tests gedekt. **Nieuwe Android-CI en fysieke Samsung-hertest volgen.** Geen garantie van onmiddellijke externe netwerkrespons, geen NAS- of backendverandering, geen merge/deploy zonder afzonderlijk akkoord.
+
+---
+
 ## Aanvullende responsiviteitscorrecties (#101, 2 november 2026)
 
 Initieel toevoegen kan op Samsung een tijdelijk nog niet actief gemeld widget-ID opleveren. Een expliciete opslaatactie start nu ook dan de direct achtergrondophaalroute op basis van de net opgeslagen per-widgetselectie; `onEnabled` blijft de periodieke planning verzorgen. Adres-/plaatsmetadata heeft nu een **afzonderlijke mutex**: een trage metadatafallback houdt niet langer een nieuwe, expliciete beschikbaarheidsrefresh tegen. Bronstatus en aantallen worden vóór eventuele adresverrijking bijgewerkt. De directe gebruikersroute is veilig tegen snelle dubbeltikken en behoudt een betrouwbare vorige ratio bij falende bronnen.
