@@ -67,7 +67,10 @@ private fun homeIntent(context: Context, widgetId: Int) =
 
 class ChargeWatchWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(
-        setOf(DpSize(150.dp, 140.dp), DpSize(285.dp, 140.dp), DpSize(285.dp, 215.dp))
+        setOf(
+            DpSize(150.dp, 140.dp), DpSize(285.dp, 140.dp),
+            DpSize(285.dp, 215.dp), DpSize(285.dp, 270.dp), DpSize(285.dp, 320.dp)
+        )
     )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -77,8 +80,9 @@ class ChargeWatchWidget : GlanceAppWidget() {
         val selected = state.configurations[widgetId.toString()].orEmpty()
         val rows = selected.mapNotNull { featureId ->
             favorites.find { it.featureId == featureId }?.let { favorite ->
-                widgetRow(favorite.featureId, favorite.displayName,
-                    state.snapshots[favorite.featureId], state.lastAttemptMillis, System.currentTimeMillis())
+                widgetRow(favorite.featureId, widgetFavoriteName(favorite),
+                    state.snapshots[favorite.featureId], state.lastAttemptMillis,
+                    System.currentTimeMillis(), city = widgetFavoriteCity(favorite))
             }
         }
         val appearance = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
@@ -99,6 +103,12 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
     val size = LocalSize.current
     val maxRows = visibleWidgetRows(size.width.value, size.height.value)
     val visible = rows.take(maxRows)
+    val compact = size.height.value < 190f
+    val narrow = size.width.value < 230f
+    val rowHeight = if (compact) 38.dp else 48.dp
+    val nameSize = if (compact) 15.sp else 17.sp
+    val citySize = if (compact) 11.sp else 13.sp
+    val badgeSize = if (compact) 17.sp else 19.sp
     val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
     val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
@@ -110,12 +120,13 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
             Text("⚡ ChargeWatch",
                 modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(homeIntent(context, widgetId))),
                 maxLines = 1,
-                style = TextStyle(color = foreground, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                style = TextStyle(color = foreground, fontSize = if (narrow) 14.sp else 17.sp,
+                    fontWeight = FontWeight.Bold))
             Text("⟳", modifier = GlanceModifier.padding(start = 8.dp, end = 4.dp)
                 .clickable(actionRunCallback<WidgetRefreshAction>()),
-                style = TextStyle(color = foreground, fontSize = 20.sp))
+                style = TextStyle(color = foreground, fontSize = 23.sp))
         }
-        Spacer(GlanceModifier.height(4.dp))
+        Spacer(GlanceModifier.height(3.dp))
         if (rows.isEmpty()) {
             val label = if (hasFavorites) "Widget instellen" else "Nog geen favorieten"
             Text(label, style = TextStyle(color = secondary, fontSize = 12.sp),
@@ -139,31 +150,43 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
                     AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
                     AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
                 }
-                Row(GlanceModifier.fillMaxWidth().height(25.dp).clickable(
+                Row(GlanceModifier.fillMaxWidth().height(rowHeight).clickable(
                     actionStartActivity(widgetFavoriteIntent(context, widgetId, row.featureId))
                 ), verticalAlignment = Alignment.CenterVertically) {
-                    Text(row.name, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
-                        style = TextStyle(color = foreground, fontSize = 12.sp))
+                    Column(modifier = GlanceModifier.defaultWeight(),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(row.name, maxLines = 1,
+                            style = TextStyle(color = foreground, fontSize = nameSize,
+                                fontWeight = FontWeight.Medium))
+                        if (!row.city.isNullOrBlank()) {
+                            Text(row.city, maxLines = 1,
+                                style = TextStyle(color = secondary, fontSize = citySize))
+                        }
+                    }
                     Spacer(GlanceModifier.width(6.dp))
                     Text(row.label, maxLines = 1,
-                        modifier = GlanceModifier.background(badge).cornerRadius(7.dp)
-                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        modifier = GlanceModifier.background(badge).cornerRadius(8.dp)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
                         style = TextStyle(color = ColorProvider(badgeText),
-                            fontSize = 12.sp, fontWeight = FontWeight.Bold))
-                    if (row.isLastKnown) Text(" !", style = TextStyle(color = secondary, fontSize = 11.sp))
+                            fontSize = badgeSize, fontWeight = FontWeight.Bold))
+                    if (row.isLastKnown) {
+                        Text(" !", style = TextStyle(color = secondary, fontSize = 12.sp))
+                    }
                 }
             }
         }
-        Spacer(GlanceModifier.height(4.dp))
+        // Give the selected rows room while keeping source freshness at the bottom.
+        Spacer(GlanceModifier.defaultWeight())
         val footer = when {
             rows.isEmpty() -> "Open ChargeWatch om favorieten te kiezen"
             rows.any { it.isLastKnown } -> "Deels verouderd · laatst bekend"
             rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment per locatie verschilt"
             else -> rows.first().freshness
         }
+        val footerText = if (narrow) footer.removePrefix("Bron gecontroleerd · ") else footer
         Row(GlanceModifier.fillMaxWidth()) {
-            Text(footer, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
-                style = TextStyle(color = secondary, fontSize = 10.sp))
+            Text(footerText, modifier = GlanceModifier.defaultWeight(), maxLines = 1,
+                style = TextStyle(color = secondary, fontSize = if (narrow) 10.sp else 11.sp))
             if (rows.size > maxRows) Text("+${rows.size - maxRows} meer",
                 style = TextStyle(color = secondary, fontSize = 10.sp))
         }
