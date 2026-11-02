@@ -70,6 +70,24 @@ class WidgetPresentationTest {
         assertEquals(5, visibleWidgetRows(285f, 320f))
     }
 
+    @Test fun singleRowWidgetIsOnlyUsedForWideLowLauncherSizes() {
+        assertTrue(isSingleRowWidget(260f, 62f))
+        assertTrue(isSingleRowWidget(285f, 78f))
+        assertFalse(isSingleRowWidget(285f, 140f))
+        assertFalse(isSingleRowWidget(150f, 62f))
+        assertEquals(1, visibleWidgetRows(260f, 62f))
+        assertEquals(2, visibleWidgetRows(285f, 140f))
+    }
+
+    @Test fun compactWidgetAlwaysDistinguishesUnknownFromLastKnown() {
+        val recent = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now)
+        assertEquals("1 min", compactWidgetFreshness(recent))
+        val lastKnown = widgetRow("a", "Thuis",
+            snapshot(2, 2, fetched = now - 3_600_000), now, now)
+        assertEquals("Laatst bekend", compactWidgetFreshness(lastKnown))
+        assertEquals("Onbekend", compactWidgetFreshness(widgetRow("a", "Thuis", null, now, now)))
+    }
+
     @Test fun cityIsTakenFromSavedAddressNotInferredFromCoordinates() {
         val home = favorite(alias = "Thuis", address = "Schietspoel 18, Oss")
         assertEquals("Thuis", widgetFavoriteName(home))
