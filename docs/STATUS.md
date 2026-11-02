@@ -1,3 +1,13 @@
+## Read-only benchmarkprotocol — kaart v2 / #113 (2 november 2026)
+
+**Vastgelegd, nog niet uitgevoerd:** [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) bevat nu een gecontroleerd benchmarkprotocol voor huidige kaartquery (A0), live PostGIS-gridaggregatie (A1), eventuele per-locatie-availabilitysummary in een **geïsoleerde proefdatabase** (B) en optionele tilecache (C). Scenario's: straat Oss, Oss/Elst, druk stadscentrum, Noord-Brabant, volledig Nederland, technische en statusfilters, lege/ambigue resultaten, gridranden.
+
+**Meetmethode:** daadwerkelijke DB/indexen en alleen-lezen rol vaststellen; eerst `EXPLAIN` zonder uitvoering, daarna onder grenzen `EXPLAIN (ANALYZE, BUFFERS)` uitsluitend op SELECT met `REPEATABLE READ READ ONLY`, korte transacties en conservatieve `statement_timeout`/lock-timeout. Op productie **geen** nieuwe samenvattingstabellen, writes, onbeperkte landelijke runs of ongeremde concurrency. Metingen moeten de tijd/IO/responsebytes/objecten, filters, kwaliteit en volledige dekkingsinvarianten aantonen, niet alleen snelheidswinst.
+
+**Status:** alleen documentatie; **nul benchmarks daadwerkelijk uitgevoerd**, geen code, merge of NAS-deploy. Ontwerp-PR #114 blijft draft; eerst afzonderlijk akkoord op meetuitvoering, vervolgens pas technische keuze en implementatie.
+
+---
+
 ## Clusterberekening: live SQL versus locatiesamenvatting (#113; 2 november 2026)
 
 **Codecontrole:** `BulkImporter` verwerkt de NDW-locaties, EVSE's en checkpoint-/statistiekupdates in één PostgreSQL-transactie; init-schema bevat een GiST-positionindex en unieke `evse(location_id,source_uid)`. Dat biedt aanknopingspunten voor zowel live aggregatie als eventueel een transactioneel bijgewerkte per-locatie-`availability_summary`, **maar die extra samenvatting bestaat nog niet**. Bijkomend aandachtspunt: meerdere SELECT-statements bij standaard `READ COMMITTED` kunnen tussentijds verschillende gecommitte importerstatussen zien; een consistent snapshot voor een complete kaartresponse moet worden gegarandeerd.
