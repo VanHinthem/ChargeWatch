@@ -21,6 +21,12 @@ class NearbyContextTest {
         assertEquals(listOf("1","2","3","4","5"),result.map { it.featureId })
         assertEquals("5 locaties bij mijn positie",nearbyLabel(context,5))
     }
+    @Test fun cachedResultsExpireInsteadOfKeepingOldAvailabilityForever() {
+        val cache = NearbyCacheEntry(listOf(loc("NL-A-1")), 100L)
+        assertEquals(true, cache.isFresh(100L + 30_000_000_000L))
+        assertEquals(false, cache.isFresh(100L + 121_000_000_000L))
+        assertEquals(false, cache.isFresh(90L))
+    }
     @Test fun handlesSingularAlternatives() {
         assertEquals("1 nabije alternatief",nearbyLabel(NearbyContext.Alternatives(NearbyOrigin("1","",51.7,5.5)),1))
     }
