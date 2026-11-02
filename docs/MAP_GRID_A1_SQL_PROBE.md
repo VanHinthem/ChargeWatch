@@ -1,6 +1,6 @@
 # ChargeWatch #113 — A1 read-only SQL-proefquery (review, niet uitgevoerd)
 
-**Status 2 november 2026:** uitsluitend een handmatig te beoordelen **read-only SELECT-prototype**. Geen uitvoering op NAS of live database, geen schemawijziging, geen productiebenchmark. Deze query is **alleen ongefilterd** en levert **één complete set rastercellen** voor het opgegeven gebied (hier conservatief de bbox zonder externe buffer). De uiteindelijke filtered API-implementatie moet de bestaande `MapFilter.LocationPredicate` server-side hergebruiken.
+**Status 2 november 2026:** uitsluitend een handmatig te beoordelen **read-only SELECT-prototype**. Geen uitvoering op NAS of live database, geen schemawijziging, geen productiebenchmark. Deze query is **alleen ongefilterd** en groepeert **alleen punten binnen de opgegeven bbox**, waardoor de randcellen **niet compleet** zijn. De uiteindelijke filtered API-implementatie moet de bestaande `MapFilter.LocationPredicate` server-side hergebruiken.
 
 ## Waarom deze versie beperkt is
 
@@ -62,7 +62,12 @@ per_location AS (
         )::integer AS total_evses,
         count(e.id) FILTER (
             WHERE upper(btrim(coalesce(e.status, ''))) = 'AVAILABLE'
-        )::integer AS free_evses
+        )::integer AS free_evses,
+        count(e.id) FILTER (
+            WHERE upper(btrim(coalesce(e.status, ''))) NOT IN
+                ('AVAILABLE', 'CHARGING', 'BLOCKED', 'RESERVED',
+                 'INOPERATIVE', 'OUTOFORDER', 'PLANNED', 'REMOVED')
+        )::integer AS unclassified_evses
     FROM selected s
     LEFT JOIN evse e ON e.location_id = s.id AND e.is_active
     GROUP BY s.id, s.country_code, s.party_id, s.source_id,
@@ -71,12 +76,13 @@ per_location AS (
 groups AS (
     SELECT cell_x, cell_y,
         count(*)::integer AS location_count,
-        count(*) FILTER (WHERE free_evses > 0)::integer AS locations_with_free,
+        count(*) FILTER (WHERE free_evses > 0 AND unclassified_evses = 0)::integer AS locations_with_free,
         count(*) FILTER (
             WHERE free_evses = 0 AND total_evses > 0
+              AND unclassified_evses = 0
         )::integer AS locations_with_no_free,
         count(*) FILTER (
-            WHERE total_evses = 0
+            WHERE total_evses = 0 OR unclassified_evses > 0
         )::integer AS locations_unknown,
         min(country_code || '-' || party_id || '-' || source_id)
             AS singleton_feature_id,
@@ -100,18 +106,24 @@ ORDER BY cell_y, cell_x;
 ROLLBACK;
 ```
 
-**Belangrijke statusregel:** deze proef behandelt `total_evses = 0` als onbekend. De bestaande live-API heeft een andere parserbetrouwbaarheid en kan onvolledige bronstatussen bevatten; vóór productie moet de betrouwbaarheidsregel centraal worden vastgelegd, onder meer voor een operationele EVSE met ongeldige/onbekende status. Een exact aanwezige EVSE-status `CHARGING`, `BLOCKED` of `RESERVED` is wel betrouwbaar **niet vrij**, niet een ongeldige status. De proef is géén volledige implementatie van source-quality flags. Voeg hiervoor eerst regressietests toe.
+**Belangrijke statusregel:** deze proef behandelt `total_evses = 0` en onbekende EVSE-statussen als onbekende locatie, ook wanneer er daarnaast beschikbare EVSE's zijn. Dit is een conservatieve **onderzoeksclassificatie**, geen reeds vastgesteld productiecontract. De bestaande live-API heeft een andere parserbetrouwbaarheid en kan onvolledige bronstatussen bevatten; vóór productie moet de betrouwbaarheidsregel centraal worden vastgelegd, onder meer voor een operationele EVSE met ongeldige/onbekende status. Een exact aanwezige EVSE-status `CHARGING`, `BLOCKED` of `RESERVED` is wel betrouwbaar **niet vrij**, niet een ongeldige status. De statuswhitelist moet tegen de werkelijk door NDW gebruikte waarden en de bestaande classifier worden getoetst. De proef is géén volledige implementatie van source-quality flags. Voeg hiervoor eerst regressietests toe.
 
 ## Waarop de SQL-review moet letten
 
 - **Indexvriendelijke selectie:** `ST_Intersects(position, envelope::geography)` kan GiST benutten; daadwerkelijke planoptimalisatie pas aantonen met `EXPLAIN`.
 - **Geen LIMIT op ruwe locaties:** alle gevonden punten worden aan exact één gridcel toegewezen.
 - **Dubbeltellingen:** de query joint op EVSE zonder connector-join en groepeert per locatie vóór grid; één actieve EVSE telt maximaal eenmaal.
-- **Geen geveinsde landelijke volledigheid:** dit voorbeeld selecteert binnen de proef-bbox. Voor een werkelijk volledig-clustercontract moeten complete gridcellen of tiles inclusief randen worden gebruikt, zodat pan langs een viewportgrens geen verschuivende clustertellers geeft.
+- **Geen geveinsde landelijke volledigheid:** dit voorbeeld selecteert uitsluitend binnen de proef-bbox, dus **randcellen zijn onvolledig**. Voor een werkelijk volledig-clustercontract moeten complete gridcellen of tiles inclusief randen worden gebruikt, zodat pan langs een viewportgrens geen verschuivende clustertellers geeft.
 - **Grid-coördinaten:** eenvoudig globaal Mercator-grid voor Nederlandse punten. Test grenzen, afronding, zoomwisselingen en lokale coördinaatdubbelen. Bij raster/tegel-overgangen kan het werkelijk gepresenteerde `gridLevel` afwijken van het cameraniveau.
 - **Geen filters in deze proef:** latere varianten moeten de huidige `MapFilter.LocationPredicate` exact overnemen; simpele statusaggregaties zijn **niet voldoende** voor connector- en vermogensfilters. Maak die uitbreiding alleen met gerichte filterfixtures.
 - **Integergrenzen:** landelijke totalen passen momenteel vermoedelijk binnen `integer`, maar check geobserveerde dataset en gebruik `bigint` binnen aggregatie totdat per-cel bounds bewezen zijn.
 - **Snapshot:** `REPEATABLE READ READ ONLY` betekent één consistente database-snapshot binnen de transactie. Geen claim van een publieke versie-/cache-ID afleiden uit alleen de feedcheckpoint.
+
+## Resultaat van de inhoudelijke review
+
+- **Gecorrigeerd:** de eerdere tekst suggereerde onterecht complete rastercellen; de SQL selecteert alleen binnen de bbox. Voor een toekomstige API moeten we eerst de bbox naar volledige rastercelgrenzen uitbreiden en pas dan cellen volledig berekenen.
+- **Gecorrigeerd:** onbekende/onclassificeerbare operationele EVSE-statussen werden eerder als betrouwbaar rood meegeteld. Dit prototype telt de locatie conservatief als onbekend; de productieclassifier en bekende NDW-statuswaarden moeten dat verder onderbouwen.
+- **Nog niet opgelost:** exacte pariteit van technische en minFree-filters; gridpolygon-bounds en clusterposities; latency en indexgebruik. Het voorbeeld toont enkel SQL-structuur, geen complete API.
 
 ## Validatie zonder NAS
 
