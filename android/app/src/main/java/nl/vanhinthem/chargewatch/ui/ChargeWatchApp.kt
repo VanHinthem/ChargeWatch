@@ -75,14 +75,17 @@ fun ChargeWatchApp() {
     }
     var locationEnabled by remember { mutableStateOf(locationPrefs.getBoolean("enabled", true)) }
     var permissionStatus by remember { mutableStateOf(locationPermissionStatus(context)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        permissionStatus = locationPermissionStatus(context)
-    }
     val repository = remember(context) { FavoritesRepository(context) }
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val mapViewModel: MapViewModel = viewModel()
     val mapState by mapViewModel.uiState.collectAsState()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val status = locationPermissionStatus(context)
+        permissionStatus = status
+        if (status == "Niet toegestaan") mapViewModel.disableGps()
+    }
+
     var selectedTab by remember { mutableIntStateOf(0) }
     var detailOpen by remember { mutableStateOf(false) }
     var favoriteDetail by remember { mutableStateOf<MapLocation?>(null) }
