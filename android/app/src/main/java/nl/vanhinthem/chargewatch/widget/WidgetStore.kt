@@ -24,10 +24,16 @@ data class WidgetSnapshot(
     val fetchedAtMillis: Long = 0L
 )
 
+/** Persisted metadata from the existing read-only ChargeWatch location-details endpoint. */
+@Serializable
+data class WidgetAddress(val address: String, val city: String)
+
 @Serializable
 data class WidgetState(
     val configurations: Map<String, List<String>> = emptyMap(),
     val snapshots: Map<String, WidgetSnapshot> = emptyMap(),
+    val addresses: Map<String, WidgetAddress> = emptyMap(),
+    val addressAttempts: Map<String, Long> = emptyMap(),
     val lastAttemptMillis: Long = 0L,
     val refreshFailed: Boolean = false
 )
@@ -49,7 +55,10 @@ class WidgetStore(context: Context) {
         val removed = widgetIds.map(Int::toString).toSet()
         val retained = current.configurations.filterKeys { it !in removed }
         val needed = retained.values.flatten().toSet()
-        current.copy(configurations = retained, snapshots = current.snapshots.filterKeys { it in needed })
+        current.copy(configurations = retained,
+            snapshots = current.snapshots.filterKeys { it in needed },
+            addresses = current.addresses.filterKeys { it in needed },
+            addressAttempts = current.addressAttempts.filterKeys { it in needed })
     }
 
     suspend fun reconcile(validIds: Set<String>) = update { current ->
@@ -57,7 +66,10 @@ class WidgetStore(context: Context) {
             ids.distinct().filter { it in validIds }.take(5)
         }
         val needed = configured.values.flatten().toSet()
-        current.copy(configurations = configured, snapshots = current.snapshots.filterKeys { it in needed })
+        current.copy(configurations = configured,
+            snapshots = current.snapshots.filterKeys { it in needed },
+            addresses = current.addresses.filterKeys { it in needed },
+            addressAttempts = current.addressAttempts.filterKeys { it in needed })
     }
 
     suspend fun recordRefresh(
@@ -67,25 +79,44 @@ class WidgetStore(context: Context) {
     ) = update { current ->
         val needed = current.configurations.values.flatten().toSet()
         val updated = current.snapshots.filterKeys { it in needed }.toMutableMap()
+        var invalidResults = false
         locations.forEach { (id, location) ->
-            if (id in needed) {
-                val available = location.availability
-                updated[id] = WidgetSnapshot(
-                    free = available.available,
-                    total = available.total,
-                    reliability = available.reliability.name,
-                    feedObservedAt = location.feedLastObservedAt,
-                    feedIsStale = location.feedIsStale,
-                    fetchedAtMillis = atMillis
-                )
+            if (id !in needed) return@forEach
+            val available = location.availability
+            val proposed = WidgetSnapshot(
+                free = available.available,
+                total = available.total,
+                reliability = available.reliability.name,
+                feedObservedAt = location.feedLastObservedAt,
+                feedIsStale = location.feedIsStale,
+                fetchedAtMillis = atMillis
+            )
+            // A partial/ambiguous NDW response must never erase the previous
+            // *reliable* ratio. On the next render the old ratio is "Laatst bekend".
+            if (proposed.hasReliableCounts()) {
+                updated[id] = proposed
+            } else {
+                invalidResults = true
+                if (updated[id]?.hasReliableCounts() != true) updated[id] = proposed
             }
         }
         current.copy(
             snapshots = updated,
             lastAttemptMillis = atMillis,
-            refreshFailed = failed || locations.size < needed.size
+            refreshFailed = failed || invalidResults || locations.size < needed.size
         )
     }
+
+    /** Persist successful location metadata once; retry unsuccessful lookups infrequently. */
+    suspend fun recordAddressLookup(id: String, result: WidgetAddress?, atMillis: Long) =
+        update { current ->
+            if (id !in current.configurations.values.flatten()) return@update current
+            current.copy(
+                addresses = if (result == null) current.addresses
+                    else current.addresses + (id to result),
+                addressAttempts = current.addressAttempts + (id to atMillis)
+            )
+        }
 
     private suspend fun update(transform: (WidgetState) -> WidgetState) {
         store.edit { prefs ->
@@ -100,3 +131,18 @@ class WidgetStore(context: Context) {
         WidgetState()
     }
 }
+
+/** Never treat missing, ambiguous, inverted or nonpositive capacity as a valid ratio. */
+fun WidgetSnapshot.hasReliableCounts(): Boolean =
+    reliability in setOf("Safe", "Estimated") &&
+    total != null && total > 0 &&
+    free != null && free in 0..total
+
+/** Limit metadata requests for failed lookups; cache valid city information indefinitely. */
+fun shouldFetchWidgetAddress(
+    address: WidgetAddress?,
+    attemptedAtMillis: Long?,
+    nowMillis: Long
+): Boolean =
+    (address == null || address.city.isBlank() || address.address.isBlank()) &&
+    (attemptedAtMillis == null || nowMillis - attemptedAtMillis >= 60L * 60_000L)
