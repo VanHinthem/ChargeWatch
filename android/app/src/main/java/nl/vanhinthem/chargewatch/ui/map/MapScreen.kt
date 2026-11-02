@@ -944,8 +944,7 @@ private fun SearchHeader(
                                         color = when (availability.tone) {
                                             NearbyAvailabilityTone.Available -> ComposeColor(0xFF168653)
                                             NearbyAvailabilityTone.NoneAvailable -> ComposeColor(0xFFD43B3B)
-                                            NearbyAvailabilityTone.Unknown,
-                                            NearbyAvailabilityTone.OlderSource -> ComposeColor(0xFF818D96)
+                                            NearbyAvailabilityTone.Unknown -> ComposeColor(0xFF818D96)
                                         }
                                     )
                                 }
