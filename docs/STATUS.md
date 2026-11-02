@@ -1,3 +1,11 @@
+## A1b SQL-review — centrale filters en rastergrenzen (#113; 2 november 2026)
+
+**Aangepast ontwerp:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) gebruikt geen handmatig gedupliceerde filterlogica meer. De SQL-template vereist de bestaande `MapFilter.LocationPredicate(6)` + `AddParameters` voor `connectorType`, `mode`, alle vermogensbanden, `minFree` en operator. Bbox wordt naar volledige Mercator-rastercellen afgerond en elke locatie bezit precies één `cell_x/cell_y` met expliciete ownershipfilter. Er is een fixturematrix F0–F9 toegevoegd voor status, volledige dekking, filtercombinaties en grenzen.
+
+**Nog open:** C#-binding en SQL-parser-/planverificatie, exacte bronstatuskwaliteit en daadwerkelijke vergelijking met bestaande kaartresultaten. De template is niet direct in psql uitvoerbaar en **niet tegen PostgreSQL uitgevoerd**. Geen API-/Android-code, migratie, NAS-run, merge of deploy. Draft PR #114 blijft open.
+
+---
+
 ## A1b — volledige rastercellen en filterpariteit (2 november 2026)
 
 **SQL-ontwerp aangevuld:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) onderzoekt het uitlijnen van de zichtbare bbox naar volledige Web Mercator-gridcellen en de combinatie van technische, operator- en `minFree`-filters. De review toont het risico van **gedupliceerde filterpredicaten**: een handmatige SQL-kopie wijkt nog af bij enkele vermogensbanden en `minFree` met technische filters. **De schets is daarom nadrukkelijk geen goedgekeurde of uitvoeringsklare benchmarkquery**. De definitieve query moet `MapFilter.LocationPredicate` hergebruiken of een centraal geteste helper gebruiken, met expliciet semi-open celgrensbeleid en source-quality-regressietests.
