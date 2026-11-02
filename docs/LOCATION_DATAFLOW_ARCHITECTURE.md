@@ -137,6 +137,20 @@ Kleursemantiek voor ringsegmenten is gebaseerd op **aantal locaties in statuscat
 - Voor de NDW-fallback is nog geen gelijkwaardig geaggregeerd landelijk endpoint aanwezig. De app mag bij storing **niet** stilzwijgend een incomplete landelijke kaart teruggeven. Ontwerp zichtbare degradatie met cache en/of begrensde lokale fallback.
 - Laat fysieke Samsung-kaartinteractie (zoomanimatie, tapvertraging, markerstabiliteit, zoekbalk/panel-ruimte en lokale favorieten) een aparte acceptatiestap zijn.
 
+### Besluit clustervormgeving — neutraal centrum met proportionele beschikbaarheidsring (2 november 2026)
+
+**Door gebruiker gekozen richting:** de cluster toont **uitsluitend het aantal laadlocaties in een neutraal grijze cirkel**; de **buitenring** toont de procentuele verdeling van de **beschikbaarheidsstatus van locaties**. Voorbeeld: als van 100 locaties er 90 minstens één betrouwbare vrije EVSE hebben en 10 betrouwbaar geen vrije EVSE, bestaat de ring uit 90% groen en 10% rood. De gebruiker heeft de grijze cirkel met een proportionele ring als gewenste UX voorgesteld; de volgende technische preciseringen vormen de designuitwerking en blijven te testen.
+
+- **Noemer = alle locaties in de cluster na toepassing van kaartfilters**, niet het aantal EVSE's of connectors. Een locatie met twintig vrije laadpunten telt eenmaal in het groene aandeel, net als een locatie met één vrije EVSE.
+- **Drie disjuncte groepen:** `locationsWithFree` (groen: betrouwbare availableCount > 0), `locationsWithNoFree` (rood: betrouwbare availableCount = 0 en total > 0), `locationsUnknown` (neutraal grijs: onbetrouwbare of ontbrekende status). Elke onderliggende locatie hoort bij precies één groep. De som is exact `locationCount`.
+- **Onbekend is geen rood.** Bij 70 groen, 15 rood, 15 onbekend op 100 locaties: 70% groene boog, 15% rode, 15% afzonderlijk grijze boog. De neutrale centrumkleur blijft onafhankelijk van beschikbaarheid. Overweeg contrast/aanvullende toegankelijkheidsindicatie op ringsegmenten (niet alleen kleur).
+- **Exacte serveraantallen** als gehele integers teruggeven; Android berekent de sectorhoeken (`360 × count/locationCount`) zonder voortijdige percentages af te ronden. Geen schijnprecisie of visuele 100%-claim op basis van gedeeltelijk bekende data.
+- **Individuele marker blijft `vrij/totaal` groen/rood/`?`** met de reeds afgesproken semantiek. Clustercentrum wordt niet tot ratio omgeschakeld bij kleine clusters.
+- Bezettingsverhouding zegt `aandeel locaties met minstens één vrije EVSE`, niet `percentage vrije EVSE's`, `laadkans` of `momentane laadcapaciteit`. Bronversheid en gefilterde dataset blijven onderdeel van de volledige responsekwaliteitsregels.
+- **Nog uit te zoeken:** grootte van de ring op diverse scherm-DPI's, zeer kleine segmenten (bijv. 1%), leesbare labels bij 1/10/1.000+ locaties, toegankelijkheid, optreden bij stale feed en performance van icon/rendercache in MapLibre.
+
+Dit **vervangt** de eerdere open vraag of kleine clusters de huidige EVSE-ratio moeten blijven tonen: de gebruiker wil één consistente semantiek, met locatieaantal in het midden en de statusverdeling in de ring. Er is **nog geen akkoord voor API-/Android-implementatie**.
+
 **Open beslispunt voor de gebruiker:** op clusters altijd **aantal laadlocaties in het midden + statusverdeling in een groen/rode/onbekende ring** (aanbevolen voor nationale schaal), of op kleine clusters vasthouden aan de huidige **EVSE-vrij/totaal**-ratio? Het eerste is consequent schaalbaar; het tweede geeft meer directe EVSE-informatie maar past bij zeer grote clusters minder goed en kan van betekenis wisselen bij zoomen.
 
 ---
