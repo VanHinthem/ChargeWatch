@@ -264,6 +264,120 @@ Dit **vervangt** de eerdere open vraag of kleine clusters de huidige EVSE-ratio 
 
 **Werkhypothese:** kaart blijft viewport-gebaseerd; bekende IDs krijgen een gerichte samenvatting; volledig detail en statistieken worden doelgericht en eventueel lazy geladen. De uiteindelijke contractvorm kiezen we op basis van metingen en een afgesproken UX-flow.
 
+## 4. Voorstel API-contract kaart v2 — clusters en individuele locaties (2 november 2026)
+
+**Status: concreet reviewvoorstel, geen definitief goedgekeurde route of implementatie.** Het eerder bevestigde productdoel (heel Nederland zonder stille truncatie; clustercentrum toont aantallen locaties en een beschikbaarheidsring) staat vast. De precieze contractvorm en cachingmechaniek hieronder zijn ter toetsing.
+
+### Endpoint en request
+
+```http
+GET /api/v1/map/overview?bbox=minLon,minLat,maxLon,maxLat&zoom=7.5&connectorType=ccs2&minFree=1
+Accept: application/json
+```
+
+- `bbox` bepaalt de benodigde complete grid-/tilecellen; `zoom` bepaalt de **gewenste** resolutie. De API kan een grovere resolutie kiezen om zijn te meten objectbudget te respecteren en vermeldt die expliciet.
+- Alle bestaande `MapFilter`-queryparameters, normalisatie en booleaanse semantiek blijven identiek, inclusief operatorselectie, connectorType, mode, power en minFree. Filteren gebeurt **vóór** aggregatie.
+- De API controleert coördinaten, toegestane zoomwaarden, anti-meridian/wereldranden en de maximale *berekeningslast*. De huidige `bbox`-oppervlaklimiet van 1.0 graad² is geen harde nieuwe productgrens. Grote gebieden mogen niet worden afgekapt maar moeten een passende aggregatieresolutie krijgen.
+- Deze route blijft GET/read-only. Het bestaande `/api/v1/map/viewport` blijft backward-compatible voor oudere Android-clients en voor een expliciet toegestane migratiefallback.
+- Voor cluster-/tilecache is een **canonieke filterrepresentatie** vereist; `filterHash` is een serverbevestiging, geen beveiligingsmechanisme. Een gewijzigde set filterparameters vormt een andere cachedataset.
+
+### Illustratieve JSON response (fictieve aantallen)
+
+```json
+{
+  "schemaVersion": 2,
+  "coverage": {
+    "complete": true,
+    "gridLevel": 7,
+    "cellIds": ["7/65/42", "7/65/43"],
+    "bounds": [4.1, 51.2, 5.5, 52.1],
+    "filterKey": "canonical-filter-key",
+    "publishedVersion": "catalog-snapshot-version",
+    "locationCount": 120
+  },
+  "feed": {
+    "lastObservedAt": "2026-11-02T18:00:00Z",
+    "isStale": false
+  },
+  "items": [
+    {
+      "kind": "cluster",
+      "id": "7/65/42",
+      "latitude": 51.9,
+      "longitude": 5.0,
+      "bounds": [4.1, 51.5, 4.8, 52.1],
+      "locationCount": 100,
+      "locationsWithFree": 70,
+      "locationsWithNoFree": 15,
+      "locationsUnknown": 15
+    },
+    {
+      "kind": "location",
+      "featureId": "NL-ABC-location-123",
+      "latitude": 51.77,
+      "longitude": 5.52,
+      "availableCount": 1,
+      "totalCount": 2,
+      "countReliability": "safe",
+      "sourceUpdatedAt": "2026-11-02T17:58:00Z"
+    }
+  ]
+}
+```
+
+**Belangrijk:** dit voorbeeld is **schematisch**. De `coverage.cellIds` zijn illustratief en nog geen echte Web Mercator-tegelindices; `bounds` en aantallen zijn eveneens fictief. In deze voorbeeldresponse tellen `items` samen **101** locaties, niet de `120` in `coverage.locationCount`; een werkelijke geldige response moet aan de exacte gelijkheidsinvariant hieronder voldoen. Het voorbeeld dient alleen om veldtypes te bespreken, niet als fixture of testgolden. **Voor een contracttest gebruiken we een rekenkundig consistent fixture.**
+
+### Betekenis van de belangrijkste velden
+
+| Veld | Contractbetekenis |
+|---|---|
+| `kind` | Onderscheid tussen **cluster** en **individuele laadlocatie**; Android mag cluster nooit behandelen als een `MapLocation` |
+| `locationCount` cluster | Exact aantal actieve locaties dat aan de filters voldoet binnen de volledige cel |
+| `locationsWithFree` | Locaties met betrouwbaar `availableCount > 0` |
+| `locationsWithNoFree` | Locaties met betrouwbaar `availableCount == 0` en `totalCount > 0` |
+| `locationsUnknown` | Locaties zonder betrouwbare status; nooit bij rood optellen |
+| `availableCount` / `totalCount` op locatie | Bestaande operationele EVSE-semantiek, niet aantal connectoren |
+| `countReliability` | Onderscheid Safe/Estimated/Ambiguous en ontbrekende aantallen; definitieve mapping op server valideren |
+| `feed.lastObservedAt` | Laatste geaccepteerde landelijke NDW-poll, **niet** fysieke bevestiging per EVSE |
+| `feed.isStale` | Feedversheid, niet hetzelfde als ouderdom van een individuele status |
+| `coverage.gridLevel` | Daadwerkelijk gebruikte rasterresolutie; kan afwijken van gevraagde zoom |
+| `coverage.complete` | Alleen true als **iedere vereiste complete cel** in dezelfde consistente dataset vertegenwoordigd is |
+| `coverage.publishedVersion` | Te ontwerpen dataset-/snapshotidentiteit voor samenhangend cachen en consistente updates |
+| `coverage.filterKey` | Gecanoniseerde filterset waarop tellingen en dekking zijn gebaseerd |
+
+### Verplichte integriteitsregels
+
+1. Per cluster: `locationsWithFree + locationsWithNoFree + locationsUnknown == locationCount` (gehele getallen, allemaal >= 0).
+2. Per volledige disjuncte request-coverage: `sum(cluster.locationCount) + numberOfIndividualLocationItems == coverage.locationCount`. In het voorbeeld hierboven zou `coverage.locationCount` dus **101** moeten zijn, niet 120; het is geen te accepteren testresultaat.
+3. Alle items zijn berekend uit dezelfde filterset en publicatieversie; dezelfde locatie hoort bij precies één volledig uitgerenderde cel. Geen directe onzichtbare ruwe LIMIT.
+4. `complete = true` is nooit toegestaan bij timeout, gedeeltelijke SQL-resultaten, onbekende relevante cel of afgebroken antwoord. HTTP-success moet contractueel onderscheiden blijven van volledige datasetdekking.
+5. De ring gebruikt de exacte tellerfracties: groen `free/locationCount`, rood `noFree/locationCount`, onbekend `unknown/locationCount`. Android mag niet eerst afronden en daardoor segmenten missen.
+6. Bij geaggregeerde tellingen is stale feed **geen** automatische onbekend-status; betrouwbare laatste EVSE-counts mogen zichtbaar blijven met passende bronwaarschuwing.
+7. `bounds`, `cellIds` en `gridLevel` moeten in hetzelfde gridstelsel staan. Cache en markerinteractie mogen niet op afgeronde UI-coördinaten vertrouwen.
+8. `publishedVersion` mag alleen bestaan op basis van aantoonbare consistente dataversie. Als de bestaande importer geen atomair identificeerbare versie publiceert, is eerst een expliciet versie-/transactioneel-consistentieplan nodig; gebruik niet zomaar de laatste `snapshot_poll_checkpoint` als bewijs van complete datamutatie.
+
+### HTTP-fout- en cachegedrag (nog te toetsen)
+
+- `400`: ongeldige bbox, zoom of filterparameters. Geen impliciete versoepeling van filters.
+- `429` / `503`: begrensde serverbelasting of tijdelijk niet beschikbaar. Android toont indien mogelijk eerder correcte cachedekking met duidelijke ouderdom, zonder dit als verse volledige dekking te etiketteren.
+- Een legitiem lege gefilterde coverage is `200`, `complete=true`, `locationCount=0`, `items=[]`.
+- Een objectbudgetoverschrijding mag niet worden opgelost met stilzwijgend `items.take(N)`; de server moet de resolutie verruimen of eerlijk falen. Per-request/per-tile guards, browser-/launcher-caching en rate limiting zijn nodig.
+- Onderzoek `ETag`/`Cache-Control` en `304` **alleen** als de catalog-/filter-/gridversie aantoonbaar consistent is. Posities veranderen relatief zelden; beschikbaarheidsringen vereisen een versheidsplan.
+- Bij een HTTP `200` met `complete=false` mag de Android-parser het nooit als volledig presenteren; bespreek of het nieuwe endpoint simpelweg **alleen complete successresponses** toestaat, zoals de huidige kaartclient feitelijk eist. Dit heeft voorkeur zolang er geen helder partial-tileprotocol bestaat.
+- Een oudere APK moet nog altijd naar de bestaande `/api/v1/map/viewport` kunnen blijven praten totdat de nieuwe route expliciet is uitgerold.
+
+### Validaties voor eerste contract-PR (pas na goedkeuring)
+
+- Contractfixture met **100** locaties: 70 groen, 15 rood, 15 onbekend → exact 70/15/15 ring; `coverage.locationCount=100`.
+- Mixfixture met cluster van 3 (1 groen, 1 rood, 1 onbekend) en twee losse locaties → `coverage.locationCount=5`.
+- Filterfixture met connector-, AC/DC-, vermogens- en `minFree`-combinaties: dezelfde individuele locaties in nieuw en bestaand endpoint na volledig inzoomen.
+- Randen: lege coverage, exact samenvallende coördinaten, grens tussen twee cellen/tiles, buffer, integer-overflow, snelle pan/filterwijziging, stale feed, unknown versus nul, 999+ en landelijk overzicht.
+- Performancebenchmarks: cold/warm SQL, HTTP p50/p95, bytes, aantal getekende markers en Android-frametijd; geen getallen of extra indexen kiezen vóór metingen.
+
+**Nog expliciet te beslissen:** minimale individuele markerpayload versus eerste-frame sheet, keuze voor canonical cells/tiles, foutcontract bij gedeeltelijke coverage, daadwerkelijk betrouwbare publicatieversie, cachebeleid en toekomstige NDW-fallback op landelijke clusters.
+
+---
+
 ## 4. Datacontract dat we moeten bewaken
 
 Per bekende laadlocatie moet expliciet worden vastgesteld of en waar we deze velden nodig hebben:
