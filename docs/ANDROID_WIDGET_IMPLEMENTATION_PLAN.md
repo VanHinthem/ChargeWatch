@@ -10,6 +10,16 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Vervolg: geografische requestgrootte en incrementele widgetupdates (2 november 2026)
+
+De directe `Verversen…`-indicatie werkt, maar de gebruiker ziet gewijzigde favorieten en aantallen nog vertraagd. Het bestaande `FavoritesAvailabilityClient`-algoritme combineerde laadlocaties uit uiteenliggende regio's soms tot een veel te brede viewport (`areaSquareDegrees <= 0.05`) en wachtte via `awaitAll()` tot alle (soms fallbackend) regio's klaar waren om **ook snel gereedliggende** locaties te tonen.
+
+**Scopebeperkte Android-optimalisatie:** combinatie alleen voor werkelijk nabije punten (`dx,dy <= 0.015°` en `area <= 0.0002°²`); sonst onafhankelijke kleine viewports parallel. Dezelfde client biedt een optionele `onPartialLocations`-callback. Na afronding van één viewport worden alleen ontvangen favoriete `featureId`s in `WidgetStore.recordIncremental()` opgeslagen en Glance direct bijgewerkt. `refreshingSinceMillis` wordt pas gewist na de finale overall refresh; oude validerende status blijft bewaard bij onbetrouwbare/ontbrekende data. Standaard bestaande appclient zonder callback behoudt zijn eindresultaat-`Success/Partial`-contract. Geen nieuwe endpoint, polling of databetrouwbaarheidscompromis.
+
+Tests valideren groeperen van nabije locaties en opsplitsen van een Oss/Elst-achtig geografisch paar. **Nog fysiek te toetsen:** snelheid eerste vs. laatste locatie en zichtbaarheid configuratie in verschillende widgetformaten.
+
+---
+
 ## Directe widgetconfiguratie en refresh — vijfde Samsung-feedback
 
 Gebruiker meldt dat **opslaan van favorieten en handmatige dataverversing te traag reageren**. Root cause in oude Android-code: de widget tekent een vooraf gelezen snapshot en kan actief blijven zonder recompositie op DataStore-wijzigingen; daarnaast werd handmatig refreshen in WorkManager gequeued met KEEP-policy en de 60s gedeelde throttle.
