@@ -80,9 +80,11 @@ class ChargeWatchWidget : GlanceAppWidget() {
         val selected = state.configurations[widgetId.toString()].orEmpty()
         val rows = selected.mapNotNull { featureId ->
             favorites.find { it.featureId == featureId }?.let { favorite ->
-                widgetRow(favorite.featureId, widgetFavoriteName(favorite),
+                val detail = state.addresses[featureId]
+                widgetRow(favorite.featureId, widgetFavoriteName(favorite, detail),
                     state.snapshots[favorite.featureId], state.lastAttemptMillis,
-                    System.currentTimeMillis(), city = widgetFavoriteCity(favorite))
+                    System.currentTimeMillis(),
+                    subtitle = widgetFavoriteSubtitle(favorite, detail))
             }
         }
         val appearance = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
@@ -105,10 +107,10 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
     val visible = rows.take(maxRows)
     val compact = size.height.value < 190f
     val narrow = size.width.value < 230f
-    val rowHeight = if (compact) 38.dp else 48.dp
-    val nameSize = if (compact) 15.sp else 17.sp
-    val citySize = if (compact) 11.sp else 13.sp
-    val badgeSize = if (compact) 17.sp else 19.sp
+    val rowHeight = if (compact) 46.dp else 56.dp
+    val nameSize = if (compact) 16.sp else 18.sp
+    val citySize = if (compact) 12.sp else 13.sp
+    val badgeSize = if (compact) 19.sp else 21.sp
     val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
     val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
@@ -158,8 +160,8 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
                         Text(row.name, maxLines = 1,
                             style = TextStyle(color = foreground, fontSize = nameSize,
                                 fontWeight = FontWeight.Medium))
-                        if (!row.city.isNullOrBlank()) {
-                            Text(row.city, maxLines = 1,
+                        if (!row.subtitle.isNullOrBlank()) {
+                            Text(row.subtitle, maxLines = 1,
                                 style = TextStyle(color = secondary, fontSize = citySize))
                         }
                     }
