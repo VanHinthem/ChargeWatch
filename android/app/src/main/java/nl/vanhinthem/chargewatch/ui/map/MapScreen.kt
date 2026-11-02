@@ -340,7 +340,7 @@ fun MapScreen(
         nearLocations = emptyList()
         nearMessage = null
         val cacheKey = chosen to filters
-        val cached = viewModel.nearCache[cacheKey]
+        val cached = viewModel.nearCache[cacheKey]?.takeIf { it.isFresh(System.nanoTime()) }?.locations
         val locations = if (cached != null) cached else {
             val result = nearestClient.nearby(
                 chosen.latitude, chosen.longitude,
@@ -349,7 +349,8 @@ fun MapScreen(
             if (activeNearby != chosen || viewModel.filters.value != filters) return@LaunchedEffect
             when (result) {
                 is SearchResult.Success -> visibleNearbyCandidates(chosen, result.locations).also {
-                    viewModel.nearCache[cacheKey] = it
+                    if (viewModel.nearCache.size >= 24) viewModel.nearCache.clear()
+                    viewModel.nearCache[cacheKey] = NearbyCacheEntry(it, System.nanoTime())
                 }
                 is SearchResult.Failure -> {
                     nearMessage = result.message
