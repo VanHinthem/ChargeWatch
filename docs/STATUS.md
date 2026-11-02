@@ -1,3 +1,17 @@
+## Actieve architectuurverkenning — gerichte locatiegegevens #113 (2 november 2026)
+
+**Nieuw productbesluit:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) is een **zelfstandige feature** om de volledige laadlocatie-datastroom slimmer en sneller te maken: kaart, compacte/uitgebreide detailsheet, favorieten en native widget. De gebruiker heeft expliciet gekozen om **eerst architectuur, betrouwbare data en performance samen uit te werken**, vóór een nieuwe API-/Android-implementatie. Inventarisatie en alternatieven staan in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). De voorgestelde bulk-ID-API, gedeelde samenvatting en lazy statistieken zijn **nog geen goedgekeurde technische keuzes**.
+
+**Codeonderzoek:** kaart via `GET /api/v1/map/viewport` (API-first, toegestane NDW-fallback); markerselectie gebruikt bestaande `MapLocation` voor beide sheetgroottes zonder aparte statusrefresh. Bij openen van **één** locatie start `LocationEnrichmentClient` nu direct een **volledige detailcall gevolgd door statistiekencall** op `/api/v1/locations/by-ndw-id/{featureId}`, ook wanneer de sheet compact blijft. Favorieten/widget kennen het lokaal opgeslagen `featureId`, maar doen in draft-widgetfeature nog kaart-`bbox`-verzoeken om beschikbaarheid op te halen. Bestaande detail-API kan één featureId naar de interne DB-sleutel vertalen. Te onderzoeken: direct-/bulk-ID-varianten, query- en payloadkosten, timing/lazy loading, identiteits-/kwaliteitscontract en NDW-fallback.
+
+**Werkgrens:** deze inventarisatie staat op zelfstandige documentatiebranch `docs/location-dataflow-113-design` (vanaf `main`). **Geen API-/Android-code, databasewijziging of NAS-deployment.** Widget-[issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101) en [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) blijven gescheiden en open; niet mergen/deployen zonder expliciete toestemming. De widget-PR kan zijn bestaande viewport-aanpak behouden tot een nieuw ontwerp daadwerkelijk besloten is.
+
+**Verificatie:** actuele GitHub-implementatie van `MapViewModel`, `MapScreen`, `LocationEnrichmentClient`, `FavoritesRepository`, `FavoritesAvailabilityClient`, `ApiDatabase` en API-routes gelezen. Dit werkblok bevat **uitsluitend documentatie**, dus geen build, tests, querybenchmarks of fysieke toesteltest uitgevoerd.
+
+**Volgende stap:** met gebruiker de `oppervlak × gegevens × endpoint`-matrix en timing van detail-/statistiekrequests bespreken; daarna concrete contractalternatieven en prestatiemetingen ontwerpen. **Implementatie, merge en deployment hebben afzonderlijke goedkeuring nodig.**
+
+---
+
 ## Android — GPS/huidige locatie en nabije alternatieven (#99; 2 november 2026)
 
 **Productbesluiten:** GPS-optie A (tik `Mijn locatie` → één verse foreground-fix → maximaal vijf nearest in 25 km; resultatenlade standaard ingeklapt). Alternatieven-optie A (alleen bestaande actieve kaartfilters, géén automatisch overgenomen connector-/vermogenseisen). Ook goedgekeurd: sectie *Locatie* in Instellingen met lokale schakelaar standaard aan en afzonderlijk Android-permissiebeheer. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99).
