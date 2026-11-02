@@ -14,7 +14,7 @@ data class WidgetRow(
     val status: AvailabilityStatus,
     val isLastKnown: Boolean,
     val freshness: String,
-    val city: String? = null
+    val subtitle: String? = null
 )
 
 fun widgetRow(
@@ -23,10 +23,10 @@ fun widgetRow(
     snapshot: WidgetSnapshot?,
     lastAttemptMillis: Long,
     nowMillis: Long,
-    city: String? = null
+    subtitle: String? = null
 ): WidgetRow {
     if (snapshot == null) return WidgetRow(
-        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd", city
+        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd", subtitle
     )
     val reliability = CountReliability.entries.firstOrNull { it.name == snapshot.reliability }
         ?: CountReliability.Ambiguous
@@ -56,36 +56,58 @@ fun widgetRow(
     return WidgetRow(
         featureId, name,
         if (status == AvailabilityStatus.Unknown) "?" else sum.label,
-        status, lastKnown, freshness, city
+        status, lastKnown, freshness, subtitle
     )
 }
 
 /**
- * Existing favorites already hold NDW's address text, e.g. "Schietspoel 18, Oss".
- * Never geocode or guess a city; omit it if the address has no unambiguous suffix.
+ * NDW map data may contain only a street address. The existing location-details API
+ * contains a separate city, cached by WidgetStore. Never guess from coordinates.
  */
-fun widgetFavoriteCity(favorite: FavoriteLocation): String? {
-    val address = favorite.address?.takeIf { it.isNotBlank() } ?: favorite.title
-    val parts = address.split(',').map { it.trim() }.filter { it.isNotBlank() }
+fun widgetFavoriteCity(favorite: FavoriteLocation, details: WidgetAddress? = null): String? {
+    details?.city?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+    val source = favorite.address?.takeIf { it.isNotBlank() } ?: favorite.title
+    val parts = source.split(',').map { it.trim() }.filter { it.isNotBlank() }
     if (parts.size < 2) return null
-
     val withoutCountry = if (parts.last().lowercase() in setOf(
             "nederland", "the netherlands", "netherlands", "nl"
         )) parts.dropLast(1) else parts
     if (withoutCountry.size < 2) return null
-
-    val candidate = withoutCountry.last()
-        .replace(Regex("""^\d{4}\s?[A-Za-z]{2}\s+"""), "")
-        .trim()
-    return candidate.takeIf { it.isNotEmpty() && it.any { char -> char.isLetter() } && it.length <= 80 }
+    return withoutCountry.last()
+        .replace(Regex("""^\d{4}\s?[A-Za-z]{2}\s+"""), "").trim()
+        .takeIf { it.isNotEmpty() && it.any { char -> char.isLetter() } && it.length <= 100 }
 }
 
-/** Show user alias; otherwise keep the street but avoid repeating city in both lines. */
-fun widgetFavoriteName(favorite: FavoriteLocation): String {
-    favorite.alias?.trim()?.takeIf(String::isNotBlank)?.let { return it }
-    val city = widgetFavoriteCity(favorite) ?: return favorite.title
-    val title = favorite.title.trim()
-    return title.removeSuffix(", $city").trim().ifBlank { title }
+private fun widgetStreet(favorite: FavoriteLocation, details: WidgetAddress?): String {
+    val stored = (details?.address?.takeIf { it.isNotBlank() }
+        ?: favorite.address?.takeIf { it.isNotBlank() }
+        ?: favorite.title).trim()
+    val city = widgetFavoriteCity(favorite, details)
+    if (city == null) return stored
+    val pattern = """,\s*(?:\d{4}\s?[A-Za-z]{2}\s+)?""" +
+        Regex.escape(city) + """(?:,\s*(?:Nederland|Netherlands|NL))?$"""
+    return stored.replace(Regex(pattern, RegexOption.IGNORE_CASE), "").trim()
+        .ifBlank { stored }
+}
+
+/** Primary: the custom name, otherwise the street/address already shown in the app. */
+fun widgetFavoriteName(favorite: FavoriteLocation, details: WidgetAddress? = null): String =
+    favorite.alias?.trim()?.takeIf { it.isNotBlank() } ?: widgetStreet(favorite, details)
+
+/**
+ * Secondary: alias => "street, city"; without alias => only "city".
+ * If city is unavailable, an alias still gets the street beneath it.
+ */
+fun widgetFavoriteSubtitle(favorite: FavoriteLocation, details: WidgetAddress? = null): String? {
+    val city = widgetFavoriteCity(favorite, details)
+    val hasAlias = !favorite.alias.isNullOrBlank()
+    if (!hasAlias) return city
+    val street = widgetStreet(favorite, details)
+    return when {
+        city != null && street.isNotBlank() -> street + ", " + city
+        street.isNotBlank() -> street
+        else -> city
+    }
 }
 
 /**
