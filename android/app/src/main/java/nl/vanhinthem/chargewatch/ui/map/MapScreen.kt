@@ -133,6 +133,8 @@ import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
 import nl.vanhinthem.chargewatch.data.search.SearchLocation
+import nl.vanhinthem.chargewatch.data.search.nearbyAvailabilityDisplay
+import nl.vanhinthem.chargewatch.data.search.NearbyAvailabilityTone
 import nl.vanhinthem.chargewatch.data.search.SearchResult
 import nl.vanhinthem.chargewatch.data.search.Destination
 import nl.vanhinthem.chargewatch.data.search.DestinationSuggestion
@@ -935,14 +937,17 @@ private fun SearchHeader(
                                             tint = ComposeColor(0xFFF3AF25)
                                         )
                                     }
-                                    Text(if (item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false || item.isStale != false) "?"
-                                        else "${item.availableCount}/${item.totalCount}",
+                                    val availability = nearbyAvailabilityDisplay(item)
+                                    Text(
+                                        availability.label,
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = when {
-                                            item.unknownCount > 0 || item.totalCount <= 0 || item.feedIsStale != false || item.isStale != false -> ComposeColor(0xFF818D96)
-                                            item.availableCount > 0 -> ComposeColor(0xFF168653)
-                                            else -> ComposeColor(0xFFD43B3B)
-                                        })
+                                        color = when (availability.tone) {
+                                            NearbyAvailabilityTone.Available -> ComposeColor(0xFF168653)
+                                            NearbyAvailabilityTone.NoneAvailable -> ComposeColor(0xFFD43B3B)
+                                            NearbyAvailabilityTone.Unknown,
+                                            NearbyAvailabilityTone.OlderSource -> ComposeColor(0xFF818D96)
+                                        }
+                                    )
                                 }
                             }
                         }
