@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -76,19 +78,10 @@ class ChargeWatchWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val widgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
-        val state = WidgetStore(context).read()
-        val favorites = FavoritesRepository(context).favorites.first()
-        val selected = state.configurations[widgetId.toString()].orEmpty()
-        val rows = selected.mapNotNull { featureId ->
-            favorites.find { it.featureId == featureId }?.let { favorite ->
-                val detail = state.addresses[featureId]
-                widgetRow(favorite.featureId, widgetFavoriteName(favorite, detail),
-                    state.snapshots[favorite.featureId], state.lastAttemptMillis,
-                    System.currentTimeMillis(),
-                    subtitle = widgetFavoriteSubtitle(favorite, detail),
-                    city = widgetFavoriteCity(favorite, detail))
-            }
-        }
+        val widgetStore = WidgetStore(context)
+        val favoritesRepository = FavoritesRepository(context)
+        val initialState = widgetStore.read()
+        val initialFavorites = favoritesRepository.favorites.first()
         val appearance = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
             .getString("theme", "system")
         val dark = when (appearance) {
@@ -97,7 +90,25 @@ class ChargeWatchWidget : GlanceAppWidget() {
             else -> context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
                 Configuration.UI_MODE_NIGHT_YES
         }
-        provideContent { WidgetContent(context, widgetId, rows, favorites.isNotEmpty(), dark) }
+        // An updateAll() may reuse a running Glance composition. Observe DataStore
+        // *inside* provideContent so saved selections, aliases and fetched counts
+        // immediately recompose instead of keeping an old pre-composition snapshot.
+        provideContent {
+            val state by widgetStore.states.collectAsState(initial = initialState)
+            val favorites by favoritesRepository.favorites.collectAsState(initial = initialFavorites)
+            val rows = state.configurations[widgetId.toString()].orEmpty()
+                .mapNotNull { featureId ->
+                    favorites.find { it.featureId == featureId }?.let { favorite ->
+                        val detail = state.addresses[featureId]
+                        widgetRow(favorite.featureId, widgetFavoriteName(favorite, detail),
+                            state.snapshots[featureId], state.lastAttemptMillis,
+                            System.currentTimeMillis(),
+                            subtitle = widgetFavoriteSubtitle(favorite, detail),
+                            city = widgetFavoriteCity(favorite, detail))
+                    }
+                }
+            WidgetContent(context, widgetId, rows, favorites.isNotEmpty(), dark)
+        }
     }
 }
 
