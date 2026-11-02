@@ -14,7 +14,8 @@ data class WidgetRow(
     val status: AvailabilityStatus,
     val isLastKnown: Boolean,
     val freshness: String,
-    val subtitle: String? = null
+    val subtitle: String? = null,
+    val city: String? = null
 )
 
 fun widgetRow(
@@ -23,10 +24,11 @@ fun widgetRow(
     snapshot: WidgetSnapshot?,
     lastAttemptMillis: Long,
     nowMillis: Long,
-    subtitle: String? = null
+    subtitle: String? = null,
+    city: String? = null
 ): WidgetRow {
     if (snapshot == null) return WidgetRow(
-        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd", subtitle
+        featureId, name, "?", AvailabilityStatus.Unknown, true, "Nog niet gecontroleerd", subtitle, city
     )
     val reliability = CountReliability.entries.firstOrNull { it.name == snapshot.reliability }
         ?: CountReliability.Ambiguous
@@ -56,7 +58,7 @@ fun widgetRow(
     return WidgetRow(
         featureId, name,
         if (status == AvailabilityStatus.Unknown) "?" else sum.label,
-        status, lastKnown, freshness, subtitle
+        status, lastKnown, freshness, subtitle, city
     )
 }
 
@@ -143,3 +145,6 @@ fun compactWidgetFreshness(row: WidgetRow): String = when {
     row.isLastKnown -> "Laatst bekend"
     else -> row.freshness.substringAfter(" · ", "Gecontroleerd").removeSuffix(" geleden")
 }
+
+/** A cramped 2×2 widget shows only a verified city on the second line, never a guessed one. */
+fun compactWidgetSubtitle(row: WidgetRow): String? = row.city?.trim()?.takeIf { it.isNotBlank() }
