@@ -2,6 +2,14 @@
 
 **Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
 
+## Besluit kaartarchitectuur — landelijke dekking op ieder zoomniveau (2 november 2026)
+
+Binnen [#113](https://github.com/VanHinthem/ChargeWatch/issues/113) krijgt de **kaartlaag als eerste prioriteit**. De gebruiker heeft expliciet gekozen dat ChargeWatch **heel Nederland** moet kunnen tonen, ook volledig uitgezoomd: grote clusters bij lage zoom, clusters en losse laadlocaties gemengd bij tussenzoom en individuele locaties bij voldoende hoge zoom. Daarbij blijft filtering vóór aggregatie betrouwbaar en worden nooit locaties stilzwijgend weggelaten om onder een markerlimiet te blijven. De huidige 999-locatieblokkade is niet het gewenste gedrag van het nieuwe overzichtscontract.
+
+**Nog uit te werken, niet besloten:** minimale kaartpayload versus direct te vullen compacte sheet, server-side rasteraggregatie versus vector tiles, databetrouwbaarheid/EVSE-counting per cluster, clustertik, zichtbare lokale favorieten, georuimtelijke indexen, caching en performancebudget. Geen harde zoomgrenzen of aantallen te tekenen markers kiezen zonder benchmark. Zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) op draft-PR #114. Geen implementatie-/merge-/NAS-deployakkoord.
+
+---
+
 ## Nieuwe architectuurprioriteit — 2 november 2026: locatie-dataflow #113
 
 De gebruiker heeft na het onderzoeken van de huidige **kaart → sheet → favorieten/widget**-aanroepen gevraagd hiervoor een **aparte feature** te maken en de volledige data-ophaalstrategie eerst zorgvuldig uit te werken en te optimaliseren. [Issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) en [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) vormen de ontwerp-/meetagenda.
