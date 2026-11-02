@@ -50,7 +50,9 @@ class WidgetConfigurationActivity : ComponentActivity() {
         ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
         val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
         setResult(Activity.RESULT_CANCELED, result)
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+        val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID ||
+            provider?.className != ChargeWatchWidgetReceiver::class.java.name) {
             finish()
             return
         }
@@ -59,11 +61,14 @@ class WidgetConfigurationActivity : ComponentActivity() {
                 var favorites by remember { mutableStateOf<List<FavoriteLocation>?>(null) }
                 var selected by remember { mutableStateOf<List<String>>(emptyList()) }
                 var saving by remember { mutableStateOf(false) }
+                var saveError by remember { mutableStateOf(false) }
+                var snapshots by remember { mutableStateOf<Map<String, WidgetSnapshot>>(emptyMap()) }
                 val scope = rememberCoroutineScope()
                 LaunchedEffect(widgetId) {
                     val loaded = FavoritesRepository(this@WidgetConfigurationActivity).favorites.first()
-                    val stored = WidgetStore(this@WidgetConfigurationActivity)
-                        .read().configurations[widgetId.toString()]
+                    val storedState = WidgetStore(this@WidgetConfigurationActivity).read()
+                    val stored = storedState.configurations[widgetId.toString()]
+                    snapshots = storedState.snapshots
                     favorites = loaded
                     selected = (stored ?: loaded.take(5).map { it.featureId })
                         .filter { id -> loaded.any { it.featureId == id } }.distinct().take(5)
@@ -74,6 +79,8 @@ class WidgetConfigurationActivity : ComponentActivity() {
                     WidgetConfigurationScreen(
                         favorites = favorites.orEmpty(),
                         selected = selected,
+                        snapshots = snapshots,
+                        saveError = saveError,
                         saving = saving,
                         onToggle = { id ->
                             selected = if (id in selected) selected - id
@@ -105,6 +112,7 @@ class WidgetConfigurationActivity : ComponentActivity() {
                                         setResult(Activity.RESULT_OK, result)
                                         finish()
                                     } catch (_: Exception) {
+                                        saveError = true
                                         saving = false
                                     }
                                 }
@@ -120,6 +128,7 @@ class WidgetConfigurationActivity : ComponentActivity() {
 @Composable
 private fun WidgetConfigurationScreen(
     favorites: List<FavoriteLocation>, selected: List<String>, saving: Boolean,
+    snapshots: Map<String, WidgetSnapshot>, saveError: Boolean,
     onToggle: (String) -> Unit, onMove: (String, Int) -> Unit,
     onOpenApp: () -> Unit, onSave: () -> Unit
 ) {
@@ -138,7 +147,14 @@ private fun WidgetConfigurationScreen(
                     if (favorite != null) Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(favorite.displayName, Modifier.weight(1f), maxLines = 1)
-                        Text("?", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val shown = widgetRow(favorite.featureId, favorite.displayName,
+                            snapshots[id], 0L, System.currentTimeMillis())
+                        val statusColor = when (shown.status) {
+                            nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.Available -> MaterialTheme.colorScheme.primary
+                            nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.NoneAvailable -> MaterialTheme.colorScheme.error
+                            nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Text(shown.label, color = statusColor)
                     }
                 }
                 if (selected.size > 3) Text("+${selected.size - 3} meer")
@@ -171,6 +187,7 @@ private fun WidgetConfigurationScreen(
             OutlinedButton(onClick = onOpenApp) { Text("Favorieten toevoegen") }
         }
         Spacer(Modifier.height(12.dp))
+        if (saveError) Text("Opslaan mislukt. Probeer opnieuw.", color = MaterialTheme.colorScheme.error)
         Button(onClick = onSave, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
             Text(if (saving) "Opslaan…" else "Widget opslaan")
         }
