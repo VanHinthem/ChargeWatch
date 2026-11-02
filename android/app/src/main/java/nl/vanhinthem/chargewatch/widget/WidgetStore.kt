@@ -93,12 +93,8 @@ class WidgetStore(context: Context) {
             )
             // A partial/ambiguous NDW response must never erase the previous
             // *reliable* ratio. On the next render the old ratio is "Laatst bekend".
-            if (proposed.hasReliableCounts()) {
-                updated[id] = proposed
-            } else {
-                invalidResults = true
-                if (updated[id]?.hasReliableCounts() != true) updated[id] = proposed
-            }
+            if (!proposed.hasReliableCounts()) invalidResults = true
+            updated[id] = mergeWidgetSnapshot(updated[id], proposed)
         }
         current.copy(
             snapshots = updated,
@@ -146,3 +142,8 @@ fun shouldFetchWidgetAddress(
 ): Boolean =
     (address == null || address.city.isBlank() || address.address.isBlank()) &&
     (attemptedAtMillis == null || nowMillis - attemptedAtMillis >= 60L * 60_000L)
+
+/** An unreliable new observation cannot erase a previously trustworthy snapshot. */
+fun mergeWidgetSnapshot(previous: WidgetSnapshot?, incoming: WidgetSnapshot): WidgetSnapshot =
+    if (incoming.hasReliableCounts()) incoming
+    else previous?.takeIf { it.hasReliableCounts() } ?: incoming
