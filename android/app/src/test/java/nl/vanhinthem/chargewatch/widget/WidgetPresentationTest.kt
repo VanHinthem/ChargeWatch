@@ -75,7 +75,7 @@ class WidgetPresentationTest {
         assertEquals("Thuis", widgetFavoriteName(home))
         assertEquals("Oss", widgetFavoriteCity(home))
         assertEquals("Oss", widgetRow("a", widgetFavoriteName(home),
-            snapshot(2, 2), now - 30_000, now, widgetFavoriteCity(home)).city)
+            snapshot(2, 2), now - 30_000, now, widgetFavoriteSubtitle(home)).subtitle)
     }
 
     @Test fun cityIsNotDuplicatedWhenNoAliasExists() {
@@ -93,6 +93,54 @@ class WidgetPresentationTest {
     @Test fun postalCodeAndCountryAreNotPresentedAsCity() {
         val street = favorite(alias = null, address = "Schietspoel 18, 5343 AB Oss, Nederland")
         assertEquals("Oss", widgetFavoriteCity(street))
+    }
+
+    @Test fun aliasedFavoriteShowsAddressAndCityInSubtitle() {
+        val item = favorite("Thuis", "Schietspoel 18")
+        val metadata = WidgetAddress("Schietspoel 18", "Oss")
+        assertEquals("Thuis", widgetFavoriteName(item, metadata))
+        assertEquals("Schietspoel 18, Oss", widgetFavoriteSubtitle(item, metadata))
+    }
+
+    @Test fun favoriteWithoutAliasShowsStreetAndOnlyCityUnderneath() {
+        val item = favorite(null, "Koetseland 4")
+        val metadata = WidgetAddress("Koetseland 4", "Oss")
+        assertEquals("Koetseland 4", widgetFavoriteName(item, metadata))
+        assertEquals("Oss", widgetFavoriteSubtitle(item, metadata))
+    }
+
+    @Test fun addressAlreadyContainingCityIsNotDuplicated() {
+        val item = favorite("Thuis", "Schietspoel 18, Oss")
+        val metadata = WidgetAddress("Schietspoel 18, Oss", "Oss")
+        assertEquals("Schietspoel 18, Oss", widgetFavoriteSubtitle(item, metadata))
+    }
+
+    @Test fun absentCityFallsBackToSavedStreetOnly() {
+        val item = favorite("Thuis", "Schietspoel 18")
+        assertEquals("Schietspoel 18", widgetFavoriteSubtitle(item))
+        assertEquals(null, widgetFavoriteSubtitle(favorite(null, "Schietspoel 18")))
+    }
+
+    @Test fun reliableSnapshotPredicateRejectsUnknownOrMalformedCounts() {
+        assertTrue(snapshot(2, 2).hasReliableCounts())
+        assertTrue(snapshot(0, 2).hasReliableCounts())
+        assertFalse(snapshot(2, 2, reliability = "Ambiguous").hasReliableCounts())
+        assertFalse(snapshot(4, 2).hasReliableCounts())
+        assertFalse(snapshot(null, 2).hasReliableCounts())
+        assertFalse(snapshot(0, 0).hasReliableCounts())
+    }
+
+    @Test fun addressMetadataIsRateLimitedAfterFailedAttempt() {
+        assertTrue(shouldFetchWidgetAddress(null, null, now))
+        assertFalse(shouldFetchWidgetAddress(null, now - 30_000, now))
+        assertTrue(shouldFetchWidgetAddress(null, now - 3_600_000, now))
+        assertFalse(shouldFetchWidgetAddress(WidgetAddress("Koetseland 4", "Oss"), null, now))
+    }
+
+    @Test fun parsedExistingLocationDetailsProvideSeparateAddressAndCity() {
+        assertEquals(WidgetAddress("Koetseland 4", "Oss"),
+            parseWidgetAddress("""{"address":"Koetseland 4","city":"Oss","id":99}"""))
+        assertEquals(null, parseWidgetAddress("""{"address":"Koetseland 4"}"""))
     }
 
     private fun favorite(alias: String?, address: String) = FavoriteLocation(
