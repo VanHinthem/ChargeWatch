@@ -1,5 +1,13 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Samsung-review — twee favorieten geslaagd, 4×1-uitbreiding in test (2 november 2026)
+
+De derde Samsung-screenshot bevestigt dat **twee favorieten met alias/adres/plaats**, de correcte groene `2/2`-aantallen en de bronversheid nu zichtbaar zijn. De gebruiker vindt de widget functioneel goed, maar wil dat **één gekozen favoriet past in een horizontale 4×1-gridcel**. In [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) een aparte responsive 4×1-compositie toegevoegd: geen grote ChargeWatch-titel/footer, alleen klein herkenbaar ⚡-icoon, **favorietennaam en tweede adresregel**, prominente groen/rode `vrij/totaal`-badge, compacte versheid onder de badge en zelfstandige refreshactie. Lange titel en volledige footer blijven behouden bij 4×2 en groter. Bij meerdere geselecteerde favorieten en een tot 4×1 verkleinde widget verschijnt de eerste favoriet met `+N meer`; de selectie en volgorde veranderen niet.
+
+Technisch: `appwidget-provider` minResizeHeight 52 dp en default target 4×2, nieuwe 260×62 dp responsive-klasse, expliciet 4×1-layoutpad en tests voor maatklasse + onbekend versus laatst bekend. Android-launchers, inclusief Samsung One UI, bepalen de feitelijk beschikbare rastergroottes; 4×1 moet nog **op de Samsung fysiek worden bevestigd**. Geen backend/NAS-werk, geen merge of deployment.
+
+---
+
 ## Android P2 — Native widget met lokale favorieten (#101)
 
 **Huidige hoofdprioriteit:** [issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101). Gebruiker heeft op 2 november de minimalistische UX-richting A bevestigd en daarna expliciet akkoord gegeven om de Android-implementatie te starten. De feature staat op **`feature/android-favorites-widget`** in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112), inclusief de eerder opgestelde ontwerpdocumentatie uit #111. **Status: Android-code en gerichte unit-tests geïmplementeerd. Android-CI [#41481451846](https://github.com/VanHinthem/ChargeWatch/actions/runs/41481451846) is volledig groen op codecommit `84d0e6522adb273c7c506eccc30f9af35309ee48` (unit-tests, debug-APK, artifact). Read-only API-CI [#41481451903](https://github.com/VanHinthem/ChargeWatch/actions/runs/41481451903) is eveneens groen. Een afzonderlijke fysieke Samsung-validatie volgt nog; geen merge/deployment geautoriseerd.** Geen squash-merge of deployment zonder apart expliciet akkoord.
