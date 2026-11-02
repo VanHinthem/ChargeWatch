@@ -35,7 +35,10 @@ class FavoritesAvailabilityClient(
     private val chargeWatch: ChargeWatchMapClient = ChargeWatchMapClient(),
     private val ndw: NdwClient = NdwClient()
 ) {
-    suspend fun refresh(favorites: List<FavoriteLocation>): FavoriteRefreshResult = withContext(Dispatchers.IO) {
+    suspend fun refresh(
+        favorites: List<FavoriteLocation>,
+        onPartialLocations: (suspend (Map<String, MapLocation>) -> Unit)? = null
+    ): FavoriteRefreshResult = withContext(Dispatchers.IO) {
         if (favorites.isEmpty()) return@withContext FavoriteRefreshResult.Success(emptyMap())
 
         val ids = favorites.map { it.featureId }.toSet()
@@ -43,7 +46,16 @@ class FavoritesAvailabilityClient(
 
         val results = coroutineScope {
             viewports.map { viewport ->
-                async { loadViewport(viewport) }
+                async {
+                    val result = loadViewport(viewport)
+                    // Each small viewport is an independent response. Update cached
+                    // favorites as soon as their own result arrives; do not make a
+                    // fast favorite wait for another region's NDW fallback.
+                    val partial = result.locations.filter { it.featureId in ids }
+                        .associateBy { it.featureId }
+                    if (partial.isNotEmpty()) onPartialLocations?.invoke(partial)
+                    result
+                }
             }.awaitAll()
         }
 
@@ -132,17 +144,18 @@ internal fun favoriteViewports(favorites: List<FavoriteLocation>): List<NdwViewp
         (north + 0.002).coerceAtMost(90.0)
     )
 
-    return if (combined.areaSquareDegrees <= 0.05) {
-        listOf(combined)
-    } else {
-        favorites.map {
-            NdwViewport(
-                (it.longitude - 0.002).coerceAtLeast(-180.0),
-                (it.latitude - 0.002).coerceAtLeast(-90.0),
-                (it.longitude + 0.002).coerceAtMost(180.0),
-                (it.latitude + 0.002).coerceAtMost(90.0)
-            )
-        }
+    // Previous 0.05 degree² threshold could combine Oss and Elst into an
+    // enormous regional query. Combine only genuinely nearby locations.
+    // Distant favorites use independent 400m-ish viewports in parallel.
+    val nearEnough = (east - west) <= 0.015 && (north - south) <= 0.015 &&
+        combined.areaSquareDegrees <= 0.0002
+    return if (nearEnough) listOf(combined) else favorites.map {
+        NdwViewport(
+            (it.longitude - 0.002).coerceAtLeast(-180.0),
+            (it.latitude - 0.002).coerceAtLeast(-90.0),
+            (it.longitude + 0.002).coerceAtMost(180.0),
+            (it.latitude + 0.002).coerceAtMost(90.0)
+        )
     }
 }
 
