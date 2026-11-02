@@ -10,6 +10,14 @@
 - De gebruiker kiest **maximaal vijf favorieten per widgetinstantie**; als er minder dan twee favorieten bestaan, kan ook één worden getoond. Iedere instantie heeft eigen selectie en volgorde, los van de algemene favorietenlijst.
 - Geen aparte APK of app: toevoegen/updaten van de bestaande APK installeert/bijwerkt ook widgetreceiver, configuratie en achtergrondtaak.
 
+## Derde Samsung-feedback: één favoriet op 4×1
+
+De nieuwe Samsung-screenshot bevestigt herstel van **alias/adres/plaats**, groen `2/2` en bronversheid voor twee geselecteerde favorieten. Nieuwe eis: bij **één geselecteerde favoriet** moet de widget naar **4 kolommen × 1 rij** verkleind kunnen worden en leesbaar blijven. Daarom: `appwidget-provider` ondersteunen `minResizeHeight=52dp` (default 4×2), `SizeMode.Responsive` uitbreiden met 260×62dp, en een specifieke horizontale samenstelling. Klein ChargeWatch-symbool, twee regels favorieteninformatie, groen/rode ratio, compacte leeftijd of `Laatst bekend`/`Onbekend` en afzonderlijk refreshicoon. De grote titel en footer passen niet in 4×1 en verdwijnen daar. Als een widget met meerdere favorieten tot 4×1 wordt verkleind, uitsluitend de eerste favoriet + `+N meer` tonen (geen stilzwijgende wijziging van selectie). Eén APK; huidige favorieten, cache en updatecoordinator ongewijzigd.
+
+Kleinste rijhoogte wordt **niet gegarandeerd** door Android zelf: Samsung-launchergrid en lettergrootte fysiek testen, met 4×1 en terug naar 4×2, klikactie en tekstoverflow. Gerichte unittests voor responsive keuze en bronversheid toegevoegd. PR #112 blijft draft.
+
+---
+
 ## Tweede Samsung-feedback: concrete adresregels + betrouwbaarheidscache
 
 De gebruiker bevestigde opnieuw te kleine/onjuiste presentatie: nog geen tweede adresregel en de twee eerder groene `2/2`-waarden zijn `?`. **Gewenst:** alias + volledig adres en plaats op de tweede regel; zonder alias adres boven en plaats onder. De `FavoriteLocation`-objecten bevatten op de kaart niet gegarandeerd de stad. Haal uitsluitend bij ontbrekende stad (maximaal 5–10 geselecteerde favorieten, throttled) `address` en `city` op van het **bestaande** GET `/api/v1/locations/by-ndw-id/{id}`, sla deze lokaal in widget-DataStore op en behoud reeds opgeslagen alias/volgorde. Extra lookup is *uitsluitend metadata*, nooit bron voor verzonnen beschikbaarheidscijfers. Alias: naam + `adres, plaats`; geen alias: adres + `plaats`. Zonder betrouwbare plaats geen gok.
