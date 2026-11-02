@@ -440,6 +440,63 @@ Beperk benchmarks tot representatieve, herhaalbare meetgevallen op een testomgev
 
 **Nog niet gemeten:** geen geloofwaardige milliseconde-doelen of database-indexclaims vastleggen zonder deze baselines. Compareer A/B/C en leg gekozen grenzen voor aan gebruiker vóór implementatie.
 
+## 6A. Reproduceerbaar read-only benchmarkprotocol voor kaart v2 (2 november 2026)
+
+**Status:** voorbereide meetprocedure; **niet uitgevoerd**. Dit is een voorstel voor een gecontroleerde benchmark nadat gebruiker expliciet toestemming voor NAS-metingen heeft gegeven. Geen productiegegevens muteren, geen migraties en geen schemamodificaties. Voer pas na bespreking op de werkelijke NAS uit met heldere belastinggrenzen.
+
+### Veiligheid en testomgeving
+
+- **Voorkeur:** geïsoleerde kopie van representatieve NDW-catalogus, met alleen-lezen databaseaccount en dezelfde PostgreSQL/PostGIS-versie/indexen als productie. Is dat niet mogelijk, start klein op productie en plan landelijke queries expliciet; geen onbegrensde parallelle tests.
+- **Voor iedere sessie:** leg `SELECT current_database(), current_user(), current_setting('server_version'), current_setting('transaction_read_only')` vast en bevestig dat de verbinding met de verwachte **read-only rol** draait. Gebruik één sessie voor de test en limieten. Verifieer werkelijke schema/indexen via `pg_indexes`/catalogusweergaven; init-schema alleen is niet voldoende bewijs.
+- **Transactie:** `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;` voor consistente meervoudige metingen, tenzij de gewenste werkelijke-API-statementisolatie apart wordt onderzocht. `SET LOCAL statement_timeout = '5s'` en `SET LOCAL lock_timeout = '1s'` als voorlopige conservatieve bovengrenzen, vóór de eerste query; stel runtime-/resourcebudget bij op basis van de meting. `ROLLBACK` altijd.
+- **Geen `EXPLAIN ANALYZE` van muterende statements**; alleen `SELECT`. `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` voert de SELECT werkelijk uit; ook een read-only query kan duur zijn: eerst `EXPLAIN (FORMAT JSON)` zonder uitvoeren en kleine regio. Gebruik niet automatisch `ANALYZE`/tijdrovende landelijke combinaties.
+- Voorkom een onbedoeld langdurige transactiesnapshot (vacuum-impact). Meet in korte afzonderlijke sessies/sets en sluit ze direct. Bij timeouts, hoog NAS-CPU/IO of verhoogde API-latency: **stop** en verklein de testcase.
+
+### Testmatrix
+
+| Case | Geografie / filters | Waarom |
+|---|---|---|
+| B1 | Klein straatgebied Oss, geen filters | Basis-latency bij losse punten |
+| B2 | Gemeente/regio Oss–Elst, geen filters | Mix van individuele locaties en clusters |
+| B3 | Dicht stedelijk gebied (bijv. centrum Utrecht), geen filters | Hoge locatiedichtheid |
+| B4 | Regionaal overzicht Noord-Brabant, geen filters | Cluster/zoom en meer locatiebezoeken |
+| B5 | Heel Nederland, geen filters | Landelijke dekking zonder 999-limiet |
+| B6 | B3/B4 met `connectorType=ccs2`, `mode=dc`, `power=gte150` | Technische EXISTS-filters |
+| B7 | B3/B4 met `minFree=1` en gecombineerde technische filters | Statusafhankelijke filtersemantiek |
+| B8 | B4/B5 met representatieve operatorfilter(s) | Selectieve operatorpredicaat |
+| B9 | Lege filteruitkomst of deels onbekende statussen | Correctheid zonder verzonnen nul |
+| B10 | Grenscellen/gelijke coördinaten en pan over celgrens | Geen duplicatie of ontbrekende locaties |
+
+**Opmerking:** de bestaande `/map/viewport` mag bij grote gebieden terecht HTTP 413 geven; dat is een vastgestelde baselinebeperking, geen vereiste om met verhoogde LIMIT toch alle individuele records op te halen. Meet de landelijke vergelijking uitsluitend op een nog te ontwerpen **geaggregeerd SELECT-plan**, niet door de bestaande API onbegrenst te maken.
+
+### Variants & meetvelden
+
+**A0 — bestaand:** huidige `GetMapViewport` + filtergedrag op een klein gebied; behoud huidige 999-cap, en meet aantal records/bytes en Android-clustering.  
+**A1 — nieuwe live grid-query:** filterlocaties → één betrouwbare availabilitysamenvatting per locatie uit actieve EVSE's → vaste Web Mercator-cellen → `locationsWithFree/NoFree/Unknown` en singleton-`featureId` → complete coverage zonder ruwe LIMIT. Een SQL-prototype mag alleen als zelfstandige **read-only SELECT** draaien.  
+**B — mogelijke locatiesummary:** *nog niet bestaand*. Eerlijke A/B-benchmark vereist eerst een expliciet goedgekeurde **geïsoleerde proefdatabase** met representatieve `location_availability_summary`-rijen; **geen tijdelijke of permanente tabellen op productie creëren** onder het label read-only. Zonder die testomgeving is B slechts een theoretische querykostenraming.  
+**C — vooraf berekende grid-/tilecache:** alleen simuleren met in-memory/HTTP-resultaatcache indien technisch beschikbaar, anders als analysepunt; geen nieuwe productietabellen of warmingsjobs.
+
+Leg per case en variant vast: omvang geïnspecteerde records, werkelijke `matchedLocationCount`, aantal resultaatobjecten en gridLevel, `executionTimeMs`, `shared_hit/read`, planningtijd, totale HTTP-bytes, API-p50/p95, Android-laad-/renderduur, fout-/timeoutpercentage, cachehitratio en de NDW-feed-/publicatiemetadata. Rapporteer medianen bij herhalingen en afzonderlijk cold/warm-cachegedrag; doe **geen** claims over schijfcold-cache door een gewone tweede query.
+
+### Correctheidschecks vóór snelheid
+
+- Controleer iedere objectset op `sum(cluster.locationCount) + count(singletons) == matchedLocationCount`; tel buffer-/overlapcellen slechts één keer.
+- `locationsWithFree + locationsWithNoFree + locationsUnknown == locationCount` voor iedere cluster; nul totale EVSE-capaciteit of onbetrouwbare source = unknown, nooit automatisch rood.
+- Filter-/statuspariteit met de bestaande locatie-/kaart-API in volledig ingezoomde controlegebieden.
+- Identificatie van exacte coördinaatdubbelen, stabiele celtoewijzing, grenzen en kleine pans; in-flight API-responses mogen geen filters/datasetversie verwisselen.
+- Een geslaagde import tijdens read-only tests mag de consistency-invariant niet breken; controleer of één statement of REPEATABLE READ nodig is, en dat de publicatieversie daadwerkelijk bestaat.
+
+### Besliscriteria na uitvoering
+
+1. **A1 voldoende snel en stabiel:** kies live server-rasterclustering zonder nieuwe DB-tabel; ontwerp daarna de kaart-API en Android-kaartclient gericht.
+2. **A1 DB-CPU/IO of p95 te zwaar:** benchmark B op een *geïsoleerde* database met transactionele status-summary; toets extra importschrijftijd versus netwerk-/querywinst.
+3. **Herhaald landelijke overview onverantwoord, ondanks B:** onderzoek cachebare vaste tiles/vooraggregatie of vector tiles, met vooral aandacht voor dynamische filters.
+4. Ongeacht de snelste variant mag geen enkele optie het NDW-/filter-/onbekendcontract, de optelsommen of volledige landelijke dekking opofferen.
+
+**Rapportageformat:** geef per testcase dataset-/filter-/zoomcontext, geplande queryvorm, daadwerkelijk uitgevoerde tool/SQL, aantal herhalingen, tijd en resources, matchtellingen, fouten, en één korte conclusie. Schrijf `niet gemeten` waar geen uitvoer is. **Geen NAS-test of implementatie starten zonder expliciet akkoord en passende omstandigheden.**
+
+---
+
 ## 7. Fasering en beslismomenten
 
 **Fase 0 — ontwerp:** exacte veld-/requestmatrix, identiteits-/broncontract, querykosten, alternatieven, UX voor compact/expanded en favorieten-widget, risico's. Gebruiker beoordeelt en kiest architectuurrichting. Geen code of deployment.
