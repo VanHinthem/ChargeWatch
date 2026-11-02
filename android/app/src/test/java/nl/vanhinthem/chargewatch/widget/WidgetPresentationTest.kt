@@ -74,7 +74,7 @@ class WidgetPresentationTest {
         val home = favorite(alias = "Thuis", address = "Schietspoel 18, Oss")
         assertEquals("Thuis", widgetFavoriteName(home))
         assertEquals("Oss", widgetFavoriteCity(home))
-        assertEquals("Oss", widgetRow("a", widgetFavoriteName(home),
+        assertEquals("Schietspoel 18, Oss", widgetRow("a", widgetFavoriteName(home),
             snapshot(2, 2), now - 30_000, now, widgetFavoriteSubtitle(home)).subtitle)
     }
 
