@@ -1,5 +1,15 @@
 # ChargeWatch — actuele overdracht (2 november 2026)
 
+## Sneller opslaan — geen WorkManager-wachttijd op de UI-thread (#101, 2 november 2026)
+
+Bij de verdere analyse van de configuratieflow bleek `WidgetWork.refresh()` het aanmaken/plannen van (expedited) WorkManager-taken nog **synchroon** uit te voeren op de thread van de configuratie-Activity vóórdat `ChargeWatchWidget.update()` de nieuwe selectie kon publiceren. Dit was onnodige vertraging die losstaat van NDW/API-latentie.
+
+**Aanpassing:** eerst de geselecteerde IDs naar lokale DataStore schrijven en direct de bijbehorende Glance-widget renderen; pas daarna wordt de netwerkrefresh gestart. Binnen `WidgetWork.refresh` starten zowel de onmiddellijke IO-fetch als WorkManager-planning in aparte application-scoped coroutines: de gebruiker wacht niet meer op het inplannen van periodiek of fallback work. Aansluitend volgen betrouwbare aantallen afzonderlijk zodra de API antwoordt; `Verversen…` blijft de feedback tijdens een request. De nieuw toegevoegde per-locatie parallelle kleine viewports en incrementele updates blijven van kracht.
+
+Eerste CI van de onafhankelijke viewports [Android #41501325416](https://github.com/VanHinthem/ChargeWatch/actions/runs/41501325416) was groen. **De finale gecombineerde Android-build en fysieke Samsung-test na de UI-ordering-update volgen nog.** Geen merge of deployment zonder apart akkoord.
+
+---
+
 ## Widgetstatus sneller per locatie — vervolg op Samsung-test (#101, 2 november 2026)
 
 **Gebruikersobservatie:** `Verversen…` verschijnt meteen, maar nieuwe geselecteerde favorieten en vooral vrij/totaal-statussen komen nog vertraagd binnen. Dit bewijst dat de directe actie werkt, maar niet dat de hele keten al vlot is. Codeonderzoek laat een **concrete extra prestatieoorzaak** zien: `favoriteViewports()` groepeerde locaties zolang het gezamenlijke bounding box-oppervlak onder `0.05` vierkante graden lag; ook locaties in **verschillende steden (bijv. Oss/Elst)** kunnen daardoor één zeer groot kaartgebied vormen. `FavoritesAvailabilityClient.refresh()` wachtte bovendien met het publiceren van resultaten op **alle** viewportrequests, inclusief eventuele langzame API/NDW-fallback.
