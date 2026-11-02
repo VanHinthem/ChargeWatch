@@ -441,6 +441,7 @@ fun MapScreen(
             favoriteIds = favoriteIds,
             cameraTarget = cameraTarget,
             destination = destination,
+            gpsPosition = if (locationEnabled) gpsPosition else null,
             overviewRequest = overviewRequest,
             onOverviewConsumed = { overviewRequest = null },
             onMapCameraIdle = { lat, lon, zoom ->
@@ -985,6 +986,7 @@ private class MapRenderSnapshot {
     var locations: List<MapLocation>? = null
     var favoriteIds: Set<String>? = null
     var destination: Destination? = null
+    var gpsPosition: DevicePosition? = null
 }
 
 @Composable
@@ -997,6 +999,7 @@ private fun ChargeMap(
     favoriteIds: Set<String>,
     cameraTarget: CameraTarget?,
     destination: Destination?,
+    gpsPosition: DevicePosition?,
     overviewRequest: CameraTarget?,
     onOverviewConsumed: () -> Unit,
     onMapCameraIdle: (Double, Double, Double) -> Unit,
@@ -1011,6 +1014,7 @@ private fun ChargeMap(
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentMapTapHandler = rememberUpdatedState(onMapTapped)
     val currentDestination = rememberUpdatedState(destination)
+    val currentGpsPosition = rememberUpdatedState(gpsPosition)
     val currentMapIdleHandler = rememberUpdatedState(onMapCameraIdle)
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
     val iconCache = remember { mutableMapOf<String, Icon>() }
@@ -1085,7 +1089,8 @@ private fun ChargeMap(
                         iconCache = iconCache,
                         markerGroups = markerGroups,
                         favoriteIds = currentFavoriteIds.value,
-                        destination = currentDestination.value
+                        destination = currentDestination.value,
+                        gpsPosition = currentGpsPosition.value
                     )
                     map.getStyle {
                         renderNativeMarkers(
@@ -1095,7 +1100,8 @@ private fun ChargeMap(
                             context,
                             markerGroups,
                             currentFavoriteIds.value,
-                            currentDestination.value
+                            currentDestination.value,
+                            currentGpsPosition.value
                         )
                     }
                     map.addOnCameraIdleListener {
@@ -1106,7 +1112,8 @@ private fun ChargeMap(
                             context,
                             markerGroups,
                             currentFavoriteIds.value,
-                            currentDestination.value
+                            currentDestination.value,
+                            currentGpsPosition.value
                         )
                         map.cameraPosition.target?.let { center ->
                             currentMapIdleHandler.value(
@@ -1141,21 +1148,23 @@ private fun ChargeMap(
                 val styleChanged = currentStyleUri != styleUri
                 val markersChanged = renderSnapshot.locations !== locations ||
                     renderSnapshot.favoriteIds != favoriteIds ||
-                    renderSnapshot.destination != destination
+                    renderSnapshot.destination != destination ||
+                    renderSnapshot.gpsPosition != gpsPosition
                 if (styleChanged) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
                     }
                 } else if (markersChanged) {
                     map.getStyle {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
+                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
                     }
                 }
                 if (styleChanged || markersChanged) {
                     renderSnapshot.locations = locations
                     renderSnapshot.favoriteIds = favoriteIds
                     renderSnapshot.destination = destination
+                    renderSnapshot.gpsPosition = gpsPosition
                 }
             }
         }
@@ -1209,10 +1218,11 @@ private fun configureStyle(
     iconCache: MutableMap<String, Icon>,
     markerGroups: MutableMap<Long, List<MapLocation>>,
     favoriteIds: Set<String>,
-    destination: Destination?
+    destination: Destination?,
+    gpsPosition: DevicePosition?
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination)
+        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
         requestViewport(map, onViewportChanged)
     }
 }
@@ -1240,7 +1250,8 @@ private fun renderNativeMarkers(
     context: Context,
     markerGroups: MutableMap<Long, List<MapLocation>>,
     favoriteIds: Set<String>,
-    destination: Destination?
+    destination: Destination?,
+    gpsPosition: DevicePosition?
 ) {
     map.clear()
     markerGroups.clear()
@@ -1329,6 +1340,25 @@ private fun renderNativeMarkers(
         // Empty group marks this as a destination, not a charging site.
         markerGroups[marker.id] = emptyList()
     }
+    gpsPosition?.let { position ->
+        val icon = icons.getOrPut("gps-position") { iconFactory.fromBitmap(createGpsMarkerBitmap()) }
+        val marker = map.addMarker(MarkerOptions().position(LatLng(position.latitude, position.longitude))
+            .icon(icon).title("Mijn locatie"))
+        markerGroups[marker.id] = emptyList()
+    }
+}
+
+private fun createGpsMarkerBitmap(): Bitmap {
+    val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = Color.argb(38, 24, 119, 242)
+    canvas.drawCircle(32f, 32f, 29f, paint)
+    paint.color = Color.WHITE
+    canvas.drawCircle(32f, 32f, 12f, paint)
+    paint.color = Color.rgb(24, 119, 242)
+    canvas.drawCircle(32f, 32f, 9f, paint)
+    return bitmap
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
