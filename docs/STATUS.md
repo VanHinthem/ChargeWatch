@@ -1,3 +1,13 @@
+## Kaartnavigatie en tile-cache — onderzoek #113 (2 november 2026)
+
+**Ontwerpuitwerking in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** tijdens slepen/zoomen bestaande geldige markers laten staan, alleen bij camera-idle of cachemiss complete geografische raster-/tilecellen ophalen, en bij korte pans aangrenzende cellen cachen/prefetchen. Een **begrensde in-memory tile-LRU** is de eerste benchmarkkandidaat; een ring aangrenzende cellen is slechts een te meten uitgangsscenario. Geen vastgelegde TTL, kaartobjectlimiet of nieuwe debounce zonder NAS-/Samsung-metingen.
+
+**Correctheid:** cache key omvat grid-/tile-ID, contractversie, filterhash en gepubliceerde datasnapshot; ruwe geografische plaatsing en sneller veranderende bezettingsstatus vereisen verschillende geldigheidsafwegingen. Stale-while-revalidate toont oudere gegevens alleen als `Laatst bekend`, nooit als verse metingen; wissel complete coverage-sets gecontroleerd zonder dubbele clusters en kinderen, en laat trage oude responses geen nieuwe camera-/filtertoestand overschrijven. API-/NDW-fallback en lege/ontbrekende tilegebieden moeten zichtbaar en eerlijk worden afgehandeld. Android `MapScreen` gebruikt nu nog `map.clear()` en de huidige viewportcoördinator debounce van 500 ms; dat zijn reviewpunten, geen nieuwe implementatie.
+
+**Status:** ontwerp-PR #114 draft, issue #113 open; geen code, merge of deployment. De gebruiker beslist over ontwerp en uitvoeringsvolgorde voordat we API-/Android-werk starten.
+
+---
+
 ## PostGIS-raster en caching — ontwerpuitwerking #113 (2 november 2026)
 
 **Onderzochte bestaande databasebasis:** `db/init/001_schema.sql` bevat de PostGIS `geography(Point,4326)`-kolom `charging_location.position` en een GiST-index `ix_location_position`, naast de unieke OCPI-identiteit. `ApiDatabase.GetMapViewport` selecteert de volledige individuele records binnen bbox/filters, beperkt op 1000 en bouwt daarna connector-json en beschikbare EVSE-sommen. Er is **nog geen werkelijke NAS-queryplanmeting** uitgevoerd; de aanwezigheid/benutting van de index op productie moet worden geverifieerd.
