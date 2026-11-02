@@ -8,7 +8,7 @@
 
 **Interactie:** tik op een rij opent de bestaande ChargeWatch-detailsheet voor exact de gekozen `featureId` (Details, Navigeren, Alternatieven). Refreshknop handmatige controle, titel opent de kaart. Automatische update met Android-conforme best-effort achtergrondtaak (~15 minuten), één gedeelde update voor meerdere widgetinstanties; geen harde realtime-belofte.
 
-Zie [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md) voor technische keuzes, foutscenario's en testplan. **UX-ontwerp goedgekeurd; implementatie pas na afzonderlijk akkoord.** Eerdere mockups met grafieken en overige opties hieronder zijn historische richting, geen v1-vereiste.
+Zie [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md) voor technische keuzes, foutscenario's en testplan. **UX-ontwerp goedgekeurd; op 2 november 2026 is ook afzonderlijk toestemming gegeven om implementatie te starten in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112). Geen merge/deployment zonder nieuw expliciet akkoord.** Eerdere mockups met grafieken en overige opties hieronder zijn historische richting, geen v1-vereiste.
 
 ---
 
