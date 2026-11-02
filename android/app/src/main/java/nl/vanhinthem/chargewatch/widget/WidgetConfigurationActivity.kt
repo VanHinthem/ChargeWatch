@@ -146,15 +146,25 @@ private fun WidgetConfigurationScreen(
                     val favorite = favorites.find { it.featureId == id }
                     if (favorite != null) Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(favorite.displayName, Modifier.weight(1f), maxLines = 1)
-                        val shown = widgetRow(favorite.featureId, favorite.displayName,
-                            snapshots[id], 0L, System.currentTimeMillis())
+                        Column(Modifier.weight(1f)) {
+                            Text(widgetFavoriteName(favorite),
+                                maxLines = 1, style = MaterialTheme.typography.titleMedium)
+                            widgetFavoriteCity(favorite)?.let { city ->
+                                Text(city, maxLines = 1,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        val shown = widgetRow(favorite.featureId, widgetFavoriteName(favorite),
+                            snapshots[id], 0L, System.currentTimeMillis(),
+                            city = widgetFavoriteCity(favorite))
                         val statusColor = when (shown.status) {
                             nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.Available -> MaterialTheme.colorScheme.primary
                             nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.NoneAvailable -> MaterialTheme.colorScheme.error
                             nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
-                        Text(shown.label, color = statusColor)
+                        Text(shown.label, color = statusColor,
+                            style = MaterialTheme.typography.titleLarge)
                     }
                 }
                 if (selected.size > 3) Text("+${selected.size - 3} meer")
