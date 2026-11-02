@@ -595,6 +595,9 @@ private fun SearchHeader(
     message: String?,
     searchSelected: Boolean,
     destination: Destination?,
+    nearbyContext: NearbyContext?,
+    hasPreviousNearby: Boolean,
+    onPreviousNearby: () -> Unit,
     nearLocations: List<SearchLocation>,
     favoriteIds: Set<String>,
     nearLoading: Boolean,
@@ -631,7 +634,7 @@ private fun SearchHeader(
     val filterDrawerVisible = filterPanelOpen ||
         filterTransition.currentState || filterTransition.targetState
     val suggestVisible = !filterDrawerVisible && focused && !searchSelected && query.trim().length >= 2
-    val nearbyPanelVisible = !filterDrawerVisible && destination != null &&
+    val nearbyPanelVisible = !filterDrawerVisible && nearbyContext != null &&
         showNearbyPanel && !(focused && !searchSelected)
     val filterMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.70f
     Column(
@@ -808,12 +811,18 @@ private fun SearchHeader(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        if (hasPreviousNearby) {
+                            IconButton(onClick = onPreviousNearby, modifier = Modifier.size(48.dp)) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Vorig zoekoverzicht")
+                            }
+                        }
                         Icon(Icons.Default.EvStation, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             text = when {
                                 nearLoading -> "Laadlocaties ophalen…"
                                 nearMessage != null && nearLocations.isEmpty() -> nearMessage
+                                nearbyContext != null -> nearbyLabel(nearbyContext, nearLocations.size)
                                 else -> nearestLocationsCountLabel(nearLocations.size)
                             },
                             modifier = Modifier.weight(1f),
@@ -832,7 +841,7 @@ private fun SearchHeader(
                             ) {
                                 Icon(
                                     Icons.Default.MyLocation,
-                                    contentDescription = "Terug naar zoekadres",
+                                    contentDescription = "Terug naar overzicht",
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -1332,7 +1341,8 @@ fun LocationSelectionSheet(
     onToggleFavorite: (MapLocation) -> Unit,
     expandedTopInset: Dp,
     initiallyExpanded: Boolean = false,
-    compactAllowed: Boolean = true
+    compactAllowed: Boolean = true,
+    onShowAlternatives: (MapLocation) -> Unit = {}
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
@@ -1677,6 +1687,12 @@ fun LocationSelectionSheet(
                         Spacer(Modifier.width(6.dp))
                         Text("Street View")
                     }
+                }
+                OutlinedButton(onClick = { onShowAlternatives(location) },
+                    modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.EvStation, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Alternatieven in de buurt")
                 }
                 if (expanded) {
                     HorizontalDivider()
