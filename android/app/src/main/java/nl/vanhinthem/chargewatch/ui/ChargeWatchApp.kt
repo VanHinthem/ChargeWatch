@@ -171,7 +171,7 @@ fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> U
             if (WidgetWork.hasWidgets(context)) {
                 WidgetStore(context).reconcile(saved.map { it.featureId }.toSet())
                 ChargeWatchWidget().updateAll(context)
-                WidgetWork.refresh(context)
+                WidgetWork.refresh(context, force = false)
             }
         }
     }
