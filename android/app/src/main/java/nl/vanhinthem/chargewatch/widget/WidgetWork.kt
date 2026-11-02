@@ -124,7 +124,13 @@ internal object WidgetRefreshCoordinator {
                 store.markRefreshing(now)
                 ChargeWatchWidget().updateAll(context)
                 try {
-                    when (val result = FavoritesAvailabilityClient().refresh(targets)) {
+                    when (val result = FavoritesAvailabilityClient().refresh(targets,
+                        onPartialLocations = { partial ->
+                            store.recordIncremental(partial, System.currentTimeMillis())
+                            // A finished location is usable immediately, even while
+                            // another favorite awaits API/NDW fallback.
+                            ChargeWatchWidget().updateAll(context)
+                        })) {
                         is FavoriteRefreshResult.Success ->
                             store.recordRefresh(result.locations, System.currentTimeMillis(),
                                 result.locations.size < targets.size)
