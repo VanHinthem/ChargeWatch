@@ -107,10 +107,10 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
     val visible = rows.take(maxRows)
     val compact = size.height.value < 190f
     val narrow = size.width.value < 230f
-    val rowHeight = if (compact) 46.dp else 56.dp
-    val nameSize = if (compact) 16.sp else 18.sp
-    val citySize = if (compact) 12.sp else 13.sp
-    val badgeSize = if (compact) 19.sp else 21.sp
+    val rowHeight = if (compact) 40.dp else 50.dp
+    val nameSize = if (compact) 17.sp else 19.sp
+    val citySize = if (compact) 12.sp else 14.sp
+    val badgeSize = if (compact) 20.sp else 22.sp
     val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
     val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
