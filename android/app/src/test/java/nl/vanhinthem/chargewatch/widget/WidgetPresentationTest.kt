@@ -88,6 +88,25 @@ class WidgetPresentationTest {
         assertEquals("Onbekend", compactWidgetFreshness(widgetRow("a", "Thuis", null, now, now)))
     }
 
+    @Test fun narrowWidgetShowsActualCityButNeverGuessesStreet() {
+        val stored = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now,
+            subtitle = "Schietspoel 18, Oss", city = "Oss")
+        assertEquals("Oss", compactWidgetSubtitle(stored))
+        val missingCity = widgetRow("b", "Werk", snapshot(0, 2), now - 30_000, now,
+            subtitle = "Mystraat 42")
+        assertEquals(null, compactWidgetSubtitle(missingCity))
+    }
+
+    @Test fun narrowWidgetFooterDoesNotHideUnavailableOrStaleData() {
+        val recent = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now)
+        val unknown = widgetRow("b", "Werk", null, now, now)
+        assertEquals("1 min", compactSquareFooter(listOf(recent)))
+        assertEquals("Deels onbekend", compactSquareFooter(listOf(recent, unknown)))
+        assertEquals("Onbekend", compactSquareFooter(listOf(unknown)))
+        val stale = widgetRow("c", "Familie", snapshot(1, 2, fetched = now - 600_000), now, now)
+        assertEquals("Laatst bekend", compactSquareFooter(listOf(recent, stale)))
+    }
+
     @Test fun cityIsTakenFromSavedAddressNotInferredFromCoordinates() {
         val home = favorite(alias = "Thuis", address = "Schietspoel 18, Oss")
         assertEquals("Thuis", widgetFavoriteName(home))
