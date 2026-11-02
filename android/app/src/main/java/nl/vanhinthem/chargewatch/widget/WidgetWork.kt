@@ -43,10 +43,9 @@ object WidgetWork {
         ensure(context)
         WorkManager.getInstance(context).enqueueUniqueWork(
             ON_DEMAND, ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
-                .setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-                ).build()
+            // A user-triggered refresh should also run while offline, so that the
+            // previously cached ratio is immediately marked as last-known.
+            OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build()
         )
     }
 
