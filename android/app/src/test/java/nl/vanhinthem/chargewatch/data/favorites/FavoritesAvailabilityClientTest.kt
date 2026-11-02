@@ -34,6 +34,33 @@ class FavoritesAvailabilityClientTest {
         }
     }
 
+    @Test fun ossAndElstMustNotBeFetchedAsOneBroadRegion() {
+        val viewports = favoriteViewports(listOf(
+            favorite("Oss", 51.765, 5.518),
+            favorite("Elst", 51.917, 5.842)
+        ))
+        assertEquals(2, viewports.size)
+        viewports.forEach { viewport ->
+            assertTrue(viewport.areaSquareDegrees < 0.001)
+        }
+    }
+
+    @Test fun evenNarrowRegionalStripShouldNotCombineSeparateCities() {
+        val viewports = favoriteViewports(listOf(
+            favorite("A", 51.765, 5.518),
+            favorite("B", 51.810, 5.519)
+        ))
+        assertEquals(2, viewports.size)
+    }
+
+    @Test fun twoWithinWalkingDistanceStillShareOneRequest() {
+        val viewports = favoriteViewports(listOf(
+            favorite("A", 51.765, 5.518),
+            favorite("B", 51.770, 5.525)
+        ))
+        assertEquals(1, viewports.size)
+    }
+
     @Test fun emptyFavoritesNeedNoViewport() {
         assertTrue(favoriteViewports(emptyList()).isEmpty())
     }
