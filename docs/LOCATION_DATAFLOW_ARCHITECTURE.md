@@ -71,6 +71,44 @@ GET /api/v1/map/overview?bbox=minLon,minLat,maxLon,maxLat&zoom=<mapZoom>&filters
 
 Dit is een *schematische richting*; routenaam, exacte velden, foutcontract, cacheheaders en typebepaling zijn nog open. **LocationCount = aantal individuele laadlocaties** in een cluster, **niet** aantal EVSE's of connectoren. Ratio's zijn EVSE-totalen; tel elk operationeel EVSE maximaal één keer, sluit `PLANNED`/`REMOVED` uit en onderscheid onbekende data. Clusterkleur kan niet uitsluitend gebaseerd worden op één ambigu optelgetal: onderzoek betrouwbare populatietelling, partial/unknown mix en staleness. Geen `0` afleiden uit ontbrekende brondata. Bron-/feedwaarneming blijft zichtbaar waar relevant.
 
+### PostGIS-query- en cacheontwerp — onderzoeksuitwerking (2 november 2026)
+
+**Werkhypothese, nog geen implementatiebesluit.** De huidige database bevat al `charging_location.position geography(Point,4326)` met `ix_location_position USING gist(position)`, plus unieke OCPI-identiteit `(country_code,party_id,source_id)`. De huidige `ApiDatabase.GetMapViewport` gebruikt `ST_Intersects` en `MapFilter.LocationPredicate`, beperkt eerst individuele locaties tot 1000 en berekent daarna EVSE-tellingen en connectorcategorieën. De nieuwe overzichtskaart mag **geen LIMIT op ruwe locaties** gebruiken, maar moet wel het aantal te tekenen objecten beperken via zoomafhankelijke aggregatie.
+
+#### Voorgestelde read-only querypipeline
+
+1. **Ruimtelijke selectie:** bepaal een uitgelijnd vast tile-/wereldraster, een gekozen resolutie (zoomBucket/gridCellSize) en een integer-celbereik inclusief beperkte buffer. Gebruik een indexvriendelijke geografische bounding query op `charging_location.position`. Vermijd een raster relatief aan de actuele bbox, want dan springen clusters bij pannen.
+2. **Filters op de individuele locatie:** pas exact dezelfde bestaande `MapFilter.LocationPredicate` toe vóór het groeperen. Belangrijk: het huidige technische filter werkt met `EXISTS` op actieve connectoren/operationele EVSE's en `minFree` op unieke EVSE's; zorg dat die semantiek behouden blijft.
+3. **Één availabilitystatus per locatie:** bepaal `freeCount`, `operationalCount` (één keer per actieve EVSE, `PLANNED`/`REMOVED` uitgesloten), en `known/unknown`, met hergebruik van bestaande countingregels. Vermijd de volledige `jsonb_agg` van connectorcategorieën wanneer die voor de kaart niet nodig zijn.
+4. **Grid-ID:** transformeer locatiecoördinaten naar een **zoomgebonden, oorsprongvaste Web Mercator-cel**; groepeer op integer `gridX,gridY` bij resolutie `gridLevel`. Validatie nodig voor geografische randgevallen, indexefficiëntie en eventuele `ST_SnapToGrid`-alternatieven: snap op ruwe longitude/latitude is niet automatisch pixelstabiel. De exacte PostGIS-functie en formule blijven open.
+5. **Aggregatie:** tel per cel `locationCount`, `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`. `count=1` resulteert in een individuele locatie met featureId en `vrij/totaal`; bij `count>1` in een neutraal clustercentrum met groen/rode/onbekende ring. Gebruik volledige celpopulatie, niet alleen de stukjes die toevallig binnen de scherm-bbox vallen, en voorkom dubbeltellingen in overlappende requests.
+6. **Responsebudget:** laat bij veel objecten een **grovere gridresolutie** kiezen of geef een expliciet, controleerbaar contract terug; stuur nooit de eerste N locaties of gedeeltelijke cellen alsof de hele landelijke kaart compleet is. Server geeft de daadwerkelijk gebruikte `gridLevel` en volledige `coverage` door.
+7. **Publicatie:** verzend uitsluitend getypeerde mapobjecten + globale feedstatus. Bewaar filterversie en bronobservatie op het juiste niveau; documenteer dat een cachemoment geen nieuwe EVSE-waarneming is.
+
+#### Cachingkandidaten — eerst meten
+
+| Laag | Kansrijke cache | Correctheid/risico |
+|---|---|---|
+| Android | Bestaande complete tile/celresponses bewaren per gridLevel/filterset/bronversie | Weergeven van oude kaart met duidelijke feedstatus; oude in-flight respons mag filters/zoom niet overschrijven |
+| API memory/cache | Hergebruik van populaire grid-/tilequeries, bijvoorbeeld nationaal overzicht | Geldigheid koppelen aan NDW-snapshot/checkpoint en filters; geheugen en cache-explosie bij operatorcombinaties |
+| PostgreSQL | Gerichte lichte beschikbaarheidssamenvatting per locatie | Moet atomair overeenkomen met gepubliceerde EVSE-snapshot, en geen stale/unknown als vrij of bezet behandelen |
+| Voorberekende zoomlagen | Vooral voor veelgevraagd ongefilterd landelijk overzicht | Gecombineerde dynamische filters maken veel vooraggregaties onpraktisch; invalidatie/operatiebelasting onderzoeken |
+
+**Architectuurwaarschuwing:** `snapshot_poll_checkpoint` toont een feedcontrole, geen garantie dat iedere EVSE-status opnieuw gewijzigd is. Een voorgeaggregeerde kaart of cache mag dus geen nieuwere status suggereren dan de ingelezen dataset werkelijk bewijst. Bij release van nieuwe snapshots moeten alle relevante kaartlagen dezelfde gegevensversie representeren.
+
+#### Vergelijkingsmetingen / beslispoorten
+
+- Huidige indexen verifiëren tegen **productie-schema** (migraties en actuele DB controleren): source `db/init/001_schema.sql` bevat `ix_location_position`; dit bewijst nog niet dat elke index in de NAS precies zo bestaat of door de planner wordt gebruikt.
+- `EXPLAIN (ANALYZE, BUFFERS)` vergelijken voor vaste cellen met **1**, **100**, **1000** en **landelijke** aantallen locaties en voor filterloze en selectieve `minFree`/connector- en operatorfilters.
+- Vergelijk plan A (live `charging_location` + `evse`), B (per-locatie compacte summary), C (ingelezen gridcache) op SQL CPU/reads, DB-tijd, API p50/p95, payload, Android frame/renderduur en geheugen.
+- Test de invariant dat iedere actieve/gefilterde locatie in de complete aangevraagde celset **precies eenmaal** is opgenomen, óók bij pan, gridgrens, dataverversing en gelijktijdige filterwisseling.
+- Verzamel duur en aantallen per schaal: straat, Oss/Elst, Randstad/Brabant, heel Nederland, inclusief onbruikbare/onbekende EVSE's, meerdere locaties exact op dezelfde coördinaten en NDW/API-fout.
+- Voor echte landelijke dekking mogen de huidige `MAX_VIEWPORT_AREA=1.0` en HTTP-413-cap in het **nieuwe** contract worden vervangen door aggregatie, maar het **bestaande endpoint** blijft ongewijzigd en betrouwbaar tijdens de migratie.
+
+**Voorkeur voor uitvoering ná akkoord:** eerst een read-only proof-of-concept/benchmark zonder schemawijziging om live SQL + gridaggregatie te toetsen; alleen bij aantoonbare DB-kosten aanvullende samenvattingen, indexen of materialisatie ontwerpen. Bestaande API-/Android-gebruikers kunnen het oude contract blijven gebruiken tot expliciet besloten om over te stappen.
+
+---
+
 ### Clusteringopties en afweging
 
 | Optie | Gedrag | Plus | Onderzoek/risico |
