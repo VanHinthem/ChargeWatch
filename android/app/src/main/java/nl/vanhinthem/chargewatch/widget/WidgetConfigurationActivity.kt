@@ -63,12 +63,14 @@ class WidgetConfigurationActivity : ComponentActivity() {
                 var saving by remember { mutableStateOf(false) }
                 var saveError by remember { mutableStateOf(false) }
                 var snapshots by remember { mutableStateOf<Map<String, WidgetSnapshot>>(emptyMap()) }
+                var addresses by remember { mutableStateOf<Map<String, WidgetAddress>>(emptyMap()) }
                 val scope = rememberCoroutineScope()
                 LaunchedEffect(widgetId) {
                     val loaded = FavoritesRepository(this@WidgetConfigurationActivity).favorites.first()
                     val storedState = WidgetStore(this@WidgetConfigurationActivity).read()
                     val stored = storedState.configurations[widgetId.toString()]
                     snapshots = storedState.snapshots
+                    addresses = storedState.addresses
                     favorites = loaded
                     selected = (stored ?: loaded.take(5).map { it.featureId })
                         .filter { id -> loaded.any { it.featureId == id } }.distinct().take(5)
@@ -80,6 +82,7 @@ class WidgetConfigurationActivity : ComponentActivity() {
                         favorites = favorites.orEmpty(),
                         selected = selected,
                         snapshots = snapshots,
+                        addresses = addresses,
                         saveError = saveError,
                         saving = saving,
                         onToggle = { id ->
@@ -128,7 +131,8 @@ class WidgetConfigurationActivity : ComponentActivity() {
 @Composable
 private fun WidgetConfigurationScreen(
     favorites: List<FavoriteLocation>, selected: List<String>, saving: Boolean,
-    snapshots: Map<String, WidgetSnapshot>, saveError: Boolean,
+    snapshots: Map<String, WidgetSnapshot>, addresses: Map<String, WidgetAddress>,
+    saveError: Boolean,
     onToggle: (String) -> Unit, onMove: (String, Int) -> Unit,
     onOpenApp: () -> Unit, onSave: () -> Unit
 ) {
@@ -147,17 +151,18 @@ private fun WidgetConfigurationScreen(
                     if (favorite != null) Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
-                            Text(widgetFavoriteName(favorite),
+                            Text(widgetFavoriteName(favorite, addresses[id]),
                                 maxLines = 1, style = MaterialTheme.typography.titleMedium)
-                            widgetFavoriteCity(favorite)?.let { city ->
-                                Text(city, maxLines = 1,
+                            widgetFavoriteSubtitle(favorite, addresses[id])?.let { subtitle ->
+                                Text(subtitle, maxLines = 1,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        val shown = widgetRow(favorite.featureId, widgetFavoriteName(favorite),
+                        val shown = widgetRow(favorite.featureId,
+                            widgetFavoriteName(favorite, addresses[id]),
                             snapshots[id], 0L, System.currentTimeMillis(),
-                            city = widgetFavoriteCity(favorite))
+                            subtitle = widgetFavoriteSubtitle(favorite, addresses[id]))
                         val statusColor = when (shown.status) {
                             nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.Available -> MaterialTheme.colorScheme.primary
                             nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus.NoneAvailable -> MaterialTheme.colorScheme.error
