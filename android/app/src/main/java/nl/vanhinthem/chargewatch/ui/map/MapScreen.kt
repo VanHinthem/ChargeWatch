@@ -538,7 +538,22 @@ fun MapScreen(
         gpsMessage?.let { message ->
             Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 16.dp, end = 76.dp),
                 shape = RoundedCornerShape(12.dp), tonalElevation = 6.dp) {
-                Text(message, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.padding(12.dp)) {
+                    Text(message, style = MaterialTheme.typography.bodySmall)
+                    val servicesDisabled = message.startsWith("Schakel locatievoorzieningen")
+                    val permissionDenied = message.contains("locatietoestemming", ignoreCase = true)
+                    if (servicesDisabled || permissionDenied) {
+                        TextButton(onClick = {
+                            val intent = if (servicesDisabled)
+                                Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                            else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:" + context.packageName))
+                            context.startActivity(intent)
+                        }) {
+                            Text(if (servicesDisabled) "Locatie-instellingen openen" else "Toestemming beheren")
+                        }
+                    }
+                }
             }
         }
         if (state.loading) {
