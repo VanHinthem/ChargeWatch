@@ -1,3 +1,11 @@
+## PostGIS-raster en caching — ontwerpuitwerking #113 (2 november 2026)
+
+**Onderzochte bestaande databasebasis:** `db/init/001_schema.sql` bevat de PostGIS `geography(Point,4326)`-kolom `charging_location.position` en een GiST-index `ix_location_position`, naast de unieke OCPI-identiteit. `ApiDatabase.GetMapViewport` selecteert de volledige individuele records binnen bbox/filters, beperkt op 1000 en bouwt daarna connector-json en beschikbare EVSE-sommen. Er is **nog geen werkelijke NAS-queryplanmeting** uitgevoerd; de aanwezigheid/benutting van de index op productie moet worden geverifieerd.
+
+**Vervolgontwerp:** `bbox` → complete, wereldvast uitgelijnde Web Mercator-gridcellen op zoomniveau → bestaande filters per individuele locatie → per-locatie EVSE-beschikbaarheid → per-cel `locationCount`, `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown` → lichte `location|cluster`-response zonder volledig EVSE/connector-json. **Niet** 999 ruwe locaties selecteren en de rest laten vallen. Performancebudget via gekozen gridresolutie, geen stilzwijgende truncatie. Vergelijk live SQL, compacte per-locatie-samenvatting en tile-/cachelagen bij verschillende schaalniveaus en filters. Cachevalidatie wordt gekoppeld aan correcte bron-/publicatiestatus. **Nog geen SQL, API of Android geïmplementeerd; eerst metingen en goedkeuring.** Zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) en draft-PR #114.
+
+---
+
 ## Kaart-clusterontwerp — eerste voorstel voor bespreking (2 november 2026)
 
 Na bevestiging van landelijke dekking is het eerste **concrete zoom-/cluster-/tap- en bronkwaliteitsontwerp** toegevoegd aan [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), onderdeel *Eerste interactie-/clusterregels*. Dit is **nog geen expliciet goedgekeurd definitief gedrag**, behalve het eerder vastgelegde doel: landelijke zoomdekking, filtercorrectheid en geen stille truncatie.
