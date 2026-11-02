@@ -66,7 +66,7 @@ class MapViewModel(
             activeNearby.value = previousNearby.value?.takeUnless { it is NearbyContext.Gps }
             nearLoadedFor.value = null
         }
-        if (previousNearby.value is NearbyContext.Gps) previousNearby.value = null
+        previousNearby.value = null
         nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
     }
 
