@@ -2,7 +2,7 @@
 
 ## Android P2 — Native widget met lokale favorieten (#101)
 
-**Huidige hoofdprioriteit:** [issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101). Gebruiker heeft op 2 november **minimalistische widget-UX richting A** goedgekeurd; volgende stap is review van het technische ontwerp in [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md). De widget is **nog niet geïmplementeerd** en er is **nog geen akkoord om Android-code te schrijven**. Ontwerp vastgelegd in [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md); geen Android-codewijziging, merge of deployment zonder apart expliciet akkoord.
+**Huidige hoofdprioriteit:** [issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101). Gebruiker heeft op 2 november de minimalistische UX-richting A bevestigd en daarna expliciet akkoord gegeven om de Android-implementatie te starten. De feature staat op **`feature/android-favorites-widget`** in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112), inclusief de eerder opgestelde ontwerpdocumentatie uit #111. **Status: code in ontwikkeling; CI en fysieke Samsung-validatie nog niet afgerond.** Geen squash-merge of deployment zonder apart expliciet akkoord.
 
 **UX-contract:** één APK, één resizable Glance-widget, richtformaten 2×2 (2 rijen), 4×2 (3) en 4×3 (5); maximaal vijf lokale favorieten per widgetinstantie met eigen selectie/volgorde, naam plus `vrij/totaal`, korte versheid en refresh. Geldige tellingen groen bij minstens één vrij, rood bij nul vrij, nooit grijs uitsluitend vanwege oude bronrecordwijziging. Ambigue tellingen `?`; offline eerdere waarden uitsluitend herkenbaar als `Laatst bekend`. Alle widgetinstanties delen een batterijvriendelijke update (~15 min best effort) en bestaande GET-only API/NDW-fallback. Tik op rij opent de juiste bestaande detailsheet. Geen grafieken, tarieven, backend- of NAS-uitbreiding voor #101.
 
@@ -10,7 +10,7 @@
 
 **Aparte roadmapwens:** [Android Auto-verkenning #110](https://github.com/VanHinthem/ChargeWatch/issues/110): later POI-favorietenlijst en navigatie via externe auto-navigatie-app; aangekondigde mobiele widgets op Android Auto alleen na beschikbaarheidscheck. **Niet** onderdeel van #101.
 
-**Eerstvolgende beslismoment:** gebruiker beoordeelt technisch ontwerp en geeft eventueel **apart akkoord voor de implementatiebranch** `feature/android-favorites-widget`. PR #108 bevat oud, conflicterend planningsconcept en wordt niet als nieuwe implementatie- of mergeroute gebruikt.
+**Eerstvolgende stap:** CI-resultaten van PR #112 controleren en gericht repareren, daarna debug-APK en fysieke Samsung-test van widgetgroottes, permissieloos achtergrondverversen, cache/offline en cold/warm deeplink. Pas na acceptatie apart expliciet mergeakkoord vragen. PR #108 is achterhaald, en documentatie-PR #111 wordt niet afzonderlijk gemerged.
 
 ---
 
