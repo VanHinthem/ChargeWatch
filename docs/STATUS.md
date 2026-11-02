@@ -9,7 +9,7 @@ De gebruiker heeft drie screenshots van dezelfde debug-APK met **4×1, 4×2 en 2
 - **4×1:** bij meerdere geselecteerde favorieten verschijnt `+N` klein onder ⚡, zodat **de tijd-/bronstatus altijd onder de beschikbare-aantallenbadge zichtbaar blijft**. Selectie/volgorde ongewijzigd.
 - **4×2 en groter:** ongewijzigde layout en beschikbaarheidsregels. Per-favoriet `vrij/totaal` altijd groen/rood bij betrouwbare status; bij ontbreken van data of oude cache expliciete indicatie.
 
-Gerichte tests voor compact adres, onbekende toestand en versheidsfooter toegevoegd. **CI en fysieke Samsung-review op de nieuwe APK volgen**; geen merge/deploy.
+Gerichte tests voor compacte plaatsnaam, onbekende toestand en versheidsfooter toegevoegd. **Android-CI [#41495958397](https://github.com/VanHinthem/ChargeWatch/actions/runs/41495958397) is volledig groen** op code-/documentatiecommit `bbbee9539fac6d2643fe2f9a09beedb25b0516fe`: unit-tests, debug-APK-build en artifactupload geslaagd. **Read-only API-CI [#41495958173](https://github.com/VanHinthem/ChargeWatch/actions/runs/41495958173) is eveneens groen.** Fysieke Samsung-review van de aangepaste 2×2/4×1-APK volgt nog; geen merge/deploy.
 
 ---
 
