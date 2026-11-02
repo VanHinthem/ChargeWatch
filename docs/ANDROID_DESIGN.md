@@ -1,3 +1,11 @@
+## Widgetcorrectie na tweede Samsung-screenshot (2 november 2026)
+
+**Vastgestelde UX-eis:** bij een favoriet met eigen alias boven **alias**, eronder **adres + plaats** (bijv. `Thuis` / `Schietspoel 18, Oss`). Zonder alias boven het **adres**, eronder alleen de **plaats** (bijv. `Koetseland 4` / `Oss`): adres dus niet op beide regels herhalen. Het oorspronkelijke adres uit de NDW-kaart bevat niet altijd de plaats. Gebruik de reeds bestaande API-detailvelden `address` en `city` met een kleine lokale metadata-cache (los van de beschikbaarheidscache); geen verzonnen geografie en geen nieuwe backendfunctionaliteit. Lokaal adres kan worden getoond wanneer detail-API niet bereikbaar is, stad blijft dan leeg als onbekend.
+
+**Regressie:** screenshot met twee `?` na update. Bewaar een oude **valide** ratio wanneer een nieuwe API-/NDW-respons onbetrouwbare aantallen geeft, maar label nadrukkelijk `Laatst bekend`. Bij nooit betrouwbaar vastgestelde waarden `?` tonen. De statuskleur van een bekende ratio blijft groen/rood, niet grijs louter door leeftijd. Maak de titels/badges groter en verdeel korte lijsten beter verticaal; bronfooter onderaan, leesbaarheid heeft prioriteit. Fysieke heracceptatie nodig.
+
+---
+
 ## Native widget — Samsung-review: typografie en plaatsnaam (2 november 2026)
 
 De gebruiker bevestigde dat twee bewust geselecteerde favorieten correct groen `2/2` tonen maar te klein ogen, met veel verticale witruimte. **Bijstelling voor PR #112:** kop, favorietnaam en statusbadge groter; een tweede, secundaire regel met de plaatsnaam (uitsluitend indien betrouwbaar beschikbaar uit het reeds opgeslagen favoriete adres). Voor favorieten zonder eigen alias wordt dezelfde plaats achter de straatnaam niet dubbel getoond. De versheidsfooter onderaan uitlijnen; compacte formaten prioriteren leesbaarheid boven het eerder geschatte maximum van 2/3/5 rijen. `+N meer` blijft zichtbaar als niet alle geselecteerde favorieten passen; tot vijf rijen bij voldoende widgethoogte. Geen extra API of geocoding, geen wijziging van statuskleursemantiek. Nieuwe fysieke Samsung-review volgt.
