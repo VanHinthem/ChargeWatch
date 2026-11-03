@@ -73,3 +73,27 @@ Voer direct daarna **het volledige reeds bestaande SQL-script in** [MAP_GRID_A2_
 Kopieer per run het onderste deel van het plan met `Execution Time`, `Planning Time`, `Buffers`, `temp read/written`, `HashAggregate`/`GroupAggregate`, eventuele `Sort Method: external merge`/`Disk`, en relevante `Seq Scan`/`Index Scan`. Vermeld of er een timeout was. **Dit eerste paar is een sanity-check**, nog geen betrouwbare prestatievergelijking. Daarna afwisselende herhalingen, en vervolgens dezelfde aanpak met klein Oss-grid.
 
 Deze eenvoudige A1/A2-queryvormen testen performance, **niet** de definitieve beschikbaarheidsclassifier of complete filtersemantiek; de Q4-tests leveren afzonderlijk het filter-ID-bewijs. Geen productiewijziging, migratie, deploy of merge. PR #114 draft.
+
+
+## Werkelijke NAS-run A1 — 3 november 2026, 12:39 UTC bericht
+
+**Eerste A1-run uitgevoerd; A2-resultaat van het paar nog niet aangeleverd.** Dit is één meting, geen vergelijkingsconclusie.
+
+| Maatstaf | Uitvoer |
+|---|---|
+| Execution Time | **770,699 ms** |
+| Planning Time | **34,818 ms** |
+| Grid-cellen | **8** |
+| Geselecteerde locaties | **71.026** |
+| Actieve EVSE-rijen tijdens scan | **216.159** (131 gefilterd op inactive) |
+| Join-input rijen | **180.949** |
+| Spatial index | `ix_charging_location_active_position` (Bitmap Index Scan, 1 index search) |
+| Locatiescan | Parallel Bitmap Heap Scan; 2 workers gestart |
+| EVSE scan | Seq Scan on evse, active-filter |
+| Join / aggregatie | Hash Right Join; interne HashAggregate 71.026 groepen, 1 batch 7193 kB; eind-HashAggregate 8 groepen, 1 batch 289 kB |
+| Root buffers | shared hit=1763, read=52252, dirtied=3018, written=10305 |
+| JIT | off |
+
+De eerdere grote-regio A1-run was 844,151 ms. De gemeten afname is **niet** causaal te duiden door één run; cache, collector en PostgreSQL-I/O kunnen verschillen. HashAggregates hebben Batches=1 en tonen geen expliciete tijdelijke disk-spill. `dirtied/written` in de buffers is geen bewijs van applicatie-datawijzigingen door een read-only SELECT. Een grote hoeveelheid gedeelde reads/writes kan wel de latency beïnvloeden.
+
+**Vervolg:** voer de A2-query van het originele gepaarde protocol uit en vergelijk totale elapsed time, joinplan, I/O en eventuele spill. Daarna pas omgekeerde herhaling of gerichte optimalisatie. PR #114 draft, geen DB-schema/app/deploy/merge.
