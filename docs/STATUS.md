@@ -1,3 +1,9 @@
+## Q4b lokale MapFilter-generatorcontrole geslaagd — 3 november 2026
+
+De gebruiker heeft `dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj` lokaal uitgevoerd: **14/14 PASS**, inclusief Q4-00..Q4-08 en de afzonderlijke arrayparametercombinatie. De daadwerkelijke output bevestigt het aantal Npgsql-commandparameters voor viewport/overview (4/5 zonder filters; 7/8 met alle drie filterarrays), identieke filterwaarden, `text[]`-typen en dezelfde SQL-predicaten met indexverschuiving 5→6. Dit is een **generatorcontracttest zonder SQL-database-uitvoering**. Q4a SQL-semantiekcontrole (CCS2/DC/minFree 1/2) was eerder eveneens geslaagd. **Q4c open:** op één read-only PostgreSQL-snapshot daadwerkelijke precluster locatie-ID-sets vergelijken, zonder aparte gekopieerde productiefilterlogica. Geen API-/Android-implementatie, migration, deploy of merge.
+
+---
+
 ## Q4a EVSE-filter-ID-setcontrole geslaagd — 3 november 2026
 
 De gebruiker voerde de read-only Q4a-proef op productie uit. Bij `connectorType=ccs2&mode=dc` leverde `minFree=1` **12 referentie-ID's / 12 afgeleide ID's, differing_ids=0, ids_match=t**; bij `minFree=2` **10/10, differing_ids=0, ids_match=t**. Zie [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) voor query en werkelijke uitvoer. Deze geslaagde SQL-semantiekcontrole bewijst **niet** dat de definitieve overview C#-generator of Npgsql-binding correct is, noch de overige Q4-scenario's.
