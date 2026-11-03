@@ -1,3 +1,9 @@
+## Q4-05a operator-discovery uitgevoerd, Q4-05b voorbereid — 3 november 2026
+
+De echte Oss-bbox bevatte volgens de NAS-read-only operator-discovery **87 Vattenfall InCharge, 6 50five, en elk 1 bp pulse, E-Flux by Road, Laadnet, PowerGo, Qwello Benelux BV**, samen 98. Alle `source_values_with_edge_whitespace=0`. Zie [MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md). `MapFilterQ4Probe --emit-q4c05` heeft nu drie queryvarianten met één, twee en herhaalde operatorwaarden; NAS-uitvoerstappen in [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). **Q4-05b nog niet uitgevoerd**. Ook Q4c-04c synthetische EVSE-deduplicatie blijft open. Geen API/Android-productieimplementatie, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
 ## Q4-05 operatorfixture-verkenning voorbereid — 3 november 2026
 
 [MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md) bevat een **nog niet uitgevoerde** kleine read-only NAS-query die echte `btrim(operator_name)`-waarden en hun aantallen uit de reeds gebruikte 98-locaties Oss-bbox zoekt. Na de resultaten worden één/twee/herhaalde operatoren getest via de bestaande `MapFilter`-generator, niet via een eigen operatorfilter. Q4c-04b is positief geslaagd; **Q4c-04c synthetische connector-duplicatiefixture is voorbereid maar uitvoering niet bevestigd**. Geen productiecode, schemawijziging, deploy of merge; PR #114 draft.
