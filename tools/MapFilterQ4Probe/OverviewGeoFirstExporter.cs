@@ -35,8 +35,16 @@ internal static class OverviewGeoFirstExporter
         Emit("ccs2_dc", new() { ["connectorType"] = "ccs2", ["mode"] = "dc" },
              includeParity: true, correlateTechnicalFilter: true);
 
+    // P2e: keep P2d's proven filter selection but restrict the final EVSE
+    // availability join to selected locations through a fenced LATERAL lookup.
+    public static string CreateCorrelatedLateralAvailabilityCcs2Dc() =>
+        Emit("ccs2_dc", new() { ["connectorType"] = "ccs2", ["mode"] = "dc" },
+             includeParity: true, correlateTechnicalFilter: true,
+             lateralAvailability: true);
+
     private static string Emit(string name, Dictionary<string, StringValues> entries,
-        bool includeParity = true, bool correlateTechnicalFilter = false)
+        bool includeParity = true, bool correlateTechnicalFilter = false,
+        bool lateralAvailability = false)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
             throw new InvalidOperationException(error);
@@ -161,13 +169,70 @@ internal static class OverviewGeoFirstExporter
             .Replace("__GEO__", geoTemplate, StringComparison.Ordinal)
             .Replace("__FILTER__", predicate, StringComparison.Ordinal)
             .Replace("__CASE__", name, StringComparison.Ordinal);
+        var renderedPerf = Render(perf);
+        if (lateralAvailability)
+        {
+            if (!correlateTechnicalFilter)
+                throw new InvalidOperationException("P2e requires the P2d correlated filter.");
+            const string originalJoin = "LEFT JOIN evse e ON e.location_id=s.id AND e.is_active";
+            const string indexedJoin = """
+                LEFT JOIN LATERAL (
+                    SELECT e.id,e.status FROM evse e
+                    WHERE e.location_id=s.id AND e.is_active
+                    OFFSET 0
+                ) e ON true
+                """;
+            if (renderedPerf.Split(originalJoin, StringSplitOptions.None).Length != 2)
+                throw new InvalidOperationException("Expected exactly one availability join.");
+            var indexedPerf = renderedPerf.Replace(originalJoin, indexedJoin, StringComparison.Ordinal);
+            const string explainPrefix = "EXPLAIN (ANALYZE, BUFFERS, SETTINGS)";
+            if (!renderedPerf.TrimStart().StartsWith(explainPrefix, StringComparison.Ordinal))
+                throw new InvalidOperationException("Unexpected EXPLAIN prefix.");
+
+            static string AsQuery(string statement) => statement
+                .Trim().Replace("EXPLAIN (ANALYZE, BUFFERS, SETTINGS)", "", StringComparison.Ordinal)
+                .Trim().TrimEnd(';');
+            // Both complete per-cell result sets are evaluated inside one SQL
+            // statement/snapshot. EXCEPT in both directions compares counts AND
+            // all three availability partitions, not just selected ID sets.
+            var aggregateParity = """
+                WITH baseline AS MATERIALIZED (
+                __BASELINE__
+                ), indexed AS MATERIALIZED (
+                __INDEXED__
+                ), differences AS (
+                    (SELECT * FROM baseline EXCEPT SELECT * FROM indexed)
+                    UNION ALL
+                    (SELECT * FROM indexed EXCEPT SELECT * FROM baseline)
+                )
+                SELECT (SELECT count(*) FROM baseline) AS baseline_cells,
+                       (SELECT count(*) FROM indexed) AS indexed_cells,
+                       (SELECT coalesce(sum(location_count),0)::bigint FROM baseline) AS baseline_locations,
+                       (SELECT coalesce(sum(location_count),0)::bigint FROM indexed) AS indexed_locations,
+                       (SELECT count(*) FROM differences) AS differing_cell_rows,
+                       NOT EXISTS (SELECT 1 FROM differences) AS aggregates_match;
+                """
+                .Replace("__BASELINE__", AsQuery(renderedPerf), StringComparison.Ordinal)
+                .Replace("__INDEXED__", AsQuery(indexedPerf), StringComparison.Ordinal);
+            return "-- P2e selected-location LATERAL availability with original MapFilter: " + name + "\n" + """
+                SET ROLE chargewatch_read;
+                BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+                SET LOCAL statement_timeout = '5s';
+                SET LOCAL lock_timeout = '1s';
+                SET LOCAL jit = off;
+                """ + "\n" + (includeParity ? Render(parity) + "\n" : "") +
+                aggregateParity + "\n" + indexedPerf + "\n" + """
+                ROLLBACK;
+                RESET ROLE;
+                """;
+        }
         return "-- " + (correlateTechnicalFilter ? "P2d correlated location-first" : "P2b geography-first") + " with original MapFilter: " + name + "\n" + """
         SET ROLE chargewatch_read;
         BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
         SET LOCAL statement_timeout = '5s';
         SET LOCAL lock_timeout = '1s';
         SET LOCAL jit = off;
-        """ + "\n" + (includeParity ? Render(parity) + "\n" : "") + Render(perf) + "\n" + """
+        """ + "\n" + (includeParity ? Render(parity) + "\n" : "") + renderedPerf + "\n" + """
         ROLLBACK;
         RESET ROLE;
         """;
