@@ -1,3 +1,9 @@
+## P1a eerste A1 grote-regio benchmark ontvangen — 3 november 2026
+
+De gebruiker leverde een werkelijke A1-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-uitvoer: **770,699 ms uitvoering**, 34,818 ms planning, 71.026 locaties, 8 rastercellen; ruimtelijke bitmap-indexscan met 2 parallel workers; 216.159 actieve EVSE-rijen via een Seq Scan; Hash Right Join en HashAggregates met Batches=1 (geen aangetoonde disk-spill). Root buffers `hit=1763,read=52252,dirtied=3018,written=10305`. De eerdere A1-groteregio-meting van 844,151 ms is niet rechtstreeks causaal vergelijkbaar. **De gepaarde A2-uitvoer ontbreekt nog**; geen performancewinnaar aanwijzen. Vastgelegd in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Geen schema/app-wijzigingen, merge of deployment.
+
+---
+
 ## P1a eerste gepaarde A1/A2-read-only benchmark voorbereid — 3 november 2026
 
 [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md) geeft het eerstvolgende uitvoerbare performancewerk: één sanity-checkpaar `EXPLAIN (ANALYZE, BUFFERS)` voor directe join (A1) versus bestaande complete-grid nationale EVSE-preaggregatie (A2), **dezelfde grote zoom-8-rastercellen en eenvoudige proefstatussen**. Nog **niet uitgevoerd**; eerst resultaten en outputplannen beoordelen, daarna gecontroleerde afwisselende herhalingen en kleinere Oss-regio. Eerder gemeten A1/A2-resultaten zijn slechts losse runs, geen definitieve ranking. Geen heropening Q5 of bestaande NDW-logica. Geen productiecode, schema, deployment of merge; PR #114 draft.
