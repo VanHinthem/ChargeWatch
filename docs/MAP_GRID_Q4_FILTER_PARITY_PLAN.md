@@ -9,7 +9,7 @@
 - `mode`: `ac`, `dc` (meervoudig);
 - `power`: `lt50`, `gte50`, `gte150`, `gte300` (exclusief één);
 - `minFree`: `0`, `1`, `2`;
-- `operator`: exacte, case-sensitive? vergelijking via `btrim(l.operator_name) = ANY($n::text[])`, met max 100 operators.
+- `operator`: vergelijking volgens bestaande databasecollatie via `btrim(l.operator_name) = ANY($n::text[])`, met max 100 operators.
 
 `LocationPredicate(startParameter)` is de **enige bron van waarheid** voor de locatie-selectie; de nieuwe overview moet die generator en `AddParameters` met dezelfde parameters in dezelfde volgorde gebruiken. `EffectiveWattsSql` bepaalt vermogen inclusief berekende waarden bij null `max_electric_power`; meerdere connectoren op dezelfde EVSE mogen `minFree` niet dubbel tellen. Operator werkt op locatieniveau, technische filters op EVSE/connector-EXISTS, `minFree` telt alleen passende beschikbare EVSE's bij actief technisch filter. Een locatie met een technisch filter wordt geselecteerd bij minstens één *operationele* EVSE die de connectorvoorwaarde vervult.
 
