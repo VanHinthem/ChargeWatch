@@ -1,3 +1,11 @@
+## Q4a EVSE-filter-ID-setcontrole geslaagd — 3 november 2026
+
+De gebruiker voerde de read-only Q4a-proef op productie uit. Bij `connectorType=ccs2&mode=dc` leverde `minFree=1` **12 referentie-ID's / 12 afgeleide ID's, differing_ids=0, ids_match=t**; bij `minFree=2` **10/10, differing_ids=0, ids_match=t**. Zie [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) voor query en werkelijke uitvoer. Deze geslaagde SQL-semantiekcontrole bewijst **niet** dat de definitieve overview C#-generator of Npgsql-binding correct is, noch de overige Q4-scenario's.
+
+**Vervolg:** kleine lokale, niet-productie C#-testharness met echte `MapFilter.TryParse`, `LocationPredicate` en `AddParameters`; daarna Q4-ID-setvergelijking onder één read-only databasesnapshot. Q5 (bronkwaliteitsclassificatie) blijft open. Geen productiecode, schemawijziging, deploy of merge; PR #114 blijft draft.
+
+---
+
 ## Q4a read-only filter-ID-controle voorbereid — 3 november 2026
 
 [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) is toegevoegd: **nog niet uitgevoerde**, read-only SQL-controle op de oorspronkelijke Oss-bbox. De proef vergelijkt onafhankelijke **locatie-ID-sets** bij `connectorType=ccs2`, `mode=dc`, `minFree=1` en `minFree=2` tussen de bestaande `MapFilter.LocationPredicate`-achtige `EXISTS/count`-structuur en een `COUNT(DISTINCT EVSE)`-vrije, één-rij-per-EVSE aggregatie met connector-`EXISTS`. Criteria: `differing_ids=0`, `ids_match=t` voor beide minFree-waarden. Dit is expliciet **nog geen C#-Npgsql-integratietest** en geen volledige filterpariteit: operator, alle power-banden, multi-value, statusbrongegevens moeten later getoetst worden. Om die reden verwijst de proef naar de oorspronkelijke bbox en mag absolute telling niet gelijkgesteld worden met Q1's uitgebreid-celgebied.
