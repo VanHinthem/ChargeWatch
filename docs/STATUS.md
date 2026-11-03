@@ -1,3 +1,11 @@
+## A3 read-only EVSE-selectiebenchmark klaar — 3 november 2026
+
+De nieuwe [A3-proefquery](MAP_GRID_A3_SELECTED_EVSE_BENCHMARK.md) selecteert eerst actieve locaties in het geografische raster en telt daarna via `LEFT JOIN LATERAL` alleen hun actieve EVSE's. Doel: vermijden dat A2 bij een kleine viewport alle **214.400** EVSE's van de dataset vooraf aggregeert. Vergelijkingen: A1 Oss 78,890 ms / groot raster 844,151 ms; A2 Oss 369,545 ms / groot raster 743,756 ms. De nieuwe A3 is **nog niet uitgevoerd**. Begin met Oss zoom 11; pas na beoordeling het grote zoom-8-gebied; JIT uit, read-only rol en statement-/lock-timeout van respectievelijk 5/1 seconden. De voorlopige eenvoudige statusclassificatie en filterloze SQL zijn niet bedoeld als uiteindelijke API-implementatie.
+
+Geen productiegegevens gewijzigd, code-implementatie, merge of NAS-deployment.
+
+---
+
 ## A2-productiebenchmark EVSE-preaggregatie — 3 november 2026
 
 **Werkelijk door gebruiker gedraaid** met `chargewatch_read`, JIT uit, zoom-8 grote-regiocellen. `Execution Time=743.756 ms`, `Planning=43.582 ms`. `locations` leverde **70.657 actieve laadlocaties**, eind-HashAggregate **8 gridcellen**. `evse_counts AS MATERIALIZED` gaf een `HashAggregate` met **83.530 afzonderlijke location_id-rijen** uit **214.400 actieve EVSE-rijen** via één Seq Scan; geheugen 6.681 kB, batches 1. Erna `Hash Left Join` op `location_id`; join-hash circa 5.593 kB. Buffers shared hit **11.109**, read **42.867**, temp written **346** (CTE Scan disk). Dit zijn 83.530 EVSE-locatie-ID's, niet hetzelfde als 83.530 actieve kaartlocaties; ook inactieve locaties kunnen gerelateerde actieve EVSE's bezitten.
