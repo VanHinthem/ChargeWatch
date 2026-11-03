@@ -1,3 +1,11 @@
+## Q1 rasterintegriteit werkelijk geslaagd — Oss, 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) uit op productiedatabase met `chargewatch_read` en `READ ONLY`. **matched_locations=2.101; unique_matched_locations=2.101; owned_locations=2.101; classified_locations=2.101; grid_cells=4; cell_location_sum=2.101; green_locations=1.834; red_locations=177; unknown_locations=90; partition_ok=t**. Alle locatie-/cel- en drie-kleuren-somregels sluiten in deze reële Oss-dataset. Het is slechts één geografisch gebied op zoom 11, onder **voorlopige conservatieve statusclassifier**, dus nog geen bewijs van de definitieve NDW/Android-bronbetrouwbaarheid, gehele NL-dekking, filters of grenspunten. Q1 heeft geen productiedata gewijzigd.
+
+**Vervolg:** Q2 synthetische Web Mercator-celgrenspunten en aangrenzende cell requests read-only toetsen, plus filterpariteit en betrouwbaarheid apart. Geen API/Android-implementatie, merge of NAS-deploy.
+
+---
+
 ## Q1 functionele integriteitscontrole voorbereid — 3 november 2026
 
 Na de A1–A4-read-only benchmarks is [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) toegevoegd aan de ontwerpbranch. Deze **nog niet uitgevoerde**, direct in `psql` bruikbare **read-only** controle begint bij Oss zoom 11 en toetst: `matched = unique = owned = classified = sum(cell.location_count)` en `sum(cell.location_count)=green+red+unknown`. Hiermee toetsen we de volledige Web Mercator-celuitbreiding, canonieke individuele celtoewijzing en interne telintegriteit; expliciet `partition_ok`. Het prototype kent een conservatieve voorlopige statusclassifier, **geen** gevalideerde staleness-/brongegevensregel of volledige API-filterpariteit. Na een geslaagde Q1 zijn grenspuntfixtures, filterpariteit en bronkwaliteit nog expliciet open.
