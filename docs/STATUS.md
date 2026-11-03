@@ -1,3 +1,9 @@
+## Q5c bronupdate versus feedwaarneming vastgelegd — 3 november 2026
+
+[MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md) staat nu op de ontwerpbranch (commit `51425d64`). Het document bevat een **nog niet uitgevoerde** read-only NAS-proef met het globale `snapshot_poll_checkpoint.last_observed_at`, de laatste voltooide import en bronupdate-leeftijdsbanden voor operationele EVSE's in de bestaande Oss-bbox. Q5c onderscheidt expliciet `source_last_updated` van onafhankelijke, geslaagde NDW-feedwaarneming; oude statuswijzigingen worden niet zonder meer als verouderde beschikbaarheid aangemerkt. Q5a/Q5b zijn uitgevoerd; Q4c-04c en Q4c-08b synthetisch blijven open. Geen productiecode, mutaties, merge of deploy; PR #114 draft.
+
+---
+
 ## Q5b status- en locatieonzekerheid NAS gevalideerd — 3 november 2026
 
 Werkelijke Q5b-output: **204 operationele EVSE's = 151 AVAILABLE, 48 CHARGING, 4 UNKNOWN, 1 OUTOFORDER; alle 204 met niet-null `source_last_updated`**. Oudste bron-updateleeftijden (min): AVAILABLE 121937,3 (~84,7 d), CHARGING 8585,5 (~6,0 d), UNKNOWN 3802,2 (~2,6 d), OUTOFORDER 2548,4 (~1,8 d). **98 locaties**: 86 minstens één AVAILABLE zonder UNKNOWN; 10 geen AVAILABLE en wel volledig bekende statussen; **2 geen AVAILABLE met UNKNOWN**; 0 free+UNKNOWN, 0 zonder operationele EVSE's; `location_partition_ok=t`. De Q5b-partitie is geslaagd, maar bronupdateleeftijd is niet hetzelfde als feed-/individuele waarnemingsouderdom. Twee onzekerheidslocaties mogen niet stellig rood worden getoond. Q5c bronobservatie/completeness nog nodig. Zie [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md). Q4c-04c en Q4c-08b synthetisch blijven open. PR #114 draft; geen mutaties, merge of deploy.
