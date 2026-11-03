@@ -21,6 +21,13 @@ internal static class OverviewPerformanceExporter
         return string.Join("\n\n", scenarios.Select(x => Emit(x.Name, x.Query)));
     }
 
+    public static string CreateScenario(string name) => name switch
+    {
+        "ccs2_dc" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc" }),
+        "ccs2_dc_minfree1" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc", ["minFree"] = "1" }),
+        _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown fixed benchmark scenario")
+    };
+
     private static string Emit(string name, Dictionary<string, StringValues> entries)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
