@@ -19,6 +19,13 @@ internal static class Q4cSqlExporter
                 ["power"] = power
             })));
 
+    public static string CreateMinFree() => string.Join("\n\n",
+        new[] { "1", "2" }
+            .Select(value => Create($"Q4c-03 minFree={value}", new Dictionary<string, StringValues>
+            {
+                ["minFree"] = value
+            })));
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
