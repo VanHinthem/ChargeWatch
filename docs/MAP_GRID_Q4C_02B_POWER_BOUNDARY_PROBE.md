@@ -36,3 +36,16 @@ De SQL voert `SET ROLE chargewatch_read`, `REPEATABLE READ READ ONLY`, `statemen
 - Q4-03 t/m Q4-08 en Q5 blijven open. De huidige `gte300` viewport had nul matches; een latere positieve settest op groter/gepast gebied is wenselijk.
 
 De generator is toegevoegd aan de ontwerpbranch, maar **niet lokaal gebouwd en niet op de NAS uitgevoerd**. PR #114 blijft draft; geen merge/deploy.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+Gebruiker voerde de gegenereerde read-only SQL daadwerkelijk uit. **15/15 synthetische fixtures hadden `value_ok=t` en `all_values_ok=t`**, inclusief 49.999/50.000, 149.999/150.000, 299.999/300.000 W, AC-éénfase, AC-driefase, DC, expliciete voorrang, nul-fallback en ontbrekende gegevens. De vier bandbooleans waren conform de verwachte drempels; `NULL` matchte geen vermogensband.
+
+Werkelijke connectortelling:
+
+| active_connectors | explicit_positive | calculated_positive | unknown_power | exactly_50kw | exactly_150kw | exactly_300kw |
+|---:|---:|---:|---:|---:|---:|---:|
+| 216262 | 144940 | 67893 | 3429 | 1116 | 1862 | 1318 |
+
+De categorieën expliciet/berekend/onbekend sommeren tot 216.262: 67,0%, 31,4%, 1,6% afgerond. Grenswaarden zijn dus daadwerkelijk in de brondata aanwezig. **Q4c-02b PASS voor deze 15 synthetische grens-/fallbackcases en geobserveerde productie-distributie.** Deze telling toont niet onafhankelijk alle ruwe NDW-vermogensvelden juist te zijn; Q5 bronkwaliteitscontract blijft apart. Er waren geen muterende databasehandelingen, schemawijzigingen, deploy of merge.
