@@ -1,3 +1,9 @@
+## Q4c-04b onafhankelijke unieke-EVSE-telling voorbereid — 3 november 2026
+
+De bestaande MapFilterQ4Probe biedt `--emit-q4c04b` voor een **nog niet uitgevoerde** onafhankelijke read-only controle van de eerdere positieve CCS2/DC/gte150/minFree=2-locatie. In plaats van de gedeelde `LocationPredicate`-telling gebruikt de controlevorm een zelfstandige `JOIN connector`, `GROUP BY location_id, evse_id` en `count(DISTINCT evse_id)`, terwijl het vermogen rechtstreeks uit `MapFilter.EffectiveWattsSql` wordt gegenereerd. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). De werkelijke resultaten kunnen de unieke-EVSE-telling en connectorrijverschillen bevestigen, maar voor bewijs van exact dezelfde feature-ID is een expliciete ID-vergelijking nodig als deze niet al is vastgelegd. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Geen API/Android-implementatie, DB-wijziging, merge of deployment.
+
+---
+
 ## Q4c-04 gecombineerde filter-ID-setpariteit geslaagd — 3 november 2026
 
 Werkelijke NAS-proef: `ccs2+dc+gte150+minFree=2` selecteerde **1 viewport-ID, 7 volledige grid-owned ID's en 1 geclipte ID**, met `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-04 ID-setpariteit geslaagd met positieve match, maar onafhankelijk bewijs van minstens twee *unieke passende AVAILABLE EVSE's* is nog nodig; de bestaande `MapFilter` wordt immers aan beide zijden gebruikt. Daarna operatoren/multivalue/lege set en locatiebrede ringstatus valideren. Zie [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md). PR #114 draft; geen schemawijziging, deploy of merge.
