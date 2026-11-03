@@ -1,3 +1,17 @@
+## A4-productiemeting Oss en afronding A1–A4-verkenning — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only/JIT uit:** A4 Oss zoom-11 volledige cellen **2.101 laadlocaties, 4 gridcellen**; `Execution Time=229.671 ms`, `Planning Time=26.250 ms`. Ondanks relatief kleine selectie kiest PostgreSQL `Seq Scan on evse` van **214.804 actieve EVSE's**, `Hash Join` naar **5.099 actieve EVSE's** in geselecteerde locaties en `HashAggregate` naar 2.101 `location_id`-samenvattingen. Shared buffers `hit=840/read=30.289/dirtied=2.175/written=4.321`. Het spatial-filter gebruikt `ix_charging_location_active_position`. Data wijzigen tijdens reeks (Oss 2.100 eerder, nu 2.101).
+
+**Volledige eenmalige JIT-uit productiemetingen (niet gecorrigeerd voor cache, NAS-belasting, datagroei):**
+- A1 direct join: Oss **78,890 ms**, zoom-8 uitgebreid gebied **844,151 ms**
+- A2 volledige EVSE-preaggregatie: Oss **369,545 ms**, groot **743,756 ms**
+- A3 LATERAL per geselecteerde locatie: Oss **104,811 ms**, groot **1100,014 ms**
+- A4 locaties + geselecteerde EVSE-join/group: Oss **229,671 ms**, groot **763,406 ms**.
+
+**Aanbevolen richting:** niet meer op ad-hoc varianten sturen. Vergelijk daarna een **adaptieve A1/A2-keuze op geschat/gemeten aantal locaties** en eventueel één A1-query met PostgreSQL's automatische joinplankeuze (A1 kiest immers zelf al nested-loop/index voor klein en merge/seq voor groot). A2 was in de grote regio slechts 100 ms sneller dan A1 in niet-gecontroleerde runs; omschakeling is daarom nog **geen bewezen behoefte**. Test meerdere herhalingen/warm-cache, representatieve geografische gebieden, filters, echte bronbetrouwbaarheidsregels, exacte griddekking/celdaantallen, concurrency en collectorimpact vóór keuze. **Geen code, schema, migratie, merge of deploy.**
+
+---
+
 ## A4-productiemeting grote zoom-8-coverage — 3 november 2026
 
 **Werkelijk door gebruiker uitgevoerd, read-only, JIT uit:** A4: **70.700 geselecteerde actieve laadlocaties** (A3 eerder 70.664), 8 rastercellen; `Execution Time 763.406 ms`, `Planning Time 29.260 ms`, buffers `shared hit=1.499, read=52.528, dirtied=2.563, written=15.558`. `locations` gebruikt `ix_charging_location_active_position`; `evse_counts` gebruikt één `Seq Scan` van **214.692 actieve EVSE's** gevolgd door `Hash Join` op 70.700 geselecteerde `location_id` en `HashAggregate` van **180.094 gekoppelde EVSE-rijen** naar 70.700 `location_id`-samenvattingen. Einde: `Hash Left Join` en `HashAggregate` naar 8 cellen. Hash-aggregaties blijven in 1 batch en RAM, geen temp-I/O gerapporteerd. Deze ene uitvoering is **~19,7 ms trager dan A2 groot (743.756 ms)** en sneller dan A3 groot (1100.014 ms), maar datasets/cache/NAS-belasting verschillen; dus geen harde rangorde.
