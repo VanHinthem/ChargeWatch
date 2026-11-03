@@ -57,3 +57,11 @@ dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj
 ```
 
 De harness is op GitHub vastgelegd, maar **niet gebouwd of uitgevoerd** in de huidige toolomgeving (geen .NET SDK beschikbaar). Een PASS bewijst uitsluitend SQL-generator-/parametercontracten; de daarna noodzakelijke Q4-00..08 vergelijking van echte pre-cluster feature-ID-sets moet nog onder een gedeeld read-only snapshot plaatsvinden. Voor Q4-08 blijft de locatieselectie gelijk maar moet de locatiebrede ringtelling afzonderlijk worden getoetst. Geen deploy/migratie/merge.
+
+
+## Q4b lokale MapFilter-generatorcontrole geslaagd — 3 november 2026
+
+De gebruiker heeft `dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj` lokaal uitgevoerd: **14/14 PASS**, inclusief Q4-00..Q4-08 en de afzonderlijke arrayparametercombinatie. De daadwerkelijke output bevestigt het aantal Npgsql-commandparameters voor viewport/overview (4/5 zonder filters; 7/8 met alle drie filterarrays), identieke filterwaarden, `text[]`-typen en dezelfde SQL-predicaten met indexverschuiving 5→6. Dit is een **generatorcontracttest zonder SQL-database-uitvoering**. Q4a SQL-semantiekcontrole (CCS2/DC/minFree 1/2) was eerder eveneens geslaagd. **Q4c open:** op één read-only PostgreSQL-snapshot daadwerkelijke precluster locatie-ID-sets vergelijken, zonder aparte gekopieerde productiefilterlogica. Geen API-/Android-implementatie, migration, deploy of merge.
+
+---
+
