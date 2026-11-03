@@ -1,5 +1,8 @@
 # ChargeWatch #113 — voorstel API-overviewcontract en zoom-/coveragegedrag
 
+> **Implementatievervolg (3 november 2026):** zie [MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md](MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md) voor kleine PR's, harde validatiegates en code-audit. **Correctie voor het illustratieve JSON-voorbeeld hieronder:** de huidige `MapLocationItem.FeatureId` is een samengestelde **string** (`country_code-party_id-source_id`), niet een numeriek DB-ID. Het voorbeeld `"featureId": 12345` is dus **geen goedgekeurd eindcontract**. In de implementatie moet `featureId` string blijven; een eventuele interne `locationId: long` komt apart. De 500-objectgrens is voorlopig als ontwerpuitgangspunt geaccepteerd, niet al op een fysiek toestel gevalideerd.
+
+
 **Datum:** 3 november 2026  
 **Status:** ontwerpvoorstel ter review; **geen implementatie-/merge-/deployakkoord**. Dit document vervangt geen bestaande API zolang migratie niet expliciet is goedgekeurd.
 
@@ -70,7 +73,7 @@
       "kind": "location",
       "gridX": 133,
       "gridY": 84,
-      "featureId": 12345,
+      "featureId": "NL-ABC-example-ocpi-id",
       "latitude": 52.2,
       "longitude": 5.4,
       "availableCount": 1,
