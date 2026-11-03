@@ -1,3 +1,8 @@
+## Q4c-02b EffectiveWattsSql-grenzen en echte NDW-vermogens geslaagd — 3 november 2026
+
+De door gebruiker op NAS gedraaide read-only Q4c-02b-proef was **15/15 PASS** voor de synthetische grens- en fallbackgevallen met de echte productie-`MapFilter.EffectiveWattsSql`. Echte connectorpopulatie: **216.262 actief; 144.940 expliciet positief, 67.893 berekend positief, 3.429 onbekend**. Exacte drempelwaarden: **1.116 × 50 kW, 1.862 × 150 kW, 1.318 × 300 kW**. Deze eerste grens-/fallbackvalidatie is geslaagd, geen algemeen bewijs voor alle mogelijke invoergegevens. Zie [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md). **Vervolg Q4-03:** `minFree=1/2` vergelijken via werkelijke gegenereerde SQL-ID-sets, dan overige gecombineerde filters. Q5 bronkwaliteit open. PR #114 draft; geen mutaties, deploy of merge.
+
+---
 ## Q4c-02b vermogensgrens- en brondata-proef voorbereid — 3 november 2026
 
 De geïsoleerde C#-harness heeft nu `--emit-q4c02b`: read-only SQL direct vanuit productie-`MapFilter.EffectiveWattsSql`, met synthetische waarden rond 50/150/300 kW, AC/DC fallback, expliciete-vermogen-prioriteit en `NULL`-gedrag. Daarnaast een telling van expliciete, berekende, onbekende en exact-grensconnectorvermogens in de echte database. [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md) bevat de Windows/NAS-stappen. **Nog niet gebouwd of uitgevoerd**. Q4c-02 vier live ID-setvergelijkingen geslaagd, inclusief lege gte300 viewport. Q4-03..08 en Q5 blijven open. Geen productiecode- of DB-wijziging, merge of deploy.
