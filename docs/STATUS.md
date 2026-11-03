@@ -1,3 +1,9 @@
+## Q4c-00 ongefilterde ID-setvergelijking voorbereid — 3 november 2026
+
+Productiepreflight door gebruiker: **98 actieve locaties** in bbox `5.50,51.75,5.53,51.77`, onder de oude viewportcap. De read-only, nog niet uitgevoerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) vergelijkt binnen één PostgreSQL-transactie de ongefilterde viewport-ID's met de naar diezelfde bbox teruggeclipte volledige grid-owned ID's, inclusief symmetrisch verschil en uniekheid. Q4a en Q4b geslaagd; Q4c-00-resultaat nog onbekend. Technische filterpariteit volgt met de bestaande C# `MapFilter`-generator. Geen productiecode, schemawijziging, merge of deployment.
+
+---
+
 ## Q4b lokale MapFilter-generatorcontrole geslaagd — 3 november 2026
 
 De gebruiker heeft `dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj` lokaal uitgevoerd: **14/14 PASS**, inclusief Q4-00..Q4-08 en de afzonderlijke arrayparametercombinatie. De daadwerkelijke output bevestigt het aantal Npgsql-commandparameters voor viewport/overview (4/5 zonder filters; 7/8 met alle drie filterarrays), identieke filterwaarden, `text[]`-typen en dezelfde SQL-predicaten met indexverschuiving 5→6. Dit is een **generatorcontracttest zonder SQL-database-uitvoering**. Q4a SQL-semantiekcontrole (CCS2/DC/minFree 1/2) was eerder eveneens geslaagd. **Q4c open:** op één read-only PostgreSQL-snapshot daadwerkelijke precluster locatie-ID-sets vergelijken, zonder aparte gekopieerde productiefilterlogica. Geen API-/Android-implementatie, migration, deploy of merge.
