@@ -1,3 +1,11 @@
+## Q4c-03 geslaagd; Q4c-04 gecombineerd filter voorbereid — 3 november 2026
+
+Gebruiker voerde Q4c-03 met de bestaande `MapFilter`-SQL-generator read-only uit: **minFree=1: 86 viewport-ID's/86 geclipte raster-ID's (380 grid-owned), differing_ids=0, beide unique=t, ids_match=t; minFree=2: 54/54 (266 grid-owned), differing_ids=0, beide unique=t, ids_match=t**. Q4c-03 is geslaagd met twee positieve testsets, zie [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md).
+
+Vervolg: [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md) en harness-optie `--emit-q4c04` voor `ccs2+dc+gte150+minFree=2`; **nog niet lokaal gebouwd of op NAS uitgevoerd**. Nul/nul-resultaten tellen niet als positieve validatie; onafhankelijke EVSE-deduplicatie en locatiebrede ringstatus volgen. Q5 open. Geen DB-mutaties, productieroute, deployment of merge; PR #114 draft.
+
+---
+
 ## Q4c-03 minFree zonder techniekfilter voorbereid — 3 november 2026
 
 De bestaande `MapFilterQ4Probe` bevat nu `--emit-q4c03` voor twee nog niet uitgevoerde read-only precluster locatie-ID-setvergelijkingen met `minFree=1` en `minFree=2`, rechtstreeks uit de bestaande `MapFilter.LocationPredicate(5/6)`. Stappen in [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md). Na de eerdere geslaagde Q4c-02b (15/15 grensgevallen) is dit de volgende NAS-test; gecombineerde technische filters volgen pas daarna. Geen deployment, migratie, productiemutaties of merge.
