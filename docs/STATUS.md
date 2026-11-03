@@ -1,3 +1,8 @@
+## Q4c-02 vier vermogensfilter-ID-sets geslaagd — 3 november 2026
+
+De gebruiker voerde alle vier door `MapFilter.LocationPredicate` gegenereerde powerfilters daadwerkelijk read-only uit: `lt50` viewport/clip **97/97**, `gte50` **1/1**, `gte150` **1/1**, `gte300` **0/0**; telkens `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Volledige grid-owned resultaten respectievelijk **412, 10, 8, 4**. Q4c-02 ID-setpariteit PASS, maar `gte300` heeft geen positieve match binnen de kleine viewport. **Volgende validatie Q4c-02b:** werkelijke en synthetische grenswaarden en berekend connectorvermogen via de productie-`EffectiveWattsSql`. Zie [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). Geen productiecode, DB-mutaties, deploy of merge; PR #114 draft.
+
+---
 ## Q4c-02 vier vermogensbanden voorbereid — 3 november 2026
 
 De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
