@@ -1,3 +1,9 @@
+## Q4c-06 meervoudige connector-/modusfilters voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md) en `MapFilterQ4Probe --emit-q4c06` bevatten drie **nog niet uitgevoerde** read-only ID-setvergelijkingen voor meervoudige `connectorType`- en `mode`-waarden. De centrale `MapFilter`-generator wordt hergebruikt met dezelfde bbox als Q4c-05. Q4c-05 is **3/3 geslaagd** met reële operatoren (87/87, 93/93 en 87/87, telkens `differing_ids=0`). Q4c-04c synthetische EVSE-duplicatie blijft onbevestigd; Q4-07/Q4-08 en Q5 blijven open. Geen API/Android-productiewijziging, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
 ## Q4c-05b operatorfilterpariteit geslaagd — 3 november 2026
 
 Gebruiker voerde drie `MapFilter`-gegenereerde read-only operatorscenario's uit. **Vattenfall InCharge: 87 viewport/87 geclipte raster-ID's (337 grid-owned); Vattenfall + 50five: 93/93 (362); Vattenfall tweemaal: 87/87 (337)**. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4-05 geslaagd voor deze dataset en operatorcombinaties; aanvullende grensgevallen case/whitespace blijven afzonderlijk te beoordelen. Zie [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). Volgende Q4-06 multi-connector/mode, Q4-07 lege ID-sets, Q4-08 ringclassificatie; Q4c-04c duplicatiefixture nog niet uitgevoerd. Geen productieimplementatie, mutaties, deploy of merge; PR #114 draft.
