@@ -67,3 +67,23 @@ SQL
 Controleer dat de tijdsbanden plus ontbrekende/toekomstige bronupdates per status optellen tot `total`. Vergelijk `feed_age_minutes` met de bestaande API-drempel als diagnostiek, maar verklaar EVSE's niet automatisch stale op basis van `source_last_updated`. Een recente globale feedcheckpoint is evenmin onafhankelijk bewijs voor complete, actuele statusdekking van elke individuele locatie.
 
 Voor het uiteindelijke Q5-ringcontract moet apart worden besloten hoe een bewezen AVAILABLE, nul AVAILABLE met UNKNOWN, nul AVAILABLE met volledig bekende operationele status, nul operationele capaciteit, onvolledige locatiedekking en een onbevestigde/stale feed worden verwerkt. Q4c-04c en Q4c-08b synthetische testresultaten zijn nog niet ontvangen. Geen API-, Android- of databasewijzigingen, deployment of merge; PR #114 blijft draft.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026
+
+De gebruiker heeft beide read-only Q5c-resultaatsets gerapporteerd:
+
+- `feed_last_observed_at=2026-11-03 11:42:30.020752+00`, `feed_age_minutes=3.5` op meetmoment.
+- `last_completed_import_at=2026-11-03 11:42:30.064218+00` (ongeveer 43 ms na globale checkpoint-timestamp).
+
+| Status | totaal | bron-null | toekomst | 0–15 min | 15 min–1 dag | 1–7 dagen | >7 dagen |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| AVAILABLE | 149 | 0 | 0 | 1 | 101 | 39 | 8 |
+| CHARGING | 50 | 0 | 0 | 3 | 46 | 1 | 0 |
+| UNKNOWN | 4 | 0 | 0 | 0 | 2 | 2 | 0 |
+| OUTOFORDER | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
+| **Totaal** | **204** | **0** | **0** | **4** | **149** | **43** | **8** |
+
+**Q5c PASS voor de diagnostische timestamp-partitie:** 204/204 operationele EVSE's zijn volledig over de tijdsbanden verdeeld; geen ontbrekende of toekomstige timestamps. 200/204 hebben een bronupdate ouder dan 15 minuten bij een feedobservatie van 3,5 minuten oud. Deze observatie bevestigt dat `source_last_updated` niet als enige freshness-voorwaarde voor overview-ringen kan worden gebruikt. Een vers feedcheckpoint alleen bewijst ook geen individuele statusactualiteit of complete locatiesnapshot. De 149 AVAILABLE/50 CHARGING verschillen van Q5b (151/48) omdat de NDW-data tussen de twee onafhankelijke momentopnamen gewijzigd kan zijn; er is geen bewijs van een dataconflict.
+
+Q5d moet de semantische beslisregels en bewijsniveaus voor feedobservatie, geverifieerde volledigheid, status UNKNOWN, nul operationele EVSE's en defekte/geblokkeerde EVSE's expliciteren vóór implementatie. Geen productie-, migratie-, NAS- of mergeactie.
