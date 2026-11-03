@@ -1,3 +1,9 @@
+## Q4c-07 lege locatie-ID-settest voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
+
+---
+
 ## Q4c-06 meervoudige connector-/modusfilter-ID-sets geslaagd — 3 november 2026
 
 Werkelijke read-only NAS-uitvoer: **CCS2+CHAdeMO AC+DC** viewport/clip 2/2, grid-owned 13; **TYPE2+CCS2 AC+DC** 98/98, grid-owned 419; **CCS2+CHAdeMO DC** 2/2, grid-owned 13. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-06 heeft drie positieve selecties en is voor deze data geslaagd. De onderliggende same-connector AND/OR-semantiek verdient nog onafhankelijke fixturecontrole. Zie [MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md). **Vervolg Q4-07** lege resultaten; vervolgens Q4-08 locatiebrede ring, Q4c-04c synthetische deduplicatie en Q5. PR #114 draft; geen productiewijziging, merge of deployment.
