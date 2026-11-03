@@ -28,7 +28,15 @@ internal static class OverviewGeoFirstExporter
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown fixed benchmark scenario")
     };
 
-    private static string Emit(string name, Dictionary<string, StringValues> entries, bool includeParity = true)
+    // P2d: force a correlated location-by-location filter evaluation without
+    // changing the generated MapFilter expression. OFFSET 0 acts as a
+    // subquery-planner fence; actual behavior must be checked with EXPLAIN.
+    public static string CreateCorrelatedCcs2Dc() =>
+        Emit("ccs2_dc", new() { ["connectorType"] = "ccs2", ["mode"] = "dc" },
+             includeParity: true, correlateTechnicalFilter: true);
+
+    private static string Emit(string name, Dictionary<string, StringValues> entries,
+        bool includeParity = true, bool correlateTechnicalFilter = false)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
             throw new InvalidOperationException(error);
@@ -134,11 +142,20 @@ internal static class OverviewGeoFirstExporter
                )::bigint AS locations_unknown
         FROM per_location GROUP BY cx,cy ORDER BY cy,cx;
         """;
+        var geoTemplate = correlateTechnicalFilter
+            ? geo.Replace(
+                "FROM geo_locations l\n            WHERE true __FILTER__",
+                "FROM geo_locations l\n            CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched",
+                StringComparison.Ordinal)
+            : geo;
+        if (correlateTechnicalFilter && geoTemplate == geo)
+            throw new InvalidOperationException("Correlated filter SQL template not applied.");
+
         string Render(string template) => template
-            .Replace("__GEO__", geo, StringComparison.Ordinal)
+            .Replace("__GEO__", geoTemplate, StringComparison.Ordinal)
             .Replace("__FILTER__", predicate, StringComparison.Ordinal)
             .Replace("__CASE__", name, StringComparison.Ordinal);
-        return "-- P2b geography-first with original MapFilter: " + name + "\n" + """
+        return "-- " + (correlateTechnicalFilter ? "P2d correlated location-first" : "P2b geography-first") + " with original MapFilter: " + name + "\n" + """
         SET ROLE chargewatch_read;
         BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
         SET LOCAL statement_timeout = '5s';
