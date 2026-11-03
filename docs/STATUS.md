@@ -1,3 +1,11 @@
+## A2-productiebenchmark klaar voor uitvoering — 3 november 2026
+
+De nieuwe [A2 read-only benchmarkquery](MAP_GRID_A2_PREAGG_BENCHMARK.md) is toegevoegd aan ontwerpbranch #114. **Doel:** de bestaande grote regio/zoom-8-coverage met 70.657 actieve locaties en acht rastercellen opnieuw meten, nu met `evse_counts AS MATERIALIZED (SELECT location_id, count(*) FILTER (...) ... GROUP BY location_id)` vóór de join naar kaartlocaties. De geografische query en eenvoudige statusclassificatie blijven gelijk aan A1; JIT uit en standaard PostgreSQL-parallelisme toegestaan. Deze variant kan door volledige EVSE-preaggregatie bij kleine viewports slechter presteren; nog geen meetclaims.
+
+A1-meting parallel: 844,151 ms. A1 zonder parallel workers: 1.131,140 ms. Gebruiker heeft gecontroleerde read-only productiemetingen toegestaan. De A2-query is gereed om door gebruiker op NAS uit te voeren; vanuit deze tools geen NAS-shell beschikbaar. **Nog niet uitgevoerd**; geen databasewijziging, migratie, code, merge of deploy.
+
+---
+
 ## A1-productiemeting parallelisatie uit — 3 november 2026
 
 Gebruiker voerde identieke read-only zoom-8 query uit met `jit=off`, `max_parallel_workers_per_gather=0`, zelfde circa-NL-gridcoverage: **70.657 locaties, 8 gridcellen**, `Execution Time 1131.140 ms`, `Planning Time 31.229 ms`; buffers `shared hit=20, read=52.535, written=1478`, temp `read=1882, written=1887`. Planner gebruikt actieve-locaties-GiST, `Merge Left Join` naar één `Seq Scan` van **214.400 actieve EVSE-rijen**, met externe sortering. De vorige parallelle run was **844.151 ms** met `hit=35.506/read=74.055`: deze twee runs verschillen sterk in cache-/I/O-toestand, dus het verschil van ~34% is geen zuiver causaal parallelisme-effect.
