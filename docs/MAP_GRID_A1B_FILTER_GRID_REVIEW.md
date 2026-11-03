@@ -127,3 +127,36 @@ FROM clusters ORDER BY cell_y,cell_x;
 | F9 | Reeks pannen binnen zelfde cellen, dan over rand | Stabiele cell-ID en telling, geen verschuivende clusters |
 
 **Nog niet opgelost:** echte representatieve fixture-executie, PostgreSQL-syntaxis-/plannercheck, contract voor betrouwbare `publishedVersion`, centrale statuskwaliteit en veilige tilecache-invalidatie. Ook de Npgsql-parameterbinding moet in C# worden getoetst. **Dit is geen klaar-voor-productie SQL of NAS-meting.**
+
+## Productiebenchmarks: praktische aanpak (3 november 2026)
+
+De gebruiker bevestigt dat hij de enige ChargeWatch-appgebruiker is en staat open voor directe read-only metingen op productie. **Dit betekent toestemming voor gecontroleerde benchmarks, niet voor muterende databaseoperaties, migraties, merge of deployment.** De NDW-collector draait nog steeds en kan door een onbegrensde SELECT worden beïnvloed.
+
+In `deploy/nas/compose.yaml` heeft de database geen gepubliceerde hostpoort. De API verbindt als `chargewatch_read`; `db/tests/018_readonly_api_role_smoke.sql` bevestigt beoogde SELECT-only privileges. Er is in de huidige tools **geen NAS/SSH-verbinding beschikbaar**. Daarom moeten commando's expliciet door de gebruiker worden uitgevoerd; geen testresultaten claimen voor die stap.
+
+**Stap 1: preflight (uitsluitend leesoperaties).** De bestaande NAS Compose-map is `/volume2/docker/chargewatch`. Door eerst `SET ROLE` te gebruiken en daarna `BEGIN ... READ ONLY` worden inspecties uitgevoerd met read-rechten en in een read-only transactie. Het lokale `chargewatch_owner`-account is alleen voor de containerverbinding; de actieve SQL-rol wordt daarna `chargewatch_read`. Stop onmiddellijk als de rolwissel mislukt.
+
+```sh
+cd /volume2/docker/chargewatch
+sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
+  -U chargewatch_owner -d chargewatch <<'SQL'
+SET ROLE chargewatch_read;
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SET LOCAL statement_timeout = '5s';
+SET LOCAL lock_timeout = '1s';
+
+SELECT current_user, current_database(), current_setting('transaction_read_only') AS read_only;
+SELECT tablename, indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename IN ('charging_location','evse','connector')
+ORDER BY tablename, indexname;
+SELECT count(*) AS active_locations FROM charging_location WHERE is_active;
+SELECT count(*) AS active_evses FROM evse WHERE is_active;
+
+ROLLBACK;
+RESET ROLE;
+SQL
+```
+
+De twee COUNT-query's kunnen de tabellen lezen maar wijzigen niets; de timeout stopt een te trage uitvoering. Voor een eerste benchmark wordt apart een **uitvoerbare** A1b-query gegenereerd met de bestaande `MapFilter.LocationPredicate` en Npgsql-parameterbinding. **De SQL-template in dit document is nog niet uitvoerbaar door de placeholder** en moet niet rechtstreeks in psql worden geplakt. Eerst `EXPLAIN (FORMAT JSON)` zonder uitvoering, daarna `EXPLAIN (ANALYZE, BUFFERS)` met korte timeout en oplopende gebieden. Het blijft belangrijk SQL-uitvoering en gelijktijdige collectorbelasting te monitoren.
