@@ -1,3 +1,11 @@
+## A2-productiebenchmark EVSE-preaggregatie — 3 november 2026
+
+**Werkelijk door gebruiker gedraaid** met `chargewatch_read`, JIT uit, zoom-8 grote-regiocellen. `Execution Time=743.756 ms`, `Planning=43.582 ms`. `locations` leverde **70.657 actieve laadlocaties**, eind-HashAggregate **8 gridcellen**. `evse_counts AS MATERIALIZED` gaf een `HashAggregate` met **83.530 afzonderlijke location_id-rijen** uit **214.400 actieve EVSE-rijen** via één Seq Scan; geheugen 6.681 kB, batches 1. Erna `Hash Left Join` op `location_id`; join-hash circa 5.593 kB. Buffers shared hit **11.109**, read **42.867**, temp written **346** (CTE Scan disk). Dit zijn 83.530 EVSE-locatie-ID's, niet hetzelfde als 83.530 actieve kaartlocaties; ook inactieve locaties kunnen gerelateerde actieve EVSE's bezitten.
+
+Vergeleken met A1 parallel **844.151 ms** is A2 **100.395 ms / 11,9% sneller in deze ene meting**. A1 serieel was 1131.140 ms. Door afwijkende I/O-/cachebelasting geen bewezen structurele verbetering. Potentiële A2-nadeel: alle EVSE's worden gegroepeerd, ook voor kleine mapviewports. Volgende kandidaat **A3 selecteer eerst actieve locaties, bereken per geselecteerde locatie EVSE-counts met LATERAL of pre-aggregate via join op geselecteerde IDs**. Benchmark op dezelfde grote cellen én klein Oss-gebied met JIT uit, zonder datawrites; bewaak dezelfde eenvoudige telregels. Geen implementatie-, merge- of deploymentakkoord.
+
+---
+
 ## A2-productiebenchmark klaar voor uitvoering — 3 november 2026
 
 De nieuwe [A2 read-only benchmarkquery](MAP_GRID_A2_PREAGG_BENCHMARK.md) is toegevoegd aan ontwerpbranch #114. **Doel:** de bestaande grote regio/zoom-8-coverage met 70.657 actieve locaties en acht rastercellen opnieuw meten, nu met `evse_counts AS MATERIALIZED (SELECT location_id, count(*) FILTER (...) ... GROUP BY location_id)` vóór de join naar kaartlocaties. De geografische query en eenvoudige statusclassificatie blijven gelijk aan A1; JIT uit en standaard PostgreSQL-parallelisme toegestaan. Deze variant kan door volledige EVSE-preaggregatie bij kleine viewports slechter presteren; nog geen meetclaims.
