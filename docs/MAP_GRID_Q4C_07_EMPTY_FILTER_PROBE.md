@@ -32,3 +32,16 @@ sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
 Verwacht `viewport_ids=0`, `grid_candidates=0`, `grid_owned=0`, `overview_clipped_ids=0`, `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Als onverwacht een positieve match verschijnt, eerst de geretourneerde operatorwaarde controleren; de selectie is dan niet langer gegarandeerd leeg.
 
 De gegenereerde SQL gebruikt `SET ROLE chargewatch_read`, `REPEATABLE READ READ ONLY`, `statement_timeout='5s'`, `lock_timeout='1s'`, `jit=off`, `ROLLBACK`. Geen database-/schemamutaties, API-/Android-implementatie, deploy of merge; PR #114 blijft draft.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+Gebruiker voerde het door productie-`MapFilter` gegenereerde read-only SQL-script daadwerkelijk uit:
+
+```text
+fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match
+Q4c-07 nonexistent operator | 0 | 0 | 0 | 0 | 0 | t | t | t
+(1 row)
+```
+
+**Q4c-07 PASS** voor het negatief scenario: de twee SQL-selecties zijn identiek en leeg. Dit test de toekomstige `coverage.complete`-metadata **niet**, omdat er nog geen overview-API bestaat. Geen mutaties, migratie, deployment of merge.
