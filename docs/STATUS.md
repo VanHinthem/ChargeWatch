@@ -1,3 +1,9 @@
+## P1a A1/A2 eerste grote-regiopaar compleet — 3 november 2026
+
+Twee echte NAS-`EXPLAIN (ANALYZE, BUFFERS)`-runs: A1 direct join **770,699 ms** en A2 EVSE-preaggregatie **736,899 ms** op dezelfde geselecteerde **71.026 locaties / 8 complete zoom-8-gridcellen**. Beide scannen 216.159 actieve EVSE's. A2 groepeert eerst 84.212 EVSE-locaties; de `evse_counts`-CTE materialiseert gedeeltelijk op schijf (`temp written=349`), maar de HashAggregates rapporteren `Batches=1`. Eerste paar: A2 **33,8 ms (~4,4%) sneller**, nog geen statistisch betrouwbare ranking vanwege veranderende cache/collectorbelasting. **Vervolg P1b:** omgekeerde/afwisselende herhalingen van dezelfde bestaande A1/A2 complete-grid-query's, daarna Oss; niet opnieuw Q5-statuslogica uitwerken. Resultaten in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). PR #114 blijft draft; geen deploy/merge of productiewijzigingen.
+
+---
+
 ## P1a eerste A1 grote-regio benchmark ontvangen — 3 november 2026
 
 De gebruiker leverde een werkelijke A1-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-uitvoer: **770,699 ms uitvoering**, 34,818 ms planning, 71.026 locaties, 8 rastercellen; ruimtelijke bitmap-indexscan met 2 parallel workers; 216.159 actieve EVSE-rijen via een Seq Scan; Hash Right Join en HashAggregates met Batches=1 (geen aangetoonde disk-spill). Root buffers `hit=1763,read=52252,dirtied=3018,written=10305`. De eerdere A1-groteregio-meting van 844,151 ms is niet rechtstreeks causaal vergelijkbaar. **De gepaarde A2-uitvoer ontbreekt nog**; geen performancewinnaar aanwijzen. Vastgelegd in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Geen schema/app-wijzigingen, merge of deployment.
