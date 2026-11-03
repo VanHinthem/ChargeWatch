@@ -1,3 +1,9 @@
+## Q4c-02b vermogensgrens- en brondata-proef voorbereid — 3 november 2026
+
+De geïsoleerde C#-harness heeft nu `--emit-q4c02b`: read-only SQL direct vanuit productie-`MapFilter.EffectiveWattsSql`, met synthetische waarden rond 50/150/300 kW, AC/DC fallback, expliciete-vermogen-prioriteit en `NULL`-gedrag. Daarnaast een telling van expliciete, berekende, onbekende en exact-grensconnectorvermogens in de echte database. [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md) bevat de Windows/NAS-stappen. **Nog niet gebouwd of uitgevoerd**. Q4c-02 vier live ID-setvergelijkingen geslaagd, inclusief lege gte300 viewport. Q4-03..08 en Q5 blijven open. Geen productiecode- of DB-wijziging, merge of deploy.
+
+---
+
 ## Q4c-02 vier vermogensfilter-ID-sets geslaagd — 3 november 2026
 
 De gebruiker voerde alle vier door `MapFilter.LocationPredicate` gegenereerde powerfilters daadwerkelijk read-only uit: `lt50` viewport/clip **97/97**, `gte50` **1/1**, `gte150` **1/1**, `gte300` **0/0**; telkens `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Volledige grid-owned resultaten respectievelijk **412, 10, 8, 4**. Q4c-02 ID-setpariteit PASS, maar `gte300` heeft geen positieve match binnen de kleine viewport. **Volgende validatie Q4c-02b:** werkelijke en synthetische grenswaarden en berekend connectorvermogen via de productie-`EffectiveWattsSql`. Zie [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). Geen productiecode, DB-mutaties, deploy of merge; PR #114 draft.
