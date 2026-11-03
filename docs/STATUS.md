@@ -1,3 +1,9 @@
+## P1c klein Oss-raster A1/A2 benchmark voorbereid — 3 november 2026
+
+Na twee omgekeerd uitgevoerde P1a/P1b grootgebiedparen zonder stabiele winnaar is [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md) toegevoegd. Het bevat **twee complete, uitvoerbare read-only NAS Bash-blokken** voor A1 direct join en A2 EVSE-preaggregatie, beide met dezelfde Oss-bbox (5.40,51.70,5.62,51.83), volledig Web Mercator-gridniveau 11, `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`, 5s-timeout, `jit=off` en rollback. **Nog niet uitgevoerd**. Eerst één paar A1→A2 meten, exacte queryplannen beoordelen, daarna pas zo nodig omgekeerde herhaling. Geen heropening NDW-/Q5-logica, geen productiecode/DB-wijziging, merge of deploy. PR #114 draft.
+
+---
+
 ## P1b omgekeerde A2/A1-performanceproef: geen stabiele winnaar — 3 november 2026
 
 Tweede groot-zoom8-paar, op verzoek in omgekeerde volgorde **A2 → A1** uitgevoerd: A2 **665,995 ms** en A1 **621,199 ms**. Eerste paar A1 **770,699 ms** versus A2 **736,899 ms**. Gemiddeld uit twee runs elk: A1 **695,949 ms**, A2 **701,447 ms** (verschil circa 0,8%); de winnaar wisselde tussen paren. P1b-planning A2 30,920 ms, A1 34,732 ms. Voor P1b zijn alleen eindregels aangeleverd: niet opnieuw alle plankenmerken of buffers te toetsen. **Nog geen bewijs dat preaggregatie sneller is, geen adaptieve querystrategie invoeren.** Zie [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Volgende focus: één extra gecontroleerd paar indien nodig, daarna kleine Oss-A1/A2-metingen en concrete bottleneckanalyse; geen Q5-redesign. PR #114 draft, geen productie-/DB-mutaties of merge/deploy.
