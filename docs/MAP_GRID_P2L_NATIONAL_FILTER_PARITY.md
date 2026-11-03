@@ -66,3 +66,26 @@ Stuur `p2l-national-filter-parity-result.txt` terug. Bij een timeout of andere f
 - De status-aggregatie volgt exact de **bestaande benchmarkclassificatie**, geen nieuw NDW-/Q5-contract.
 - De bbox is geen echte Nederlandse grenspolygoon. Lege coverage-cellen, overlappende viewportaanvragen en werkelijke API-/Android-response zijn nog niet gevalideerd.
 - Resultaat nog niet op NAS bewezen; technische generator nog niet lokaal gebouwd. PR #114 blijft draft; **geen merge, deploy, API/Android-wijziging of database/schema/indexmutatie**.
+
+
+## Gemeten NAS-resultaat — 3 november 2026: PASS
+
+Gebruiker leverde onderstaande volledige resultaatrij van de P2l read-only landelijke CCS2/DC-pariteitsquery aan:
+
+```text
+original_locations         1608
+reference_locations        1608
+differing_id_cell_rows        0
+original_cells              11
+reference_cells             11
+original_grid_locations   1608
+reference_grid_locations  1608
+differing_grid_rows           0
+parity_matches               t
+```
+
+**P2l exact geslaagd:** de productie-`MapFilter`-gebaseerde oorspronkelijke selectie en de onafhankelijke connector-first CCS2/DC-referentie leveren hetzelfde volledige `(id,cx,cy)`-resultaat zonder afwijkende rijen. De complete zeskolomsrasteruitvoer — inclusief `location_count`, `locations_with_free`, `locations_with_no_free`, `locations_unknown` — is per cel gelijk, **11/11 cellen** en **1.608/1.608 locaties**, `differing_grid_rows=0`. Dit betreft een vergelijking op hetzelfde database-snapshot en de nationale gridLevel8-omsluitende bbox.
+
+In P2k was de originele landelijke CCS2/DC-query al uitgevoerd in **265,966 ms**, zonder 999-afkapping. De combinatie P2k + P2l bevestigt daarmee voor *deze fixture* zowel een geslaagde performance-run als onafhankelijke exacte selectie- en aggregatiepariteit. Dat is **geen** garantie voor alle andere filtercombinaties of productie-API-latentie.
+
+**Volgende contractgate:** andere productie-MapFilter-fixtures (`minFree`, vermogen, operator, combinaties) via dezelfde onafhankelijke methode toetsen; daarna zoom-/coverage-gedrag en responsecontract voorbereiden. Nog geen productiecodewijzigingen, DB-/NDW-migraties, merge of deployment. PR #114 blijft draft.
