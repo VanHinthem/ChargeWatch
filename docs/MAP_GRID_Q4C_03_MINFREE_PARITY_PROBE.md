@@ -26,3 +26,15 @@ sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
 Per rij verwachten we `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Noteer of `viewport_ids` positief is. Twee leeg geselecteerde sets zijn niet genoeg als positieve fixture; dan kiezen we aanvullende echte locatiegegevens. De twee SELECTs binnen elk scenario gebruiken **één REPEATABLE READ READ ONLY snapshot**, `chargewatch_read`, `statement_timeout=5s`, `lock_timeout=1s`, `jit=off`, afsluiting met `ROLLBACK`. De test hergebruikt de bestaande telling van unieke EVSE-rijen binnen `MapFilter`; dit scenario heeft **geen technische filters**. De combinatie technische filters + `minFree` is apart Q4-04. De eerdere onafhankelijke SQL-aggregatie Q4a was reeds geslaagd voor CCS2/DC minFree=1/2 binnen een andere Oss-bbox; dat is aanvullend, niet hetzelfde bewijs.
 
 Geen productiedatabasewrites, schemawijziging, API/Android-implementatie, deploy of merge; PR #114 blijft draft.
+
+
+## Werkelijk NAS-resultaat — 3 november 2026
+
+De gebruiker voerde beide read-only SQL-tests daadwerkelijk uit:
+
+| Fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match |
+|---|---:|---:|---:|---:|---:|---|---|---|
+| minFree=1 | 86 | 380 | 380 | 86 | 0 | t | t | t |
+| minFree=2 | 54 | 266 | 266 | 54 | 0 | t | t | t |
+
+**Q4c-03 PASS (2/2)**: beide positieve locatie-ID-sets komen exact overeen en bevatten geen dubbele IDs binnen de geteste Oss-bbox. Dit bevestigt locatie-inclusiepariteit bij de bestaande `MapFilter`-semantiek, niet op zichzelf een onafhankelijke EVSE-brontelling of bronkwaliteitsclassificatie. Volgende Q4c-04: technische filters samen met `minFree`. Geen productie- of schemawijzigingen, deployment of merge.
