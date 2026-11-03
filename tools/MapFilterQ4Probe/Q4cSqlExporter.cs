@@ -43,11 +43,11 @@ internal static class Q4cSqlExporter
         }),
         Create("Q4c-05 Vattenfall+50five", new Dictionary<string, StringValues>
         {
-            ["operator"] = new StringValues(["Vattenfall InCharge", "50five"])
+            ["operator"] = new StringValues(new[] { "Vattenfall InCharge", "50five" })
         }),
         Create("Q4c-05 duplicate Vattenfall", new Dictionary<string, StringValues>
         {
-            ["operator"] = new StringValues(["Vattenfall InCharge", "Vattenfall InCharge"])
+            ["operator"] = new StringValues(new[] { "Vattenfall InCharge", "Vattenfall InCharge" })
         })
     });
 
