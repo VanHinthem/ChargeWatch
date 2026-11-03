@@ -1,6 +1,6 @@
 # ChargeWatch #113 — Q4c-08 locatiebrede beschikbaarheidsring
 
-**3 november 2026. Voorbereid, nog niet lokaal gebouwd of op NAS uitgevoerd.** Q4c-07 (lege selectie) is geslaagd. Q5 bronkwaliteitsbesluit staat nog open.
+**3 november 2026. Voorbereid; buildfout in eerste export gerepareerd, nieuwe versie nog niet lokaal gebouwd of op NAS uitgevoerd.** Q4c-07 (lege selectie) is geslaagd. Q5 bronkwaliteitsbesluit staat nog open.
 
 ## Doel en bewijsgrens
 
@@ -20,8 +20,12 @@ Selecteer met de bestaande `MapFilter.LocationPredicate(5)` de locaties die een 
 ```powershell
 cd C:\GITHUB\ChargeWatch
 git pull --ff-only
-dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj -- --emit-q4c08 |
-  Set-Content -Path q4c08-generated.sql -Encoding utf8
+$project = 'tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj'
+dotnet build $project --nologo
+if ($LASTEXITCODE -ne 0) { throw 'Build mislukt: geen SQL exporteren.' }
+$sql = dotnet run --no-build --project $project -- --emit-q4c08
+if ($LASTEXITCODE -ne 0 -or -not ($sql -match '^-- Q4c-08:')) { throw 'Geen geldige Q4c-08 SQL uitvoer.' }
+$sql | Set-Content -Path q4c08-generated.sql -Encoding utf8
 Get-Content q4c08-generated.sql -TotalCount 7
 scp .\q4c08-generated.sql hinthem@192.168.2.48:~/q4c08-generated.sql
 ```
@@ -44,3 +48,8 @@ Twee resultsets: detail per geselecteerde locatie, en de categorie-partitietelli
 - End-to-end overzichtsendpoint, `coverage.complete` en cachegedrag pas in latere implementatiefase.
 
 Geen productiecode-/schemamutaties, NAS-deploy of merge. PR #114 blijft draft.
+
+
+## Correctie eerste export — 3 november 2026
+
+De gebruiker rapporteerde `invalid command \\GITHUB` bij het uitvoeren van een SQL-bestand dat in werkelijkheid een C# compilerfout bevatte: `CS9006` op `Q4cSqlExporter.cs:108`. Oorzaak: de nieuwe methode had `return $"""` in plaats van `return $$"""` terwijl de tekst `{{predicate}}` bevat. Dit is in commit `ebfdcfa` gecorrigeerd. Het bestand met de foutmelding mag **niet** als SQL gebruikt worden; opnieuw genereren na een expliciet geslaagde build, en controleren of de eerste regel met `-- Q4c-08:` begint. Deze correctie is nog **niet** met een lokale dotnet-build of NAS-uitvoering bevestigd. Het mislukte `psql`-commando stopte bij de eerste fout; geen succesvolle SQL-uitvoering is gerapporteerd.
