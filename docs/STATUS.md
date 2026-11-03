@@ -1,3 +1,9 @@
+## Q4c-00 ongefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker voerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) daadwerkelijk read-only op de NAS uit: **98 viewport-locaties, 419 volledige grid-kandidaten/owned locaties, 98 grid-ID's na clip naar viewport, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. Q4c-00 is daarmee geslaagd op deze Oss-bbox. Q4a en Q4b waren eveneens geslaagd. **Volgende stap Q4c-01:** werkelijke gefilterde ID-setvergelijking met dezelfde C#-`MapFilter` SQL-generator en correcte Npgsql-binding, zonder afzonderlijk handmatig geschreven productie-filterlogica. Q5 open. Geen productiemutaties, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
 ## Q4c-00 ongefilterde ID-setvergelijking voorbereid — 3 november 2026
 
 Productiepreflight door gebruiker: **98 actieve locaties** in bbox `5.50,51.75,5.53,51.77`, onder de oude viewportcap. De read-only, nog niet uitgevoerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) vergelijkt binnen één PostgreSQL-transactie de ongefilterde viewport-ID's met de naar diezelfde bbox teruggeclipte volledige grid-owned ID's, inclusief symmetrisch verschil en uniekheid. Q4a en Q4b geslaagd; Q4c-00-resultaat nog onbekend. Technische filterpariteit volgt met de bestaande C# `MapFilter`-generator. Geen productiecode, schemawijziging, merge of deployment.
