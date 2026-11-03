@@ -1,3 +1,9 @@
+## P2h Windows-exportvalidatie gecorrigeerd — 3 november 2026
+
+Gebruiker meldde dat de P2h-`dotnet build` en `dotnet run --no-build ... --emit-overview-region-paired` succesvol leken, maar de documentatiecheck `($sql -split 'EXPLAIN ...').Count -ne 5` ten onrechte `P2h SQL-generatie ongeldig` gaf. **PowerShell vangt uitvoer als regels-array op**; de oude `-split`-controle was onjuist. In [P2h](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) is de check vervangen door `$sqlText = $sql -join "`n"`, **exact vier** `EXPLAIN`-matches en vier `\\echo P2h`-runlabels; bbox en beide celmaatnotaties worden gecontroleerd. **P2h nog niet op NAS bevestigd**: bestaand gegenereerd bestand eerst opnieuw valideren, dan pas scp/run. Geen productie-/DB-/API-/Android-wijziging, merge of deployment; PR #114 draft.
+
+---
+
 ## P2g regio correctheid bevestigd; P2h gepaarde regiobenchmark voorbereid — 3 november 2026
 
 P2g op regionale bbox `5.20,51.60,5.90,52.10`, zoom10, CCS2/DC **PASS**: originele en geoptimaliseerde selectie **420/420 locaties, 0 verschillende IDs, ids_match=t**; volledige rasteruitvoer **12/12 niet-lege cellen, 420/420 locaties, 0 verschillende celrijen, aggregates_match=t**, inclusief groen/rood/onbekend. Zie [P2g resultaten](MAP_GRID_P2G_REGIONAL_PARITY.md). Op de ontwerpbranch staat nu ook **P2h (nog niet gebouwd/uitgevoerd)**: [vier afwisselende regio-EXPLAIN's](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) `original → indexed → indexed → original`, via nieuwe `--emit-overview-region-paired` CLI in `MapFilterQ4Probe`. Origineel hergebruikt oorspronkelijke `MapFilter`-SQL met uitsluitend bbox en zoom10-celmaat aangepast; indexed hergebruikt exact P2f-schaalquery. Beide read-only, 5s per statement, geen voorafgaande parity-warm-up. **Geen gemeten P2h-performance of nationale uitkomst**, geen production/DB/NDW-/API-/Android-implementatie, merge of deploy. PR #114 draft.
