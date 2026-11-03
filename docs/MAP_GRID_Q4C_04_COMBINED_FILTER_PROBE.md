@@ -30,3 +30,16 @@ sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
 
 ## Aanvullend bewijs dat later nodig blijft
 De twee selecties delen dezelfde `MapFilter` SQL. Exacte ID-setpariteit bewijst dus niet onafhankelijk dat `minFree` correct per unieke EVSE telt of dat statusringen over **alle operationele EVSE's van de geselecteerde locatie** gaan; controleer dat met aparte Q4-04/Q4-08 fixtures. Q4-05 operatoren, Q4-06 multivalue, Q4-07 lege resultaten en Q5 bronkwaliteit volgen.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+De gebruiker voerde de gegenereerde read-only Q4c-04 SQL op productie uit:
+
+```text
+fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match
+Q4c-04 CCS2 DC gte150 minFree=2 | 1 | 7 | 7 | 1 | 0 | t | t | t
+(1 row)
+```
+
+**Q4c-04 ID-set parity PASS** voor de geteste Oss-bbox: één positieve match binnen de viewport; ook zeven matches binnen de grotere volledige rastercellen. Geen ontbrekende, afwijkende of dubbele ID's tussen de geclipte selectie en de viewport. Omdat beide kanten hetzelfde centrale `MapFilter`-predicate gebruiken, bewijst dit **niet onafhankelijk** dat minstens twee verschillende beschikbare EVSE's voldoen. Daarvoor volgt een afzonderlijke read-only EVSE-level bewijsproef. De bronkwaliteits-/ringclassificatie is eveneens nog niet gevalideerd. Geen mutaties, deploy of merge.
