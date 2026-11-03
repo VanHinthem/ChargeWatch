@@ -1,3 +1,9 @@
+## Q4c-08 locatiebrede voorlopige ringaudit voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` ondersteunt nu `--emit-q4c08` voor een **nog niet uitgevoerde** read-only vergelijking van CCS2/DC-technisch passende EVSE's versus **alle operationele EVSE's van geselecteerde locaties**, inclusief een voorlopige groen/rood/onbekend-partitie. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Er is nog geen API-ringcontract uitgevoerd; definitieve bronkwaliteitsclassificatie is Q5. Q4c-07 is werkelijk geslaagd (0/0, differing_ids=0); Q4c-04c synthetische EVSE-deduplicatie is nog onbevestigd. Geen productiemutaties, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
 ## Q4c-07 lege selecties geslaagd — 3 november 2026
 
 Gebruiker voerde de read-only Q4c-07-proef op de NAS uit. Niet-bestaande operator: **viewport_ids=0, grid_candidates=0, grid_owned=0, overview_clipped_ids=0, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. De lege SQL-ID-setpariteit is hiermee bevestigd. De dekking van een lege response met toekomstige `coverage.complete` is nog niet als API-contract beproefd. Zie [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md). Vervolg Q4-08 ringclassificatie op *alle* operationele EVSE's van gefilterde locaties en open synthetische Q4c-04c deduplicatie. Q5 blijft open. Geen productiedatawijziging, deployment of merge; PR #114 draft.
