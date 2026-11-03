@@ -36,3 +36,16 @@ sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
 De SQL gebruikt `SET ROLE chargewatch_read`, `BEGIN ... REPEATABLE READ READ ONLY`, `SET LOCAL statement_timeout='5s'`, `lock_timeout='1s'`, `jit=off`, `ROLLBACK` en `RESET ROLE` per case. De export vervangt bekende testfilterarrays veilig door SQL-literals voor `psql`; productie-Npgsql-query's blijven geparametriseerd. Er wordt niets geschreven of gedeployed.
 
 **Afbakening:** dit valideert de echte geretourneerde operator-ID-sets voor één, meerdere en herhaalde waarden. Case-sensitiviteit, null/blank en edge-whitespace zijn nog niet onafhankelijk beproefd; de database-output van Q4c-05a bevatte geen edge-whitespace. Q4c-04c (synthetische EVSE-deduplicatie) is nog niet uitgevoerd of bevestigd en blijft open. PR #114 blijft draft.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+De gebruiker voerde de drie gegenereerde operatorvarianten op productie read-only uit:
+
+| Fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match |
+|---|---:|---:|---:|---:|---:|---|---|---|
+| Vattenfall InCharge | 87 | 337 | 337 | 87 | 0 | t | t | t |
+| Vattenfall InCharge + 50five | 93 | 362 | 362 | 93 | 0 | t | t | t |
+| Herhaalde Vattenfall InCharge | 87 | 337 | 337 | 87 | 0 | t | t | t |
+
+**Q4c-05b PASS (3/3)** voor deze echte operatorwaarden en kleine Oss-bbox: exacte precluster-ID-setovereenkomst en geen duplicaten. De geobserveerde viewportaantallen bevestigen tevens de eerder uitgevoerde operator-discovery. Case-/whitespacevarianten zijn hiermee nog niet onafhankelijk als grensgevallen getest. Q4c-04c en Q4-06..08 blijven open. Geen mutaties, deploy of merge.
