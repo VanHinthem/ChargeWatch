@@ -1,3 +1,11 @@
+## Tweede A1-benchmark Oss — JIT uit (3 november 2026)
+
+Gebruiker voerde dezelfde read-only `EXPLAIN (ANALYZE, BUFFERS)` uit op de productiedatabase met aanvullend `SET LOCAL jit=off`. Resultaat: **2.100 locaties in 4 rastercellen**, `Execution Time 78.890 ms`, `Planning Time 27.224 ms`, buffers `shared hit=7621 read=6440`, 2.100 `idx_evse_active_location` indexscans en een `Bitmap Index Scan` op `ix_charging_location_active_position`. Queryplan is structureel gelijk aan eerste uitvoering. Eerste uitvoering JIT aan: `Execution Time 145.899 ms`, `Planning Time 35.105 ms`, `JIT Total 32.374 ms`, `shared hit=7919 read=6140`. Gemeten uitvoeringsverschil **67.009 ms / 45,9%** ten gunste van JIT uit; dit is **geen bewezen causaal JIT-effect** door cache-/NAS-belastingvariatie tussen opeenvolgende runs.
+
+**Interpretatie:** `SET LOCAL jit=off` in kaartquery-/benchmarktransactie onderzoeken, niet globaal uitschakelen. Eerst herhalen (meerdere runs, omgekeerde volgorde) en regionaal testen voordat nationale schaal wordt voorspeld. Werkelijk uitgevoerde `SELECT` blijft read-only; geen productiegegevens gemuteerd, code gewijzigd, gemerged of gedeployed.
+
+---
+
 ## Eerste A1-productiemeting Oss — 3 november 2026
 
 **Uitgevoerd door gebruiker met `chargewatch_read` in `REPEATABLE READ READ ONLY`**. `EXPLAIN (ANALYZE, BUFFERS)` voor zoomraster 11, bbox Oss (5.40,51.70)–(5.62,51.83), geen filters: `Execution Time=145.899 ms`, `Planning Time=35.105 ms`, `JIT Total=32.374 ms`. `GroupAggregate` leverde **4 gridgroepen** uit **2.100 locaties**; `Gather Merge` verwerkte **5.075 LEFT JOIN-resultaatrijen** (niet noodzakelijk allemaal EVSE-records, want LEFT JOIN kan een null-e-regel toevoegen).
