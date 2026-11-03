@@ -6,6 +6,11 @@ using NpgsqlTypes;
 
 // Standalone Q4 contract probe; includes the production MapFilter.cs as a linked source.
 // No database connection and no production API changes.
+if (args.Length == 1 && args[0] == "--emit-overview-correlated")
+{
+    Console.WriteLine(OverviewGeoFirstExporter.CreateCorrelatedCcs2Dc());
+    return;
+}
 if (args.Length == 1 && args[0] == "--emit-overview-paired")
 {
     Console.WriteLine(OverviewPairedExporter.Create());
@@ -72,7 +77,7 @@ if (args.Length == 1 && args[0] == "--emit-q4c08")
     return;
 }
 if (args.Length != 0)
-    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02|--emit-q4c02b|--emit-q4c03|--emit-q4c04|--emit-q4c04b|--emit-q4c05|--emit-q4c06|--emit-q4c07|--emit-q4c08|--emit-overview-perf|--emit-overview-geofirst|--emit-overview-paired]");
+    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02|--emit-q4c02b|--emit-q4c03|--emit-q4c04|--emit-q4c04b|--emit-q4c05|--emit-q4c06|--emit-q4c07|--emit-q4c08|--emit-overview-perf|--emit-overview-geofirst|--emit-overview-paired|--emit-overview-correlated]");
 
 MapFilter.SelfTest();
 
