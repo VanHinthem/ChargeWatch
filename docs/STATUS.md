@@ -1,3 +1,8 @@
+## P1d EVSE-indexen op NAS bevestigd — 3 november 2026
+
+`idx_evse_active_location ON evse(location_id) WHERE is_active` **bestaat al**, evenals `evse_identity(location_id,source_uid)` en de gebruikte partial GiST `ix_charging_location_active_position`. EVSE geschatte live rows 216.362, dead rows 27.621, laatste autoanalyze `2026-11-03 12:44:33+00`; dit is geen reden voor indexaanmaak/vacuum zonder meting. Oss-A1 koos desondanks landelijke Seq Scan; volgende gerichte proef: bestaand A3 LATERAL-indexpad vergelijken met A1 op identieke complete Oss-cellen, niet opnieuw NDW-statuslogica onderzoeken. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft, geen mutaties/merge/deploy.
+
+---
 ## P1c Oss A1/A2 performance bevestigd — 3 november 2026
 
 Gebruiker voerde beide read-only Oss-queryplannen uit: **2.101 locaties, 4 gridcellen, 216.219 actieve EVSE-rijen**. A1 directe join **121,861 ms**, A2 EVSE-preaggregatie **496,361 ms** (A1 circa **4,07× sneller**). A2 aggregeerde landelijk 84.241 EVSE-locatiegroepen, met gematerialiseerde CTE `Storage: Disk` en `temp written=349`. Beide gebruiken een sequentiële scan van alle actieve EVSE's, ook A1 voor slechts 2.101 geselecteerde locaties / 5.099 joinrijen. Dit is een concrete aanleiding om het bestaande EVSE-indexpad voor kleine viewports te analyseren, **niet** om meteen een schemawijziging of nieuwe statuslogica te starten. Bij grote zoom8-gebieden geen consistente A1/A2 winnaar uit twee gepaarde runs. Zie [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md). PR #114 draft; geen merge/deploy.
