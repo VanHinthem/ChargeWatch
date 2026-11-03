@@ -122,3 +122,18 @@ Gebruiker heeft A2 uitgevoerd met de grote zoom-8-regio. Vergelijking met direct
 A2 was **33,800 ms / ~4,4% sneller** in het eerste gepaarde sample. Beide queries hebben dezelfde 71.026 geselecteerde locaties en 8 rastercellen, en lezen dezelfde 216.159 actieve EVSE-rijen. A2-`evse_counts` aggregate groepeert naar 84.212 location IDs; `Storage: Disk` voor de CTE-scan met `temp written=349` is geen `HashAggregate`-batchspill: de aggregates zelf rapporteren Batches=1. Beide uitvoeringen vertonen veel gedeelde reads/writes; cache-/collectorinvloed is niet uitgefilterd. Een *uitvoeringstijdverschil* op zichzelf bewijst evenmin exacte statuscategoriepariteit. De eerste paarmeting rechtvaardigt **nog geen adaptieve queryplanner of indexwijziging**.
 
 **Eerstvolgende P1b:** A2 en A1 in omgekeerde volgorde opnieuw uitvoeren onder vergelijkbare omstandigheden, gevolgd door meerdere afwisselende paren (voorgesteld A1,A2,A2,A1,A1,A2). Noteer `Execution Time` en buffer-/tempgedrag per run. Daarna een kleinschalige Oss-herhaling. Bestaande A1/A2 SQL hergebruiken, niet opnieuw nieuwe varianten of Q5-statusonderzoek starten.
+
+
+## Werkelijke NAS-run P1b — omgekeerde volgorde, 3 november 2026
+
+Gebruiker heeft **eerst A2, daarna A1** opnieuw uitgevoerd en voorlopig uitsluitend het onderste deel van beide EXPLAIN-uitvoeren aangeleverd:
+
+| Paar | Volgorde | A1 Execution Time | A2 Execution Time | Verschil |
+|---|---|---:|---:|---|
+| P1a | A1 → A2 | 770,699 ms | 736,899 ms | A2 33,800 ms sneller |
+| P1b | A2 → A1 | **621,199 ms** | **665,995 ms** | A1 44,796 ms sneller |
+| Gemiddelde, 2 runs per variant | wisselend | **695,949 ms** | **701,447 ms** | A1 gemiddeld 5,498 ms sneller (~0,8% van A2) |
+
+P1b-planning: **A2 30,920 ms** (planning buffers shared hit 610, read 50), **A1 34,732 ms** (planning buffers hit 640, read 45, dirtied 1). Het tweede paar is verondersteld dezelfde grote-regio-benchmark te zijn zoals gevraagd; **de volledige plannen/rijaantallen en uitvoeringsbuffers zijn voor dit tweede paar niet meegestuurd**, dus dezelfde census en oorzaken van de variatie niet opnieuw onafhankelijk bevestigd. **Er is geen stabiele winnaar:** het snelheidsverschil wisselt bij omkering van uitvoeringsvolgorde en is veel kleiner dan de run-to-run-schommeling. De bestaande enkele A1–A4-runs niet verwarren met dit gepaarde bewijs.
+
+**Aanbevolen vervolg:** stop met ad-hoc parallelle queryvarianten, voer indien nodig nog een afwisselend derde paar uit (`A1,A2`) en neem vervolgens de **kleine Oss-benchmark van A1 versus A2** ter hand. Vergelijk daarna pas SQL-index-/plannerbottlenecks met volledige execution-buffers. Geen nieuw beschikbaarheids-/NDW-onderzoek, productiecode, DB-schemawijziging, deployment of merge.
