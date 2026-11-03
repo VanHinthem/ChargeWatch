@@ -35,6 +35,22 @@ internal static class Q4cSqlExporter
             ["minFree"] = "2"
         });
 
+    public static string CreateOperators() => string.Join("\n\n", new[]
+    {
+        Create("Q4c-05 Vattenfall", new Dictionary<string, StringValues>
+        {
+            ["operator"] = "Vattenfall InCharge"
+        }),
+        Create("Q4c-05 Vattenfall+50five", new Dictionary<string, StringValues>
+        {
+            ["operator"] = new StringValues(["Vattenfall InCharge", "50five"])
+        }),
+        Create("Q4c-05 duplicate Vattenfall", new Dictionary<string, StringValues>
+        {
+            ["operator"] = new StringValues(["Vattenfall InCharge", "Vattenfall InCharge"])
+        })
+    });
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
