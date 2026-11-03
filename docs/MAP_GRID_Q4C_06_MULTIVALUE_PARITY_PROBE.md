@@ -31,3 +31,16 @@ sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
 
 ## Acceptatie
 Per case: `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. We rapporteren de werkelijk geselecteerde aantallen; nul matches in een case zijn geen positief bewijs voor die combinatie. De resultaten bewijzen selectiepariteit bij deze testdata, niet onafhankelijk de correcte AND/OR-evaluatie als er een gedeelde bug in de productie-`MapFilter` zit. Q4-07 lege resultaten, Q4-08 locatiebrede ringclassificatie, Q4c-04c synthetische EVSE-deduplicatie en Q5 bronkwaliteit blijven open. Geen schemawijziging, deployment of merge.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026
+
+De gebruiker voerde de drie door productie-`MapFilter` gegenereerde read-only selectievergelijkingen uit:
+
+| Fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match |
+|---|---:|---:|---:|---:|---:|---|---|---|
+| CCS2+CHAdeMO AC+DC | 2 | 13 | 13 | 2 | 0 | t | t | t |
+| TYPE2+CCS2 AC+DC | 98 | 419 | 419 | 98 | 0 | t | t | t |
+| CCS2+CHAdeMO DC | 2 | 13 | 13 | 2 | 0 | t | t | t |
+
+**Q4c-06 PASS (3/3)** voor deze positieve cases: de ID-sets zijn identiek en uniek. De SQL selecteerde werkelijke locaties, maar deze vergelijking bewijst niet onafhankelijk dat de centrale AND/OR-semantiek foutloos is wanneer een EVSE verschillende connectoren combineert. Een gerichte synthetische cross-connector-tegenproef kan dat afzonderlijk aantonen. Geen productiemutatie, migratie, deployment of merge.
