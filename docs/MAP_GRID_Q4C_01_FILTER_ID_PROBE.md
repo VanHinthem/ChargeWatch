@@ -44,3 +44,17 @@ De SQL begint met `SET ROLE chargewatch_read`, opent een `REPEATABLE READ READ O
 Verwacht `differing_ids=0`, `viewport_unique=t`, `overview_unique=t` en `ids_match=t`. De gefilterde viewport-ID-telling kan lager zijn dan 98. De volledige grid-selectie kan groter zijn dan de viewport, omdat alleen die laatste naar de kleine bbox wordt geclipt. Als er nul matches zijn, is de test formeel gelijk maar heeft deze weinig positieve selectiekracht: dan kiezen we een kleine bbox met werkelijke CCS2/DC-matches voordat we de variant afvinken.
 
 **Geen testsucces geclaimd vóór werkelijke gebruikersuitvoer.** Geen API-/Android-implementatie, schemawijziging, deployment of merge. PR #114 blijft draft.
+
+
+## Werkelijk resultaat — NAS, 3 november 2026
+
+De gebruiker heeft de lokaal gegenereerde SQL in `/volume2/docker/chargewatch/q4c01-generated.sql` op de NAS met PostgreSQL uitgevoerd. Werkelijke uitvoer:
+
+```text
+viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match
+-------------+-----------------+------------+----------------------+---------------+-----------------+-----------------+----------
+           2 |              13 |         13 |                    2 |             0 | t               | t               | t
+(1 row)
+```
+
+**Q4c-01 PASS:** binnen de kleine Oss-bbox zijn beide CCS2+DC gefilterde locatie-ID-sets exact gelijk en uniek; niet leeg (2 locaties). De volledige gridselectie heeft 13 locaties, waarvan 2 na clipping in de viewport liggen. Bewijs betreft deze dataset, bbox en deze filtercombinatie. Er is nog geen werkelijke vergelijking voor power-/minFree-/operator-/multivaluecombinaties, geen classificatievalidatie en geen landelijke performanceclaim. De eerste scp naar `/tmp` werkte niet; het SQL-bestand is in de Compose-map beschikbaar gekomen en daar uitgevoerd. Geen DB-mutaties, deploy of merge.
