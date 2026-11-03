@@ -1,3 +1,11 @@
+## Q1 functionele integriteitscontrole voorbereid — 3 november 2026
+
+Na de A1–A4-read-only benchmarks is [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) toegevoegd aan de ontwerpbranch. Deze **nog niet uitgevoerde**, direct in `psql` bruikbare **read-only** controle begint bij Oss zoom 11 en toetst: `matched = unique = owned = classified = sum(cell.location_count)` en `sum(cell.location_count)=green+red+unknown`. Hiermee toetsen we de volledige Web Mercator-celuitbreiding, canonieke individuele celtoewijzing en interne telintegriteit; expliciet `partition_ok`. Het prototype kent een conservatieve voorlopige statusclassifier, **geen** gevalideerde staleness-/brongegevensregel of volledige API-filterpariteit. Na een geslaagde Q1 zijn grenspuntfixtures, filterpariteit en bronkwaliteit nog expliciet open.
+
+Code-audit bevestigt bestaande `MapFilter.LocationPredicate`/parameterbinding (connectorType/mode/power/minFree/operator) en de oude `GetMapViewport`-samenvatting met unieke EVSE's. De nieuwe API moet filtergenerator hergebruiken; geen handmatige SQL-filterkopie. Geen wijzigingen aan productiedata, schema, API/Android, merge of deployment.
+
+---
+
 ## A4-productiemeting Oss en afronding A1–A4-verkenning — 3 november 2026
 
 **Werkelijk door gebruiker uitgevoerd, read-only/JIT uit:** A4 Oss zoom-11 volledige cellen **2.101 laadlocaties, 4 gridcellen**; `Execution Time=229.671 ms`, `Planning Time=26.250 ms`. Ondanks relatief kleine selectie kiest PostgreSQL `Seq Scan on evse` van **214.804 actieve EVSE's**, `Hash Join` naar **5.099 actieve EVSE's** in geselecteerde locaties en `HashAggregate` naar 2.101 `location_id`-samenvattingen. Shared buffers `hit=840/read=30.289/dirtied=2.175/written=4.321`. Het spatial-filter gebruikt `ix_charging_location_active_position`. Data wijzigen tijdens reeks (Oss 2.100 eerder, nu 2.101).
