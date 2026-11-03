@@ -96,3 +96,17 @@ SQL
 **Acceptatie:** `viewport_ids=overview_clipped_ids`, `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. `grid_candidates` en `grid_owned` mogen groter zijn, omdat die alle volledige rastercellen beslaan. Exacte telling kan door voortschrijdende NDW-import variëren, dus 98 is een preflightwaarde en geen hardcoded assert. Stop bij timeout of mismatch.
 
 **Vervolg:** Q4c-01+ wordt met C# `MapFilter.LocationPredicate(5/6)` en `AddParameters` gegenereerd; geen handmatige SQL-kopie van het connector-/power-/operatorpredicaat. Voor het volledig sluitende bewijs moeten beide selecties onder dezelfde databaseverbinding/snapshot worden uitgevoerd. Geen schemawijziging of deployment.
+
+
+## Werkelijke NAS-uitvoering — 3 november 2026
+
+De gebruiker voerde het bovenstaande read-only PostgreSQL-blok uit en rapporteerde:
+
+```text
+viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match
+------------ +-----------------+------------+----------------------+---------------+-----------------+-----------------+----------
+          98 |             419 |        419 |                   98 |             0 | t               | t               | t
+(1 row)
+```
+
+**Q4c-00 PASS** voor de geteste Oss-bbox: exacte ongefilterde ID-setovereenkomst en beide selecties uniek. De 419 grid-owned locaties vertegenwoordigen volledige cellen, tegenover de 98 locaties in de kleinere viewport; het vergelijken van volledige grid-IDs direct met viewport-IDs zou daarom onjuist zijn. Dit resultaat bewijst nog geen technische filterpariteit, Q5-bronkwaliteit of landelijke prestatie. Geen productie- of schemamutaties, deploy of merge.
