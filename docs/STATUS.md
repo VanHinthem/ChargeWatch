@@ -1,3 +1,8 @@
+## Q4c-05b operatorfilterpariteit geslaagd — 3 november 2026
+
+Gebruiker voerde drie `MapFilter`-gegenereerde read-only operatorscenario's uit. **Vattenfall InCharge: 87 viewport/87 geclipte raster-ID's (337 grid-owned); Vattenfall + 50five: 93/93 (362); Vattenfall tweemaal: 87/87 (337)**. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4-05 geslaagd voor deze dataset en operatorcombinaties; aanvullende grensgevallen case/whitespace blijven afzonderlijk te beoordelen. Zie [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). Volgende Q4-06 multi-connector/mode, Q4-07 lege ID-sets, Q4-08 ringclassificatie; Q4c-04c duplicatiefixture nog niet uitgevoerd. Geen productieimplementatie, mutaties, deploy of merge; PR #114 draft.
+
+---
 ## Q4-05a operator-discovery uitgevoerd, Q4-05b voorbereid — 3 november 2026
 
 De echte Oss-bbox bevatte volgens de NAS-read-only operator-discovery **87 Vattenfall InCharge, 6 50five, en elk 1 bp pulse, E-Flux by Road, Laadnet, PowerGo, Qwello Benelux BV**, samen 98. Alle `source_values_with_edge_whitespace=0`. Zie [MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md). `MapFilterQ4Probe --emit-q4c05` heeft nu drie queryvarianten met één, twee en herhaalde operatorwaarden; NAS-uitvoerstappen in [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). **Q4-05b nog niet uitgevoerd**. Ook Q4c-04c synthetische EVSE-deduplicatie blijft open. Geen API/Android-productieimplementatie, schemawijziging, deployment of merge; PR #114 draft.
