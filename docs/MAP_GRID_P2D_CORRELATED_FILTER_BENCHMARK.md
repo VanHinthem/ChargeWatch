@@ -67,3 +67,10 @@ De generator zet `chargewatch_read`, `REPEATABLE READ READ ONLY`, `statement_tim
 4. **Schaal:** P2d gebruikt alleen het kleine Oss-gebied; zelfs een succesvolle lokale run zegt niets over het landelijke zoom-8-grid. Voor landelijke dekking is een aparte oplopende meetreeks nodig.
 
 **Grenzen:** dit is een read-only, uit C# gegenereerd SQL-onderzoek; geen productie-Npgsql-binding, geen nieuwe API-/Android-/collectorcode, geen status- of filtersemantiekwijziging. PR #114 blijft draft; merge/deploy uitsluitend na expliciet akkoord.
+
+
+## Correctie exporter — 3 november 2026
+
+Bij eerste Windows-uitvoering meldde de exporter `InvalidOperationException: Correlated filter SQL template not applied`. **Oorzaak:** `geo.Replace(...)` verwachtte exact 12 spaties in een meerregelig C# raw-stringfragment, terwijl de C# raw-string-indentering anders wordt genormaliseerd. **Fix op ontwerpbranch:** vervang uitsluitend de unieke marker `WHERE true __FILTER__`, met een expliciete één-voorkomencontrole. De ingevoegde `CROSS JOIN LATERAL (... WHERE true __FILTER__ OFFSET 0)` behoudt de originele `MapFilter`-predicate. Er is geen database-/productiecodewijziging.
+
+Op Windows opnieuw `git pull --ff-only` en **`dotnet build`** uitvoeren vóór `dotnet run --no-build`. Het uitvoerende script was eerder niet gegenereerd; de NAS-query is dus **nog niet** getest. De fix is in GitHub visueel gecontroleerd, **niet lokaal gecompileerd** in deze assistentomgeving. Stuur nieuwe foutmelding als de build of uitvoer faalt.
