@@ -1,3 +1,9 @@
+## Q5b onbekende EVSE-statussen en locatieonzekerheid voorbereid — 3 november 2026
+
+De read-only [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md) is opgesteld voor een **nog niet uitgevoerde** vervolgcontrole: werkelijke NDW-statuswaarden en `source_last_updated`-verdeling, plus een volledige locatie-partitie in vrij+UNKNOWN, geen-vrij+UNKNOWN, vrij zonder UNKNOWN, geen-vrij volledig bekend en nul operationele EVSE's. De bronupdate-ouderdom wordt **niet** gelijkgesteld aan feedstaleness. Q5a is uitgevoerd en geslaagd (204 operationele EVSE's; 4 onbekend, checkpoint-age 5,8 min); Q4c-04c en Q4c-08b synthetisch blijven open. Geen mutaties, deploy of merge; PR #114 draft.
+
+---
+
 ## Q5a NDW-statusverdeling nulmeting geslaagd — 3 november 2026
 
 Gebruiker draaide Q5a read-only: **206 actieve EVSE-rijen; 2 PLANNED/REMOVED uitgesloten; 204 operationeel; 151 AVAILABLE, 48 CHARGING/BLOCKED/RESERVED, 1 INOPERATIVE/OUTOFORDER, 4 UNKNOWN/overig; partition_ok=t**. Feedobservatie `2026-11-03 11:32:29.014798+00`, leeftijd **5,8 min** op meetmoment. Statuspartitie klopt; nog geen locatie-/EVSE-versheid of complete snapshotdekking bewezen. Zie [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md). Volgende Q5b: onbekende statussen, locatiedekking, aparte bron-/feed-versheid. Q4c-04c en Q4c-08b synthetische fixtures nog open. PR #114 draft; geen mutaties/merge/deploy.
