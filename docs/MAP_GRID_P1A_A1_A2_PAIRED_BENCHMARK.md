@@ -97,3 +97,28 @@ Deze eenvoudige A1/A2-queryvormen testen performance, **niet** de definitieve be
 De eerdere grote-regio A1-run was 844,151 ms. De gemeten afname is **niet** causaal te duiden door één run; cache, collector en PostgreSQL-I/O kunnen verschillen. HashAggregates hebben Batches=1 en tonen geen expliciete tijdelijke disk-spill. `dirtied/written` in de buffers is geen bewijs van applicatie-datawijzigingen door een read-only SELECT. Een grote hoeveelheid gedeelde reads/writes kan wel de latency beïnvloeden.
 
 **Vervolg:** voer de A2-query van het originele gepaarde protocol uit en vergelijk totale elapsed time, joinplan, I/O en eventuele spill. Daarna pas omgekeerde herhaling of gerichte optimalisatie. PR #114 draft, geen DB-schema/app/deploy/merge.
+
+
+## Werkelijke NAS-run A2 — eerste paar compleet, 3 november 2026
+
+Gebruiker heeft A2 uitgevoerd met de grote zoom-8-regio. Vergelijking met direct voorafgaand A1-plan:
+
+| Eigenschap | A1 directe join | A2 EVSE-preaggregatie |
+|---|---:|---:|
+| Execution Time | 770,699 ms | **736,899 ms** |
+| Planning Time | 34,818 ms | 37,944 ms |
+| Geselecteerde locaties | 71.026 | 71.026 |
+| Gridcellen | 8 | 8 |
+| Actieve EVSE-scans | 216.159 rijen (Seq Scan) | 216.159 rijen (Seq Scan) |
+| EVSE-resultaat | directe join 180.949 rijen | 84.212 locatiegroepen |
+| Root shared hits | 1.763 | 6.381 |
+| Root shared reads | 52.252 | 47.598 |
+| Root shared writes | 10.305 | 5.739 |
+| Temp written | niet gerapporteerd | 349 buffers |
+| Materialisatie | locations geheugen | locations geheugen; evse_counts Storage: Disk max 4096 kB |
+| Hash aggregates | Batches=1 | Batches=1 |
+| Locatiescan | parallel bitmap heap scan, 2 workers | parallel bitmap heap scan, 2 workers |
+
+A2 was **33,800 ms / ~4,4% sneller** in het eerste gepaarde sample. Beide queries hebben dezelfde 71.026 geselecteerde locaties en 8 rastercellen, en lezen dezelfde 216.159 actieve EVSE-rijen. A2-`evse_counts` aggregate groepeert naar 84.212 location IDs; `Storage: Disk` voor de CTE-scan met `temp written=349` is geen `HashAggregate`-batchspill: de aggregates zelf rapporteren Batches=1. Beide uitvoeringen vertonen veel gedeelde reads/writes; cache-/collectorinvloed is niet uitgefilterd. Een *uitvoeringstijdverschil* op zichzelf bewijst evenmin exacte statuscategoriepariteit. De eerste paarmeting rechtvaardigt **nog geen adaptieve queryplanner of indexwijziging**.
+
+**Eerstvolgende P1b:** A2 en A1 in omgekeerde volgorde opnieuw uitvoeren onder vergelijkbare omstandigheden, gevolgd door meerdere afwisselende paren (voorgesteld A1,A2,A2,A1,A1,A2). Noteer `Execution Time` en buffer-/tempgedrag per run. Daarna een kleinschalige Oss-herhaling. Bestaande A1/A2 SQL hergebruiken, niet opnieuw nieuwe varianten of Q5-statusonderzoek starten.
