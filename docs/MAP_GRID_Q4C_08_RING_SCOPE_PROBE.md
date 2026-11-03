@@ -58,3 +58,17 @@ De gebruiker rapporteerde `invalid command \\GITHUB` bij het uitvoeren van een S
 ### Aanvullende correctie — 3 november 2026
 
 Tweede gebruikersbuild meldde opnieuw `CS9006` en `dotnet run --no-build` startte daarna een oude binary zonder `--emit-q4c08`. Controle van de GitHub-bestandinhoud toonde dat de eerdere commit de raw-stringdelimiter niet daadwerkelijk had gewijzigd. **Nieuwe correctie commit `5ed4937`: geen geïnterpoleerde raw-string meer; de SQL staat in `return """..."""` met twee expliciete, identieke plaatsvervangers die met `.Replace("__Q4C08_LOCATION_PREDICATE__", predicate, StringComparison.Ordinal)` worden ingevoegd.** De remote broncode is gecontroleerd op twee query-plaatsvervangers. Een nieuwe lokale build en NAS-executie zijn nog niet aangetoond. `--no-build` pas gebruiken na een geslaagde `dotnet build`; bij een buildfout niets exporteren en ook geen eerdere SQL-file uitvoeren. Controleer tevens `git branch --show-current` en `git rev-parse --short HEAD`, aangezien een `git pull` op een andere branch de ontwerpcode niet binnenhaalt.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026
+
+De gebruiker heeft de gecorrigeerde Q4c-08 SQL succesvol uitgevoerd. Daarmee is bevestigd dat de generator uitvoerbare SQL produceert; niet afzonderlijk vastgelegd is welke exacte `dotnet build`-uitvoer hij zag.
+
+| id | feature_id | matching_operational | all_operational | all_free | all_unclassified | provisional_ring_status | scope_ok | has_other_evses |
+|---:|---|---:|---:|---:|---:|---|---|---|
+| 81262 | NL-BPE-6d278e19-8278-4a1d-9609-45025fca3a8a | 2 | 2 | 2 | 0 | green | t | f |
+| 85663 | NL-PFG-23610 | 2 | 2 | 1 | 0 | green | t | f |
+
+Aggregaat: `selected_locations=2`, `green_locations=2`, `red_locations=0`, `unknown_locations=0`, `partition_ok=t`.
+
+**Q4c-08 basisinvarianten PASS**: twee werkelijk geselecteerde locaties, per locatie `all_operational >= matching_operational`, en de voorlopige ringklassen vormen een complete partitie. **De cruciale positieve scopecase ontbreekt nog**, omdat `has_other_evses=f` op beide locaties. Daarom nog geen volledige Q4-08-goedkeuring. Een read-only synthetische fixture moet een technisch geselecteerde locatie met niet-passende overige EVSE's testen, inclusief kleurverschillen tussen gefilterd en locatiebreed. De voorlopige kleur is bovendien niet Q5-gevalideerd voor actualiteit en bronkwaliteit. Geen mutaties/deployment/merge.
