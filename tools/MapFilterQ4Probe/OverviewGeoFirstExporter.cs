@@ -144,7 +144,7 @@ internal static class OverviewGeoFirstExporter
         SET LOCAL statement_timeout = '5s';
         SET LOCAL lock_timeout = '1s';
         SET LOCAL jit = off;
-        """ + "\n" + Render(parity) + "\n" + Render(perf) + "\n" + """
+        """ + "\n" + (includeParity ? Render(parity) + "\n" : "") + Render(perf) + "\n" + """
         ROLLBACK;
         RESET ROLE;
         """;
