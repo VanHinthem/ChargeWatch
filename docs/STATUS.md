@@ -1,3 +1,9 @@
+## Q3 horizontale grens/viercellige hoek voorbereid — 3 november 2026
+
+[MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) is toegevoegd. De **nog niet uitgevoerde** read-only SQL-fixture test acht synthetische punten op/nabij de horizontale zoom-11-rastergrens en het kruispunt van vier cellen, gemodelleerd als vier aangrenzende celverzoeken. Voor elk punt verwachten we `owned_matches=1`, `exactly_once=t`, `all_ok=t`; meerdere `candidate_matches` op grens/hoek zijn toegestaan. Dit is de laatste geometrische fixture vóór MapFilter-pariteit en count-quality-onderzoek. Geen productie-/codewijzigingen, merge of deployment.
+
+---
+
 ## Q2 grenspuntfixture daadwerkelijk geslaagd — 3 november 2026
 
 Gebruiker voerde [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) uit op productiedatabase met read-only rol/transactie. **Drie synthetische punten op/naast verticale zoom-11-rastergrens:**
