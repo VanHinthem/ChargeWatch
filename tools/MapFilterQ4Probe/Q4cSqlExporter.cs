@@ -90,7 +90,7 @@ internal static class Q4cSqlExporter
             command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Double, Value = 0d });
         filter.AddParameters(command);
         var predicate = ExpandFixedArrayParameters(filter.LocationPredicate(5), command, 4);
-        return $"""
+        return """
         -- Q4c-08: selected CCS2/DC locations; provisional location-wide ring audit.
         SET ROLE chargewatch_read;
         BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
@@ -104,7 +104,7 @@ internal static class Q4cSqlExporter
           WHERE l.is_active AND l.position IS NOT NULL
             AND ST_Intersects(l.position,
                 ST_MakeEnvelope(5.50,51.75,5.53,51.77,4326)::geography)
-            {{predicate}}
+            __Q4C08_LOCATION_PREDICATE__
         ),
         all_counts AS MATERIALIZED (
           SELECT s.id,
@@ -166,7 +166,7 @@ internal static class Q4cSqlExporter
           WHERE l.is_active AND l.position IS NOT NULL
             AND ST_Intersects(l.position,
                 ST_MakeEnvelope(5.50,51.75,5.53,51.77,4326)::geography)
-            {{predicate}}
+            __Q4C08_LOCATION_PREDICATE__
         ),
         counts AS (
           SELECT s.id,
@@ -198,7 +198,7 @@ internal static class Q4cSqlExporter
 
         ROLLBACK;
         RESET ROLE;
-        """;
+        """.Replace("__Q4C08_LOCATION_PREDICATE__", predicate, StringComparison.Ordinal);
     }
 
     private static string Create(string label, Dictionary<string, StringValues> entries)
