@@ -1,3 +1,8 @@
+## Q4c-06 meervoudige connector-/modusfilter-ID-sets geslaagd — 3 november 2026
+
+Werkelijke read-only NAS-uitvoer: **CCS2+CHAdeMO AC+DC** viewport/clip 2/2, grid-owned 13; **TYPE2+CCS2 AC+DC** 98/98, grid-owned 419; **CCS2+CHAdeMO DC** 2/2, grid-owned 13. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-06 heeft drie positieve selecties en is voor deze data geslaagd. De onderliggende same-connector AND/OR-semantiek verdient nog onafhankelijke fixturecontrole. Zie [MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md). **Vervolg Q4-07** lege resultaten; vervolgens Q4-08 locatiebrede ring, Q4c-04c synthetische deduplicatie en Q5. PR #114 draft; geen productiewijziging, merge of deployment.
+
+---
 ## Q4c-06 meervoudige connector-/modusfilters voorbereid — 3 november 2026
 
 [MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md) en `MapFilterQ4Probe --emit-q4c06` bevatten drie **nog niet uitgevoerde** read-only ID-setvergelijkingen voor meervoudige `connectorType`- en `mode`-waarden. De centrale `MapFilter`-generator wordt hergebruikt met dezelfde bbox als Q4c-05. Q4c-05 is **3/3 geslaagd** met reële operatoren (87/87, 93/93 en 87/87, telkens `differing_ids=0`). Q4c-04c synthetische EVSE-duplicatie blijft onbevestigd; Q4-07/Q4-08 en Q5 blijven open. Geen API/Android-productiewijziging, schemawijziging, deploy of merge; PR #114 draft.
