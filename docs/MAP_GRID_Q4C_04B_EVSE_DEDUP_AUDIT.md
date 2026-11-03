@@ -38,3 +38,16 @@ Een positieve bevestiging voor de Q4c-04-locatie vereist **precies één** onafh
 De connectorrow-teller mag groter zijn dan het unieke EVSE-aantal; juist dat is de relevante check op mogelijke connector-duplicatie. Als er geen meerdere connectoren voorkomen, bewijst de proef het juiste tellingsmechanisme bij de aanwezige data, maar geen positieve multi-connector fixture. Synthetische duplicatiecontrole blijft dan aanvullend nodig.
 
 **Belangrijk:** de SQL bevat opzettelijk twee SELECTs die binnen dezelfde snapshot blijven, maar het eerste SELECT-resultaat is per locatie en het tweede een samenvatting. Nog geen claims over resultaten voordat de NAS-uitvoer daadwerkelijk is gecontroleerd. Q4-05..08 en Q5 blijven open; PR #114 draft, geen merge of deployment.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+De gebruiker heeft de gegenereerde read-only query daadwerkelijk op productie uitgevoerd. De enige passende rij was:
+
+| id | feature_id | qualifying_connector_rows | distinct_qualifying_evses | evses_with_multiple_qualifying_connectors | passes_min_free_2 |
+|---:|---|---:|---:|---:|---|
+| 81262 | NL-BPE-6d278e19-8278-4a1d-9609-45025fca3a8a | 2 | 2 | 0 | t |
+
+Samenvatting: `locations_matching_independent=1`, `qualifying_connector_rows=2`, `qualifying_unique_evses=2`, `locations_with_multi_connector_matches=0`.
+
+**Q4c-04b PASS voor de onafhankelijke positieve EVSE-telling:** er is precies één passende locatie met twee unieke beschikbare EVSE's die ieder ten minste één passende connector hebben. Omdat de Q4c-04-resultaatset slechts aantallen en geen feature-ID rapporteerde, is die eerdere ID niet rechtstreeks naast de audit-ID gezet; het resultaat ondersteunt dezelfde unieke match binnen de identieke kleine bbox, maar is geen afzonderlijke vergelijking van twee gerapporteerde ID-waarden. **Dubbeltelling bij meerdere passende connectoren op één EVSE is niet empirisch beproefd**: hier zijn er 2 connectorrijen en 2 EVSE's. Volgende stap is een kleine synthetische read-only duplicatiefixture. Geen productiemutatie, schemawijziging, merge of deployment.
