@@ -1,3 +1,11 @@
+## Q3 geometrische grenscontrole geslaagd — 3 november 2026
+
+Gebruiker heeft [MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) werkelijk in PostgreSQL uitgevoerd met read-only rol/transactie. **Acht van acht synthetische punten** op/nabij horizontale celgrens en viercellige hoek: `owned_matches=1`, `exactly_once=t`, `all_ok=t`. Het exacte viercellige hoekpunt `corner_exact` had **candidate_matches=4** en **owned_matches=1**, canonieke cel `(1055,681)`. `horizontal_exact` had `candidate_matches=1` en `owned_matches=1`; numerieke transformaties kunnen het exacte grensgedrag van `ST_Intersects` beïnvloeden, maar dit testpunt ging niet verloren. Andere punten liggen volgens de test op de verwachte cellen.
+
+**Geometrische probes Q1, Q2, Q3 geslaagd** voor de geteste punten en Oss-coverage; deze vormen een voorlopig gevalideerde basis, geen bewijs voor alle geografische grenzen. **Vervolg Q4**: filterpariteit met de bestaande gevalideerde `MapFilter.LocationPredicate` en de locatiebrede statusclassificatie; **Q5**: daadwerkelijke bronbetrouwbaarheid en count-quality. Nog geen API-/Android-code, merge, deployment of DB-migratie.
+
+---
+
 ## Q3 horizontale grens/viercellige hoek voorbereid — 3 november 2026
 
 [MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) is toegevoegd. De **nog niet uitgevoerde** read-only SQL-fixture test acht synthetische punten op/nabij de horizontale zoom-11-rastergrens en het kruispunt van vier cellen, gemodelleerd als vier aangrenzende celverzoeken. Voor elk punt verwachten we `owned_matches=1`, `exactly_once=t`, `all_ok=t`; meerdere `candidate_matches` op grens/hoek zijn toegestaan. Dit is de laatste geometrische fixture vóór MapFilter-pariteit en count-quality-onderzoek. Geen productie-/codewijzigingen, merge of deployment.
