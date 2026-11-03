@@ -68,3 +68,42 @@ Er wordt met `SET ROLE chargewatch_read`, `BEGIN TRANSACTION ISOLATION LEVEL REP
 Bij zowel exacte pariteit als aantoonbaar lokale EVSE-indexscans hebben we **een werkende kleine-Oss-kandidaat**, niet automatisch een landelijke winnaar. Herhaal daarna alleen indien nuttig in afwisselende volgorde met P2d/P2e; test vervolgens grotere en landelijke volledige gridcellen, inclusief on-gefilterde en andere filters, vóór API-besluit. Q5 NDW-/statusdefinities blijven geparkeerd en worden niet heropend.
 
 **Status:** P2e-code alleen op ontwerpbranch. Geen API-/Android-/DB-migratie-/deployment-/mergeactie. PR #114 draft. Build en NAS-queryuitvoering nog niet door assistent bevestigd.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026 (P2e)
+
+Gebruiker leverde het volledige `p2e-lateral-availability-result.txt` aan. **De SQL is uitgevoerd met `chargewatch_read` in read-only transactie, zonder gemelde fout of timeout.**
+
+### Beide pariteitscontroles geslaagd
+
+| Check | Baseline | P2e indexed | Differing | Resultaat |
+|---|---:|---:|---:|---|
+| Locatie-ID's (`ccs2_dc`) | 34 | 34 | **0** | **`ids_match=t`** |
+| Complete rasteraggregaten | 4 cellen / 34 locaties | 4 cellen / 34 locaties | **0 verschillende celrijen** | **`aggregates_match=t`** |
+
+De per-cel-pariteit betreft de complete `SELECT`-uitvoer: `cx`, `cy`, `location_count`, `locations_with_free`, `locations_with_no_free` en `locations_unknown`. Dezelfde bestaande benchmarkstatus-COUNT-expressies zijn gebruikt; dit is **geen** wijziging aan NDW-/productiestatuslogica.
+
+### Uitvoeringsplan P2e
+
+| Maatstaf | Resultaat |
+|---|---:|
+| `Execution Time` | **71,316 ms** |
+| `Planning Time` | **2,951 ms** |
+| Shared root buffers hit | **33.513** |
+| Shared root buffers read | **0** |
+| `geo_locations` | **2.101 locaties**; `ix_charging_location_active_position` (GiST) |
+| `selected` | **34 locaties**; `Nested Loop` met `MapFilter` uit productiebron |
+| Technische filter: active EVSE indexzoekacties | **2.101** |
+| Technische filter: active connector indexzoekacties | **4.838** |
+| Laatste availability-join | **`Nested Loop Left Join`** |
+| Laatste EVSE-indexzoekacties | **34** via `idx_evse_active_location` |
+| Laatste EVSE-joinrijen | **244** |
+| Eindresultaat | **4 rastercellen** |
+
+**Belangrijk:** de landelijke `Parallel Seq Scan on connector` uit P2c is in P2e afwezig en ook de landelijke `Seq Scan on evse` uit P2d is verdwenen. De laatste EVSE-join rapporteert `Index Scan using idx_evse_active_location` met 34 indexzoekacties en `Buffers: shared hit=298`. In deze sample is de finale beschikbaarheidsaggregatie dus niet de bottleneck; de locatiegecorreleerde filterselectie blijft het grootste deel van de runtime verbruiken (~69,5 ms tot en met `selected`).
+
+### Nauwkeurige vergelijking met P2d
+
+P2d losse uitvoering: **160,477 ms**, root `shared read=23993`, met landelijke EVSE Seq Scan; P2e losse uitvoering: **71,316 ms**, root `shared read=0`, uitsluitend lokale indexlookups. De queryplannen tonen een **reële structurele I/O-toegangsverbetering**. Het verschil in gemeten runtime mag **niet** zonder meer als blijvende productiewinst worden opgevat, omdat P2e geheel uit gedeelde buffers werd bediend en P2d veel pagina's moest lezen. Ook was de P2e-executie voorafgegaan door twee inhoudelijke pariteitqueries in dezelfde transactie, die buffers konden voorverwarmen.
+
+**Besluit:** P2e heeft de bedoelde kleine-viewport-optimalisatiefunctioneel bewezen, inclusief exacte locatie-ID- én **volledige aggregaatpariteit**. Geen definitieve landelijke strategie: voor grote/nationale selecties kan 1 lookup per locatie juist duurder zijn dan een tabelscan. De volgende maatregel is daarom **oplopende read-only schaal-/belastingvergelijking** op regio en landelijke volledige-cel-overviews; geen extra Oss-SQL-varianten zonder specifieke aanleiding, en geen productie-API-/Android-implementatie vóór schaalbewijs. PR #114 draft; geen schema-, data-, productiecodewijziging, merge of deploy.
