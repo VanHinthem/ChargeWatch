@@ -90,7 +90,6 @@ internal static class Q4cSqlExporter
             command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Double, Value = 0d });
         filter.AddParameters(command);
         var predicate = ExpandFixedArrayParameters(filter.LocationPredicate(5), command, 4);
-        var watts = MapFilter.EffectiveWattsSql;
         return $"""
         -- Q4c-08: selected CCS2/DC locations; provisional location-wide ring audit.
         SET ROLE chargewatch_read;
