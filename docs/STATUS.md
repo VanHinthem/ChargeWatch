@@ -1,3 +1,9 @@
+## P1a eerste gepaarde A1/A2-read-only benchmark voorbereid — 3 november 2026
+
+[MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md) geeft het eerstvolgende uitvoerbare performancewerk: één sanity-checkpaar `EXPLAIN (ANALYZE, BUFFERS)` voor directe join (A1) versus bestaande complete-grid nationale EVSE-preaggregatie (A2), **dezelfde grote zoom-8-rastercellen en eenvoudige proefstatussen**. Nog **niet uitgevoerd**; eerst resultaten en outputplannen beoordelen, daarna gecontroleerde afwisselende herhalingen en kleinere Oss-regio. Eerder gemeten A1/A2-resultaten zijn slechts losse runs, geen definitieve ranking. Geen heropening Q5 of bestaande NDW-logica. Geen productiecode, schema, deployment of merge; PR #114 draft.
+
+---
+
 ## #113 terug op oorspronkelijke planning: performance na grid- en filtervalidatie — 3 november 2026
 
 **Leidend vervolg: [MAP_GRID_PERFORMANCE_NEXT_STEPS.md](MAP_GRID_PERFORMANCE_NEXT_STEPS.md).** De gebruiker heeft de scope opnieuw bevestigd: landelijke server-side rasteraggregatie en filtering valideren, daarna **meten en gericht optimaliseren**, vervolgens API/Android-implementatie. Q1–Q3 gridintegriteit en Q4-00..07 precluster filter-ID-pariteit zijn volgens uitgevoerde read-only tests geslaagd; Q4-08-basisinvarianten ook. De twee extra synthetische Q4-proeven (04c deduplicatie en 08b bredere ring) zijn nog niet door gebruiker als uitgevoerd bevestigd: blijven als kleine regressietests open, maar blokkeren de eerste performancevergelijking niet.
