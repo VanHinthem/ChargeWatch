@@ -51,6 +51,25 @@ internal static class Q4cSqlExporter
         })
     });
 
+    public static string CreateMultiConnectorMode() => string.Join("\n\n", new[]
+    {
+        Create("Q4c-06 CCS2+CHAdeMO AC+DC", new Dictionary<string, StringValues>
+        {
+            ["connectorType"] = new StringValues(new[] { "ccs2", "chademo" }),
+            ["mode"] = new StringValues(new[] { "ac", "dc" })
+        }),
+        Create("Q4c-06 TYPE2+CCS2 AC+DC", new Dictionary<string, StringValues>
+        {
+            ["connectorType"] = new StringValues(new[] { "type2", "ccs2" }),
+            ["mode"] = new StringValues(new[] { "ac", "dc" })
+        }),
+        Create("Q4c-06 CCS2+CHAdeMO DC", new Dictionary<string, StringValues>
+        {
+            ["connectorType"] = new StringValues(new[] { "ccs2", "chademo" }),
+            ["mode"] = "dc"
+        })
+    });
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
