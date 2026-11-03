@@ -1,3 +1,8 @@
+## Q4c-04b onafhankelijke EVSE-positieve case geslaagd — 3 november 2026
+
+De gebruiker draaide de read-only Q4c-04b-audit. Eén passende productie-laadlocatie: **DB ID 81262**, `NL-BPE-6d278e19-8278-4a1d-9609-45025fca3a8a`; **2 passende connectorrijen, 2 unieke AVAILABLE EVSE's, 0 EVSE's met meerdere passende connectoren, passes_min_free_2=t**. Aggregaat `locations_matching_independent=1`, `qualifying_unique_evses=2`. Onafhankelijke positieve telling geslaagd; expliciet voorkomen van dubbeltelling bij één EVSE met meerdere passende connectoren blijft **ongetest op deze sample**. Volgende stap synthetische read-only duplicatiefixture en daarna Q4-05..08. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). Geen mutaties, deployment of merge; PR #114 draft.
+
+---
 ## Q4c-04b onafhankelijke unieke-EVSE-telling voorbereid — 3 november 2026
 
 De bestaande MapFilterQ4Probe biedt `--emit-q4c04b` voor een **nog niet uitgevoerde** onafhankelijke read-only controle van de eerdere positieve CCS2/DC/gte150/minFree=2-locatie. In plaats van de gedeelde `LocationPredicate`-telling gebruikt de controlevorm een zelfstandige `JOIN connector`, `GROUP BY location_id, evse_id` en `count(DISTINCT evse_id)`, terwijl het vermogen rechtstreeks uit `MapFilter.EffectiveWattsSql` wordt gegenereerd. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). De werkelijke resultaten kunnen de unieke-EVSE-telling en connectorrijverschillen bevestigen, maar voor bewijs van exact dezelfde feature-ID is een expliciete ID-vergelijking nodig als deze niet al is vastgelegd. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Geen API/Android-implementatie, DB-wijziging, merge of deployment.
