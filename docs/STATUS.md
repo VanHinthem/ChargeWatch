@@ -1,3 +1,13 @@
+## #113 terug op oorspronkelijke planning: performance na grid- en filtervalidatie — 3 november 2026
+
+**Leidend vervolg: [MAP_GRID_PERFORMANCE_NEXT_STEPS.md](MAP_GRID_PERFORMANCE_NEXT_STEPS.md).** De gebruiker heeft de scope opnieuw bevestigd: landelijke server-side rasteraggregatie en filtering valideren, daarna **meten en gericht optimaliseren**, vervolgens API/Android-implementatie. Q1–Q3 gridintegriteit en Q4-00..07 precluster filter-ID-pariteit zijn volgens uitgevoerde read-only tests geslaagd; Q4-08-basisinvarianten ook. De twee extra synthetische Q4-proeven (04c deduplicatie en 08b bredere ring) zijn nog niet door gebruiker als uitgevoerd bevestigd: blijven als kleine regressietests open, maar blokkeren de eerste performancevergelijking niet.
+
+**Geen nieuwe Q5-classifier ontwerpen.** Q5a–Q5c zijn als diagnostisch archief behouden; Q5d is nadrukkelijk geparkeerd/niet goedgekeurd. NDW, lifecycle, statussen en bestaande kwaliteitslogica blijven ongewijzigd en leidend.
+
+A1–A4 performance **was al gemeten**: A1 klein/groot 78,890/844,151 ms; A2 369,545/743,756 ms; A3 104,811/1100,014 ms; A4 229,671/763,406 ms (eenmalige, niet onder gelijke belasting gecontrolleerde samples). **Volgende stap P1:** gecontroleerde herhaalde `EXPLAIN (ANALYZE, BUFFERS)`-runs van **A1 versus A2** in Oss en grote regio; daarna pas eventuele bottleneckoptimalisatie en landelijke schaalproef. Geen nieuwe SQL-variant zonder meetmotief. PR #114 blijft draft; geen code-/schemawijziging, merge of NAS-deploy.
+
+---
+
 ## Q5d voorlopig classificatieontwerp toegevoegd — 3 november 2026
 
 [MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md](MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md) bevat een **voorstel, nog niet definitief goedgekeurd** met aparte lagen voor waarnemingskwaliteit en locatiebrede EVSE-status, een statusbeslismatrix en tien nog uit te voeren fixtures. Het ontwerp voorkomt dat een oude `source_last_updated` zonder ander bewijs automatisch grijs oplevert of dat nul AVAILABLE + UNKNOWN ten onrechte als zeker bezet wordt gepresenteerd. Fault-only, groene locaties met onbekende capaciteit, completeness-bewijs en responsemetadata vragen nog expliciete beslissingen. Q5a–Q5c diagnostische tests geslaagd; Q4c-04c en Q4c-08b synthetisch open. PR #114 draft, geen API/Android-/DB-wijzigingen, deployment of merge.
