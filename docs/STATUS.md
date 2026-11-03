@@ -1,3 +1,8 @@
+## Q4c-07 lege selecties geslaagd — 3 november 2026
+
+Gebruiker voerde de read-only Q4c-07-proef op de NAS uit. Niet-bestaande operator: **viewport_ids=0, grid_candidates=0, grid_owned=0, overview_clipped_ids=0, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. De lege SQL-ID-setpariteit is hiermee bevestigd. De dekking van een lege response met toekomstige `coverage.complete` is nog niet als API-contract beproefd. Zie [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md). Vervolg Q4-08 ringclassificatie op *alle* operationele EVSE's van gefilterde locaties en open synthetische Q4c-04c deduplicatie. Q5 blijft open. Geen productiedatawijziging, deployment of merge; PR #114 draft.
+
+---
 ## Q4c-07 lege locatie-ID-settest voorbereid — 3 november 2026
 
 De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
