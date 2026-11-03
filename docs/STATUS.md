@@ -1,3 +1,8 @@
+## Q4c-01 CCS2/DC gefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker heeft de door de gedeelde productie-`MapFilter.cs` gegenereerde read-only Q4c-01 SQL op NAS uitgevoerd: **viewport_ids=2; grid_candidates=13; grid_owned=13; overview_clipped_ids=2; differing_ids=0; viewport_unique=t; overview_unique=t; ids_match=t**. Daarmee is de exacte ID-setpariteit voor CCS2/DC op de kleine Oss-bbox geslaagd, met twee positieve matches. Zie [MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md). Q4a/Q4b/Q4c-00 waren eveneens geslaagd. **Vervolg:** stapsgewijs vermogensgrenzen, `minFree`, operatoren en filtercombinaties op werkelijke data toetsen; Q5 bronkwaliteit blijft open. Geen API-/Android-productiewijziging, migratie, deployment of merge; PR #114 draft.
+
+---
 ## Q4c-01 gefilterde ID-setcontrole voorbereid — 3 november 2026
 
 [MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md) beschrijft een **nog niet uitgevoerde** test met `connectorType=ccs2&mode=dc` op de kleine 98-locaties Oss-bbox. De lokale [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) bevat nu `--emit-q4c01`: deze genereert twee PostgreSQL-selecties met de **daadwerkelijke** productie-`MapFilter.LocationPredicate(5/6)` en `AddParameters`. Voor handmatige NAS-uitvoering worden uitsluitend vooraf gevalideerde, vaste filterarrays als veilige SQL-constanten geëxporteerd; productieroutes blijven geparametriseerd. De NAS voert de vergelijking uit met de `chargewatch_read`-rol in één `REPEATABLE READ READ ONLY`-snapshot. **Generator nog niet lokaal gebouwd; SQL nog niet uitgevoerd**. Eerst lokale export, daarna NAS-uitvoer beoordelen. Geen productiecodewijziging, schemawijziging, deployment of merge.
