@@ -42,9 +42,19 @@ internal static class OverviewGeoFirstExporter
              includeParity: true, correlateTechnicalFilter: true,
              lateralAvailability: true);
 
+    // P2f: an intentionally bounded, single-EXPLAIN medium-area probe.
+    // Avoid running the expensive two-query raster-parity check before the
+    // first scale measurement. Region is fixed; national test not emitted.
+    public static string CreateMediumRegionCcs2Dc() =>
+        Emit("ccs2_dc", new() { ["connectorType"] = "ccs2", ["mode"] = "dc" },
+             includeParity: false, correlateTechnicalFilter: true,
+             lateralAvailability: true, includeAggregateParity: false,
+             mediumRegion: true);
+
     private static string Emit(string name, Dictionary<string, StringValues> entries,
         bool includeParity = true, bool correlateTechnicalFilter = false,
-        bool lateralAvailability = false)
+        bool lateralAvailability = false, bool includeAggregateParity = true,
+        bool mediumRegion = false)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
             throw new InvalidOperationException(error);
@@ -63,7 +73,7 @@ internal static class OverviewGeoFirstExporter
             return "ARRAY[" + string.Join(",", ((string[])parameter.Value!)
                 .Select(value => "'" + value.Replace("'", "''") + "'")) + "]::text[]";
         });
-        const string geo = """
+        var geo = """
         grid AS (
             SELECT 40075016.68557849::double precision/2048.0 AS cell_m,
                    ST_Transform(ST_MakeEnvelope(5.40,51.70,5.62,51.83,4326),3857) AS area
@@ -97,6 +107,21 @@ internal static class OverviewGeoFirstExporter
             WHERE true __FILTER__
         )
         """;
+        if (mediumRegion)
+        {
+            // Regional zoom-10 Web Mercator area: minLon=5.2, minLat=51.6,
+            // maxLon=5.9, maxLat=52.1. Exactly one occurrence per fragment.
+            const string oldEnvelope = "ST_MakeEnvelope(5.40,51.70,5.62,51.83,4326)";
+            const string newEnvelope = "ST_MakeEnvelope(5.20,51.60,5.90,52.10,4326)";
+            const string oldSize = "40075016.68557849::double precision/2048.0";
+            const string newSize = "40075016.68557849::double precision/1024.0";
+            if (geo.Split(oldEnvelope, StringSplitOptions.None).Length != 2 ||
+                geo.Split(oldSize, StringSplitOptions.None).Length != 2)
+                throw new InvalidOperationException("P2f region template mismatched.");
+            geo = geo.Replace(oldEnvelope, newEnvelope, StringComparison.Ordinal)
+                     .Replace(oldSize, newSize, StringComparison.Ordinal);
+        }
+
         // The parity statement has one DB snapshot and two independent
         // selections; only placement of the same MapFilter predicate differs.
         var parity = """
@@ -221,7 +246,7 @@ internal static class OverviewGeoFirstExporter
                 SET LOCAL lock_timeout = '1s';
                 SET LOCAL jit = off;
                 """ + "\n" + (includeParity ? Render(parity) + "\n" : "") +
-                aggregateParity + "\n" + indexedPerf + "\n" + """
+                (includeAggregateParity ? aggregateParity + "\n" : "") + indexedPerf + "\n" + """
                 ROLLBACK;
                 RESET ROLE;
                 """;
