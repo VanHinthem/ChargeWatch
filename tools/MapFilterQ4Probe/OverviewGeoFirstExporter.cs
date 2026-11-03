@@ -51,10 +51,18 @@ internal static class OverviewGeoFirstExporter
              lateralAvailability: true, includeAggregateParity: false,
              mediumRegion: true);
 
+    // P2g: regional correctness gate only. Both comparisons run in the
+    // same read-only repeatable-read transaction; no EXPLAIN warm-up.
+    public static string CreateMediumRegionParityCcs2Dc() =>
+        Emit("ccs2_dc", new() { ["connectorType"] = "ccs2", ["mode"] = "dc" },
+             includeParity: true, correlateTechnicalFilter: true,
+             lateralAvailability: true, includeAggregateParity: true,
+             mediumRegion: true, includePerformance: false);
+
     private static string Emit(string name, Dictionary<string, StringValues> entries,
         bool includeParity = true, bool correlateTechnicalFilter = false,
         bool lateralAvailability = false, bool includeAggregateParity = true,
-        bool mediumRegion = false)
+        bool mediumRegion = false, bool includePerformance = true)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
             throw new InvalidOperationException(error);
@@ -246,7 +254,8 @@ internal static class OverviewGeoFirstExporter
                 SET LOCAL lock_timeout = '1s';
                 SET LOCAL jit = off;
                 """ + "\n" + (includeParity ? Render(parity) + "\n" : "") +
-                (includeAggregateParity ? aggregateParity + "\n" : "") + indexedPerf + "\n" + """
+                (includeAggregateParity ? aggregateParity + "\n" : "") +
+                (includePerformance ? indexedPerf + "\n" : "") + """
                 ROLLBACK;
                 RESET ROLE;
                 """;
