@@ -26,6 +26,15 @@ internal static class Q4cSqlExporter
                 ["minFree"] = value
             })));
 
+    public static string CreateCombinedMinFree() => Create("Q4c-04 CCS2 DC gte150 minFree=2",
+        new Dictionary<string, StringValues>
+        {
+            ["connectorType"] = "ccs2",
+            ["mode"] = "dc",
+            ["power"] = "gte150",
+            ["minFree"] = "2"
+        });
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
