@@ -1,3 +1,11 @@
+## Productie-preflight kaart v2 #113 — 3 november 2026
+
+**Werkelijk door gebruiker op NAS uitgevoerd:** `current_user=chargewatch_read`, `current_database=chargewatch`, `transaction_read_only=on`; `active_locations=81.004`. Indexen op productie: `ix_charging_location_active_position` (partiële GiST op actieve posities), `ix_location_position` (GiST), `idx_evse_active_location` (partiële B-tree actieve EVSE per location), `idx_connector_active_evse` (partiële B-tree actieve connector per EVSE), plus PK/unique. De uitvoer bevat nog **geen waarde** voor `active_evses`; niet raden. **Dit bewijst indexaanwezigheid, niet de daadwerkelijke indexkeuze of queryprestatie.** Volgende stap is een begrensde, read-only test op klein Oss-gebied met EXPLAIN ANALYZE en daarna exacte locatie-/ringcontroles.
+
+Geen databasewijzigingen, code/merge/deploy; PR #114 blijft draft.
+
+---
+
 ## A1b SQL-review — centrale filters en rastergrenzen (#113; 2 november 2026)
 
 **Aangepast ontwerp:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) gebruikt geen handmatig gedupliceerde filterlogica meer. De SQL-template vereist de bestaande `MapFilter.LocationPredicate(6)` + `AddParameters` voor `connectorType`, `mode`, alle vermogensbanden, `minFree` en operator. Bbox wordt naar volledige Mercator-rastercellen afgerond en elke locatie bezit precies één `cell_x/cell_y` met expliciete ownershipfilter. Er is een fixturematrix F0–F9 toegevoegd voor status, volledige dekking, filtercombinaties en grenzen.
