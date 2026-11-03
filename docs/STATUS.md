@@ -1,3 +1,9 @@
+## Q2 grenspuntcontrole voorbereid — 3 november 2026
+
+Na geslaagde Q1 op productie is [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) opgesteld: een **nog niet uitgevoerde** read-only PostgreSQL-fixture met drie synthetische 3857-punten (1 m links, exact op, 1 m rechts van een vaste zoom-11-celgrens) en twee aangrenzende volledige celverzoeken. De fixture test `candidate_matches` versus `owned_matches`, en verwacht `owned_matches=1` per synthetisch punt, `all_ok=t`, zodat grensraakkandidaten niet dubbel op de kaart verschijnen. Exacte grenspunten worden via 4326/geography roundtrips getoetst. Dit valideert niet vanzelf horizontale grenzen en vier-cel-hoeken; die blijven aparte checks. Geen productiemutaties, implementatie of merge/deploy.
+
+---
+
 ## Q1 rasterintegriteit werkelijk geslaagd — Oss, 3 november 2026
 
 Gebruiker voerde [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) uit op productiedatabase met `chargewatch_read` en `READ ONLY`. **matched_locations=2.101; unique_matched_locations=2.101; owned_locations=2.101; classified_locations=2.101; grid_cells=4; cell_location_sum=2.101; green_locations=1.834; red_locations=177; unknown_locations=90; partition_ok=t**. Alle locatie-/cel- en drie-kleuren-somregels sluiten in deze reële Oss-dataset. Het is slechts één geografisch gebied op zoom 11, onder **voorlopige conservatieve statusclassifier**, dus nog geen bewijs van de definitieve NDW/Android-bronbetrouwbaarheid, gehele NL-dekking, filters of grenspunten. Q1 heeft geen productiedata gewijzigd.
