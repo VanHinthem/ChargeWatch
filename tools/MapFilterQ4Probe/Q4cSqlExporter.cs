@@ -70,6 +70,12 @@ internal static class Q4cSqlExporter
         })
     });
 
+    public static string CreateNoMatch() => Create("Q4c-07 nonexistent operator",
+        new Dictionary<string, StringValues>
+        {
+            ["operator"] = "__Q4_NONEXISTENT_OPERATOR_113__"
+        });
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
