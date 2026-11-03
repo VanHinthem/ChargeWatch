@@ -16,8 +16,13 @@ if (args.Length == 1 && args[0] == "--emit-q4c02")
     Console.WriteLine(Q4cSqlExporter.CreatePowerBands());
     return;
 }
+if (args.Length == 1 && args[0] == "--emit-q4c02b")
+{
+    Console.WriteLine(Q4cPowerBoundaryExporter.Create());
+    return;
+}
 if (args.Length != 0)
-    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02]");
+    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02|--emit-q4c02b]");
 
 MapFilter.SelfTest();
 
