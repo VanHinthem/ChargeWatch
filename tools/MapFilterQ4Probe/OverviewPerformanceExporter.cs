@@ -23,6 +23,7 @@ internal static class OverviewPerformanceExporter
 
     public static string CreateScenario(string name) => name switch
     {
+        "unfiltered" => Emit(name, new()),
         "ccs2_dc" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc" }),
         "ccs2_dc_minfree1" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc", ["minFree"] = "1" }),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown fixed benchmark scenario")
