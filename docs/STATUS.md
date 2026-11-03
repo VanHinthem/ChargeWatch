@@ -1,3 +1,11 @@
+## Q4a read-only filter-ID-controle voorbereid — 3 november 2026
+
+[MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) is toegevoegd: **nog niet uitgevoerde**, read-only SQL-controle op de oorspronkelijke Oss-bbox. De proef vergelijkt onafhankelijke **locatie-ID-sets** bij `connectorType=ccs2`, `mode=dc`, `minFree=1` en `minFree=2` tussen de bestaande `MapFilter.LocationPredicate`-achtige `EXISTS/count`-structuur en een `COUNT(DISTINCT EVSE)`-vrije, één-rij-per-EVSE aggregatie met connector-`EXISTS`. Criteria: `differing_ids=0`, `ids_match=t` voor beide minFree-waarden. Dit is expliciet **nog geen C#-Npgsql-integratietest** en geen volledige filterpariteit: operator, alle power-banden, multi-value, statusbrongegevens moeten later getoetst worden. Om die reden verwijst de proef naar de oorspronkelijke bbox en mag absolute telling niet gelijkgesteld worden met Q1's uitgebreid-celgebied.
+
+Q1, Q2 en Q3 zijn daadwerkelijk geslaagd; Q4a nog niet gedraaid. Geen DB-mutatiewerk, API-/Android-implementatie, merge of deployment.
+
+---
+
 ## Q3 geometrische grenscontrole geslaagd — 3 november 2026
 
 Gebruiker heeft [MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) werkelijk in PostgreSQL uitgevoerd met read-only rol/transactie. **Acht van acht synthetische punten** op/nabij horizontale celgrens en viercellige hoek: `owned_matches=1`, `exactly_once=t`, `all_ok=t`. Het exacte viercellige hoekpunt `corner_exact` had **candidate_matches=4** en **owned_matches=1**, canonieke cel `(1055,681)`. `horizontal_exact` had `candidate_matches=1` en `owned_matches=1`; numerieke transformaties kunnen het exacte grensgedrag van `ST_Intersects` beïnvloeden, maar dit testpunt ging niet verloren. Andere punten liggen volgens de test op de verwachte cellen.
