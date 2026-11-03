@@ -21,7 +21,14 @@ internal static class OverviewGeoFirstExporter
         return string.Join("\n\n", cases.Select(c => Emit(c.Name, c.Query)));
     }
 
-    private static string Emit(string name, Dictionary<string, StringValues> entries)
+    public static string CreateScenario(string name, bool includeParity = true) => name switch
+    {
+        "ccs2_dc" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc" }, includeParity),
+        "ccs2_dc_minfree1" => Emit(name, new() { ["connectorType"] = "ccs2", ["mode"] = "dc", ["minFree"] = "1" }, includeParity),
+        _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown fixed benchmark scenario")
+    };
+
+    private static string Emit(string name, Dictionary<string, StringValues> entries, bool includeParity = true)
     {
         if (!MapFilter.TryParse(new QueryCollection(entries), out var filter, out var error))
             throw new InvalidOperationException(error);
