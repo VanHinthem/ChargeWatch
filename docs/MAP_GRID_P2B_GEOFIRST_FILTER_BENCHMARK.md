@@ -51,3 +51,38 @@ De twee proeven zijn read-only met `SET ROLE chargewatch_read`, `BEGIN REPEATABL
 - De Q5/NDW-availability-logic wordt **niet** opnieuw ontworpen; bestaande productielogica blijft bron van waarheid. De proef implementeert **geen** nieuwe API, DB-migratie of Android-code.
 
 PR #114 blijft draft. Geen merge of NAS-deployment.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026, P2b eerste uitvoering
+
+Gebruiker leverde de complete read-only psql-uitvoer aan voor beide fixtures, inclusief `EXCEPT`-ID-pariteit en `EXPLAIN (ANALYZE, BUFFERS)`. **Alle onderstaande waarden zijn gemeten, niet geschat.**
+
+| Scenario | Oorspronkelijke locaties | Geography-first locaties | Verschillende ID's | IDs gelijk | P2a origineel (ms) | P2b geography-first (ms) |
+|---|---:|---:|---:|---|---:|---:|
+| `ccs2_dc` | 34 | 34 | 0 | **t** | 160,011 | **187,509** |
+| `ccs2_dc_minfree1` | 30 | 30 | 0 | **t** | 137,799 | **41,749** |
+
+Beide P2b-resultaten eindigen in **vier rastercellen**.
+
+### Plan `ccs2_dc`: landelijke scan blijft bestaan
+
+- `geo_locations AS MATERIALIZED`: **2.101** geografische locaties; active spatial GiST-index `ix_charging_location_active_position` gebruikt.
+- `selected`: `Hash Semi Join` met **34** geselecteerde locaties.
+- Ondanks geografische materialisatie blijft er een **Parallel Seq Scan van alle connectoren**: **6.473** passende connectorrecords, `connector` scan `shared hit=3387 read=20453`, daarna **6.467 EVSE-PK-indexzoekacties**.
+- Daarna `idx_evse_active_location` voor **34** locaties bij availability-join.
+- Root buffers: `shared hit=27029 read=25939 dirtied=409 written=3821`.
+- Planning Time **3,371 ms**, Execution Time **187,509 ms**. Vergeleken met P2a 160,011 ms **trager**, maar cache/collectorbelasting varieerde.
+
+### Plan `ccs2_dc_minfree1`: lokale indexstrategie
+
+- `geo_locations AS MATERIALIZED`: **2.101** geografische locaties, GiST-index gebruikt.
+- PostgreSQL kiest `Nested Loop Semi Join` en per-locatie `minFree`-subplan: **2.101** `idx_evse_active_location` searches en **3.578** `idx_connector_active_evse` searches, waarna **30** locaties resteren. Daarna aanvullende technische EXISTS-controle: 30 EVSE-indexsearches en 54 connector-indexsearches; finale availability-join voor 30 geselecteerde locaties (235 rows).
+- **Geen landelijke connector Seq Scan** in deze run.
+- Root buffers: `shared hit=28962 read=31 written=1`; dit is een **overwegend warme-cache-run** en niet direct causaal vergelijkbaar met P2a (23.531 reads).
+- Planning Time **3,047 ms**, Execution Time **41,749 ms**. In dit sample ~3,3× sneller dan P2a, maar **niet bewezen structureel**.
+
+### Besluit na eerste run
+
+**Functioneel ID-pariteit geslaagd in beide gemeten scenario's.** Een gematerialiseerde geografische CTE forceert **niet** altijd een location-first join: de optimizer maakt de selectie op basis van predicaatkosten en cardinaliteit. Bij `ccs2_dc` blijft de landelijke connectorscan bestaan; bij `ccs2_dc_minfree1` verdwijnt die. Geen generieke 'geography-first is sneller'-claim en geen API-/SQL-productiewijziging op basis van deze losse resultaten.
+
+**Volgende stap:** vergelijk P2a versus P2b **onder dezelfde warmere cachecondities en afwisselende volgorde** voor beide gefilterde gevallen, of onderzoek met `EXPLAIN` een **gerichte gecorreleerde EVSE-/connector-indexjoin vanaf de geo-set** als later ook `ccs2_dc` aantoonbaar achterblijft. Filtersemantiek blijft altijd door de gelinkte productie-`MapFilter` gegenereerd. Nationale performance en filters anders dan deze twee zijn nog niet getest. PR #114 blijft draft, geen mutaties/merge/deploy.
