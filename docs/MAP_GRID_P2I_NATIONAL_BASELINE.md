@@ -98,3 +98,28 @@ Gebruiker leverde `p2i-national-unfiltered-result.txt` met een succesvol afgeron
 - **Geen landelijke CCS2/DC-benchmark uitvoeren voordat een onafhankelijke volledige rasterlocatie-census/pariteitcontrole is beoordeeld.** Filterafwijkingen, ontbrekende eiland-/grensgebieden en stabiliteit bij pan blijven afzonderlijke tests.
 
 **Vervolg P2j:** een eenvoudige, enkelvoudige read-only census van alle actieve, gepositioneerde locaties binnen de uitgelijnde grid8-bounds, met onafhankelijk berekende `COUNT(*)`-grondwaarheid, een rastergroepering met `SUM(location_count)` en `COUNT(DISTINCT id)` plus controle op precies één cell-toewijzing. Eventueel controleer de `country_code`-verdeling voor niet-NL-locaties in de rechthoek, maar verwar deze broncode niet met een geometrische landsgrens. Gebruik dezelfde vaste complete-cell-grenzen; geen DB-schemamutatie. Daarna pas gefilterde landelijke performance.
+
+
+## Fase 2 (P2k) — werkelijk landelijke CCS2/DC-meting, 3 november 2026
+
+Gebruiker leverde `p2k-national-ccs2-result.txt` met een succesvolle, niet-gelimiteerde read-only oorspronkelijke overview-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`. De variant gebruikt `MapFilter` uit de productiebron, bbox `3.00,50.60,7.40,53.80`, vaste wereldraster gridLevel8 en `connectorType=ccs2` plus `mode=dc`.
+
+| Metriek | Waarde |
+|---|---:|
+| Planning Time | 35,016 ms |
+| Execution Time | **265,966 ms** |
+| `selected` locaties | **1.608** |
+| Niet-lege gridcellen | **11** |
+| Technische-match connectorrijen | 6.473 |
+| Distinct connector-matched EVSE IDs | 6.467 |
+| Voor geografisch filter kandidaatlocaties | 1.637 |
+| Finale actieve EVSE-joinrijen | 9.304 |
+| Finale `idx_evse_active_location`-lookups | 1.608 |
+| Root shared buffers | `hit=35984 read=33236 dirtied=63 written=1145` |
+| Temp buffer/disk spill | Niet gemeld; `HashAggregate` `Batches: 1` en in-memory sorts |
+
+**Plan:** nationale `Parallel Seq Scan on connector` met twee workers, EVSE-PK lookups op technisch gematchte EVSE's, `charging_location_pkey` 1.637× met ruimtelijke filter, daarna per gefilterde locatie indexed lookup van actieve EVSE's. Er is **geen** nationale EVSE-Seq Scan bij de finale aggregatie. Deze **oorspronkelijke connector-first** route is bij de CCS2/DC-selectie op landelijke schaal binnen 5s en hoeft niet te worden vervangen door de regionaal aantoonbaar veel duurdere geforceerde geo-first-indexstrategie.
+
+**Correctheidsafbakening:** `EXPLAIN` toont 1.608 geselecteerde locaties en 11 geaggregeerde rijen; het bewijst niet onafhankelijk de complete geselecteerde ID-set, complete locatiepopulatie per cel of groen/rood/onbekend-aantallen voor deze CCS2/DC-fixture. P2j's landelijk exacte count-pariteit geldt alleen voor **ongefilterd**, P2g's volledige ID/aggregaatpariteit alleen voor de **regionale** CCS2/DC-view. Een afzonderlijke landelijke gefilterde pariteitsgate blijft open.
+
+**Architectuurimplicatie:** geen vaste zoomdrempel of universele LATERAL-indexstrategie aannemen; behoud de oorspronkelijke `MapFilter`-semantiek en een dynamisch fysieke planstrategie waar gerechtvaardigd. Ook deze benchmark zegt niets over p95, concurrentie, daadwerkelijke API-responsecontracten of lege coverage-cellen. PR #114 blijft draft, geen productiewijziging, DB-migratie, merge of deployment.
