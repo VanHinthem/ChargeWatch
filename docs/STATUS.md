@@ -1,3 +1,9 @@
+## Q4c-02 vier vermogensbanden voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
+
+---
+
 ## Q4c-01 CCS2/DC gefilterde ID-setvergelijking geslaagd — 3 november 2026
 
 De gebruiker heeft de door de gedeelde productie-`MapFilter.cs` gegenereerde read-only Q4c-01 SQL op NAS uitgevoerd: **viewport_ids=2; grid_candidates=13; grid_owned=13; overview_clipped_ids=2; differing_ids=0; viewport_unique=t; overview_unique=t; ids_match=t**. Daarmee is de exacte ID-setpariteit voor CCS2/DC op de kleine Oss-bbox geslaagd, met twee positieve matches. Zie [MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md). Q4a/Q4b/Q4c-00 waren eveneens geslaagd. **Vervolg:** stapsgewijs vermogensgrenzen, `minFree`, operatoren en filtercombinaties op werkelijke data toetsen; Q5 bronkwaliteit blijft open. Geen API-/Android-productiewijziging, migratie, deployment of merge; PR #114 draft.
