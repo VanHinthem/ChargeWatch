@@ -51,3 +51,28 @@ Per scenario: `Execution Time`, `Planning Time`, `selected`-CTE werkelijke locat
 ## Daarna
 
 Als Oss binnen het budget en zonder onverwachte planproblemen draait, volgen de grotere zoom-8-regio en nationale schaal **in oplopende stappen** met dezelfde echte MapFilter-generator. Neem geen nationale benchmark of cachingstrategie aan zonder aparte meetgegevens. Voor de echte API moeten de huidige bestaande NDW-/availability-/kwaliteitsregels worden hergebruikt, geen tweede classifier. PR #114 draft; geen merge, deploy of database-/productiecodewijzigingen.
+
+
+## Eerste echte NAS-queryplan ontvangen — 3 november 2026
+
+Gebruiker leverde één compleet `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-plan aan. Herleid uit de werkelijke planpredicaten: scenario **`ccs2_dc_minfree1`** (`ccs2`, `dc` en `minFree>=1`). De ongefilterde en uitsluitend CCS2/DC-plannen zijn **niet** meegestuurd en mogen niet als uitgevoerd worden geregistreerd.
+
+| Gegeven | Werkelijke uitvoer |
+|---|---|
+| Execution Time | **135,861 ms** |
+| Planning Time | **3,423 ms** |
+| Selected locaties | **30** |
+| Grid-resultaatrijen | **4** |
+| Eind-joinrows (alle actieve EVSE's op geselecteerde locaties) | **235** |
+| Root buffers | `shared hit=34057 read=23497 written=222` |
+| Connector-scan | `Parallel Seq Scan on connector c_1`, 2 workers, **6.473** technisch passende connectorrows; `shared hit=509 read=23331` |
+| EVSE-id-lookups | `evse_pkey`: **6.467 index searches** |
+| Kandidaatlocaties na connector/EVSE | **1.637** distinct `location_id` |
+| Location lookups | `charging_location_pkey`: **1.637 index searches**; geografische filter pas op deze stap |
+| Extra minFree-SubPlan | **34** locatieruns; actieve EVSE-index 34 searches, connector-index 168 searches |
+| Geselecteerde-locatie availability-join | `idx_evse_active_location`: 30 index searches |
+| Disk spill | Aggregates Batches=1; geen expliciete temp disk-spill zichtbaar |
+
+**Observatie:** bij de combinatie met technisch filter en minFree kiest PostgreSQL een connector-first plan dat de actieve connectoren in heel Nederland scant, nog voordat Oss-geografie wordt toegepast. Het is geen fout in `MapFilter` of bewijs van filterincorrectheid, maar een concrete planner-/querystructuurkandidaat voor optimalisatie. De SQL-benchmark is bewust een handmatig opgestelde overview-SELECT met de **echte MapFilter-predicate**; in productie blijft parameterbinding verplicht.
+
+**Vervolg:** eerst de twee overige P2a-scenario's (ongefilterd en CCS2/DC zonder minFree) uit het al gegenereerde SQL-bestand beoordelen, zodat we kunnen isoleren welk onderdeel van het plan de cost veroorzaakt. Daarna hooguit één gerichte read-only vergelijking met een afgedwongen geografische `MATERIALIZED` selectie vóór het filterpredicaat. Ook dat moet dezelfde `MapFilter.LocationPredicate`-string en dezelfde ID-set behouden: geen tweede filterimplementatie. Geen schema- of API-wijzigingen, merge of deploy.
