@@ -1,3 +1,8 @@
+## Q4c-04 gecombineerde filter-ID-setpariteit geslaagd — 3 november 2026
+
+Werkelijke NAS-proef: `ccs2+dc+gte150+minFree=2` selecteerde **1 viewport-ID, 7 volledige grid-owned ID's en 1 geclipte ID**, met `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-04 ID-setpariteit geslaagd met positieve match, maar onafhankelijk bewijs van minstens twee *unieke passende AVAILABLE EVSE's* is nog nodig; de bestaande `MapFilter` wordt immers aan beide zijden gebruikt. Daarna operatoren/multivalue/lege set en locatiebrede ringstatus valideren. Zie [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md). PR #114 draft; geen schemawijziging, deploy of merge.
+
+---
 ## Q4c-03 geslaagd; Q4c-04 gecombineerd filter voorbereid — 3 november 2026
 
 Gebruiker voerde Q4c-03 met de bestaande `MapFilter`-SQL-generator read-only uit: **minFree=1: 86 viewport-ID's/86 geclipte raster-ID's (380 grid-owned), differing_ids=0, beide unique=t, ids_match=t; minFree=2: 54/54 (266 grid-owned), differing_ids=0, beide unique=t, ids_match=t**. Q4c-03 is geslaagd met twee positieve testsets, zie [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md).
