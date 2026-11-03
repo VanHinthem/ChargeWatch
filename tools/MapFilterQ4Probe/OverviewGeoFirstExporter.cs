@@ -142,13 +142,20 @@ internal static class OverviewGeoFirstExporter
                )::bigint AS locations_unknown
         FROM per_location GROUP BY cx,cy ORDER BY cy,cx;
         """;
+        // Replace only the filter clause, not a whitespace-sensitive multi-line
+        // fragment: C# raw-string indentation is normalized at runtime.
+        const string filterMarker = "WHERE true __FILTER__";
+        if (correlateTechnicalFilter &&
+            geo.Split(filterMarker, StringSplitOptions.None).Length != 2)
+            throw new InvalidOperationException("Expected exactly one filter marker.");
         var geoTemplate = correlateTechnicalFilter
-            ? geo.Replace(
-                "FROM geo_locations l\n            WHERE true __FILTER__",
-                "FROM geo_locations l\n            CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched",
+            ? geo.Replace(filterMarker,
+                "CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched",
                 StringComparison.Ordinal)
             : geo;
-        if (correlateTechnicalFilter && geoTemplate == geo)
+        if (correlateTechnicalFilter &&
+            (!geoTemplate.Contains("CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched", StringComparison.Ordinal) ||
+             geoTemplate.Contains(filterMarker, StringComparison.Ordinal)))
             throw new InvalidOperationException("Correlated filter SQL template not applied.");
 
         string Render(string template) => template
