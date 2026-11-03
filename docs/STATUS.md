@@ -1,3 +1,8 @@
+## Q4c-08 basisinvarianten NAS geslaagd, positieve bredere-ringfixture ontbreekt — 3 november 2026
+
+De gecorrigeerde Q4c-08-query is door de gebruiker op productie succesvol uitgevoerd. CCS2/DC-locaties **81262** (2 technisch passend, 2 operationeel, 2 vrij, groen voorlopig) en **85663** (2 technisch passend, 2 operationeel, 1 vrij, groen voorlopig): beide `scope_ok=t`, maar beide `has_other_evses=f`. Aggregaat 2 geselecteerd, 2 groen, 0 rood, 0 onbekend, `partition_ok=t`. **Basisinvarianten geslaagd; nog geen praktijkbewijs voor extra niet-passende EVSE's op een geselecteerde locatie**. Volgende stap read-only synthetische locatiebrede ringfixture. Q5 bepaalt definitieve status-/stalenesssemantiek. Q4c-04c EVSE-deduplicatiefixture niet als uitgevoerd bevestigd. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). PR #114 blijft draft; geen productiedatawijziging, deploy of merge.
+
+---
 
 
 ### Aanvullende correctie — 3 november 2026
