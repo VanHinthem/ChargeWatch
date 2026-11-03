@@ -70,3 +70,31 @@ Analyseer `Execution Time`, `Planning Time`, root `shared hit/read/written`, `te
 Als fase 1 binnen 5 seconden voltooit, bepalen we of een gelijkwaardige ongefilterde resultsetpariteit of CCS2/DC-benchmark nuttiger is als volgende stap. De vraag naar hybride dispatch op basis van schaal en filterselectiviteit blijft apart; **geen zoomdrempel of API-ontwerpbesluit op deze ene run**.
 
 PR #114 draft. Geen productie-API-/Android-code, DB-migratie/index/schemawijziging, merge of deployment.
+
+
+## Werkelijke NAS-uitkomst fase 1 — 3 november 2026
+
+Gebruiker leverde `p2i-national-unfiltered-result.txt` met een succesvol afgeronde read-only `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)` (geen timeout).
+
+| Observatie | Gemeten |
+|---|---:|
+| Planning Time | **26,881 ms** |
+| Execution Time | **986,275 ms** |
+| `selected` geografische locaties | **81.934** |
+| Uitgevoerde landelijke EVSE Seq Scan, actieve EVSE-rijen | **216.786** |
+| Joinrijen na selectie × EVSE | **206.207** |
+| `GroupAggregate` rastercellen | **13 niet-lege cellen** |
+| Root shared buffers | `hit=3794 read=50661 dirtied=5326 written=6748` |
+| Root temporary buffers | `temp read=248 written=941` |
+| Per-location HashAggregate | `Batches: 5; Memory Usage: 7737kB; Disk Usage: 3376kB` |
+| SELECTED CTE opslag | `Storage: Disk; Maximum Storage: 4096kB` |
+
+### Interpretatie
+
+- De oorspronkelijke landelijke ongefilterde rasterquery **draait binnen de 5s grens** en neemt **81.934 ruwe locaties** mee in de geselecteerde CTE. De kaartresultaatvorm is slechts **13 niet-lege cellen** op Web Mercator gridLevel8. Er is **geen LIMIT 999** in deze SQL-route. Dit ondersteunt de haalbaarheid van compacte landelijke aggregatie; een echte API response-/coverage-contractimplementatie is er nog niet.
+- De `Hash Right Join` gebruikt een volledige `Seq Scan on evse` met **216.786 actieve EVSE-rijen**. Bij dit grote selectiegebied kan een brede scan juist rationeel zijn. De `HashAggregate` voor 81.934 locaties valt uiteen in 5 batches, met beperkte tijdelijke schijf-I/O (3.376 kB `Disk Usage`).
+- Deze `EXPLAIN` retourneert **geen celwaarden, locatie-totalensom, exact cel-lidmaatschap of onafhankelijke telling**. We mogen dus niet concluderen dat precies 81.934 actieve locaties correct en zonder doublures in de 13 cellen zijn opgeteld op grond van de EXPLAIN alleen. De bbox is een Nederlandgerichte omsluitende rechthoek, geen landspolygon.
+- De 13 cellen zijn niet-lege resultaatcellen, **niet** een gegarandeerd expliciete `coverage`-lijst met lege cellen.
+- **Geen landelijke CCS2/DC-benchmark uitvoeren voordat een onafhankelijke volledige rasterlocatie-census/pariteitcontrole is beoordeeld.** Filterafwijkingen, ontbrekende eiland-/grensgebieden en stabiliteit bij pan blijven afzonderlijke tests.
+
+**Vervolg P2j:** een eenvoudige, enkelvoudige read-only census van alle actieve, gepositioneerde locaties binnen de uitgelijnde grid8-bounds, met onafhankelijk berekende `COUNT(*)`-grondwaarheid, een rastergroepering met `SUM(location_count)` en `COUNT(DISTINCT id)` plus controle op precies één cell-toewijzing. Eventueel controleer de `country_code`-verdeling voor niet-NL-locaties in de rechthoek, maar verwar deze broncode niet met een geometrische landsgrens. Gebruik dezelfde vaste complete-cell-grenzen; geen DB-schemamutatie. Daarna pas gefilterde landelijke performance.
