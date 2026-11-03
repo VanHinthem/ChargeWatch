@@ -78,3 +78,16 @@ De eerste resultset moet `partition_ok=t` hebben. De tweede is diagnostiek voor 
 ## Open Q4-work
 
 Q4c-04c synthetische deduplicatie en Q4c-08b positieve locatiebrede ringfixture zijn voorbereid maar de gebruiker heeft hun resultaten nog niet aangeleverd. Die twee blijven open en mogen niet stilzwijgend als geslaagd worden gemarkeerd.
+
+
+## Werkelijke NAS-uitvoer — 3 november 2026
+
+Gebruiker voerde beide read-only Q5a-queries succesvol uit in de kleine Oss-bbox:
+
+| active_evse_rows | excluded_lifecycle | operational_evse_rows | available | occupied_or_blocked | fault | unknown_or_other | partition_ok |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 206 | 2 | 204 | 151 | 48 | 1 | 4 | t |
+
+Feedwaarneming: `2026-11-03 11:32:29.014798+00` (12:32:29.014798 CET), `feed_observation_age_minutes=5.8` op het meetmoment.
+
+**Q5a PASS (verdelingsinvariant):** 206 = 2 uitgesloten lifecycle + 151 AVAILABLE + 48 CHARGING/BLOCKED/RESERVED + 1 fault + 4 UNKNOWN/overig. De feed-checkpoint was op dat specifieke meetmoment jonger dan de huidige standaarddrempel van 15 minuten; dit is **geen bewijs van individuele EVSE-actualiteit of complete dekking**. Q5b moet deze aspecten op locatie- en bronwaarnemingsniveau afzonderlijk beoordelen. Geen mutaties, merge of deployment.
