@@ -44,3 +44,16 @@ De bestaande `MAP_GRID_A1B_FILTER_GRID_REVIEW.md` is een **niet uitvoerbaar C#-S
 Andere risico's: de oude viewport kent een 999-limiet en levert extra connectorobjecten; de nieuwe overview bevat doelbewust clusters i.p.v. locatiefeatures, dus vergelijk *pre-cluster* sets, niet ruwe responsevormen. Test exact lokalisatie van `operator` null/blank, status `PLANNED/REMOVED`, dubbele connectoren, stale feed en zero-availability.
 
 **Geen productie writes, migrations, merges, releases of deployments.**
+
+
+## Q4-voortgang — 3 november 2026
+
+**Q4a SQL-semantiekcontrole daadwerkelijk geslaagd:** gebruiker voerde [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) op de NAS uit. CCS2/DC met `minFree=1`: 12 versus 12 locaties, `differing_ids=0`, `ids_match=t`; `minFree=2`: 10 versus 10, `differing_ids=0`, `ids_match=t`. Dit is een controle op de gekozen Oss-bbox en bewijst niet automatisch de C#-/Npgsql-binding of volledige filtermatrix.
+
+**Volgende, nog niet uitgevoerde lokale stap:** geïsoleerde harness [tools/MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs). Het project compileert dezelfde productie-`MapFilter.cs` rechtstreeks mee en controleert voor Q4-00 t/m Q4-08 de parsing, het opschuiven van SQL-parameterposities 5→6, `text[]`-binding en identieke filterparameterwaarden. Geen databaseverbinding of API-implementatie. Lokaal uitvoeren vanaf de repository-root:
+
+```sh
+dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj
+```
+
+De harness is op GitHub vastgelegd, maar **niet gebouwd of uitgevoerd** in de huidige toolomgeving (geen .NET SDK beschikbaar). Een PASS bewijst uitsluitend SQL-generator-/parametercontracten; de daarna noodzakelijke Q4-00..08 vergelijking van echte pre-cluster feature-ID-sets moet nog onder een gedeeld read-only snapshot plaatsvinden. Voor Q4-08 blijft de locatieselectie gelijk maar moet de locatiebrede ringtelling afzonderlijk worden getoetst. Geen deploy/migratie/merge.
