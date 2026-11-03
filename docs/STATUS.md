@@ -1,3 +1,8 @@
+## Q5b status- en locatieonzekerheid NAS gevalideerd — 3 november 2026
+
+Werkelijke Q5b-output: **204 operationele EVSE's = 151 AVAILABLE, 48 CHARGING, 4 UNKNOWN, 1 OUTOFORDER; alle 204 met niet-null `source_last_updated`**. Oudste bron-updateleeftijden (min): AVAILABLE 121937,3 (~84,7 d), CHARGING 8585,5 (~6,0 d), UNKNOWN 3802,2 (~2,6 d), OUTOFORDER 2548,4 (~1,8 d). **98 locaties**: 86 minstens één AVAILABLE zonder UNKNOWN; 10 geen AVAILABLE en wel volledig bekende statussen; **2 geen AVAILABLE met UNKNOWN**; 0 free+UNKNOWN, 0 zonder operationele EVSE's; `location_partition_ok=t`. De Q5b-partitie is geslaagd, maar bronupdateleeftijd is niet hetzelfde als feed-/individuele waarnemingsouderdom. Twee onzekerheidslocaties mogen niet stellig rood worden getoond. Q5c bronobservatie/completeness nog nodig. Zie [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md). Q4c-04c en Q4c-08b synthetisch blijven open. PR #114 draft; geen mutaties, merge of deploy.
+
+---
 ## Q5b onbekende EVSE-statussen en locatieonzekerheid voorbereid — 3 november 2026
 
 De read-only [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md) is opgesteld voor een **nog niet uitgevoerde** vervolgcontrole: werkelijke NDW-statuswaarden en `source_last_updated`-verdeling, plus een volledige locatie-partitie in vrij+UNKNOWN, geen-vrij+UNKNOWN, vrij zonder UNKNOWN, geen-vrij volledig bekend en nul operationele EVSE's. De bronupdate-ouderdom wordt **niet** gelijkgesteld aan feedstaleness. Q5a is uitgevoerd en geslaagd (204 operationele EVSE's; 4 onbekend, checkpoint-age 5,8 min); Q4c-04c en Q4c-08b synthetisch blijven open. Geen mutaties, deploy of merge; PR #114 draft.
