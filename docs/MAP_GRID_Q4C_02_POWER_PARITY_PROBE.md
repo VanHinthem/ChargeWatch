@@ -37,3 +37,17 @@ Als het bestand in plaats daarvan al in de Compose-map ligt, gebruik `< q4c02-ge
 Voor **iedere** vermogensband: `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Leg ook de aantallen vast om te beoordelen of de test inhoudelijk representatief is. Lege ID-sets zijn geen voldoende positief bewijs; selecteer zo nodig later een passend gebied. De volledige rasterkandidaten mogen groter zijn dan de teruggeclipte viewport.
 
 **Vervolgvalidatie na deze run:** aparte bewijsvoering voor exact 50/150/300 kW-grenzen en voor `max_electric_power IS NULL` waarbij `EffectiveWattsSql` een berekend vermogen gebruikt. De huidige live vergelijking bewijst alleen dat beide selecties hetzelfde centrale predicate evalueren; daarmee bewijst ze niet onafhankelijk dat de powerberekening juist is. Ook Q4-03..08 en Q5 blijven open. PR #114 blijft draft.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026
+
+De gebruiker heeft de vier door de bestaande `MapFilter` gegenereerde SQL-vergelijkingen daadwerkelijk read-only uitgevoerd:
+
+| Fixture | viewport_ids | grid_candidates | grid_owned | overview_clipped_ids | differing_ids | viewport_unique | overview_unique | ids_match |
+|---|---:|---:|---:|---:|---:|---|---|---|
+| lt50 | 97 | 412 | 412 | 97 | 0 | t | t | t |
+| gte50 | 1 | 10 | 10 | 1 | 0 | t | t | t |
+| gte150 | 1 | 8 | 8 | 1 | 0 | t | t | t |
+| gte300 | 0 | 4 | 4 | 0 | 0 | t | t | t |
+
+**Q4c-02 PASS voor ID-setpariteit in alle vier scenario's**. De `gte300`-vergelijking in de kleine viewport betreft twee lege sets (0/0) en is dus geen positieve selectietest, hoewel er vier grid-owned matches buiten de kleine viewport gevonden zijn. Een afzonderlijke grenswaarde-/berekende-vermogentest is nodig om te bewijzen dat `EffectiveWattsSql` zelf de bedoelde kW-waarden oplevert. Geen databasewrites, migratie, merge of deployment.
