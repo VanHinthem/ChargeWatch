@@ -1,3 +1,14 @@
+## Q2 grenspuntfixture daadwerkelijk geslaagd — 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) uit op productiedatabase met read-only rol/transactie. **Drie synthetische punten op/naast verticale zoom-11-rastergrens:**
+- `exact_boundary`: `own_x=1055`, `own_y=681`, **candidate_matches=2**, **owned_matches=1**, `exactly_once=t`, `all_ok=t`.
+- `left_1m`: `own_x=1054`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+- `right_1m`: `own_x=1055`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+
+Deze echte meting demonstreert dat twee geografisch overlappende grenskandidaten bij canonieke celownership één resultaat opleveren. Alleen deze verticale grens en lokale projectie/roundtrip zijn gedekt, geen bewijs voor horizontale grenzen, viercellige hoeken of alle geografische uitersten. Volgende stap Q3 synthetische horizontale en 4-cellenhoek-fixture; daarna filterpariteit en count-quality. Geen mutaties, implementatie, merge of deploy.
+
+---
+
 ## Q2 grenspuntcontrole voorbereid — 3 november 2026
 
 Na geslaagde Q1 op productie is [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) opgesteld: een **nog niet uitgevoerde** read-only PostgreSQL-fixture met drie synthetische 3857-punten (1 m links, exact op, 1 m rechts van een vaste zoom-11-celgrens) en twee aangrenzende volledige celverzoeken. De fixture test `candidate_matches` versus `owned_matches`, en verwacht `owned_matches=1` per synthetisch punt, `all_ok=t`, zodat grensraakkandidaten niet dubbel op de kaart verschijnen. Exacte grenspunten worden via 4326/geography roundtrips getoetst. Dit valideert niet vanzelf horizontale grenzen en vier-cel-hoeken; die blijven aparte checks. Geen productiemutaties, implementatie of merge/deploy.
