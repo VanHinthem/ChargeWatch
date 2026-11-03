@@ -76,6 +76,132 @@ internal static class Q4cSqlExporter
             ["operator"] = "__Q4_NONEXISTENT_OPERATOR_113__"
         });
 
+    public static string CreateRingScope()
+    {
+        var query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            ["connectorType"] = "ccs2",
+            ["mode"] = "dc"
+        });
+        if (!MapFilter.TryParse(query, out var filter, out var error))
+            throw new InvalidOperationException(error);
+        using var command = new NpgsqlCommand();
+        for (var i = 0; i < 4; i++)
+            command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType = NpgsqlDbType.Double, Value = 0d });
+        filter.AddParameters(command);
+        var predicate = ExpandFixedArrayParameters(filter.LocationPredicate(5), command, 4);
+        var watts = MapFilter.EffectiveWattsSql;
+        return $"""
+        -- Q4c-08: selected CCS2/DC locations; provisional location-wide ring audit.
+        SET ROLE chargewatch_read;
+        BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+        SET LOCAL statement_timeout = '5s';
+        SET LOCAL lock_timeout = '1s';
+        SET LOCAL jit = off;
+
+        WITH selected AS MATERIALIZED (
+          SELECT l.id,l.country_code,l.party_id,l.source_id
+          FROM charging_location l
+          WHERE l.is_active AND l.position IS NOT NULL
+            AND ST_Intersects(l.position,
+                ST_MakeEnvelope(5.50,51.75,5.53,51.77,4326)::geography)
+            {{predicate}}
+        ),
+        all_counts AS MATERIALIZED (
+          SELECT s.id,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('PLANNED','REMOVED')
+                 )::bigint AS all_operational,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,''))) = 'AVAILABLE'
+                 )::bigint AS all_free,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,''))) NOT IN
+                     ('AVAILABLE','CHARGING','BLOCKED','RESERVED','INOPERATIVE',
+                      'OUTOFORDER','PLANNED','REMOVED')
+                 )::bigint AS all_unclassified
+          FROM selected s
+          LEFT JOIN evse e ON e.location_id=s.id AND e.is_active
+          GROUP BY s.id
+        ),
+        filtered_evse AS MATERIALIZED (
+          SELECT s.id AS location_id, e.id AS evse_id
+          FROM selected s
+          JOIN evse e ON e.location_id=s.id AND e.is_active
+          WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('PLANNED','REMOVED')
+            AND EXISTS (
+              SELECT 1 FROM connector c
+              WHERE c.evse_id=e.id AND c.is_active
+                AND upper(coalesce(c.standard,''))='IEC_62196_T2_COMBO'
+                AND upper(coalesce(c.power_type,''))='DC'
+            )
+        ),
+        matching_counts AS (
+          SELECT location_id,count(*)::bigint AS matching_operational
+          FROM filtered_evse GROUP BY location_id
+        ),
+        per_location AS MATERIALIZED (
+          SELECT s.id,
+                 concat_ws('-',s.country_code,s.party_id,s.source_id) AS feature_id,
+                 a.all_operational,a.all_free,a.all_unclassified,
+                 coalesce(m.matching_operational,0)::bigint AS matching_operational,
+                 CASE
+                   WHEN a.all_operational=0 OR a.all_unclassified>0 THEN 'unknown'
+                   WHEN a.all_free>0 THEN 'green'
+                   ELSE 'red'
+                 END AS provisional_ring_status
+          FROM selected s
+          JOIN all_counts a USING(id)
+          LEFT JOIN matching_counts m ON m.location_id=s.id
+        )
+        SELECT id,feature_id,matching_operational,all_operational,
+               all_free,all_unclassified,provisional_ring_status,
+               all_operational >= matching_operational AS scope_ok,
+               all_operational > matching_operational AS has_other_evses
+        FROM per_location ORDER BY id;
+
+        -- Summary: one row per selected location; ring partitions all selected locations.
+        WITH selected AS MATERIALIZED (
+          SELECT l.id
+          FROM charging_location l
+          WHERE l.is_active AND l.position IS NOT NULL
+            AND ST_Intersects(l.position,
+                ST_MakeEnvelope(5.50,51.75,5.53,51.77,4326)::geography)
+            {{predicate}}
+        ),
+        counts AS (
+          SELECT s.id,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,''))) NOT IN ('PLANNED','REMOVED')
+                 ) AS total,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,'')))='AVAILABLE'
+                 ) AS free,
+                 count(e.id) FILTER (
+                   WHERE upper(btrim(coalesce(e.status,''))) NOT IN
+                     ('AVAILABLE','CHARGING','BLOCKED','RESERVED','INOPERATIVE',
+                      'OUTOFORDER','PLANNED','REMOVED')
+                 ) AS unclassified
+          FROM selected s LEFT JOIN evse e ON e.location_id=s.id AND e.is_active
+          GROUP BY s.id
+        ),
+        categories AS (
+          SELECT CASE WHEN total=0 OR unclassified>0 THEN 'unknown'
+                      WHEN free>0 THEN 'green' ELSE 'red' END category
+          FROM counts
+        )
+        SELECT count(*)::bigint AS selected_locations,
+               count(*) FILTER (WHERE category='green')::bigint AS green_locations,
+               count(*) FILTER (WHERE category='red')::bigint AS red_locations,
+               count(*) FILTER (WHERE category='unknown')::bigint AS unknown_locations,
+               count(*) = count(*) FILTER (WHERE category IN ('green','red','unknown')) AS partition_ok
+        FROM categories;
+
+        ROLLBACK;
+        RESET ROLE;
+        """;
+    }
+
     private static string Create(string label, Dictionary<string, StringValues> entries)
     {
         // Known, fixed fixture: no arbitrary user input is converted into SQL.
