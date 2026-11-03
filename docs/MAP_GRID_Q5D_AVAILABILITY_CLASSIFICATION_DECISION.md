@@ -1,3 +1,5 @@
+> **Geparkeerd voor issue #113 — 3 november 2026.** Dit eerdere Q5d-document is een niet-goedgekeurd onderzoeksconcept, **geen vervanging van bestaande NDW-/API- of beschikbaarheidslogica**. De gebruiker heeft bevestigd dat #113 na Q1–Q4 verder moet met performance-optimalisatie van server-side clustering. Zie [MAP_GRID_PERFORMANCE_NEXT_STEPS.md](MAP_GRID_PERFORMANCE_NEXT_STEPS.md) voor het leidende vervolg. Bestaande regels blijven leidend; dit document mag niet als implementatiespecificatie worden gebruikt zonder apart besluit.
+
 # ChargeWatch #113 — Q5d concept: beschikbaarheidszekerheid en ringclassificatie
 
 **3 november 2026. Status: voorstel voor beoordeling; nog geen definitief akkoord, geen productieimplementatie.**
