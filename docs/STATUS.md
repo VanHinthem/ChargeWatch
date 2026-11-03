@@ -1,3 +1,9 @@
+## A4 read-only benchmark voorbereid — 3 november 2026
+
+Nieuwe proefdocumentatie: [MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md](MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md). Na de eerdere A3-productiemeting (grote zoom-8-regio 70.664 locaties/8 rastercellen, 1100,014 ms, 70.664 EVSE-indexscans) onderzoeken we nu A4: **eerst locaties geografisch selecteren**, dan via een **gewone JOIN met actieve EVSE's** per `location_id` aggregeren in `evse_counts AS MATERIALIZED`, vervolgens de gridgroepen tellen. Het is een andere SQL-vorm dan A3/LATERAL en A2/landelijk vooraggregeren, maar de planner kan dezelfde dure lookups kiezen. Eerste vergelijkingsrun grote regio; bij succes Oss. Read-only rol/transactie, JIT uit, timeouts. **A4 is nog niet uitgevoerd.** Geen schema-/API-/Android-wijziging, merge of deploy.
+
+---
+
 ## A3-productiemeting grote zoom-8-coverage — 3 november 2026
 
 Gebruiker voerde A3 `LEFT JOIN LATERAL` met JIT uit op productie/read-only uit. Werkelijk resultaat: **70.664 actieve laadlocaties, 8 rastercellen** (7 meer dan voorgaande runs, onderliggende NDW-data kan zijn gewijzigd), `Execution Time 1100.014 ms`, `Planning Time 12.023 ms`. Spatial `Bitmap Index Scan` op `ix_charging_location_active_position`, daarna `Nested Loop Left Join` met `Aggregate` **70.664 keer** en `Index Scan using idx_evse_active_location` **70.664 keer** (gemiddeld 2,55 indexrijen/locatie). Buffers `shared hit=300.337, read=102.730, written=8.782`, `temp read=364, written=365`. Vergeleken met eerdere grotere-regiometingen: A1 parallel 844,151 ms; A2 met preaggregation 743,756 ms. A3 voorkomt brede EVSE-scan maar doet vele indexlookups; bij deze near-national coverage een slechter gemeten resultaat.
