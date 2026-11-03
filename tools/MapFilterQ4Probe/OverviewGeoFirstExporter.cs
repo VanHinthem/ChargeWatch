@@ -154,8 +154,7 @@ internal static class OverviewGeoFirstExporter
                 StringComparison.Ordinal)
             : geo;
         if (correlateTechnicalFilter &&
-            (!geoTemplate.Contains("CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched", StringComparison.Ordinal) ||
-             geoTemplate.Contains(filterMarker, StringComparison.Ordinal)))
+            !geoTemplate.Contains("CROSS JOIN LATERAL (SELECT 1 AS accepted WHERE true __FILTER__ OFFSET 0) AS matched", StringComparison.Ordinal))
             throw new InvalidOperationException("Correlated filter SQL template not applied.");
 
         string Render(string template) => template
