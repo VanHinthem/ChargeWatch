@@ -76,3 +76,22 @@ Gebruiker leverde één compleet `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-plan aan
 **Observatie:** bij de combinatie met technisch filter en minFree kiest PostgreSQL een connector-first plan dat de actieve connectoren in heel Nederland scant, nog voordat Oss-geografie wordt toegepast. Het is geen fout in `MapFilter` of bewijs van filterincorrectheid, maar een concrete planner-/querystructuurkandidaat voor optimalisatie. De SQL-benchmark is bewust een handmatig opgestelde overview-SELECT met de **echte MapFilter-predicate**; in productie blijft parameterbinding verplicht.
 
 **Vervolg:** eerst de twee overige P2a-scenario's (ongefilterd en CCS2/DC zonder minFree) uit het al gegenereerde SQL-bestand beoordelen, zodat we kunnen isoleren welk onderdeel van het plan de cost veroorzaakt. Daarna hooguit één gerichte read-only vergelijking met een afgedwongen geografische `MATERIALIZED` selectie vóór het filterpredicaat. Ook dat moet dezelfde `MapFilter.LocationPredicate`-string en dezelfde ID-set behouden: geen tweede filterimplementatie. Geen schema- of API-wijzigingen, merge of deploy.
+
+
+## P2a — alle drie de uitgevoerde scenario's (3 november 2026)
+
+Gebruiker heeft de **volledige SQL-run als bijlage** aangeleverd. Alle drie `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-plannen zijn uitgevoerd en leverden vier rastercellen op:
+
+| Scenario | geselecteerde locaties | gridrijen | Execution Time | Planning Time | Root shared hit/read/written |
+|---|---:|---:|---:|---:|---|
+| unfiltered | **2.101** | **4** | **214,024 ms** | 24,262 ms | 1.062 / 30.056 / 5.307 |
+| ccs2_dc | **34** | **4** | **160,011 ms** | 3,516 ms | 26.583 / 30.001 / 2.572 |
+| ccs2_dc_minfree1 | **30** | **4** | **137,799 ms** | 3,614 ms | 33.998 / 23.531 / 132 |
+
+**Unfiltered:** `Parallel Bitmap Heap Scan` op `charging_location` gebruikt `ix_charging_location_active_position`, gevolgd door een `Seq Scan` over **216.299 actieve EVSE's**, Hash Right Join (5.099 rijresultaten), per-location HashAggregate 2.101, eind GroupAggregate 4.
+
+**CCS2/DC:** `Parallel Seq Scan on connector` vindt **6.473** connectorrijen (23.838 shared reads op connector), gevolgd door **6.467** `evse_pkey` lookups; **1.637** kandidaat-locaties na EVSE-deduplicatie, daarna **1.637** `charging_location_pkey` lookups met geografische predicate; uiteindelijk **34** locaties. `idx_evse_active_location` gebruikt voor 34 geselecteerde locaties (244 EVSE-joinrijen). Het plan is **connector-first**, niet geography-first.
+
+**CCS2/DC/minFree=1:** parallel connector Seq Scan vindt wederom 6.473 connectorrijen (23.391 connector-reads), **6.467** EVSE-PK lookups, 1.637 locatie-lookupkandidaten, daarna 34 minFree-subplan-aggregaties en **30** geselecteerde locaties; eind-availability-join **235** rijen. Het plan is eveneens connector-first. Het plan is uitvoerbaar, maar er is nog **geen bewijs van een betere querystrategie** en geen garantie dat de planner bij nationaal bereik hetzelfde doet.
+
+**Hypothese voor de eerstvolgende, gerichte performanceproef:** maak een `geo AS MATERIALIZED`-CTE die Oss-locaties met de bestaande GiST-geografische selectie kiest, pas vervolgens de **ongewijzigde productie-`MapFilter.LocationPredicate`** op de `geo`-alias toe. Vergelijk op één read-only snapshot de exacte geselecteerde IDs met de originele query (EXCEPT in beide richtingen), en pas daarna het `EXPLAIN ANALYZE`-plan. Dit blijft een SQL-optimizer-experiment, **geen beslissing om productie-SQL te wijzigen**. Geen schema-/NDW-/statuswijzigingen, merge of deploy.
