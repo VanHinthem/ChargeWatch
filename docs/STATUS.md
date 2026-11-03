@@ -1,3 +1,11 @@
+## A1-productiemeting parallelisatie uit — 3 november 2026
+
+Gebruiker voerde identieke read-only zoom-8 query uit met `jit=off`, `max_parallel_workers_per_gather=0`, zelfde circa-NL-gridcoverage: **70.657 locaties, 8 gridcellen**, `Execution Time 1131.140 ms`, `Planning Time 31.229 ms`; buffers `shared hit=20, read=52.535, written=1478`, temp `read=1882, written=1887`. Planner gebruikt actieve-locaties-GiST, `Merge Left Join` naar één `Seq Scan` van **214.400 actieve EVSE-rijen**, met externe sortering. De vorige parallelle run was **844.151 ms** met `hit=35.506/read=74.055`: deze twee runs verschillen sterk in cache-/I/O-toestand, dus het verschil van ~34% is geen zuiver causaal parallelisme-effect.
+
+**Vervolgarchitectuur:** in plaats van steeds settings wijzigen een proef met `evse` éénmalig per `location_id` aggregateren en daarna pas samenvoegen met gefilterde/ruimtelijk geselecteerde locatie-gridcellen. Vergelijk `EXPLAIN (ANALYZE, BUFFERS)` en correctheid in dezelfde read-only transactiestijl; geen wijziging van DB-schema, importer, API/Android. SQL-construct en queryplanner moeten op echte data worden beoordeeld; kosten van een totale EVSE-preaggregate kunnen ook nadelig zijn bij kleine viewports.
+
+---
+
 ## A1-productiemeting breed zoom-8 raster — 3 november 2026
 
 **Gebruiker uitgevoerd, read-only, JIT uit:** oorspronkelijk Noord-Brabant-bbox, maar het **naar hele zoom-8-cellen uitgebreide gebied** bevat **70.657 laadlocaties van 81.004 actieve locaties** (~87,2% van Nederland) en groepeert die in **8 gridcellen**. Dit is door cell alignment dus bijna een *landelijke benchmark*, **niet** alleen een Noord-Brabant-meting. `Execution Time = 844.151 ms`, `Planning = 31.772 ms`, `shared hit=35.506, read=74.055`, temp read=3.619/written=3.629; queryplan: `Parallel Bitmap Heap Scan` op `charging_location` via `ix_charging_location_active_position`, gevolgd door een `Merge Left Join` met `Seq Scan` op actieve EVSE's (ca. 214.400 actieve EVSE's **per participant** in het plan, drie parallelle deelnemers) en externe sortering (~8.680 kB per participant); 179.864 joinrijen. Parallelle workers: 2 plus leader. Dit is veel dubbel EVSE-scan-/sorteerwerk, maar niet per se een probleem met een ontbrekende index: indexen zijn aanwezig, planner verkiest seq/merge bij groot bereik.
