@@ -1,6 +1,6 @@
 # ChargeWatch #113 — Q4a read-only SQL-controle op unieke EVSE-filtertellingen
 
-**Datum:** 3 november 2026. **Status:** direct uitvoerbare read-only SQL-proef voorbereid, **nog niet uitgevoerd**.
+**Datum:** 3 november 2026. **Status:** direct uitvoerbare read-only SQL-proef voorbereid, **uitgevoerd op 3 november 2026; geslaagd voor beide geteste minFree-waarden**.
 
 **Doel:** op echte productiegegevens rond Oss controleren of een onafhankelijke aggregatie van *unieke EVSE's* voor `connectorType=ccs2&mode=dc&minFree=1` of `minFree=2` dezelfde **locatie-ID-set** oplevert als de EXISTS/count-subquerystructuur van de huidige `MapFilter.LocationPredicate`. Dit is een **SQL-semantiekcontrole**, niet een volledige end-to-end C# `LocationPredicate`/Npgsql-parameterbindingstest. Voor power, operator en source-reliability volgen afzonderlijke checks. Geen wijzigingen.
 
@@ -114,3 +114,20 @@ SQL
 Verwacht twee regels voor `min_free=1` en `min_free=2`, met `differing_ids=0` en `ids_match=t`. Positieve aantallen zijn nuttig maar niet vereist. De referentie gebruikt de relevante SQL-expressies van `MapFilter.LocationPredicate`; de alternatieve vergelijking gebruikt een zelfstandige `COUNT(e.id) FILTER` en vereenvoudigde, equivalente CCS2/DC connectorcodering. Daarmee bewijzen we bij dit scenario dat connectorrijen niet tot dubbeltellingen van EVSE's leiden en dat referentie- en alternatieve *ID-sets* overeenkomen. Niet claimen dat de uiteindelijke nieuwe C# querygenerator al getest is.
 
 De geografische selectie in deze eerste proef is de oorspronkelijke Oss-bbox, niet de naar hele gridcellen uitgebreide Q1-bbox; de absolute aantallen moeten dus niet worden vergeleken met Q1's 2.101. Geen production schema changes.
+
+
+## Werkelijke uitvoering en resultaat — 3 november 2026
+
+De gebruiker voerde het bovenstaande read-only SQL-blok uit op de productie-PostgreSQL-database op de NAS. PostgreSQL rapporteerde:
+
+```text
+min_free | reference_locations | derived_locations | differing_ids | ids_match
+---------+---------------------+-------------------+---------------+----------
+       1 |                  12 |                12 |             0 | t
+       2 |                  10 |                10 |             0 | t
+(2 rows)
+```
+
+**Q4a PASS:** beide locatie-ID-setvergelijkingen leveren `differing_ids=0`. Dit valideert de onderzochte CCS2/DC/minFree=1/2 SQL-semantiek voor de geteste Oss-bbox, inclusief tellen per unieke EVSE in de alternatieve vorm. Het bewijst niet de volledige filterpariteit voor operator, power, multivalue, combinaties of correcte Npgsql-binding van `MapFilter.LocationPredicate(6)`. De gebruikte SQL bevat handmatig uitgeschreven referentie-uitdrukkingen; deze vormen **geen** vervangende productie-implementatie. Absolute tellingen niet vergelijken met de Q1-rasteruitbreiding. Geen databasewijzigingen, deploy of merge.
+
+**Volgende stap:** kleine lokale C#-harness die de bestaande `MapFilter.TryParse`, `LocationPredicate` en `AddParameters` werkelijk hergebruikt, daarna read-only vergelijking van precluster feature-ID-sets onder één databasesnapshot.
