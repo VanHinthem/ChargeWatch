@@ -46,8 +46,13 @@ if (args.Length == 1 && args[0] == "--emit-q4c06")
     Console.WriteLine(Q4cSqlExporter.CreateMultiConnectorMode());
     return;
 }
+if (args.Length == 1 && args[0] == "--emit-q4c07")
+{
+    Console.WriteLine(Q4cSqlExporter.CreateNoMatch());
+    return;
+}
 if (args.Length != 0)
-    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02|--emit-q4c02b|--emit-q4c03|--emit-q4c04|--emit-q4c04b|--emit-q4c05|--emit-q4c06]");
+    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01|--emit-q4c02|--emit-q4c02b|--emit-q4c03|--emit-q4c04|--emit-q4c04b|--emit-q4c05|--emit-q4c06|--emit-q4c07]");
 
 MapFilter.SelfTest();
 
