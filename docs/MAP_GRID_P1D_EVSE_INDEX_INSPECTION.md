@@ -61,3 +61,22 @@ Gebruiker voerde P1d read-only uit. Relevante bestaande indexen:
 `pg_stat_user_tables.idx_scan` is een cumulatieve index-scancounter, **geen individuele SQL-querymetriek**. `n_dead_tup` is een schatting en kan door collectorupdates schommelen; dit rechtvaardigt niet zonder verder bewijs een handmatige VACUUM of indexrebuild. `last_autoanalyze` toont recente analyse, geen garantie dat de optimizer iedere gewenste index kiest.
 
 **Conclusie:** de locatiegerichte partial index bestaat. De A1 Oss-plan koos niettemin een landelijke Seq Scan over 216.219 actieve EVSE-rijen. Dit is PostgreSQL's kostenafweging, niet bewijs van een ontbrekende index. **Volgende stap** is een kleine read-only benchmark van een reeds eerder geteste indexvriendelijke A3 LATERAL-strategie tegenover A1, met exact dezelfde Oss-cellen (eventueel EXPLAIN only voor indexpad), voordat enige code-/index-/schema-optimalisatie wordt besloten. Geen mutaties, merge of deploy.
+
+
+## Werkelijke A3-indexplanhermeting — 3 november 2026
+
+Gebruiker voerde de bestaande A3-`LATERAL`-proef uit op het kleine Oss-grid (2.101 locaties, 4 cellen) en leverde het volledige `EXPLAIN (ANALYZE, BUFFERS)`-plan:
+
+| Maatstaf | A1 recente Oss-run | A3 LATERAL-indexrun | A2 recente Oss-run |
+|---|---:|---:|---:|
+| Execution Time | **121,861 ms** | **152,302 ms** | 496,361 ms |
+| Planning Time | 25,396 ms | 30,399 ms | 27,933 ms |
+| Shared buffers read | 30.422 | **7.308** | 18.726 |
+| Shared buffers written | niet vermeld | **6.688** | 2.329 |
+| Geselecteerde locaties | 2.101 | 2.101 | 2.101 |
+
+A3-plan: `Nested Loop Left Join` met `Aggregate` en **`Index Scan using idx_evse_active_location` 2.101 keer**, gemiddeld 2,43 actieve EVSE-rijen per locatie. EVSE-indexscan rapporteert `Buffers: shared hit=5959 read=5081 dirtied=99 written=4506`. Eindaggregatie `GroupAggregate` met in-memory quicksort (195 kB), geen aangetoonde temp-spill. Locatieselectie gebruikt de partial GiST-index en parallel bitmap heap scan; A3-root buffers `hit=6714 read=7308 dirtied=99 written=6688`.
+
+**Interpretatie:** de bestaande partial btree-index is daadwerkelijk bruikbaar, maar 2.101 indexzoekacties waren in deze losse run trager dan de A1-Seq Scan. Bufferwrites in read-only uitvoering zeggen niet dat applicatierijen zijn gewijzigd; dit is runtime-I/O en kan met NAS-/collectorbelasting samenhangen. Geen bewezen permanente winst van A3 en geen aanleiding voor een nieuwe index of VACUUM op basis van alleen deze vergelijking.
+
+**Vervolgadvies:** voorkom eindeloze losse SQL-varianten. Baseline A1 als eenvoudige startkandidaat, maar bevestig uiteindelijk op de **echte gefilterde overview-query** en daarna nationale schaal, omdat eerdere A1/A2/A3-benchmarks ongefilterde proefclassificatie gebruiken. Dit is een meetadvies, geen API-implementatieakkoord. PR #114 draft; geen deploy/merge.
