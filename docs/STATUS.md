@@ -1,3 +1,9 @@
+## Q5d voorlopig classificatieontwerp toegevoegd — 3 november 2026
+
+[MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md](MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md) bevat een **voorstel, nog niet definitief goedgekeurd** met aparte lagen voor waarnemingskwaliteit en locatiebrede EVSE-status, een statusbeslismatrix en tien nog uit te voeren fixtures. Het ontwerp voorkomt dat een oude `source_last_updated` zonder ander bewijs automatisch grijs oplevert of dat nul AVAILABLE + UNKNOWN ten onrechte als zeker bezet wordt gepresenteerd. Fault-only, groene locaties met onbekende capaciteit, completeness-bewijs en responsemetadata vragen nog expliciete beslissingen. Q5a–Q5c diagnostische tests geslaagd; Q4c-04c en Q4c-08b synthetisch open. PR #114 draft, geen API/Android-/DB-wijzigingen, deployment of merge.
+
+---
+
 ## Q5c feed versus bronupdate NAS geslaagd — 3 november 2026
 
 De gebruiker voerde de Q5c-read-only-proef uit: feedcheckpoint `2026-11-03 11:42:30.020752+00` (**3,5 minuten oud bij meting**), laatste completed import `11:42:30.064218+00`. In de Oss-bbox zijn **204 operationele EVSE's** verdeeld in bronupdate-leeftijdsbanden: **4 ≤15 min, 149 15 min–1 dag, 43 1–7 dagen, 8 >7 dagen**, nul ontbrekende/toekomstige timestamps, perfecte partitie. Statuswaarden: 149 AVAILABLE, 50 CHARGING, 4 UNKNOWN, 1 OUTOFORDER. Ten opzichte van Q5b wijzigden de live statusaantallen (151/48 naar 149/50); dit zijn verschillende snapshots, geen automatische inconsistentie. Bronupdate-ouderdom mag niet als enige freshnessregel dienen; recente globale feedwaarneming bewijst evenmin complete individuele actuele status. Zie [MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md). Vervolg Q5d semantische status/coverage-fixtures. Q4c-04c en Q4c-08b synthetische tests blijven open. PR #114 draft, geen mutaties, merge of deploy.
