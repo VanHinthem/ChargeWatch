@@ -1,3 +1,8 @@
+## P1c Oss A1/A2 performance bevestigd — 3 november 2026
+
+Gebruiker voerde beide read-only Oss-queryplannen uit: **2.101 locaties, 4 gridcellen, 216.219 actieve EVSE-rijen**. A1 directe join **121,861 ms**, A2 EVSE-preaggregatie **496,361 ms** (A1 circa **4,07× sneller**). A2 aggregeerde landelijk 84.241 EVSE-locatiegroepen, met gematerialiseerde CTE `Storage: Disk` en `temp written=349`. Beide gebruiken een sequentiële scan van alle actieve EVSE's, ook A1 voor slechts 2.101 geselecteerde locaties / 5.099 joinrijen. Dit is een concrete aanleiding om het bestaande EVSE-indexpad voor kleine viewports te analyseren, **niet** om meteen een schemawijziging of nieuwe statuslogica te starten. Bij grote zoom8-gebieden geen consistente A1/A2 winnaar uit twee gepaarde runs. Zie [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md). PR #114 draft; geen merge/deploy.
+
+---
 ## P1c klein Oss-raster A1/A2 benchmark voorbereid — 3 november 2026
 
 Na twee omgekeerd uitgevoerde P1a/P1b grootgebiedparen zonder stabiele winnaar is [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md) toegevoegd. Het bevat **twee complete, uitvoerbare read-only NAS Bash-blokken** voor A1 direct join en A2 EVSE-preaggregatie, beide met dezelfde Oss-bbox (5.40,51.70,5.62,51.83), volledig Web Mercator-gridniveau 11, `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`, 5s-timeout, `jit=off` en rollback. **Nog niet uitgevoerd**. Eerst één paar A1→A2 meten, exacte queryplannen beoordelen, daarna pas zo nodig omgekeerde herhaling. Geen heropening NDW-/Q5-logica, geen productiecode/DB-wijziging, merge of deploy. PR #114 draft.
