@@ -1,5 +1,8 @@
 # ChargeWatch — locatie-dataflow en gerichte opvraagstrategie (#113)
 
+> **Vervolgstand 3 november 2026:** #113 is na succesvolle P2i–P2l-validaties doorgeschoven naar [het voorstel voor het landelijke map-overview API-/zoom-/coveragecontract](MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md). Dat nieuwe document is de **actuele ontwerpuitwerking**. Historische open vragen en voorgestelde alternatieven hieronder (bijvoorbeeld de reeds gekozen clustercentrum-/ringsemantiek) blijven onderzoekscontext; behandel ze niet als opnieuw openstaande gebruikersbesluiten. Er is nog **geen akkoord op implementatie, merge of deployment**.
+
+
 **Status:** eerste technische inventarisatie; **landelijke kaartdekking met zoomafhankelijke clusters als productdoel vastgesteld**, nog geen API-contract, clusteringtechniek of implementatiebesluit.  
 **Datum:** 2 november 2026.  
 **Tracking:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113). Bestaande widget-feature [#101](https://github.com/VanHinthem/ChargeWatch/issues/101) / [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) blijft onafhankelijk en wordt niet in deze ontwerpbranch gemerged.
