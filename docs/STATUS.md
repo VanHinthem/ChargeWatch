@@ -1,3 +1,9 @@
+## Q4c-03 minFree zonder techniekfilter voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` bevat nu `--emit-q4c03` voor twee nog niet uitgevoerde read-only precluster locatie-ID-setvergelijkingen met `minFree=1` en `minFree=2`, rechtstreeks uit de bestaande `MapFilter.LocationPredicate(5/6)`. Stappen in [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md). Na de eerdere geslaagde Q4c-02b (15/15 grensgevallen) is dit de volgende NAS-test; gecombineerde technische filters volgen pas daarna. Geen deployment, migratie, productiemutaties of merge.
+
+---
+
 ## Q4c-02b EffectiveWattsSql-grenzen en echte NDW-vermogens geslaagd — 3 november 2026
 
 De door gebruiker op NAS gedraaide read-only Q4c-02b-proef was **15/15 PASS** voor de synthetische grens- en fallbackgevallen met de echte productie-`MapFilter.EffectiveWattsSql`. Echte connectorpopulatie: **216.262 actief; 144.940 expliciet positief, 67.893 berekend positief, 3.429 onbekend**. Exacte drempelwaarden: **1.116 × 50 kW, 1.862 × 150 kW, 1.318 × 300 kW**. Deze eerste grens-/fallbackvalidatie is geslaagd, geen algemeen bewijs voor alle mogelijke invoergegevens. Zie [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md). **Vervolg Q4-03:** `minFree=1/2` vergelijken via werkelijke gegenereerde SQL-ID-sets, dan overige gecombineerde filters. Q5 bronkwaliteit open. PR #114 draft; geen mutaties, deploy of merge.
