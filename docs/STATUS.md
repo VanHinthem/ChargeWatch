@@ -1,3 +1,11 @@
+## A3-productiemeting Oss — 3 november 2026
+
+**Door gebruiker uitgevoerd**, read-only en JIT uit: A3 `LEFT JOIN LATERAL` telt de actieve EVSE's alleen van de 2.100 actieve locaties in de volledige zoom-11-rastercellen rond Oss. `Execution Time=104.811 ms`, `Planning Time=26.392 ms`; eindresultaat **4 rastercellen**, `Index Scan idx_evse_active_location` **2.100 keer**, bij gemiddeld 2,42 actieve EVSE's per locatie (waarbij de plan-rijen geen definitieve totale EVSE-count zijn door LEFT JOIN). De locatieselectie gebruikt `ix_charging_location_active_position`. Shared buffers **hit=6.723, read=7.364, written=4.349**; geen temp-I/O in het plan. A1 Oss was 78,890 ms, A2 Oss 369,545 ms. A3 was in deze enkele meting **~71,6% sneller dan A2**, maar **~33% trager dan A1**; niet als vaststaand relatieve performance beschouwen wegens variabele cache-/NAS-activiteit.
+
+**Volgende benchmark:** exact A3 met groot zoom-8-grid (4.15,51.20–6.05,51.85), verder alle instellingen gelijk. De gemeten ~70.657 locaties kunnen leiden tot veel indexzoekacties; controleer maximumduur/DB-belasting. Vergelijk ook statussemantiek en filtering voordat ontwerp definitief wordt. Geen databasewijzigingen, implementatie, merge of deployment.
+
+---
+
 ## A3 read-only EVSE-selectiebenchmark klaar — 3 november 2026
 
 De nieuwe [A3-proefquery](MAP_GRID_A3_SELECTED_EVSE_BENCHMARK.md) selecteert eerst actieve locaties in het geografische raster en telt daarna via `LEFT JOIN LATERAL` alleen hun actieve EVSE's. Doel: vermijden dat A2 bij een kleine viewport alle **214.400** EVSE's van de dataset vooraf aggregeert. Vergelijkingen: A1 Oss 78,890 ms / groot raster 844,151 ms; A2 Oss 369,545 ms / groot raster 743,756 ms. De nieuwe A3 is **nog niet uitgevoerd**. Begin met Oss zoom 11; pas na beoordeling het grote zoom-8-gebied; JIT uit, read-only rol en statement-/lock-timeout van respectievelijk 5/1 seconden. De voorlopige eenvoudige statusclassificatie en filterloze SQL zijn niet bedoeld als uiteindelijke API-implementatie.
