@@ -87,3 +87,23 @@ SQL
 - Bron-update-ouderdom is geen direct bewijs van feedstaleness; globale checkpoint-age is geen direct bewijs van actuele individuele status.
 
 Verwacht `location_partition_ok=t` en de 204 operationele statusrijen uit Q5a (indien snapshot ongewijzigd). Verschillen na nieuwe NDW-import zijn mogelijk en hoeven geen testfout te zijn. Query is read-only en maakt geen API-, database- of Android-wijzigingen. PR #114 blijft draft; Q4c-04c/Q4c-08b open.
+
+
+## Werkelijke NAS-resultaten — 3 november 2026
+
+De gebruiker voerde beide read-only Q5b-queries daadwerkelijk uit:
+
+| raw_status | evse_count | null_source_timestamp | youngest_source_age_min | oldest_source_age_min |
+|---|---:|---:|---:|---:|
+| AVAILABLE | 151 | 0 | 7,3 | 121937,3 |
+| CHARGING | 48 | 0 | 6,5 | 8585,5 |
+| UNKNOWN | 4 | 0 | 55,9 | 3802,2 |
+| OUTOFORDER | 1 | 0 | 2548,4 | 2548,4 |
+
+| locations | no_operational | free_and_unknown | no_free_with_unknown | free_no_unknown | no_free_known | location_partition_ok |
+|---:|---:|---:|---:|---:|---:|---|
+| 98 | 0 | 0 | 2 | 86 | 10 | t |
+
+**Q5b PASS voor de status-/locatiepartitie.** De 204 operationele EVSE's zijn verdeeld in 151 AVAILABLE, 48 CHARGING, 4 UNKNOWN en 1 OUTOFORDER. Alle bronupdate-timestamps in deze sample zijn gevuld. Het oudste AVAILABLE-`source_last_updated` is ~84,7 dagen oud; de oudste CHARGING-bronupdate ~6,0 dagen, UNKNOWN ~2,6 dagen, OUTOFORDER ~1,8 dagen. Een oude statuswijziging bewijst **niet** automatisch dat de statuspublicatie/feed verouderd is. De feed-checkpoint en bronstatus-timestamp zijn verschillende signalen.
+
+De locatieverdeling is **86** met minstens één bekende AVAILABLE en geen UNKNOWN, **10** zonder vrij maar volledig bekende operationele statussen, en **2** zonder vrij met UNKNOWN. Voor deze laatste twee mag een rode/volledige-bezet-classificatie niet betrouwbaar worden afgeleid. Dit betreft *statuszekerheid onder aanwezige actieve EVSE-records*, nog geen bewijs dat de NDW-bronlocatie volledig is of dat individuele statuswaarnemingen actueel zijn. Q5c moet bevestigings-/coverage-semantiek onderzoeken voor een definitief ringcontract. Geen mutaties, merge of deployment.
