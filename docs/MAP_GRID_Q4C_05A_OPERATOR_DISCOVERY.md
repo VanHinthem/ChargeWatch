@@ -53,3 +53,8 @@ SQL
 Kies op basis van werkelijke resultaten één frequent voorkomende en één tweede bestaande operator; behoud exact de door de database geretourneerde spelling. Test daarna via de bestaande `MapFilter.TryParse`/`LocationPredicate`/`AddParameters` de ID-setpariteit bij één, twee en herhaalde operatorparameters. Controleer dat herhaling niet verdubbelt en `btrim`- en null-gedrag behouden blijft. Q4c-05a levert uitsluitend bronwaarden op, **geen geslaagde filtertest**.
 
 Alle SELECTs draaien met `chargewatch_read` in één read-only transactie; geen API/Android-code, schemawijzigingen, NAS-deploy of merge. PR #114 blijft draft.
+
+
+## Werkelijk NAS-resultaat — 3 november 2026
+
+Gebruiker voerde de operator-discoveryquery uit. Exacte tellingen in kleine Oss-bbox: Vattenfall InCharge **87**, 50five **6**, bp pulse **1**, E-Flux by Road **1**, Laadnet **1**, PowerGo **1**, Qwello Benelux BV **1**. Samen **98** locaties, en voor alle zeven operatorwaarden **0** bronwaarden met edge-whitespace. Dit is bewijs van aanwezige operatornamen, **geen bewijs van filterpariteit**. De drie gegenereerde vergelijkingen staan klaar in [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md).
