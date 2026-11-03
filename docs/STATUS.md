@@ -1,3 +1,10 @@
+
+
+### Aanvullende correctie — 3 november 2026
+
+Tweede gebruikersbuild meldde opnieuw `CS9006` en `dotnet run --no-build` startte daarna een oude binary zonder `--emit-q4c08`. Controle van de GitHub-bestandinhoud toonde dat de eerdere commit de raw-stringdelimiter niet daadwerkelijk had gewijzigd. **Nieuwe correctie commit `5ed4937`: geen geïnterpoleerde raw-string meer; de SQL staat in `return """..."""` met twee expliciete, identieke plaatsvervangers die met `.Replace("__Q4C08_LOCATION_PREDICATE__", predicate, StringComparison.Ordinal)` worden ingevoegd.** De remote broncode is gecontroleerd op twee query-plaatsvervangers. Een nieuwe lokale build en NAS-executie zijn nog niet aangetoond. `--no-build` pas gebruiken na een geslaagde `dotnet build`; bij een buildfout niets exporteren en ook geen eerdere SQL-file uitvoeren. Controleer tevens `git branch --show-current` en `git rev-parse --short HEAD`, aangezien een `git pull` op een andere branch de ontwerpcode niet binnenhaalt.
+
+---
 ## Q4c-08 generator compileerfout hersteld (nog niet geverifieerd) — 3 november 2026
 
 De gebruiker kreeg `CS9006` bij het genereren van Q4c-08 doordat een C# interpolated raw string `$"""` gebruikte terwijl `{{predicate}}` twee dollar-tekens vereist. Dat schreef de compilerfout in `q4c08-generated.sql`, waarna `psql` `invalid command \\GITHUB` meldde. De stringdelimiter is aangepast naar `$$"""` (commit `ebfdcfa`), en de Q4c-08-instructies vereisen nu eerst een geslaagde `dotnet build` en een SQL-headercontrole voordat er wordt gekopieerd of uitgevoerd. **Nog niet lokaal gebouwd; nog geen Q4c-08 NAS-resultaten.** Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Geen productie-mutaties of deployment; PR #114 draft.
