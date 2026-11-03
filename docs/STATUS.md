@@ -1,3 +1,11 @@
+## A4-productiemeting grote zoom-8-coverage — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only, JIT uit:** A4: **70.700 geselecteerde actieve laadlocaties** (A3 eerder 70.664), 8 rastercellen; `Execution Time 763.406 ms`, `Planning Time 29.260 ms`, buffers `shared hit=1.499, read=52.528, dirtied=2.563, written=15.558`. `locations` gebruikt `ix_charging_location_active_position`; `evse_counts` gebruikt één `Seq Scan` van **214.692 actieve EVSE's** gevolgd door `Hash Join` op 70.700 geselecteerde `location_id` en `HashAggregate` van **180.094 gekoppelde EVSE-rijen** naar 70.700 `location_id`-samenvattingen. Einde: `Hash Left Join` en `HashAggregate` naar 8 cellen. Hash-aggregaties blijven in 1 batch en RAM, geen temp-I/O gerapporteerd. Deze ene uitvoering is **~19,7 ms trager dan A2 groot (743.756 ms)** en sneller dan A3 groot (1100.014 ms), maar datasets/cache/NAS-belasting verschillen; dus geen harde rangorde.
+
+**Volgende toets:** exact A4 met Oss zoom-11-grid (5.40,51.70–5.62,51.83). Beoordeel of planner `Index Scan` kiest bij kleine selecties en hoe dit vergelijkt met A1 78,890 ms en A3 104,811 ms. Als A4 ook volledig `Seq Scan evse` doet, mogelijk hybride strategie nodig. De huidige benchmarkclassificatie is vereenvoudigd en voldoet nog niet aan productiekwaliteit/filters. Geen schemawijziging, API-/Android-implementatie, merge of deploy.
+
+---
+
 ## A4 read-only benchmark voorbereid — 3 november 2026
 
 Nieuwe proefdocumentatie: [MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md](MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md). Na de eerdere A3-productiemeting (grote zoom-8-regio 70.664 locaties/8 rastercellen, 1100,014 ms, 70.664 EVSE-indexscans) onderzoeken we nu A4: **eerst locaties geografisch selecteren**, dan via een **gewone JOIN met actieve EVSE's** per `location_id` aggregeren in `evse_counts AS MATERIALIZED`, vervolgens de gridgroepen tellen. Het is een andere SQL-vorm dan A3/LATERAL en A2/landelijk vooraggregeren, maar de planner kan dezelfde dure lookups kiezen. Eerste vergelijkingsrun grote regio; bij succes Oss. Read-only rol/transactie, JIT uit, timeouts. **A4 is nog niet uitgevoerd.** Geen schema-/API-/Android-wijziging, merge of deploy.
