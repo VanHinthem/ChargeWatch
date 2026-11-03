@@ -78,3 +78,26 @@ De generator voegt `SET ROLE chargewatch_read`, `BEGIN TRANSACTION ISOLATION LEV
 Bij PASS hebben we voor deze bbox en dit snapshot een **onafhankelijk bewijs van volledige locatieaantallen en celtoewijzing zonder 999-afkapping**. Daarna kan de **apart beschikbare** P2i-fase-2 `--emit-overview-national-ccs2` als read-only landelijke filterbenchmark worden overwogen; dat is **nog geen opdracht om hem nu uit te voeren**. Voor een productieoverzicht blijven echte landelijke coverage, selectie/filterpariteit, cel-/clustercontract, lege-cellen-markering en statusclassificatie afzonderlijke acceptatiecriteria.
 
 PR #114 draft; geen API/Android-/collector-/schema-/databasewijziging, merge of deployment.
+
+
+## Werkelijke NAS-uitkomst — 3 november 2026 (P2j PASS)
+
+Gebruiker leverde de complete console-uitvoer van `--emit-overview-national-census` aan. `SET ROLE`, read-only transactie, alle SELECT's en `ROLLBACK`/`RESET ROLE` werden zonder fout afgewerkt.
+
+| Kolom | Werkelijk |
+|---|---:|
+| `geography_locations` | **81.945** |
+| `geography_distinct_ids` | **81.945** |
+| `census_locations` | **81.945** |
+| `overview_locations` | **81.945** |
+| `census_nonempty_cells` | **13** |
+| `overview_nonempty_cells` | **13** |
+| `differing_cell_counts` | **0** |
+| `invalid_cell_assignments` | **0** |
+| `population_matches` | **t** |
+
+**Besluit:** onafhankelijke nationale rasterpopulatiecontrole voor de vaste, uitgelijnde gridLevel8-bbox **geslaagd**. De `overview` telt exact dezelfde **81.945 unieke actieve/gepositioneerde locaties** als de onafhankelijke geocensus, op exact dezelfde **13 niet-lege (cx,cy)-cellen**, zonder afwijkende celcount of ongeldige celtoewijzing. De oude **999-cap** is niet aanwezig in deze SQL-proef. P2i had 81.934 locaties op een eerder snapshot; verschil van 11 kan door NDW-feedwijzigingen komen en is **geen** pariteitsafwijking binnen P2j.
+
+**Beperkingen:** geen echte landgrenspolygoon (slechts NL-omsluitende bbox), geen bewijs dat iedere lege cel expliciet een coverage-record oplevert, geen onderlinge overlappende viewport-test, geen nationale status-/connectorfilterpariteit en nog geen productie-API-endpoint. Dit is **census/count-pariteit**, niet volledige beschikbaarheidspariteit.
+
+**Volgende fase:** nu kan de afzonderlijke P2i landelijke **CCS2/DC**-variant als één read-only benchmark worden uitgevoerd, vervolgens nationale gefilterde ID-/aggregaatpariteit op hetzelfde snapshot en pas daarna eventueel een hybride performance-/API-plan. De geplande nationale gefilterde baseline wordt niet als snel/geoptimaliseerd aangemerkt zonder nieuwe meting. Geen merge, deploy, schema- of productiewijziging; PR #114 draft.
