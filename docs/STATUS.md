@@ -1,3 +1,13 @@
+## Eerste A1-productiemeting Oss — 3 november 2026
+
+**Uitgevoerd door gebruiker met `chargewatch_read` in `REPEATABLE READ READ ONLY`**. `EXPLAIN (ANALYZE, BUFFERS)` voor zoomraster 11, bbox Oss (5.40,51.70)–(5.62,51.83), geen filters: `Execution Time=145.899 ms`, `Planning Time=35.105 ms`, `JIT Total=32.374 ms`. `GroupAggregate` leverde **4 gridgroepen** uit **2.100 locaties**; `Gather Merge` verwerkte **5.075 LEFT JOIN-resultaatrijen** (niet noodzakelijk allemaal EVSE-records, want LEFT JOIN kan een null-e-regel toevoegen).
+
+**Werkelijk plan:** `Bitmap Index Scan on ix_charging_location_active_position` (2.298 indexkandidaten), `Parallel Bitmap Heap Scan` na ST_Intersects (2.100 locaties), gevolgd door **2.100 Index Scans op `idx_evse_active_location`**. Buffers `shared hit=7919 read=6140 dirtied=209 written=5078` (read-only SELECT kan al gewijzigde shared buffers lezen/flushen; dit zijn geen applicatiedata-mutaties door de query). De eerste meting is mogelijk beïnvloed door koude cache en JIT. De 4 celgroepen op raster 11 zijn een artefact van resolutie: **geen bewijs voor juiste visuele clusterdichtheid**.
+
+**Vervolg:** eerst dezelfde read-only query herhalen met `SET LOCAL jit=off` (zelfde regio en query) en timings/BUFFERS vergelijken; daarna een begrensd regionaal en landelijk scenario met passend grover grid, zonder huidige A1-statusclassifier of filtersemantiek als productiecorrect te bestempelen. Nog geen backend-/Android-implementatie, merge of deployment.
+
+---
+
 ## Productie-preflight kaart v2 #113 — 3 november 2026
 
 **Werkelijk door gebruiker op NAS uitgevoerd:** `current_user=chargewatch_read`, `current_database=chargewatch`, `transaction_read_only=on`; `active_locations=81.004`. Indexen op productie: `ix_charging_location_active_position` (partiële GiST op actieve posities), `ix_location_position` (GiST), `idx_evse_active_location` (partiële B-tree actieve EVSE per location), `idx_connector_active_evse` (partiële B-tree actieve connector per EVSE), plus PK/unique. De uitvoer bevat nog **geen waarde** voor `active_evses`; niet raden. **Dit bewijst indexaanwezigheid, niet de daadwerkelijke indexkeuze of queryprestatie.** Volgende stap is een begrensde, read-only test op klein Oss-gebied met EXPLAIN ANALYZE en daarna exacte locatie-/ringcontroles.
