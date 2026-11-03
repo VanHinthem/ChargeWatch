@@ -1,3 +1,8 @@
+## P1d/A3 bestaande EVSE-index daadwerkelijk gebruikt, niet sneller in deze run — 3 november 2026
+
+Gebruiker voerde de Oss-A3-`LATERAL`-benchmark uit: **152,302 ms Execution Time**, 30,399 ms Planning Time, 2.101 locaties/4 cellen. PostgreSQL gebruikte `idx_evse_active_location` via `Nested Loop Left Join`, **2.101 Index Searches**, gemiddeld 2,43 actieve EVSE's/lookup. Root buffers hit 6.714/read 7.308/written 6.688; veel minder shared reads dan A1 (30.422), maar niet sneller dan recente A1 (121,861 ms); A2 (496,361 ms) ruim langzamer. Dit is losse-run-vergelijking, niet bewijs van structurele rangorde. Geen indexaanmaak nodig. **Vervolg:** A1 als eenvoudige performance-baseline behouden; niet eindeloos A1/A2/A3 blijven tweaken, maar de echte filtered complete-grid overview-query en daarna landelijke dekking/schaal toetsen. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft; geen productie-/schemawijziging, merge of deployment.
+
+---
 ## P1d EVSE-indexen op NAS bevestigd — 3 november 2026
 
 `idx_evse_active_location ON evse(location_id) WHERE is_active` **bestaat al**, evenals `evse_identity(location_id,source_uid)` en de gebruikte partial GiST `ix_charging_location_active_position`. EVSE geschatte live rows 216.362, dead rows 27.621, laatste autoanalyze `2026-11-03 12:44:33+00`; dit is geen reden voor indexaanmaak/vacuum zonder meting. Oss-A1 koos desondanks landelijke Seq Scan; volgende gerichte proef: bestaand A3 LATERAL-indexpad vergelijken met A1 op identieke complete Oss-cellen, niet opnieuw NDW-statuslogica onderzoeken. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft, geen mutaties/merge/deploy.
