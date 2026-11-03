@@ -1,3 +1,8 @@
+## Q5a NDW-statusverdeling nulmeting geslaagd — 3 november 2026
+
+Gebruiker draaide Q5a read-only: **206 actieve EVSE-rijen; 2 PLANNED/REMOVED uitgesloten; 204 operationeel; 151 AVAILABLE, 48 CHARGING/BLOCKED/RESERVED, 1 INOPERATIVE/OUTOFORDER, 4 UNKNOWN/overig; partition_ok=t**. Feedobservatie `2026-11-03 11:32:29.014798+00`, leeftijd **5,8 min** op meetmoment. Statuspartitie klopt; nog geen locatie-/EVSE-versheid of complete snapshotdekking bewezen. Zie [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md). Volgende Q5b: onbekende statussen, locatiedekking, aparte bron-/feed-versheid. Q4c-04c en Q4c-08b synthetische fixtures nog open. PR #114 draft; geen mutaties/merge/deploy.
+
+---
 ## Q5a NDW-statuskwaliteit voorbereid — 3 november 2026
 
 Na de geslaagde Q4c-08 NAS-basiscontrole (2 CCS2/DC-locaties, scope_ok=t, maar geen extra niet-passende EVSE's) is [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md) opgesteld als **nog niet uitgevoerde** read-only status- en feedobservatienulmeting in de kleine Oss-bbox. De bestaande API heeft `CW_API_STALE_AFTER_MINUTES` met standaard 15 minuten; `snapshot_poll_checkpoint.last_observed_at` wordt voor feedstaleness gebruikt. Het Q5-besluit moet bron-/observatietijd, UNKNOWN, incomplete dekking en toestandscategorieën expliciet onderscheiden; de Q4c-08 kleurclassificatie was uitsluitend voorlopig. **Q4c-04c en Q4c-08b synthetische tests zijn nog niet als uitgevoerd bevestigd**, blijven open. Geen API/Android-/DB-mutaties, merge of deploy. PR #114 draft.
