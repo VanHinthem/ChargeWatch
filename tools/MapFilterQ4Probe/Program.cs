@@ -6,6 +6,14 @@ using NpgsqlTypes;
 
 // Standalone Q4 contract probe; includes the production MapFilter.cs as a linked source.
 // No database connection and no production API changes.
+if (args.Length == 1 && args[0] == "--emit-q4c01")
+{
+    Console.WriteLine(Q4cSqlExporter.CreateCcs2Dc());
+    return;
+}
+if (args.Length != 0)
+    throw new ArgumentException("Usage: MapFilterQ4Probe [--emit-q4c01]");
+
 MapFilter.SelfTest();
 
 var cases = new (string Name, (string Key, string[] Values)[] Entries)[]
