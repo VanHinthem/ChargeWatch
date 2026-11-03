@@ -1,3 +1,8 @@
+## P2d CCS2/DC filter-indexpad werkt, EVSE-fullscan blijft — 3 november 2026
+
+Read-only NAS-proef na exporter-fix: **exacte ID-pariteit geslaagd (34/34 locaties, 0 diff, ids_match=t)** en 4 gridcellen. P2d selecteert met `geo_locations AS MATERIALIZED` eerst 2.101 lokale locaties; de filterpredicate wordt gecorreleerd uitgevoerd via **2.101× `idx_evse_active_location`** en **4.838× `idx_connector_active_evse`**, **geen landelijke connector-Seq Scan**. Execution **160,477 ms** (planning 3,063 ms). **Nieuwe resterende bottleneck**: aggregatie maakt alsnog `Hash Right Join` met **Seq Scan over 216.524 actieve EVSE's** (103,365 ms scan, 23.957 shared reads); root 23.993 reads. Volgende gerichte proef: alléén beschikbaarheidstelling voor de 34 geselecteerde locaties indexgericht maken, met exacte outputpariteit en bestaande statussemantiek. Geen generieke performancewinst claimen op deze ene run; geen NDW-/Q5-herontwerp, code-/DB-mutatiewerk, merge/deploy. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). PR #114 draft.
+
+---
 ## P2d exporter-generatiefout gerepareerd — 3 november 2026
 
 Eerste Windows-`--emit-overview-correlated` faalde met `InvalidOperationException: Correlated filter SQL template not applied`. Oorzaak: whitespacegevoelige vervanging van een C# raw SQL-string. Op `docs/location-dataflow-113-design` is de vervanging gecorrigeerd naar unieke `WHERE true __FILTER__`-marker, met aanwezigheidcontrole. Herhaal na `git pull --ff-only` en `dotnet build`; **nieuwe compilatie/NAS-uitvoering nog niet bevestigd**, geen benchmarkuitkomst. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). Geen productieschema-/API-wijziging, merge of deployment.
