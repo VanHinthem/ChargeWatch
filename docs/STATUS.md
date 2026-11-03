@@ -1,3 +1,8 @@
+## Q4c-08 generator compileerfout hersteld (nog niet geverifieerd) — 3 november 2026
+
+De gebruiker kreeg `CS9006` bij het genereren van Q4c-08 doordat een C# interpolated raw string `$"""` gebruikte terwijl `{{predicate}}` twee dollar-tekens vereist. Dat schreef de compilerfout in `q4c08-generated.sql`, waarna `psql` `invalid command \\GITHUB` meldde. De stringdelimiter is aangepast naar `$$"""` (commit `ebfdcfa`), en de Q4c-08-instructies vereisen nu eerst een geslaagde `dotnet build` en een SQL-headercontrole voordat er wordt gekopieerd of uitgevoerd. **Nog niet lokaal gebouwd; nog geen Q4c-08 NAS-resultaten.** Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Geen productie-mutaties of deployment; PR #114 draft.
+
+---
 ## Q4c-08 locatiebrede voorlopige ringaudit voorbereid — 3 november 2026
 
 De bestaande `MapFilterQ4Probe` ondersteunt nu `--emit-q4c08` voor een **nog niet uitgevoerde** read-only vergelijking van CCS2/DC-technisch passende EVSE's versus **alle operationele EVSE's van geselecteerde locaties**, inclusief een voorlopige groen/rood/onbekend-partitie. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Er is nog geen API-ringcontract uitgevoerd; definitieve bronkwaliteitsclassificatie is Q5. Q4c-07 is werkelijk geslaagd (0/0, differing_ids=0); Q4c-04c synthetische EVSE-deduplicatie is nog onbevestigd. Geen productiemutaties, schemawijziging, deploy of merge; PR #114 draft.
