@@ -61,3 +61,20 @@ Verwacht niet dat de cijfers exact `420/12` blijven: NDW-data kan tussen P2f en 
 - Bij `ids_match=f` of `aggregates_match=f`: onderzoek de afwijkende IDs/celrijen eerst, geen snelheidsbesluit.
 - Bij timeout: beoordeel hoeveel belasting de dubbele vergelijkingsquery veroorzaakt; geen landelijke test starten.
 - **Nog geen landelijke proef, geen nieuwe indexen, geen productie-API-/Android-code, geen NDW-/Q5-statusherontwerp, geen merge of deploy.** PR #114 blijft draft.
+
+
+## Werkelijke NAS-uitkomst — 3 november 2026
+
+Gebruiker leverde `p2g-region-parity-result.txt` (volledige uitvoer, twee SELECT's, `ROLLBACK`/`RESET ROLE`) voor **bbox 5.20,51.60,5.90,52.10, gridLevel10, CCS2+DC**:
+
+```text
+fixture  original_locations  geofirst_locations  differing_ids  ids_match
+ccs2_dc                420                 420              0          t
+
+baseline_cells  indexed_cells  baseline_locations  indexed_locations  differing_cell_rows  aggregates_match
+            12             12                 420                420                    0                 t
+```
+
+**P2g PASS:** beide exacte ID-EXCEPT-richtingen leveren geen verschil op en ook de complete rasterkolommen (cx/cy/locaties/groen/rood/onbekend) zijn per cel identiek. De opgegeven regio heeft op dit snapshot 420 passende locaties in 12 niet-lege cellen, gelijk aan de aantallen uit P2f. De pariteits-run is read-only afgerond; **geen** extra EXPLAIN, dus geen nieuwe latency- of I/O-meting.
+
+**Vervolg:** gecontroleerde afwisselende performancevergelijking van de oorspronkelijke `MapFilter`-overview-route en P2e-gecorreleerde/indexgerichte route op exact dezelfde regio, bij voorkeur met minimaal twee runs per queryvariant, identieke filter- en celgrenzen, en `EXPLAIN (ANALYZE, BUFFERS)` onder `chargewatch_read`. Voor landelijke keuze nog landelijke pariteit/benchmarks nodig. Geen API/Android-/DB-/NDW-wijziging en geen merge/deploy; PR #114 draft.
