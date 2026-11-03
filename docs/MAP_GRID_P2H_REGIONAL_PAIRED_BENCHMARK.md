@@ -38,14 +38,12 @@ dotnet build $project --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Build mislukt; stop.' }
 
 $sql = dotnet run --no-build --project $project -- --emit-overview-region-paired
-if ($LASTEXITCODE -ne 0 -or
-    -not ($sql -match 'P2h region run=1 variant=original') -or
-    -not ($sql -match 'P2h region run=4 variant=original') -or
-    -not ($sql -match 'ST_MakeEnvelope\(5\.20,51\.60,5\.90,52\.10,4326\)') -or
-    ($sql -split 'EXPLAIN \(ANALYZE, BUFFERS, SETTINGS\)').Count -ne 5) {
-    throw 'P2h SQL-generatie ongeldig; stop.'
-}
-$sql | Set-Content -Path .\p2h-region-paired.sql -Encoding utf8
+if ($LASTEXITCODE -ne 0) { throw 'SQL-generator mislukt; stop.' }
+
+# Native command output is een array van tekstregels. Controleer als één string.
+$sqlText = $sql -join "`n"
+$explainCount = [regex]::Matches($sqlText, 'EXPLAIN \(ANALYZE, BUFFERS, SETTINGS\)').Count
+$runCount = [regex]::Matches($sqlText, '(?m)^\\echo P2h region run=[1-4] variant=(original|indexed)
 scp .\p2h-region-paired.sql hinthem@192.168.2.48:~/p2h-region-paired.sql
 if ($LASTEXITCODE -ne 0) { throw 'SCP upload mislukt; stop.' }
 ```
@@ -67,3 +65,41 @@ Bij timeout/PSQL-fout geen extra runs of nationale benchmark starten. Bewaar de 
 Per run: `Execution Time`, `Planning Time`, root `Buffers shared hit/read/written`, `geo_locations` en `selected` aantallen, aantal outputcellen, `Parallel Seq Scan on connector` of `Seq Scan on evse`, aantallen lokale EVSE-/connector-indexzoekacties, eventuele `temp read/written`. Beslissen op queryplan + herhaalbaarheid en I/O-kosten, **niet** uitsluitend de snelste run. De nationale gebruikslast (lagere gridlevels; grotere geografische kandidatenset) blijft een afzonderlijk nog niet gevalideerd scenario.
 
 PR #114 draft; geen merge of deployment.
+).Count
+if ($explainCount -ne 4 -or $runCount -ne 4 -or
+    -not $sqlText.Contains('P2h region run=1 variant=original') -or
+    -not $sqlText.Contains('P2h region run=4 variant=original') -or
+    -not $sqlText.Contains('ST_MakeEnvelope(5.20,51.60,5.90,52.10,4326)') -or
+    -not $sqlText.Contains('40075016.68557849::double precision / 1024.0') -or
+    -not $sqlText.Contains('40075016.68557849::double precision/1024.0')) {
+    throw "P2h SQL-check mislukt: EXPLAIN=$explainCount; runs=$runCount. Stop."
+}
+$sqlText | Set-Content -Path .\p2h-region-paired.sql -Encoding utf8
+scp .\p2h-region-paired.sql hinthem@192.168.2.48:~/p2h-region-paired.sql
+if ($LASTEXITCODE -ne 0) { throw 'SCP upload mislukt; stop.' }
+```
+
+## NAS: één runreeks
+
+```bash
+cd /volume2/docker/chargewatch
+set -o pipefail
+sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
+  -U chargewatch_owner -d chargewatch < ~/p2h-region-paired.sql \
+  | tee ~/p2h-region-paired-result.txt
+```
+
+Bij timeout/PSQL-fout geen extra runs of nationale benchmark starten. Bewaar de volledige uitvoer met `P2h region run=...`-markeringen en stuur `p2h-region-paired-result.txt` terug.
+
+## Beoordeling
+
+Per run: `Execution Time`, `Planning Time`, root `Buffers shared hit/read/written`, `geo_locations` en `selected` aantallen, aantal outputcellen, `Parallel Seq Scan on connector` of `Seq Scan on evse`, aantallen lokale EVSE-/connector-indexzoekacties, eventuele `temp read/written`. Beslissen op queryplan + herhaalbaarheid en I/O-kosten, **niet** uitsluitend de snelste run. De nationale gebruikslast (lagere gridlevels; grotere geografische kandidatenset) blijft een afzonderlijk nog niet gevalideerd scenario.
+
+PR #114 draft; geen merge of deployment.
+
+
+## Correctie PowerShell-validator — 3 november 2026
+
+De eerste Windows-run compileerde en genereerde SQL, maar de check `($sql -split 'EXPLAIN ...').Count -ne 5` faalde. **Oorzaak:** `$sql` is bij PowerShell een array van uitvoerregels; `-split` op een array telt niet uitsluitend vier `EXPLAIN`-statements. De documentatie is gecorrigeerd naar `$sqlText = $sql -join "`n"` plus `[regex]::Matches(...).Count -eq 4` en vier expliciete `\\echo`-runlabels. De fout is **geen aangetoonde fout in de gegenereerde SQL**.
+
+**Een SQL-bestand dat al met `Set-Content` is gemaakt na de mislukte `if` mag pas naar NAS worden gestuurd als bovenstaande nieuwe check slaagt.** Genereer en valideer opnieuw, schrijf daarna het bestand pas weg. De code of de daadwerkelijke SQL-benchmark is hierdoor niet gewijzigd. Er is nog **geen** succesvolle P2h NAS-uitvoering bevestigd.
