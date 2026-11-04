@@ -61,7 +61,12 @@ internal static class MapOverviewSql
                    max(longitude) AS single_longitude,
                    max(latitude) AS single_latitude,
                    max(total_evses) AS single_total_evses,
-                   max(free_evses) AS single_free_evses
+                   max(free_evses) AS single_free_evses,
+                   -- A cluster is placed at its REAL population centroid,
+                   -- not the geometric center of its canonical storage cell.
+                   -- Longitude/latitude are bounded within the same cell.
+                   avg(longitude) AS location_centroid_longitude,
+                   avg(latitude) AS location_centroid_latitude
             FROM per_location
             GROUP BY cx,cy ORDER BY cy,cx
             """;
