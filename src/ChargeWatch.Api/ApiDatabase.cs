@@ -125,6 +125,16 @@ internal sealed class ApiDatabase(ApiOptions options)
             _staleAfter,cancellationToken);
     }
 
+    public async Task<MapOverviewCellPage> GetMapOverviewCell(
+        int level, long x, long y, int offset, int limit, MapFilter filters,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await MapOverviewCellDatabase.ReadAsync(connection,level,x,y,offset,limit,
+            filters,cancellationToken);
+    }
+
     // A dedicated map path: a bounded, read-only viewport query. Never return
     // a deceptively complete partial result when the viewport exceeds the cap.
     public async Task<MapViewportResult> GetMapViewport(Bbox bbox, MapFilter? filters = null)
