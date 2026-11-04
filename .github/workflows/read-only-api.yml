@@ -6,6 +6,7 @@ on:
       - 'db/tests/018_readonly_api_role_smoke.sql'
       - 'db/tests/026_map_overview_phase_c_fixture.sql'
       - 'tools/test_map_overview_phase_c_http.py'
+      - 'tools/MapFilterQ4Probe/**'
       - 'db/migrations/022_connector_snapshot_presence.sql'
       - 'db/tests/022_connector_snapshot_presence_smoke.sql'
       - '.github/workflows/read-only-api.yml'
@@ -250,6 +251,19 @@ jobs:
         run: |
           dotnet build src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release
           dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release --no-build -- --self-test
+      - name: Verify production-derived phase C NAS SQL benchmark export
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj --configuration Release
+          dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj --configuration Release --no-build -- --emit-overview-phasec-nas-batch > /tmp/cw-phasec-nas-batch.sql
+          test "$(grep -c '^PREPARE cw_p2n_' /tmp/cw-phasec-nas-batch.sql)" -eq 3
+          test "$(grep -c '^EXECUTE cw_p2n_' /tmp/cw-phasec-nas-batch.sql)" -eq 3
+          grep -q 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY' /tmp/cw-phasec-nas-batch.sql
+          grep -q "SET ROLE chargewatch_read;" /tmp/cw-phasec-nas-batch.sql
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/cw-phasec-nas-batch.sql | tee /tmp/cw-phasec-batch-results.txt
+          test "$(grep -c ' t | t' /tmp/cw-phasec-batch-results.txt)" -eq 3
+
       - name: Verify complete HTTP overview using read-only Npgsql API
         shell: bash
         run: |
