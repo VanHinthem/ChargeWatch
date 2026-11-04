@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.RectF
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
@@ -149,6 +150,12 @@ import nl.vanhinthem.chargewatch.data.ndw.availabilityDescription
 import nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName
 import nl.vanhinthem.chargewatch.data.ndw.connectorSymbol
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
+import nl.vanhinthem.chargewatch.data.ndw.MapOverviewClient
+import nl.vanhinthem.chargewatch.data.ndw.OverviewDataset
+import nl.vanhinthem.chargewatch.data.ndw.OverviewMarker
+import nl.vanhinthem.chargewatch.data.ndw.OverviewCellPage
+import nl.vanhinthem.chargewatch.data.ndw.OverviewCellResult
+import nl.vanhinthem.chargewatch.data.ndw.overviewCellBounds
 import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
@@ -256,6 +263,28 @@ fun MapScreen(
         }
     }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
+    var selectedCluster by remember { mutableStateOf<OverviewMarker.Cluster?>(null) }
+    var clusterOffset by remember { mutableStateOf(0) }
+    var clusterPage by remember { mutableStateOf<OverviewCellPage?>(null) }
+    var clusterLoading by remember { mutableStateOf(false) }
+    var clusterError by remember { mutableStateOf<String?>(null) }
+    val clusterClient = remember { MapOverviewClient() }
+    LaunchedEffect(selectedCluster,clusterOffset,filters) {
+        val cluster = selectedCluster ?: return@LaunchedEffect
+        clusterLoading = true
+        clusterPage = null
+        clusterError = null
+        when (val result = clusterClient.loadCell(cluster,clusterOffset,30,filters)) {
+            is OverviewCellResult.Success -> clusterPage = result.page
+            is OverviewCellResult.Unavailable -> clusterError = result.message
+        }
+        clusterLoading = false
+    }
+    LaunchedEffect(state.overview) {
+        selectedCluster = null
+        clusterPage = null
+        clusterOffset = 0
+    }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
     var searchPanelBottomPx by remember { mutableStateOf(0) }
     var searchQuery by viewModel.searchQuery
@@ -430,9 +459,19 @@ fun MapScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
             locations = state.locations,
+            overview = state.overview,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
+            onClusterSelected = { cluster ->
+                selectedLocations = emptyList()
+                selectedCluster = cluster
+                clusterOffset = 0
+                nearbyExpanded = false
+                filterSheetOpen = false
+            },
+            clusterPanelBottomPx = searchPanelBottomPx,
             onLocationsSelected = { tapped ->
+                selectedCluster = null
                 selectedLocations = tapped
                 if (tapped.isNotEmpty()) {
                     nearbyExpanded = false
@@ -440,6 +479,7 @@ fun MapScreen(
                 }
             },
             onMapTapped = {
+                selectedCluster = null
                 // Tapping the map dismisses search focus and any expanded list.
                 mapFocusManager.clearFocus(force = true)
                 keyboardController?.hide()
@@ -559,6 +599,54 @@ fun MapScreen(
                 }
             }
         }
+        selectedCluster?.let { cluster ->
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),tonalElevation = 6.dp,shadowElevation = 3.dp
+            ) {
+                Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Text("${cluster.locationCount} laadlocaties",style=MaterialTheme.typography.titleMedium,
+                            modifier=Modifier.weight(1f))
+                        IconButton(onClick={ selectedCluster=null }) {
+                            Icon(Icons.Default.Close,contentDescription="Sluiten")
+                        }
+                    }
+                    if (clusterLoading) CircularProgressIndicator(Modifier.size(22.dp))
+                    clusterError?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+                    clusterPage?.let { page ->
+                        Text("Locaties ${page.offset+1}–${page.offset+page.locations.size} van ${page.totalCount}",
+                            style=MaterialTheme.typography.bodySmall)
+                        Column(Modifier.heightIn(max=300.dp).verticalScroll(rememberScrollState())) {
+                            page.locations.forEach { location ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        selectedLocations=listOf(location)
+                                        selectedCluster=null
+                                    }.padding(vertical=9.dp),
+                                    verticalAlignment=Alignment.CenterVertically
+                                ) {
+                                    Text(location.title,modifier=Modifier.weight(1f),
+                                        maxLines=2,style=MaterialTheme.typography.bodyMedium)
+                                    Text(location.availability.label,style=MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            TextButton(enabled=page.offset>0,onClick={
+                                clusterOffset=(page.offset-30).coerceAtLeast(0)
+                            }) { Text("Vorige") }
+                            TextButton(enabled=page.hasMore,onClick={
+                                clusterOffset=page.offset+page.locations.size
+                            }) { Text("Volgende") }
+                        }
+                    }
+                }
+            }
+        }
+
         if (state.loading) {
             CircularProgressIndicator(
                 modifier = Modifier
