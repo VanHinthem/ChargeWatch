@@ -262,7 +262,7 @@ fun MapScreen(
         }
     }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
-    var selectedCluster by remember { mutableStateOf<OverviewMarker.Cluster?>(null) }
+    var selectedCluster by remember { mutableStateOf<OverviewVisualGroup?>(null) }
     var clusterOffset by remember { mutableStateOf(0) }
     var clusterPage by remember { mutableStateOf<OverviewCellPage?>(null) }
     var clusterLoading by remember { mutableStateOf(false) }
@@ -273,7 +273,10 @@ fun MapScreen(
         clusterLoading = true
         clusterPage = null
         clusterError = null
-        when (val result = clusterClient.loadCell(cluster,clusterOffset,30,filters)) {
+        when (val result = clusterClient.loadGroup(
+            cluster.members,clusterOffset,30,filters,
+            state.overview?.feedLastObservedAt,state.overview?.feedIsStale
+        )) {
             is OverviewCellResult.Success -> clusterPage = result.page
             is OverviewCellResult.Unavailable -> clusterError = result.message
         }
@@ -1114,7 +1117,7 @@ private fun ChargeMap(
     overview: OverviewDataset?,
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport, Double) -> Unit,
-    onClusterSelected: (OverviewMarker.Cluster) -> Unit,
+    onClusterSelected: (OverviewVisualGroup) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
     onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
@@ -1179,11 +1182,10 @@ private fun ChargeMap(
                     map.setOnMarkerClickListener { marker ->
                         val visualCluster = markerClusters[marker.id]
                         if (visualCluster != null) {
-                            val cell = visualCluster.members.singleOrNull() as? OverviewMarker.Cluster
-                            if (map.cameraPosition.zoom >= MAX_CLUSTER_ZOOM - 0.1 && cell != null) {
-                                // At high zoom the page picker belongs to a
-                                // real, uniquely identified canonical cell.
-                                currentClusterHandler.value(cell)
+                            if (map.cameraPosition.zoom >= MAX_CLUSTER_ZOOM - 0.1) {
+                                // A visual cluster can span MULTIPLE cells;
+                                // the picker pages all sites, not just one.
+                                currentClusterHandler.value(visualCluster)
                             } else {
                                 // Natural map interaction, identical to the
                                 // previous ChargeWatch visual cluster zoom.
@@ -1420,10 +1422,7 @@ private fun renderNativeMarkers(
             val point = map.projection.toScreenLocation(LatLng(item.latitude,item.longitude))
             ProjectedOverviewMarker(item,point.x.toDouble(),point.y.toDouble())
         }
-        val groups = clusterOverviewVisually(
-            projected,CLUSTER_DISTANCE_PX,
-            group=map.cameraPosition.zoom < MAX_CLUSTER_ZOOM - 0.1
-        )
+        val groups = clusterOverviewVisually(projected,CLUSTER_DISTANCE_PX)
         groups.forEach { group ->
             val isSingle = group.isIndividualLocation
             val key: String
