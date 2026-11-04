@@ -99,11 +99,9 @@ private class Builder(points: List<ProjectedOverviewMarker>) {
  */
 internal fun clusterOverviewVisually(
     points: List<ProjectedOverviewMarker>,
-    thresholdPixels: Double,
-    group: Boolean = true
+    thresholdPixels: Double
 ): List<OverviewVisualGroup> {
     require(thresholdPixels > 0 && thresholdPixels.isFinite())
-    if (!group) return points.map { Builder(listOf(it)).result() }
     val sorted = points.sortedWith(
         compareByDescending<ProjectedOverviewMarker> { siteCount(it.marker) }
             .thenBy { it.x }.thenBy { it.y }
