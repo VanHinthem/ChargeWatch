@@ -1,3 +1,9 @@
+## #113 P2m-G1 ID-/celpariteit PASS; P2m-G2 voorbereid — 4 november 2026
+
+NAS read-only G1: oorspronkelijke en fase-B-query elk 1.612 unieke locaties, twee richtingen 0 afwijkende (id,cx,cy), 0 ongeldige assignments, id_cell_parity_matches=t. P2m-F had reeds 256,378 ms connector-first runtime en 11 cellen. Nieuw op fase-B-branch: P2m-G2 generator voor volledige cel-/statusaggregaten via een geparametriseerde PREPARE/EXECUTE op één REPEATABLE READ READ ONLY snapshot met 5s timeout; nog niet gebouwd of uitgevoerd. Zie [P2m-G2-runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). PR #114/#115/#116 draft; geen DB-/API-/Androidwijzigingen of merge/deploy.
+
+---
+
 ## #113 P2m-G1 minimale, geparametriseerde ID-/celpariteit voorbereid — 4 november 2026
 
 Na de geslaagde P2m-F-executie (256,378 ms, 1.612 geselecteerde locaties, 11 niet-lege grid8-cellen) is op `feat/map-overview-113-phase-b` een afzonderlijke **P2m-G1**-generator gemaakt (`--emit-overview-phaseb-g1-ids`). Eén `PREPARE/EXECUTE` met echt gebonden `$1..$7` vergelijkt de P2l- en fase-B-**(id,cx,cy)**-sets binnen één `REPEATABLE READ READ ONLY`-snapshot. De oude gecombineerde P2m-test met vier zware status-/selectie-CTE's wordt niet herhaald. G1 checkt bidirectionele EXCEPT, uniciteit en celtoewijzing onder 5s. **Nog niet lokaal gebouwd of op NAS uitgevoerd.** Na PASS volgt G2 als aparte celcount-/statuspariteit, pas daarna API/Android-contracttests. [Exact runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Geen productiedatabasewijzigingen, API-activering, merge of NAS-deploy; #114/#115/#116 blijven draft.
