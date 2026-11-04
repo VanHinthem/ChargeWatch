@@ -1,3 +1,9 @@
+## #113 Samsung-acceptatie: rastervormige clustering afgewezen (4 november 2026)
+
+De landelijke overview in `main` na PR #119 bleek bij Oss zichtbare, regelmatig verdeelde vierkante rasteraggregaten te tonen (bijv. na aantikken van 19 locaties opnieuw 4/6/3/6/2/4). Dit is nadrukkelijk **niet** de gewenste kaartinteractie. Correctie op `fix/map-overview-113-street-level-clustering`: overview gebruikt het daadwerkelijke locatiegewogen centroid en beeldscherm-gebaseerde visuele clustering, terwijl de volledige bestaande viewport met individuele `vrij/totaal`-markers gebruikt wordt in kleine gebieden. Alleen bij de 999-locatiegrens blijft het volledige overview-aggregaat nodig. [Ontwerp/testplan](MAP_OVERVIEW_113_NATURAL_CLUSTERING_FIX.md). Niet gemerged/gedeployed; bestaande NAS draait nog fase D.
+
+---
+
 ## #113 fase D Android-kaartintegratie — draft PR #119 (4 november 2026)
 
 Het landelijke overzicht is in [draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119) geïntegreerd in de bestaande Android-MapLibre-kaart, met optionele moduskeuze in Instellingen (standaard legacy), complete overview-responses, servercluster-ringen, canonical celtapzoom en gepagineerde celkeuze via een nieuwe feature-gated read-only route. De bestaande kaart en API/collector zijn ongewijzigd als terugvalpad. [Technisch verslag](MAP_OVERVIEW_113_PHASE_D_ANDROID.md). **PR #118 is op 4 november al naar main gemerged als `6d5c320`; #119 is niet gemerged of gedeployed. Productieflag `CW_ENABLE_MAP_OVERVIEW` blijft uit.** Automatische CI en fysieke toestel-/HTTP-releasegates worden afzonderlijk beoordeeld; geen merge/deploy zonder toestemming. #113 blijft open.
