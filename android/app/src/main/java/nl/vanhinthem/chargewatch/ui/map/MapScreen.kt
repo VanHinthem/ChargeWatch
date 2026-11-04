@@ -1104,6 +1104,7 @@ private data class CameraTarget(
 /** Not Compose state: avoid marker re-clustering for each autocomplete keystroke. */
 private class MapRenderSnapshot {
     var locations: List<MapLocation>? = null
+    var overview: OverviewDataset? = null
     var favoriteIds: Set<String>? = null
     var destination: Destination? = null
     var gpsPosition: DevicePosition? = null
@@ -1112,8 +1113,11 @@ private class MapRenderSnapshot {
 @Composable
 private fun ChargeMap(
     locations: List<MapLocation>,
+    overview: OverviewDataset?,
     darkTheme: Boolean,
-    onViewportChanged: (NdwViewport) -> Unit,
+    onViewportChanged: (NdwViewport, Double) -> Unit,
+    onClusterSelected: (OverviewMarker.Cluster) -> Unit,
+    clusterPanelBottomPx: Int,
     onLocationsSelected: (List<MapLocation>) -> Unit,
     onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
@@ -1130,6 +1134,8 @@ private fun ChargeMap(
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
     val currentLocations = rememberUpdatedState(locations)
+    val currentOverview = rememberUpdatedState(overview)
+    val currentClusterHandler = rememberUpdatedState(onClusterSelected)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentMapTapHandler = rememberUpdatedState(onMapTapped)
@@ -1139,6 +1145,7 @@ private fun ChargeMap(
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
+    val markerClusters = remember { mutableMapOf<Long, OverviewMarker.Cluster>() }
 
     val mapView = remember(context) {
         MapView(context).apply { onCreate(Bundle()) }
@@ -1173,6 +1180,15 @@ private fun ChargeMap(
                         .build()
 
                     map.setOnMarkerClickListener { marker ->
+                        val serverCluster = markerClusters[marker.id]
+                        if (serverCluster != null) {
+                            if (map.cameraPosition.zoom >= MAX_CLUSTER_ZOOM - 0.1) {
+                                currentClusterHandler.value(serverCluster)
+                            } else {
+                                fitOverviewCluster(map,mapView,serverCluster,clusterPanelBottomPx)
+                            }
+                            return@setOnMarkerClickListener true
+                        }
                         val group = markerGroups[marker.id] ?: return@setOnMarkerClickListener false
                         if (group.isEmpty()) return@setOnMarkerClickListener true
                         when (markerTapAction(group.size, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM)) {
@@ -1204,10 +1220,12 @@ private fun ChargeMap(
                         map = map,
                         styleUri = styleUri,
                         locations = currentLocations.value,
+                        overview = currentOverview.value,
                         onViewportChanged = onViewportChanged,
                         context = context,
                         iconCache = iconCache,
                         markerGroups = markerGroups,
+                        markerClusters = markerClusters,
                         favoriteIds = currentFavoriteIds.value,
                         destination = currentDestination.value,
                         gpsPosition = currentGpsPosition.value
@@ -1216,9 +1234,11 @@ private fun ChargeMap(
                         renderNativeMarkers(
                             map,
                             currentLocations.value,
+                            currentOverview.value,
                             iconCache,
                             context,
                             markerGroups,
+                            markerClusters,
                             currentFavoriteIds.value,
                             currentDestination.value,
                             currentGpsPosition.value
@@ -1228,9 +1248,11 @@ private fun ChargeMap(
                         renderNativeMarkers(
                             map,
                             currentLocations.value,
+                            currentOverview.value,
                             iconCache,
                             context,
                             markerGroups,
+                            markerClusters,
                             currentFavoriteIds.value,
                             currentDestination.value,
                             currentGpsPosition.value
@@ -1267,21 +1289,23 @@ private fun ChargeMap(
                 }
                 val styleChanged = currentStyleUri != styleUri
                 val markersChanged = renderSnapshot.locations !== locations ||
+                    renderSnapshot.overview !== overview ||
                     renderSnapshot.favoriteIds != favoriteIds ||
                     renderSnapshot.destination != destination ||
                     renderSnapshot.gpsPosition != gpsPosition
                 if (styleChanged) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
                     }
                 } else if (markersChanged) {
                     map.getStyle {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
                     }
                 }
                 if (styleChanged || markersChanged) {
                     renderSnapshot.locations = locations
+                    renderSnapshot.overview = overview
                     renderSnapshot.favoriteIds = favoriteIds
                     renderSnapshot.destination = destination
                     renderSnapshot.gpsPosition = gpsPosition
@@ -1333,21 +1357,23 @@ private fun configureStyle(
     map: MapLibreMap,
     styleUri: String,
     locations: List<MapLocation>,
-    onViewportChanged: (NdwViewport) -> Unit,
+    overview: OverviewDataset?,
+    onViewportChanged: (NdwViewport, Double) -> Unit,
     context: Context,
     iconCache: MutableMap<String, Icon>,
     markerGroups: MutableMap<Long, List<MapLocation>>,
+    markerClusters: MutableMap<Long, OverviewMarker.Cluster>,
     favoriteIds: Set<String>,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
         requestViewport(map, onViewportChanged)
     }
 }
 
-private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -> Unit) {
+private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport, Double) -> Unit) {
     val bounds = map.projection.visibleRegion.latLngBounds
     if (bounds.longitudeWest < bounds.longitudeEast &&
         bounds.latitudeSouth < bounds.latitudeNorth
@@ -1358,7 +1384,7 @@ private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -
                 minLatitude = bounds.latitudeSouth,
                 maxLongitude = bounds.longitudeEast,
                 maxLatitude = bounds.latitudeNorth
-            )
+            ),map.cameraPosition.zoom
         )
     }
 }
@@ -1366,15 +1392,52 @@ private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
+    overview: OverviewDataset?,
     icons: MutableMap<String, Icon>,
     context: Context,
     markerGroups: MutableMap<Long, List<MapLocation>>,
+    markerClusters: MutableMap<Long, OverviewMarker.Cluster>,
     favoriteIds: Set<String>,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
     map.clear()
     markerGroups.clear()
+    markerClusters.clear()
+    if (icons.size > 1200) icons.clear()
+    if (overview != null) {
+        val factory = IconFactory.getInstance(context)
+        overview.markers.forEach { item ->
+            val key: String
+            val icon: Icon
+            when (item) {
+                is OverviewMarker.Cluster -> {
+                    key = "server:${item.locationCount}:${item.locationsWithFree}:${item.locationsWithNoFree}:${item.locationsUnknown}"
+                    icon = icons.getOrPut(key) { factory.fromBitmap(createOverviewClusterBitmap(item)) }
+                }
+                is OverviewMarker.Location -> {
+                    val status = when {
+                        item.availableCount > 0 -> AVAILABLE_COLOR
+                        item.totalCount > 0 -> NONE_AVAILABLE_COLOR
+                        else -> UNKNOWN_COLOR
+                    }
+                    val favorite = item.featureId in favoriteIds
+                    key = "single:$status:${item.availableCount}/${item.totalCount}:$favorite"
+                    icon = icons.getOrPut(key) {
+                        factory.fromBitmap(createMarkerBitmap(status,"${item.availableCount}/${item.totalCount}",favorite))
+                    }
+                }
+            }
+            val marker = map.addMarker(MarkerOptions()
+                .position(LatLng(item.latitude,item.longitude)).icon(icon)
+                .title(if (item is OverviewMarker.Cluster) "${item.locationCount} laadlocaties" else "Laadlocatie"))
+            when (item) {
+                is OverviewMarker.Cluster -> markerClusters[marker.id] = item
+                is OverviewMarker.Location -> markerGroups[marker.id] = listOf(
+                    item.asMapLocation(overview.feedLastObservedAt,overview.feedIsStale))
+            }
+        }
+    } else {
     val clusters = mutableListOf<MutableList<MapLocation>>()
     val positions = locations.associateWith { location ->
         map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
@@ -1453,6 +1516,7 @@ private fun renderNativeMarkers(
         )
         markerGroups[marker.id] = group.toList()
     }
+    }
     destination?.let { chosen ->
         val icon = icons.getOrPut("destination-pin") { iconFactory.fromBitmap(createDestinationMarkerBitmap()) }
         val marker = map.addMarker(MarkerOptions().position(LatLng(chosen.latitude, chosen.longitude))
@@ -1465,6 +1529,31 @@ private fun renderNativeMarkers(
         val marker = map.addMarker(MarkerOptions().position(LatLng(position.latitude, position.longitude))
             .icon(icon).title("Mijn locatie"))
         markerGroups[marker.id] = emptyList()
+    }
+}
+
+/** Fit the complete canonical grid cell, accounting for the search overlay. */
+private fun fitOverviewCluster(
+    map: MapLibreMap, view: MapView, cluster: OverviewMarker.Cluster,
+    panelBottomPx: Int
+) {
+    val bounds = overviewCellBounds(cluster.gridLevel,cluster.gridX,cluster.gridY)
+    val padding = (24*view.resources.displayMetrics.density).roundToInt()
+    val top = overviewTopPaddingPixels(view.height,panelBottomPx,padding)
+    val fit = map.getCameraForLatLngBounds(
+        LatLngBounds.Builder()
+            .include(LatLng(bounds.minLatitude,bounds.minLongitude))
+            .include(LatLng(bounds.maxLatitude,bounds.maxLongitude))
+            .build(),
+        intArrayOf(padding,top,padding,padding),0.0,0.0
+    )
+    if (fit != null) {
+        val targetZoom = fit.zoom.coerceAtMost(MAX_CLUSTER_ZOOM)
+        val camera = if (targetZoom > map.cameraPosition.zoom + 0.1)
+            CameraPosition.Builder(fit).zoom(targetZoom).build()
+        else CameraPosition.Builder().target(LatLng(cluster.latitude,cluster.longitude))
+            .zoom((map.cameraPosition.zoom+CLUSTER_ZOOM_STEP).coerceAtMost(MAX_CLUSTER_ZOOM)).build()
+        map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
     }
 }
 
@@ -2189,6 +2278,45 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     canvas.drawText(label, 64f, 76f, paint)
 
     if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 64f, 64f, 44f)
+    return bitmap
+}
+
+private fun createOverviewClusterBitmap(cluster: OverviewMarker.Cluster): Bitmap {
+    val bitmap = Bitmap.createBitmap(160,160,Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color=Color.argb(42,0,0,0)
+    canvas.drawCircle(80f,84f,72f,paint)
+    paint.color=Color.parseColor("#E5E9EC")
+    canvas.drawCircle(80f,80f,70f,paint)
+    val arc = RectF(15f,15f,145f,145f)
+    paint.style=Paint.Style.STROKE
+    paint.strokeWidth=14f
+    paint.strokeCap=Paint.Cap.BUTT
+    var angle=-90f
+    for ((count,color) in listOf(
+        cluster.locationsWithFree to AVAILABLE_COLOR,
+        cluster.locationsWithNoFree to NONE_AVAILABLE_COLOR,
+        cluster.locationsUnknown to UNKNOWN_COLOR
+    )) {
+        if (count == 0) continue
+        val sweep=360f*count.toFloat()/cluster.locationCount
+        paint.color=Color.parseColor(color)
+        canvas.drawArc(arc,angle,sweep,false,paint)
+        angle+=sweep
+    }
+    paint.style=Paint.Style.FILL
+    paint.color=Color.parseColor("#68727A")
+    canvas.drawCircle(80f,80f,54f,paint)
+    paint.color=Color.WHITE
+    paint.textAlign=Paint.Align.CENTER
+    paint.typeface=android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD)
+    paint.textSize=when {
+        cluster.locationCount >= 10000 -> 27f
+        cluster.locationCount >= 1000 -> 32f
+        else -> 39f
+    }
+    canvas.drawText(cluster.locationCount.toString(),80f,92f,paint)
     return bitmap
 }
 
