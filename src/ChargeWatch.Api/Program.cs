@@ -7,6 +7,7 @@ if (args.Length == 1 && args[0] == "--self-test")
     ApiOptions.SelfTest();
     OcpiTariffEvaluatorTests.Run();
     MapFilter.SelfTest();
+    MapOverviewPhaseASelfTest.Run();
     return;
 }
 
