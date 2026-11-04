@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import java.time.Instant
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.search.Destination
@@ -17,11 +19,14 @@ import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.NdwClient
 import nl.vanhinthem.chargewatch.data.ndw.NdwResult
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
-import nl.vanhinthem.chargewatch.data.ndw.ViewportRequestCoordinator
+import nl.vanhinthem.chargewatch.data.ndw.MapOverviewClient
+import nl.vanhinthem.chargewatch.data.ndw.OverviewDataset
+import nl.vanhinthem.chargewatch.data.ndw.OverviewResult
 
 class MapViewModel(
     private val client: NdwClient = NdwClient(),
-    private val chargeWatchClient: ChargeWatchMapClient = ChargeWatchMapClient()
+    private val chargeWatchClient: ChargeWatchMapClient = ChargeWatchMapClient(),
+    private val overviewClient: MapOverviewClient = MapOverviewClient()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
@@ -72,114 +77,140 @@ class MapViewModel(
         nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
     }
 
-    private var lastRequestedViewport: NdwViewport? = null
-    private var requestSequence: Long = 0
-    private val coordinator = ViewportRequestCoordinator(viewModelScope) { viewport ->
-        load(viewport)
+    val mapMode = mutableStateOf(MapMode.Legacy)
+    private data class MapCameraRequest(val viewport: NdwViewport, val zoom: Double)
+    private var lastRequest: MapCameraRequest? = null
+    private var requestSequence = 0L
+    private var pending: Job? = null
+
+    fun setMapMode(mode: MapMode) {
+        if (mapMode.value == mode) return
+        mapMode.value = mode
+        invalidate()
+        _uiState.value = _uiState.value.copy(locations=emptyList(),overview=null,message=null)
+        retry()
     }
 
-    fun onViewportChanged(viewport: NdwViewport) {
-        if (viewport.areaSquareDegrees > MAX_VIEWPORT_AREA) {
-            coordinator.cancel()
-            requestSequence++
-            _uiState.value = _uiState.value.copy(
-                locations = emptyList(),
-                loading = false,
-                message = "Zoom verder in om laadlocaties te laden.",
-                rateLimited = false
-            )
-            return
-        }
+    fun onViewportChanged(viewport: NdwViewport, zoom: Double) {
+        if (!zoom.isFinite()) return
+        val request = MapCameraRequest(viewport,zoom.coerceIn(0.0,22.0))
+        if (request == lastRequest) return
+        lastRequest = request
+        schedule(request)
+    }
 
-        lastRequestedViewport = viewport
-        coordinator.submit(viewport)
+    private fun invalidate() {
+        ++requestSequence
+        pending?.cancel()
+        pending = null
+    }
+
+    private fun schedule(request: MapCameraRequest, debounce: Boolean = true) {
+        invalidate() // invalidate a running HTTP request immediately
+        val generation = requestSequence
+        pending = viewModelScope.launch {
+            if (debounce) delay(400)
+            load(request,generation)
+        }
     }
 
     fun applyFilters(next: ChargingFilters) {
         if (filters.value == next) return
         filters.value = next
         nearLoadedFor.value = null
-        requestSequence++
-        coordinator.cancel()
         _uiState.value = _uiState.value.copy(
-            source = if (next.active) "ChargeWatch" else _uiState.value.source,
-            locations = emptyList(), message = null
-        )
+            source=if (next.active) "ChargeWatch" else _uiState.value.source,
+            locations=emptyList(),overview=null,message=null)
         retry()
     }
 
     fun setSource(source: String) {
         if (filters.value.active && source == "NDW") {
-            _uiState.value = _uiState.value.copy(message = "Schakel filters uit om de directe NDW-bron te gebruiken.")
+            _uiState.value = _uiState.value.copy(message="Schakel filters uit om de directe NDW-bron te gebruiken.")
             return
         }
-        if (source !in listOf("NDW", "ChargeWatch") || source == _uiState.value.source) return
-        // Invalidate all in-flight loads before changing the source.
-        requestSequence++
-        coordinator.cancel()
+        if (source !in listOf("NDW","ChargeWatch") || source == _uiState.value.source) return
         _uiState.value = _uiState.value.copy(
-            source = source, locations = emptyList(), message = null, loadMillis = null
-        )
+            source=source,locations=emptyList(),overview=null,message=null,loadMillis=null)
         retry()
     }
 
     fun retry() {
-        val viewport = lastRequestedViewport ?: return
-        viewModelScope.launch { load(viewport) }
+        val request = lastRequest ?: return
+        schedule(request,debounce=false)
     }
 
-    private suspend fun load(viewport: NdwViewport) {
-        val requestId = ++requestSequence
+    private suspend fun load(request: MapCameraRequest, generation: Long) {
+        val mode = mapMode.value
         val source = _uiState.value.source
         val requestedFilters = filters.value
-        _uiState.value = _uiState.value.copy(loading = true, message = null, rateLimited = false)
+        val viewport = request.viewport
+        if (mode == MapMode.Legacy && viewport.areaSquareDegrees > MAX_VIEWPORT_AREA) {
+            if (generation == requestSequence) _uiState.value = _uiState.value.copy(
+                locations=emptyList(),overview=null,loading=false,rateLimited=false,
+                message="Oude kaartmodus: zoom verder in. Landelijke dekking is hier niet beschikbaar.")
+            return
+        }
+        _uiState.value = _uiState.value.copy(loading=true,message=null,rateLimited=false)
         val started = System.nanoTime()
-        val primaryResult = if (source == "ChargeWatch") chargeWatchClient.load(viewport, requestedFilters) else client.load(viewport)
-        // Only fall back for a genuine API failure, not for a capped viewport:
-        // NDW may reject large viewports independently, and silently hiding
-        // the cap would make parity testing misleading.
-        val fallbackEligible = !requestedFilters.active && source == "ChargeWatch" && when (primaryResult) {
+        if (mode == MapMode.Overview) {
+            when (val result = overviewClient.load(viewport,request.zoom,requestedFilters)) {
+                is OverviewResult.Success -> {
+                    if (!isCurrent(generation,mode,source,requestedFilters)) return
+                    val dataset = result.data
+                    _uiState.value = MapUiState(
+                        locations=dataset.individualLocations(),overview=dataset,
+                        fetchedAt=Instant.now(),loading=false,source=source,
+                        message=if (dataset.markers.isEmpty()) "Geen passende laadlocaties in dit kaartgebied." else null,
+                        loadMillis=(System.nanoTime()-started)/1_000_000)
+                }
+                is OverviewResult.RateLimited -> {
+                    if (!isCurrent(generation,mode,source,requestedFilters)) return
+                    _uiState.value = _uiState.value.copy(loading=false,rateLimited=true,
+                        message="Landelijke kaart: aanvraaglimiet bereikt. Probeer later opnieuw.")
+                }
+                is OverviewResult.Unavailable -> {
+                    if (!isCurrent(generation,mode,source,requestedFilters)) return
+                    _uiState.value = _uiState.value.copy(loading=false,rateLimited=false,
+                        message=result.message+" Schakel eventueel over op de beperkte oude kaart in Instellingen.")
+                }
+            }
+            return
+        }
+
+        val primaryResult = if (source=="ChargeWatch") chargeWatchClient.load(viewport,requestedFilters)
+            else client.load(viewport)
+        // Legacy fallback is only allowed within its original 1 square degree scope.
+        val fallbackEligible = !requestedFilters.active && source=="ChargeWatch" && when (primaryResult) {
             is NdwResult.RateLimited -> true
             is NdwResult.Unavailable -> !primaryResult.message.startsWith("Meer dan 999 locaties")
             is NdwResult.Success -> false
         }
-        val result = if (fallbackEligible && requestId == requestSequence && _uiState.value.source == source)
+        val result = if (fallbackEligible && isCurrent(generation,mode,source,requestedFilters))
             client.load(viewport) else primaryResult
-        val usedFallback = fallbackEligible && result !== primaryResult
-        val elapsed = (System.nanoTime() - started) / 1_000_000
-        // A response from an earlier source selection must never overwrite a newer choice.
-        if (requestId != requestSequence || _uiState.value.source != source || filters.value != requestedFilters) return
+        if (!isCurrent(generation,mode,source,requestedFilters)) return
+        val elapsed = (System.nanoTime()-started)/1_000_000
         when (result) {
-            is NdwResult.Success -> {
-                _uiState.value = MapUiState(
-                    locations = result.locations,
-                    fetchedAt = Instant.now(),
-                    loading = false,
-                    message = if (usedFallback) "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."
-                        else if (result.locations.isEmpty())
-                            (if (requestedFilters.active) "Geen passende laadlocaties in dit kaartgebied." else "Geen laadlocaties in dit kaartgebied.") else null,
-                    source = source, loadMillis = elapsed
-                )
-            }
-            is NdwResult.RateLimited -> {
-                val suffix = result.retryAfterSeconds?.let { " Probeer over $it s opnieuw." }.orEmpty()
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    message = "$source limiet bereikt.$suffix",
-                    rateLimited = true, loadMillis = elapsed
-                )
-            }
-            is NdwResult.Unavailable -> {
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    message = result.message, rateLimited = false, loadMillis = elapsed
-                )
-            }
+            is NdwResult.Success -> _uiState.value = MapUiState(
+                locations=result.locations,fetchedAt=Instant.now(),loading=false,
+                source=source,loadMillis=elapsed,
+                message=if (fallbackEligible && result !== primaryResult)
+                    "ChargeWatch API niet beschikbaar; NDW wordt tijdelijk gebruikt."
+                else if (result.locations.isEmpty()) "Geen laadlocaties in dit kaartgebied." else null)
+            is NdwResult.RateLimited -> _uiState.value = _uiState.value.copy(
+                loading=false,rateLimited=true,loadMillis=elapsed,
+                message="$source limiet bereikt.")
+            is NdwResult.Unavailable -> _uiState.value = _uiState.value.copy(
+                loading=false,rateLimited=false,loadMillis=elapsed,message=result.message)
         }
     }
 
+    private fun isCurrent(generation: Long, mode: MapMode, source: String, filtersAtStart: ChargingFilters) =
+        generation == requestSequence && mapMode.value == mode &&
+        _uiState.value.source == source && filters.value == filtersAtStart
+
     override fun onCleared() {
-        coordinator.cancel()
+        invalidate()
         super.onCleared()
     }
 
@@ -188,7 +219,10 @@ class MapViewModel(
     }
 }
 
+enum class MapMode { Legacy, Overview }
+
 data class MapUiState(
+    val overview: OverviewDataset? = null,
     val locations: List<MapLocation> = emptyList(),
     val fetchedAt: Instant? = null,
     val loading: Boolean = false,
