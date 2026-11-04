@@ -18,10 +18,25 @@
 
 De nieuwe `map-overview-http-integration`-job in `.github/workflows/read-only-api.yml` gebruikt een geïsoleerde PostGIS 18 PostgreSQL-service, echte migraties en `chargewatch_read` API-verbinding. De database-eigenaar maakt uitsluitend CI-fixtures aan.
 
-- 625 grid14-cellen, 1001 extra locaties met gedeelde coördinaten, een dubbele locatie en afzonderlijke 1/2-, 0/0- en bezette locaties. Meer dan 1000 locaties moeten volledig in een response terechtkomen.
+- 625 grid14-cellen, 1001 extra locaties met gedeelde coördinaten, een dubbele locatie, afzonderlijke 1/2-, 0/0- en bezette locaties en vijf celgrensgevallen. Meer dan 1000 locaties moeten volledig in een response terechtkomen.
 - Via echte HTTP JSON: cluster/singleton, alle locatie-ID's per respons-cel, statuskleuren en telvelden, `representedLocationCount`, filtercombinaties (operator/CCS2/DC/power/minFree), lage/hoge zoom, pan, ongeldig request → 400, uitschakeling featureflag → 404.
 - Onafhankelijke Python-testoracle bepaalt op basis van echte fixturetabellen de verwachte Web Mercator-cel, EVSE-tellingen en gefilterde membership. Groepering vindt niet plaats door de productiesql opnieuw uit te voeren.
 - Extra C# `MapOverviewPhaseCSelfTest` voor conservatieve resolutie, budget, pan en SQL-contract.
+
+## Geverifieerde GitHub Actions — 4 november 2026
+
+**Read-only API PASS** op commit `41eee47a233902d2198f2b0a0577f333b76f1a69`, inclusief de onafhankelijke echte HTTP/Npgsql/PostGIS-integratietest:
+- API Release build: **0 compilerwarnings, 0 fouten**; fase-A/B/C-selftests PASS.
+- Geïsoleerde PostgreSQL 18 + PostGIS 3.6, API draait uitsluitend als `chargewatch_read`.
+- Synthetische selectie bevat **1.635** laadlocaties: 625 gridcellen, 1.001 extra samenvallende locaties, 1 duplicaat, drie gerichte losse locaties en vijf canonical-grid-grenspunten (vier kwadranten + exacte hoek).
+- Ongefilterde brede request: **1.635 locaties correct gerepresenteerd in 50 markerobjecten (gridLevel 12)**; ook zoomniveaus 4, 7, 17 en 22 en meerdere pan-/viewport-cases volledig gecontroleerd. Niet als gegarandeerde nationale productieclusteraantallen interpreteren.
+- Correcte singleton `1/2`, `0/0`, statussegmenten, gecombineerde filters, `minFree=2` lege dataset, gehele dekking, gridownership, budget ≤500, afgeleide locatiecount en polymorfe JSON.
+- Ongeldige parameters → HTTP 400; featureflag uit → route HTTP 404; succesresponse `Cache-Control:no-store`.
+- Bestaande read-only databasecontractjob en historische API-compatibiliteitstests zijn groen.
+
+[Read-only API-workflowresultaat](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544647).
+
+**Bewijsgrens:** CI met gesimuleerde data toont correctness en API-contract; echte NAS-productieperformance (p50/p95, concurrency) en Android UX blijven expliciete latere acceptatiegates. De afzonderlijke NAS Images-workflow wordt apart gecontroleerd.
 
 ## Nog niet bewezen door CI
 
