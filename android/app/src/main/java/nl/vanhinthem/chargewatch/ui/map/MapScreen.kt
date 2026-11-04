@@ -129,6 +129,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
+import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
@@ -1599,6 +1600,25 @@ fun LocationSelectionSheet(
     val compactPeekHeight = compactContentHeight + dragHandleHeight
     val expanded = sheetState.currentValue == SheetValue.Expanded
 
+    // Both entry points share this sheet. Favorites open expanded, so
+    // history loads immediately there; map taps start compact and avoid
+    // the statistics request until the user actually expands the sheet.
+    var history by remember(selectedId) { mutableStateOf<List<HourlyAvailability>?>(null) }
+    var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
+    var historyLoading by remember(selectedId) { mutableStateOf(false) }
+    LaunchedEffect(selectedId, expanded) {
+        if (!shouldFetchSheetStatistics(selectedId, expanded, history, historyUnavailable))
+            return@LaunchedEffect
+        val id = selectedId ?: return@LaunchedEffect
+        historyLoading = true
+        try {
+            val result = enrichmentClient.loadStatistics(id)
+            if (result == null) historyUnavailable = true else history = result
+        } finally {
+            historyLoading = false
+        }
+    }
+
     BackHandler {
         if (!compactAllowed) {
             onDismiss()
@@ -2065,6 +2085,15 @@ fun LocationSelectionSheet(
                     HorizontalDivider()
                     Text("Historisch minstens één laadpunt vrij",
                         style = MaterialTheme.typography.titleMedium)
+                    if (historyLoading) {
+                        Text("Historische statistieken ophalen…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (historyUnavailable) {
+                        Text("Historische statistieken zijn tijdelijk niet beschikbaar.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
                     var chosenWeekday by remember(selectedId) {
                         mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
@@ -2093,8 +2122,7 @@ fun LocationSelectionSheet(
                             }
                         }
                     }
-                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
-                        .filter { it.isoWeekday == chosenWeekday }
+                    val historical = history.orEmpty().filter { it.isoWeekday == chosenWeekday }
                     var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
