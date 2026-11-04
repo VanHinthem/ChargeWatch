@@ -1,6 +1,26 @@
 # ChargeWatch #113 — fase C: éénmalige NAS read-only SQL-meetbatch
 
-**Status 4 november 2026:** fase C gemerged in `main` (PR #117, commit `9fba66e`). De productie-API-container gebruikt nog de oude release; `CW_ENABLE_MAP_OVERVIEW` staat daar uit. Zonder deployment of tijdelijke testcontainer is een echte fase-C-HTTP-benchmark dus **niet** mogelijk. Deze batch toetst de **exacte productie-SQL en rasterselector** tegen de werkelijke NAS-database zonder een nieuwe container te starten of een service te herstarten.
+**Status 4 november 2026: NAS-read-only meetbatch uitgevoerd en alle drie scenario's PASS.** Fase C gemerged in `main` (PR #117, commit `9fba66e`). De productie-API-container gebruikt nog de oude release; `CW_ENABLE_MAP_OVERVIEW` staat daar uit. Zonder deployment of tijdelijke testcontainer is een echte fase-C-HTTP-benchmark dus **niet** mogelijk. Deze batch toetst de **exacte productie-SQL en rasterselector** tegen de werkelijke NAS-database zonder een nieuwe container te starten of een service te herstarten.
+
+## Praktijkresultaten op de echte NAS-database — 4 november 2026
+
+De gebruiker heeft de complete uitvoer van één `psql`-batch aangeleverd. Alle drie `EXECUTE`-statements zijn binnen dezelfde `REPEATABLE READ READ ONLY`-transactie geslaagd; de `ROLLBACK` en `RESET ROLE` zijn normaal uitgevoerd. Geen retries, timeout of wijziging aan productiediensten.
+
+| Scenario | Effectief gridlevel | Coverage-cellen | Niet-lege markers | Gerepresenteerde locaties | Groen | Rood | Onbekend | SQL-duur |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| NATIONAL_UNFILTERED_Z6 | 8 | 20 | **13** | **83.408** | 71.564 | 11.834 | 10 | **1.464,780 ms** |
+| NATIONAL_CCS2_DC_Z12 | 10 | 224 | **84** | **1.612** | 1.399 | 213 | 0 | **164,856 ms** |
+| OSS_UNFILTERED_Z15 | 15 | 420 | **116** | **489** | 441 | 48 | 0 | **13,035 ms** |
+
+Voor alle drie: `status_partition_valid=t`, `marker_budget_valid=t`, de som van de drie statusgroepen is exact de gerapporteerde locatiepopulatie, en alle markeraantallen zijn ≤500.
+
+**Interpretatie:** de landelijke ongefilterde query vertegenwoordigt 83.408 locaties in 13 niet-lege rastermarkers, zonder ruwe `LIMIT 999` en binnen de afgesproken 5s-statement-timeout. De 13 objecten zijn **markers per bezette cel** (niet onafhankelijk vastgesteld als allemaal clusterobjecten). Beschikbaarheidskleuren zijn **locatieclassificaties**: groen betekent minimaal één vrij operationeel EVSE op die locatie, niet dat alle laadpunten vrij zijn. De getallen vergelijken niet één-op-één met oudere NDW-momentopnamen, omdat data tussentijds wijzigt.
+
+**Performancebeoordeling:** SQL-batchgate PASS. De landelijke worst-case uit deze drie losse runs is 1,465 seconde SQL-tijd: dat is relevant bij frequente pan/zoom en gelijktijdige aanvragen, maar vormt op zichzelf geen blokkade voor een **uitgeschakeld** backendcontract in main. Er is nog geen SQL-p95, geen parallelle loadtest, geen HTTP-deserialisatie-/serialisatietijd, geen over-the-wire responstijd en geen gemeten Android-renderlatency. Geen productie-SLA afleiden uit één meting.
+
+**Besluit voor vervolg:** niet opnieuw alle historisch geslaagde Q4-/H2-pariteitsprobes uitvoeren. De volgende gate is een gecontroleerde featureflag-isolatie/HTTP-beoordeling vóór activatie op de NAS en daarna gefaseerde Android-MapLibre-integratie; aparte productie-deploymenttoestemming is nodig. PR #118 bevat alleen de meetgenerator, workflow en documentatie en blijft draft tot expliciet mergeakkoord.
+
+---
 
 ## Waarom deze ene batch?
 
