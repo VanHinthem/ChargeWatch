@@ -1405,6 +1405,7 @@ private fun renderNativeMarkers(
     markerGroups.clear()
     markerClusters.clear()
     if (icons.size > 1200) icons.clear()
+    val iconFactory = IconFactory.getInstance(context)
     if (overview != null) {
         val factory = IconFactory.getInstance(context)
         overview.markers.forEach { item ->
@@ -1486,7 +1487,6 @@ private fun renderNativeMarkers(
         }
     } while (merged)
 
-    val iconFactory = IconFactory.getInstance(context)
     clusters.forEach { group ->
         val isCluster = group.size > 1
         val location = group.first()
