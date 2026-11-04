@@ -1,5 +1,12 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## #113 — Favorietster op clusters (4 november 2026)
+
+De Samsung-acceptatie na PR #121 liet zien dat de clusterpresentatie nu consistent is, maar dat de gele favorietster op clusters ontbreekt. Fix op `fix/map-cluster-favorite-badge-113`: lokale groepen krijgen de ster via exacte `featureId`-membership, landelijke groepen via opgeslagen lokale coördinaten en canonieke celmembership (zonder actieve filters), met één identieke sterbadge en correct cachegedrag. Bij gefilterde serveraggregaten wordt geen onbewezen ster getoond. [Ontwerp, privacygrens en testmatrix](MAP_CLUSTER_FAVORITES_113.md). Geen API/NAS-wijziging; PR blijft eerst draft, geen merge/deploy zonder akkoord.
+
+---
+
+
 ## #113 Android-acceptatie: clustersemantiek over beide kaartmodi gelijkgetrokken (4 november 2026)
 
 Na PR #120 is de rasterindeling visueel verdwenen, maar op de Samsung verschilt clustersemantiek nog: een regionale kaart toont locatieaantallen met statusring (bijv. `419`), terwijl de lokale kaart `vrij/totaal`-somlabels in een monochrome groene/rode cluster toont (bijv. `31/46`). De correctie op `fix/map-cluster-consistent-presentation-113` voert één pixel-gebaseerde clusterengine en één groen/rood/onbekend-ring voor **alle** clusters in, met centraal het **aantal laadlocaties**; uitsluitend losse locaties tonen `vrij/totaal`. Beide clustertappaden delen dezelfde zoom-/selectielogica. [Technisch en UX-contract](MAP_CLUSTER_CONSISTENCY_113.md). Nieuw werk blijft ter review; **geen merge/deployment zonder afzonderlijk akkoord**.
