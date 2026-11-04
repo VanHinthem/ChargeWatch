@@ -75,9 +75,21 @@ internal static class MapOverviewDatabase
 
                 if (count > 1)
                 {
-                    var center=MapGrid.Center(new MapGridCell(gridLevel,cx,cy));
+                    // Grid cells remain internal data partitions. Place the
+                    // visible aggregate at the centroid of its actual sites
+                    // so chargers on a map no longer form a rectilinear lattice.
+                    var centroidLongitude=reader.GetDouble(13);
+                    var centroidLatitude=reader.GetDouble(14);
+                    var cellBounds=MapGrid.Bounds(new MapGridCell(gridLevel,cx,cy));
+                    if (!double.IsFinite(centroidLongitude) ||
+                        !double.IsFinite(centroidLatitude) ||
+                        centroidLongitude < cellBounds.MinLon-1e-7 ||
+                        centroidLongitude > cellBounds.MaxLon+1e-7 ||
+                        centroidLatitude < cellBounds.MinLat-1e-7 ||
+                        centroidLatitude > cellBounds.MaxLat+1e-7)
+                        throw new InvalidDataException("Overview centroid escaped canonical cell.");
                     markers.Add(new MapOverviewClusterMarker(gridLevel,cx,cy,
-                        center.Longitude,center.Latitude,count,green,red,unknown));
+                        centroidLongitude,centroidLatitude,count,green,red,unknown));
                 }
                 else
                 {
