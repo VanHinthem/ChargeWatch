@@ -60,6 +60,30 @@ class MapOverviewModelsTest {
         assertEquals("Straat 1",page.locations.first().title)
     }
 
+
+    @Test fun pagesAcrossSeveralPhysicalCellsWithoutLosingLocations() {
+        val a = OverviewMarker.Cluster(8,131,84,4.8,51.2,3,2,1,0)
+        val b = OverviewMarker.Cluster(8,132,84,5.1,51.2,4,2,1,1)
+        val c = OverviewMarker.Location(8,133,84,5.3,51.2,
+            "NL-A-1",0,0,"unknown")
+        val members=listOf(c,b,a) // intentionally shuffled; sort by canonical identity
+        val p0=overviewGroupPageSlices(members,0,5)
+        assertEquals(listOf(3,2),p0.map { it.limit })
+        assertEquals(listOf(a,b),p0.map { it.marker })
+        assertEquals(listOf(0,0),p0.map { it.localOffset })
+
+        val p1=overviewGroupPageSlices(members,5,3)
+        assertEquals(listOf(2,1),p1.map { it.limit })
+        assertEquals(listOf(b,c),p1.map { it.marker })
+        assertEquals(listOf(2,0),p1.map { it.localOffset })
+        assertTrue(overviewGroupPageSlices(members,8,3).isEmpty())
+    }
+
+    @Test fun refusesRepeatedBackendCellsInGroup() {
+        val a=OverviewMarker.Cluster(8,131,84,4.8,51.2,2,1,1,0)
+        assertFails { overviewGroupPageSlices(listOf(a,a),0,10) }
+    }
+
     private fun assertFails(block: () -> Unit) {
         try { block(); fail("Expected strict contract validation to fail") }
         catch (_: IllegalArgumentException) {}

@@ -1,5 +1,12 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## #113 Samsung-acceptatie: rastervormige clustering afgewezen (4 november 2026)
+
+De landelijke overview in `main` na PR #119 bleek bij Oss zichtbare, regelmatig verdeelde vierkante rasteraggregaten te tonen (bijv. na aantikken van 19 locaties opnieuw 4/6/3/6/2/4). Dit is nadrukkelijk **niet** de gewenste kaartinteractie. Correctie op `fix/map-overview-113-street-level-clustering`: overview gebruikt het daadwerkelijke locatiegewogen centroid en beeldscherm-gebaseerde visuele clustering, terwijl de volledige bestaande viewport met individuele `vrij/totaal`-markers gebruikt wordt in kleine gebieden. Alleen bij de 999-locatiegrens blijft het volledige overview-aggregaat nodig. [Ontwerp/testplan](MAP_OVERVIEW_113_NATURAL_CLUSTERING_FIX.md). Niet gemerged/gedeployed; bestaande NAS draait nog fase D.
+
+---
+
+
 ## #113 fase D — Android-integratie in draft PR #119 (4 november 2026)
 
 Na de merge van PR #118 (`6d5c320`) wordt de bestaande MapLibre-kaart op een afzonderlijke featurebranch uitgebreid met een optionele landelijke overviewmodus, serverclusters met groen/rood/onbekend-ring, een paginated read-only rastercelroute voor locatiekeuze en een tijdelijke kaartmoduskeuze in Instellingen. **De standaard blijft de bestaande kaart** totdat de nieuwe API afzonderlijk mag worden gedeployed en geactiveerd. [Fase-D-ontwerp en implementatie](MAP_OVERVIEW_113_PHASE_D_ANDROID.md) · [Draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119). Nog vereist: groene CI, fysieke Android-acceptatie, geautoriseerde NAS-HTTP/meting, expliciete merge- en deploymentbesluiten.

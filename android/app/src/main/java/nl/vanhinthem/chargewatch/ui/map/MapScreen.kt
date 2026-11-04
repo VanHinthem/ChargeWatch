@@ -155,7 +155,6 @@ import nl.vanhinthem.chargewatch.data.ndw.OverviewDataset
 import nl.vanhinthem.chargewatch.data.ndw.OverviewMarker
 import nl.vanhinthem.chargewatch.data.ndw.OverviewCellPage
 import nl.vanhinthem.chargewatch.data.ndw.OverviewCellResult
-import nl.vanhinthem.chargewatch.data.ndw.overviewCellBounds
 import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
@@ -263,7 +262,7 @@ fun MapScreen(
         }
     }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
-    var selectedCluster by remember { mutableStateOf<OverviewMarker.Cluster?>(null) }
+    var selectedCluster by remember { mutableStateOf<OverviewVisualGroup?>(null) }
     var clusterOffset by remember { mutableStateOf(0) }
     var clusterPage by remember { mutableStateOf<OverviewCellPage?>(null) }
     var clusterLoading by remember { mutableStateOf(false) }
@@ -274,7 +273,10 @@ fun MapScreen(
         clusterLoading = true
         clusterPage = null
         clusterError = null
-        when (val result = clusterClient.loadCell(cluster,clusterOffset,30,filters)) {
+        when (val result = clusterClient.loadGroup(
+            cluster.members,clusterOffset,30,filters,
+            state.overview?.feedLastObservedAt,state.overview?.feedIsStale
+        )) {
             is OverviewCellResult.Success -> clusterPage = result.page
             is OverviewCellResult.Unavailable -> clusterError = result.message
         }
@@ -469,7 +471,6 @@ fun MapScreen(
                 nearbyExpanded = false
                 filterSheetOpen = false
             },
-            clusterPanelBottomPx = searchPanelBottomPx,
             onLocationsSelected = { tapped ->
                 selectedCluster = null
                 selectedLocations = tapped
@@ -1116,8 +1117,7 @@ private fun ChargeMap(
     overview: OverviewDataset?,
     darkTheme: Boolean,
     onViewportChanged: (NdwViewport, Double) -> Unit,
-    onClusterSelected: (OverviewMarker.Cluster) -> Unit,
-    clusterPanelBottomPx: Int,
+    onClusterSelected: (OverviewVisualGroup) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
     onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
@@ -1145,7 +1145,7 @@ private fun ChargeMap(
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
-    val markerClusters = remember { mutableMapOf<Long, OverviewMarker.Cluster>() }
+    val markerClusters = remember { mutableMapOf<Long, OverviewVisualGroup>() }
 
     val mapView = remember(context) {
         MapView(context).apply { onCreate(Bundle()) }
@@ -1180,12 +1180,21 @@ private fun ChargeMap(
                         .build()
 
                     map.setOnMarkerClickListener { marker ->
-                        val serverCluster = markerClusters[marker.id]
-                        if (serverCluster != null) {
+                        val visualCluster = markerClusters[marker.id]
+                        if (visualCluster != null) {
                             if (map.cameraPosition.zoom >= MAX_CLUSTER_ZOOM - 0.1) {
-                                currentClusterHandler.value(serverCluster)
+                                // A visual cluster can span MULTIPLE cells;
+                                // the picker pages all sites, not just one.
+                                currentClusterHandler.value(visualCluster)
                             } else {
-                                fitOverviewCluster(map,mapView,serverCluster,clusterPanelBottomPx)
+                                // Natural map interaction, identical to the
+                                // previous ChargeWatch visual cluster zoom.
+                                val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
+                                    .coerceAtMost(22.0)
+                                map.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                    LatLng(visualCluster.latitude, visualCluster.longitude),
+                                    targetZoom
+                                ))
                             }
                             return@setOnMarkerClickListener true
                         }
@@ -1362,7 +1371,7 @@ private fun configureStyle(
     context: Context,
     iconCache: MutableMap<String, Icon>,
     markerGroups: MutableMap<Long, List<MapLocation>>,
-    markerClusters: MutableMap<Long, OverviewMarker.Cluster>,
+    markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
     destination: Destination?,
     gpsPosition: DevicePosition?
@@ -1396,7 +1405,7 @@ private fun renderNativeMarkers(
     icons: MutableMap<String, Icon>,
     context: Context,
     markerGroups: MutableMap<Long, List<MapLocation>>,
-    markerClusters: MutableMap<Long, OverviewMarker.Cluster>,
+    markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
     destination: Destination?,
     gpsPosition: DevicePosition?
@@ -1407,35 +1416,47 @@ private fun renderNativeMarkers(
     if (icons.size > 1200) icons.clear()
     val iconFactory = IconFactory.getInstance(context)
     if (overview != null) {
-        val factory = IconFactory.getInstance(context)
-        overview.markers.forEach { item ->
+        // Grid cell ownership is backend-only. Render organic, population-
+        // weighted screen-space groups so users never see a grid lattice.
+        val projected = overview.markers.map { item ->
+            val point = map.projection.toScreenLocation(LatLng(item.latitude,item.longitude))
+            ProjectedOverviewMarker(item,point.x.toDouble(),point.y.toDouble())
+        }
+        val groups = clusterOverviewVisually(projected,CLUSTER_DISTANCE_PX)
+        groups.forEach { group ->
+            val isSingle = group.isIndividualLocation
             val key: String
             val icon: Icon
-            when (item) {
-                is OverviewMarker.Cluster -> {
-                    key = "server:${item.locationCount}:${item.locationsWithFree}:${item.locationsWithNoFree}:${item.locationsUnknown}"
-                    icon = icons.getOrPut(key) { factory.fromBitmap(createOverviewClusterBitmap(item)) }
+            if (isSingle) {
+                val item=group.members.single() as OverviewMarker.Location
+                val status=when {
+                    item.availableCount > 0 -> AVAILABLE_COLOR
+                    item.totalCount > 0 -> NONE_AVAILABLE_COLOR
+                    else -> UNKNOWN_COLOR
                 }
-                is OverviewMarker.Location -> {
-                    val status = when {
-                        item.availableCount > 0 -> AVAILABLE_COLOR
-                        item.totalCount > 0 -> NONE_AVAILABLE_COLOR
-                        else -> UNKNOWN_COLOR
-                    }
-                    val favorite = item.featureId in favoriteIds
-                    key = "single:$status:${item.availableCount}/${item.totalCount}:$favorite"
-                    icon = icons.getOrPut(key) {
-                        factory.fromBitmap(createMarkerBitmap(status,"${item.availableCount}/${item.totalCount}",favorite))
-                    }
+                val favorite=item.featureId in favoriteIds
+                key="single:$status:${item.availableCount}/${item.totalCount}:$favorite"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createMarkerBitmap(
+                        status,"${item.availableCount}/${item.totalCount}",favorite
+                    ))
+                }
+            } else {
+                key="server:${group.locationCount}:${group.locationsWithFree}:"+
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createOverviewClusterBitmap(group))
                 }
             }
-            val marker = map.addMarker(MarkerOptions()
-                .position(LatLng(item.latitude,item.longitude)).icon(icon)
-                .title(if (item is OverviewMarker.Cluster) "${item.locationCount} laadlocaties" else "Laadlocatie"))
-            when (item) {
-                is OverviewMarker.Cluster -> markerClusters[marker.id] = item
-                is OverviewMarker.Location -> markerGroups[marker.id] = listOf(
-                    item.asMapLocation(overview.feedLastObservedAt,overview.feedIsStale))
+            val marker=map.addMarker(MarkerOptions()
+                .position(LatLng(group.latitude,group.longitude)).icon(icon)
+                .title(if (isSingle) "Laadlocatie" else "${group.locationCount} laadlocaties"))
+            if (isSingle) {
+                val single=group.members.single() as OverviewMarker.Location
+                markerGroups[marker.id]=listOf(single.asMapLocation(
+                    overview.feedLastObservedAt,overview.feedIsStale))
+            } else {
+                markerClusters[marker.id]=group
             }
         }
     } else {
@@ -1529,31 +1550,6 @@ private fun renderNativeMarkers(
         val marker = map.addMarker(MarkerOptions().position(LatLng(position.latitude, position.longitude))
             .icon(icon).title("Mijn locatie"))
         markerGroups[marker.id] = emptyList()
-    }
-}
-
-/** Fit the complete canonical grid cell, accounting for the search overlay. */
-private fun fitOverviewCluster(
-    map: MapLibreMap, view: MapView, cluster: OverviewMarker.Cluster,
-    panelBottomPx: Int
-) {
-    val bounds = overviewCellBounds(cluster.gridLevel,cluster.gridX,cluster.gridY)
-    val padding = (24*view.resources.displayMetrics.density).roundToInt()
-    val top = overviewTopPaddingPixels(view.height,panelBottomPx,padding)
-    val fit = map.getCameraForLatLngBounds(
-        LatLngBounds.Builder()
-            .include(LatLng(bounds.minLatitude,bounds.minLongitude))
-            .include(LatLng(bounds.maxLatitude,bounds.maxLongitude))
-            .build(),
-        intArrayOf(padding,top,padding,padding),0.0,0.0
-    )
-    if (fit != null) {
-        val targetZoom = fit.zoom.coerceAtMost(MAX_CLUSTER_ZOOM)
-        val camera = if (targetZoom > map.cameraPosition.zoom + 0.1)
-            CameraPosition.Builder(fit).zoom(targetZoom).build()
-        else CameraPosition.Builder().target(LatLng(cluster.latitude,cluster.longitude))
-            .zoom((map.cameraPosition.zoom+CLUSTER_ZOOM_STEP).coerceAtMost(MAX_CLUSTER_ZOOM)).build()
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
     }
 }
 
@@ -2281,7 +2277,7 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     return bitmap
 }
 
-private fun createOverviewClusterBitmap(cluster: OverviewMarker.Cluster): Bitmap {
+private fun createOverviewClusterBitmap(cluster: OverviewVisualGroup): Bitmap {
     val bitmap = Bitmap.createBitmap(160,160,Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)

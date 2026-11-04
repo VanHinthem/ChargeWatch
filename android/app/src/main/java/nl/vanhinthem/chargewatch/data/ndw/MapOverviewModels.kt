@@ -166,3 +166,38 @@ internal fun parseOverviewCell(raw: String, cluster: OverviewMarker.Cluster, off
         (offset.toLong() + locations.size < total) == hasMore)
     return OverviewCellPage(offset,limit,total,hasMore,locations)
 }
+
+/** Deterministic pagination across a visual group of canonical cells. */
+internal data class OverviewGroupPageSlice(
+    val marker: OverviewMarker,
+    val localOffset: Int,
+    val limit: Int
+)
+
+internal fun overviewGroupPageSlices(
+    members: List<OverviewMarker>, offset: Int, limit: Int
+): List<OverviewGroupPageSlice> {
+    require(offset in 0..100000 && limit in 1..100)
+    var toSkip=offset.toLong()
+    var remaining=limit
+    val result=mutableListOf<OverviewGroupPageSlice>()
+    val sorted=members.sortedWith(
+        compareBy<OverviewMarker> { it.gridLevel }
+            .thenBy { it.gridY }.thenBy { it.gridX }
+    )
+    require(sorted.map { Triple(it.gridLevel,it.gridX,it.gridY) }.distinct().size==sorted.size)
+    for (item in sorted) {
+        val count=if (item is OverviewMarker.Cluster) item.locationCount else 1
+        require(count > 0)
+        if (toSkip >= count) {
+            toSkip-=count
+            continue
+        }
+        if (remaining == 0) break
+        val take=minOf(count-toSkip.toInt(),remaining)
+        result+=OverviewGroupPageSlice(item,toSkip.toInt(),take)
+        remaining-=take
+        toSkip=0
+    }
+    return result
+}

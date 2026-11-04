@@ -87,7 +87,9 @@ class MapViewModel(
         if (mapMode.value == mode) return
         mapMode.value = mode
         invalidate()
-        _uiState.value = _uiState.value.copy(locations=emptyList(),overview=null,message=null)
+        _uiState.value = _uiState.value.copy(
+            locations=emptyList(),overview=null,message=null,
+            source=if (mode == MapMode.Overview) "ChargeWatch" else _uiState.value.source)
         retry()
     }
 
@@ -154,6 +156,40 @@ class MapViewModel(
         _uiState.value = _uiState.value.copy(loading=true,message=null,rateLimited=false)
         val started = System.nanoTime()
         if (mode == MapMode.Overview) {
+            // At street level, restore the original map's individual locations
+            // and pixel-distance clustering instead of drawing server grid cells.
+            // The legacy endpoint guarantees completeness or returns HTTP 413.
+            if (overviewFetchRoute(viewport) == OverviewFetchRoute.FullLocations) {
+                when (val detailed = chargeWatchClient.load(viewport,requestedFilters)) {
+                    is NdwResult.Success -> {
+                        if (!isCurrent(generation,mode,source,requestedFilters)) return
+                        _uiState.value = MapUiState(
+                            locations=detailed.locations,overview=null,
+                            fetchedAt=Instant.now(),loading=false,source="ChargeWatch",
+                            message=if (detailed.locations.isEmpty())
+                                "Geen passende laadlocaties in dit kaartgebied." else null,
+                            loadMillis=(System.nanoTime()-started)/1_000_000)
+                        return
+                    }
+                    is NdwResult.RateLimited -> {
+                        if (!isCurrent(generation,mode,source,requestedFilters)) return
+                        _uiState.value = _uiState.value.copy(
+                            loading=false,rateLimited=true,
+                            message="Laadlocaties ophalen: aanvraaglimiet bereikt.")
+                        return
+                    }
+                    is NdwResult.Unavailable -> {
+                        if (!isCurrent(generation,mode,source,requestedFilters)) return
+                        if (!isCompleteViewportTooDense(detailed)) {
+                            _uiState.value = _uiState.value.copy(
+                                loading=false,rateLimited=false,message=detailed.message)
+                            return
+                        }
+                        // HTTP 413: never display an incomplete list. The
+                        // complete aggregated overview is the safe fallback.
+                    }
+                }
+            }
             when (val result = overviewClient.load(viewport,request.zoom,requestedFilters)) {
                 is OverviewResult.Success -> {
                     if (!isCurrent(generation,mode,source,requestedFilters)) return
@@ -183,7 +219,7 @@ class MapViewModel(
         // Legacy fallback is only allowed within its original 1 square degree scope.
         val fallbackEligible = !requestedFilters.active && source=="ChargeWatch" && when (primaryResult) {
             is NdwResult.RateLimited -> true
-            is NdwResult.Unavailable -> !primaryResult.message.startsWith("Meer dan 999 locaties")
+            is NdwResult.Unavailable -> !isCompleteViewportTooDense(primaryResult)
             is NdwResult.Success -> false
         }
         val result = if (fallbackEligible && isCurrent(generation,mode,source,requestedFilters))
