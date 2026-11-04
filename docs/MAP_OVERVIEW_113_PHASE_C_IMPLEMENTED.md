@@ -36,7 +36,7 @@ De nieuwe `map-overview-http-integration`-job in `.github/workflows/read-only-ap
 
 [Read-only API-workflowresultaat](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544647).
 
-**Bewijsgrens:** CI met gesimuleerde data toont correctness en API-contract; echte NAS-productieperformance (p50/p95, concurrency) en Android UX blijven expliciete latere acceptatiegates. De afzonderlijke NAS Images-workflow wordt apart gecontroleerd.
+**Andere relevante workflows eveneens PASS:** [NAS Images](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544540) (incl. integratie-/release-safetychecks; PR bouwt images maar deployt niet naar de NAS) en [Tariff snapshot presence](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544759).\n\n**Bewijsgrens:** CI met gesimuleerde data toont correctness en API-contract; echte NAS-productieperformance (p50/p95, concurrency) en Android UX blijven expliciete latere acceptatiegates.
 
 ## Nog niet bewezen door CI
 
