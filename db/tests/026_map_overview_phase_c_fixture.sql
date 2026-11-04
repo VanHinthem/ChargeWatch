@@ -86,3 +86,25 @@ INSERT INTO connector(evse_id,source_id,standard,power_type,max_electric_power,i
 SELECT e.id,'SECOND-CCS2','IEC_62196_T2_COMBO','DC',150000,true
 FROM evse e JOIN charging_location l ON e.location_id=l.id
 WHERE l.party_id='OVR' AND l.source_id='G-0-0';
+
+-- Canonical grid-14 cross: four epsilon-offset quadrants and the exact corner.
+-- Production SQL and the independent HTTP oracle must assign each precisely once.
+WITH origin AS (
+    SELECT floor((ST_X(ST_Transform(ST_SetSRID(ST_MakePoint(5.53,51.75),4326),3857))
+        + 20037508.342789244)/(40075016.68557849/16384.0))::bigint AS x,
+           floor((20037508.342789244
+        - ST_Y(ST_Transform(ST_SetSRID(ST_MakePoint(5.53,51.75),4326),3857)))
+        /(40075016.68557849/16384.0))::bigint AS y
+), edge_points AS (
+    SELECT name,ST_Transform(ST_SetSRID(ST_MakePoint(
+        (origin.x + 5)*(40075016.68557849/16384.0) - 20037508.342789244 + dx,
+        20037508.342789244 - (origin.y + 5)*(40075016.68557849/16384.0) + dy
+    ),3857),4326) AS point
+    FROM origin CROSS JOIN (VALUES
+        ('NW',-0.2,0.2),('NE',0.2,0.2),('SW',-0.2,-0.2),
+        ('SE',0.2,-0.2),('CORNER',0.0,0.0)) v(name,dx,dy)
+)
+INSERT INTO charging_location(country_code,party_id,source_id,address,city,
+    operator_name,longitude,latitude,position,is_active)
+SELECT 'NL','OVR','EDGE-'||name,'Grid boundary '||name,'Oss',
+    NULL,ST_X(point),ST_Y(point),point::geography,true FROM edge_points;

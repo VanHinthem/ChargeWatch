@@ -191,11 +191,11 @@ def verify(params, *, expected_total=None, kinds=None):
     print(f"PASS zoom={params['zoom']}, level={level}, markers={len(markers)}, locations={population}, filters={len(params)-2}")
     return response
 
-assert len(locations)==1630, len(locations)
+assert len(locations)==1635, len(locations)
 base = dict(bbox=BROAD,zoom="12")
-verify(base,expected_total=1630)
+verify(base,expected_total=1635)
 for z in ["4","7","17","22"]:
-    verify(dict(base,zoom=z),expected_total=1630)
+    verify(dict(base,zoom=z),expected_total=1635)
 verify(dict(bbox=NEAR,zoom="18"),expected_total=3,kinds={"location"})
 verify(dict(bbox=DETAIL,zoom="14"),kinds={"cluster","location"})
 verify(dict(bbox="2.0,49.0,2.1,49.1",zoom="17"),expected_total=0)
@@ -207,6 +207,12 @@ verify(dict(base,minFree="1"))
 verify(dict(base,connectorType=["ccs2"],mode=["dc"],power="gte150",
             minFree="1",operator="Fastned"))
 verify(dict(base,minFree="2"),expected_total=0)
+# Exact grid crossing and four neighboring quadrants: unique, complete ownership.
+corner = next(loc for loc in locations.values() if loc["source"]=="EDGE-CORNER")
+edge_bbox = (f"{corner['lon']-.025},{corner['lat']-.025},"
+             f"{corner['lon']+.025},{corner['lat']+.025}")
+edge_response = verify(dict(bbox=edge_bbox,zoom="12"))
+assert edge_response["representedLocationCount"] >= 5
 # Repeated tiny pan at same zoom must not change selected grid resolution.
 b = verify(dict(bbox="5.2000,51.1000,6.6000,52.0000",zoom="12"))
 p = verify(dict(bbox="5.20001,51.10001,6.60001,52.00001",zoom="12"))
