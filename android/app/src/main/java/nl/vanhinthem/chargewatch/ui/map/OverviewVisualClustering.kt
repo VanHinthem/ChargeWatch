@@ -1,10 +1,18 @@
 package nl.vanhinthem.chargewatch.ui.map
 
+import nl.vanhinthem.chargewatch.data.ndw.AvailabilityStatus
+import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.ndw.OverviewMarker
 
-/** A server grid cell is data ownership, never a visible map pin position. */
+/** The storage grid is never used as a visible marker layout. */
 internal data class ProjectedOverviewMarker(
     val marker: OverviewMarker,
+    val x: Double,
+    val y: Double
+)
+
+internal data class ProjectedLocationMarker(
+    val location: MapLocation,
     val x: Double,
     val y: Double
 )
@@ -19,127 +27,200 @@ internal data class OverviewVisualGroup(
     val latitude: Double
 ) {
     val isIndividualLocation: Boolean
-        get() = members.size == 1 && members[0] is OverviewMarker.Location
+        get() = members.size == 1 && members.single() is OverviewMarker.Location
 }
 
-private fun siteCount(marker: OverviewMarker): Int =
-    if (marker is OverviewMarker.Cluster) marker.locationCount else 1
+internal data class LocationVisualGroup(
+    val members: List<MapLocation>,
+    val locationCount: Int,
+    val locationsWithFree: Int,
+    val locationsWithNoFree: Int,
+    val locationsUnknown: Int,
+    val longitude: Double,
+    val latitude: Double
+)
 
-private fun greenCount(marker: OverviewMarker): Int = when (marker) {
-    is OverviewMarker.Cluster -> marker.locationsWithFree
-    is OverviewMarker.Location -> if (marker.availableCount > 0) 1 else 0
+/** Unified input: one position may represent one site or many server-side sites. */
+private data class ProjectedGroupMember<T>(
+    val item: T,
+    val key: String,
+    val x: Double,
+    val y: Double,
+    val longitude: Double,
+    val latitude: Double,
+    val count: Int,
+    val free: Int,
+    val noFree: Int,
+    val unknown: Int
+) {
+    init {
+        require(x.isFinite() && y.isFinite())
+        require(longitude.isFinite() && latitude.isFinite())
+        require(count > 0 && free >= 0 && noFree >= 0 && unknown >= 0)
+        require(free.toLong() + noFree + unknown == count.toLong())
+    }
 }
 
-private fun redCount(marker: OverviewMarker): Int = when (marker) {
-    is OverviewMarker.Cluster -> marker.locationsWithNoFree
-    is OverviewMarker.Location ->
-        if (marker.availableCount == 0 && marker.totalCount > 0) 1 else 0
-}
+private data class ProjectedGroup<T>(
+    val members: List<T>,
+    val count: Int,
+    val free: Int,
+    val noFree: Int,
+    val unknown: Int,
+    val longitude: Double,
+    val latitude: Double
+)
 
-private fun unknownCount(marker: OverviewMarker): Int = when (marker) {
-    is OverviewMarker.Cluster -> marker.locationsUnknown
-    is OverviewMarker.Location -> if (marker.totalCount == 0) 1 else 0
-}
-
-private class Builder(points: List<ProjectedOverviewMarker>) {
-    val points = points.toMutableList()
-    var x = 0.0
+private class GroupBuilder<T>(first: ProjectedGroupMember<T>) {
+    val items = mutableListOf(first)
+    var x: Double = first.x
         private set
-    var y = 0.0
+    var y: Double = first.y
         private set
-    var weight = 0
-        private set
+    private var weight = first.count.toLong()
 
-    init { recalculate() }
-
-    fun add(point: ProjectedOverviewMarker) {
-        points.add(point)
-        recalculate()
+    fun add(item: ProjectedGroupMember<T>) {
+        val nextWeight = weight + item.count
+        x = (x * weight + item.x * item.count) / nextWeight
+        y = (y * weight + item.y * item.count) / nextWeight
+        weight = nextWeight
+        items.add(item)
     }
 
-    fun addAll(other: Builder) {
-        points.addAll(other.points)
-        recalculate()
+    fun merge(other: GroupBuilder<T>) {
+        val newWeight = weight + other.weight
+        x = (x * weight + other.x * other.weight) / newWeight
+        y = (y * weight + other.y * other.weight) / newWeight
+        weight = newWeight
+        items.addAll(other.items)
     }
 
-    private fun recalculate() {
-        weight = points.sumOf { siteCount(it.marker) }
-        require(weight > 0)
-        x = points.sumOf { it.x * siteCount(it.marker) } / weight
-        y = points.sumOf { it.y * siteCount(it.marker) } / weight
-    }
-
-    fun result(): OverviewVisualGroup {
-        val markers = points.map { it.marker }
-        val count = markers.sumOf(::siteCount)
-        val green = markers.sumOf(::greenCount)
-        val red = markers.sumOf(::redCount)
-        val unknown = markers.sumOf(::unknownCount)
-        require(green + red + unknown == count)
-        return OverviewVisualGroup(
-            members=markers,
-            locationCount=count,
-            locationsWithFree=green,
-            locationsWithNoFree=red,
-            locationsUnknown=unknown,
-            longitude=markers.sumOf { it.longitude * siteCount(it) } / count,
-            latitude=markers.sumOf { it.latitude * siteCount(it) } / count
+    fun toGroup(): ProjectedGroup<T> {
+        val count = items.sumOf { it.count }
+        return ProjectedGroup(
+            members = items.map { it.item },
+            count = count,
+            free = items.sumOf { it.free },
+            noFree = items.sumOf { it.noFree },
+            unknown = items.sumOf { it.unknown },
+            longitude = items.sumOf { it.longitude * it.count } / count,
+            latitude = items.sumOf { it.latitude * it.count } / count
         )
     }
 }
 
 /**
- * Viewport-pixel grouping over the <=500 complete server summaries, just like
- * the original map's distance-based clustering over individual locations.
- * A coarse grid is *not* allowed to dictate the visible marker lattice.
- *
- * Works on location-weighted centroids; every source marker belongs to exactly
- * one visual cluster, with no approximation to its green/red/unknown counts.
- * The caller must pass the unmodified map projection coordinates.
+ * One screen-distance grouping engine for BOTH complete local sites and
+ * nationwide backend summaries. Marker formatting and interaction must not
+ * change when the viewport route switches.
  */
-internal fun clusterOverviewVisually(
-    points: List<ProjectedOverviewMarker>,
-    thresholdPixels: Double
-): List<OverviewVisualGroup> {
+private fun <T> groupByScreenDistance(
+    points: List<ProjectedGroupMember<T>>, thresholdPixels: Double
+): List<ProjectedGroup<T>> {
     require(thresholdPixels > 0 && thresholdPixels.isFinite())
-    val sorted = points.sortedWith(
-        compareByDescending<ProjectedOverviewMarker> { siteCount(it.marker) }
-            .thenBy { it.x }.thenBy { it.y }
-            .thenBy { it.marker.gridX }.thenBy { it.marker.gridY }
+    val limit = thresholdPixels * thresholdPixels
+    val ordered = points.sortedWith(
+        compareByDescending<ProjectedGroupMember<T>> { it.count }
+            .thenBy { it.x }.thenBy { it.y }.thenBy { it.key }
     )
-    val clusters = mutableListOf<Builder>()
-    val thresholdSquared = thresholdPixels * thresholdPixels
-    sorted.forEach { point ->
-        val nearest = clusters.minByOrNull {
-            (it.x - point.x) * (it.x - point.x) +
-                (it.y - point.y) * (it.y - point.y)
+    val builders = mutableListOf<GroupBuilder<T>>()
+    ordered.forEach { point ->
+        val closest = builders.minByOrNull { builder ->
+            val dx = builder.x - point.x
+            val dy = builder.y - point.y
+            dx * dx + dy * dy
         }
-        val distance = nearest?.let {
-            (it.x - point.x) * (it.x - point.x) +
-                (it.y - point.y) * (it.y - point.y)
+        val squaredDistance = closest?.let { builder ->
+            val dx = builder.x - point.x
+            val dy = builder.y - point.y
+            dx * dx + dy * dy
         } ?: Double.POSITIVE_INFINITY
-        if (nearest != null && distance < thresholdSquared) nearest.add(point)
-        else clusters.add(Builder(listOf(point)))
+        if (closest != null && squaredDistance < limit) closest.add(point)
+        else builders.add(GroupBuilder(point))
     }
-    // Identical merge pass to the old visual clustering behavior: avoid
-    // competing neighboring circles after a group centroid has moved.
     var merged: Boolean
     do {
         merged = false
-        outer@ for (i in clusters.indices) {
-            for (j in i + 1 until clusters.size) {
-                val first = clusters[i]
-                val second = clusters[j]
-                val dx = first.x - second.x
-                val dy = first.y - second.y
-                if (dx * dx + dy * dy < thresholdSquared) {
-                    first.addAll(second)
-                    clusters.removeAt(j)
+        outer@ for (i in builders.indices) {
+            for (j in i + 1 until builders.size) {
+                val a = builders[i]
+                val b = builders[j]
+                val dx = a.x - b.x
+                val dy = a.y - b.y
+                if (dx * dx + dy * dy < limit) {
+                    a.merge(b)
+                    builders.removeAt(j)
                     merged = true
                     break@outer
                 }
             }
         }
     } while (merged)
-    return clusters.map { it.result() }
+    return builders.map { it.toGroup() }
+}
+
+/** Complete viewports have actual per-location statuses and positions. */
+internal fun clusterLocationsVisually(
+    points: List<ProjectedLocationMarker>,
+    thresholdPixels: Double
+): List<LocationVisualGroup> = groupByScreenDistance(
+    points.map { projected ->
+        val location = projected.location
+        val status = location.availability.status
+        ProjectedGroupMember(
+            item=location,
+            key=location.featureId,
+            x=projected.x,y=projected.y,
+            longitude=location.longitude,latitude=location.latitude,
+            count=1,
+            free=if (status == AvailabilityStatus.Available) 1 else 0,
+            noFree=if (status == AvailabilityStatus.NoneAvailable) 1 else 0,
+            unknown=if (status == AvailabilityStatus.Unknown) 1 else 0
+        )
+    }, thresholdPixels
+).map { group ->
+    LocationVisualGroup(
+        group.members,group.count,group.free,group.noFree,group.unknown,
+        group.longitude,group.latitude
+    )
+}
+
+/** Coarse backend summaries represent whole cells, never partial sites. */
+internal fun clusterOverviewVisually(
+    points: List<ProjectedOverviewMarker>,
+    thresholdPixels: Double
+): List<OverviewVisualGroup> = groupByScreenDistance(
+    points.map { projected ->
+        val marker = projected.marker
+        val count: Int
+        val green: Int
+        val red: Int
+        val unknown: Int
+        when (marker) {
+            is OverviewMarker.Cluster -> {
+                count=marker.locationCount
+                green=marker.locationsWithFree
+                red=marker.locationsWithNoFree
+                unknown=marker.locationsUnknown
+            }
+            is OverviewMarker.Location -> {
+                count=1
+                green=if (marker.availableCount > 0) 1 else 0
+                red=if (marker.availableCount == 0 && marker.totalCount > 0) 1 else 0
+                unknown=if (marker.totalCount == 0) 1 else 0
+            }
+        }
+        ProjectedGroupMember(
+            item=marker,
+            key="${marker.gridLevel}:${marker.gridX}:${marker.gridY}",
+            x=projected.x,y=projected.y,
+            longitude=marker.longitude,latitude=marker.latitude,
+            count=count,free=green,noFree=red,unknown=unknown
+        )
+    }, thresholdPixels
+).map { group ->
+    OverviewVisualGroup(
+        group.members,group.count,group.free,group.noFree,group.unknown,
+        group.longitude,group.latitude
+    )
 }

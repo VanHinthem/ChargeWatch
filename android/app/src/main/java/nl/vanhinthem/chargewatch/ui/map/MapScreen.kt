@@ -155,7 +155,6 @@ import nl.vanhinthem.chargewatch.data.ndw.OverviewDataset
 import nl.vanhinthem.chargewatch.data.ndw.OverviewMarker
 import nl.vanhinthem.chargewatch.data.ndw.OverviewCellPage
 import nl.vanhinthem.chargewatch.data.ndw.OverviewCellResult
-import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.MarkerOptions
@@ -1182,19 +1181,23 @@ private fun ChargeMap(
                     map.setOnMarkerClickListener { marker ->
                         val visualCluster = markerClusters[marker.id]
                         if (visualCluster != null) {
-                            if (map.cameraPosition.zoom >= MAX_CLUSTER_ZOOM - 0.1) {
-                                // A visual cluster can span MULTIPLE cells;
-                                // the picker pages all sites, not just one.
-                                currentClusterHandler.value(visualCluster)
-                            } else {
-                                // Natural map interaction, identical to the
-                                // previous ChargeWatch visual cluster zoom.
-                                val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
-                                    .coerceAtMost(22.0)
-                                map.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                                    LatLng(visualCluster.latitude, visualCluster.longitude),
-                                    targetZoom
-                                ))
+                            when (markerTapAction(
+                                visualCluster.locationCount, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM
+                            )) {
+                                MarkerTapAction.ZoomCluster -> {
+                                    val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
+                                        .coerceAtMost(MAX_CLUSTER_ZOOM)
+                                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(visualCluster.latitude, visualCluster.longitude),
+                                        targetZoom
+                                    ))
+                                }
+                                MarkerTapAction.SelectClusterLocations ->
+                                    currentClusterHandler.value(visualCluster)
+                                // A server group with a single location is
+                                // rendered through markerGroups instead.
+                                MarkerTapAction.SelectLocation ->
+                                    currentClusterHandler.value(visualCluster)
                             }
                             return@setOnMarkerClickListener true
                         }
@@ -1442,10 +1445,13 @@ private fun renderNativeMarkers(
                     ))
                 }
             } else {
-                key="server:${group.locationCount}:${group.locationsWithFree}:"+
+                key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
                     "${group.locationsWithNoFree}:${group.locationsUnknown}"
                 icon=icons.getOrPut(key) {
-                    iconFactory.fromBitmap(createOverviewClusterBitmap(group))
+                    iconFactory.fromBitmap(createAvailabilityClusterBitmap(
+                        group.locationCount,group.locationsWithFree,
+                        group.locationsWithNoFree,group.locationsUnknown
+                    ))
                 }
             }
             val marker=map.addMarker(MarkerOptions()
@@ -1460,83 +1466,46 @@ private fun renderNativeMarkers(
             }
         }
     } else {
-    val clusters = mutableListOf<MutableList<MapLocation>>()
-    val positions = locations.associateWith { location ->
-        map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
-    }
-    locations.forEach { location ->
-        val point = positions.getValue(location)
-        val nearest = clusters.minByOrNull { group ->
-            val x = group.map { positions.getValue(it).x.toDouble() }.average()
-            val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x.toDouble()
-            val dy = y - point.y.toDouble()
-            dx * dx + dy * dy
+        // The same screen-distance engine and same visual ring are used for
+        // complete local viewports and nationwide overview summaries.
+        val projected=locations.map { location ->
+            val point=map.projection.toScreenLocation(LatLng(location.latitude,location.longitude))
+            ProjectedLocationMarker(location,point.x.toDouble(),point.y.toDouble())
         }
-        val distanceSquared = nearest?.let { group ->
-            val x = group.map { positions.getValue(it).x.toDouble() }.average()
-            val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x.toDouble()
-            val dy = y - point.y.toDouble()
-            dx * dx + dy * dy
-        } ?: Double.POSITIVE_INFINITY
-        if (nearest != null && distanceSquared < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
-            nearest.add(location)
-        } else {
-            clusters.add(mutableListOf(location))
-        }
-    }
-
-    var merged: Boolean
-    do {
-        merged = false
-        outer@ for (i in clusters.indices) {
-            for (j in i + 1 until clusters.size) {
-                val a = clusters[i]
-                val b = clusters[j]
-                val dx = a.map { positions.getValue(it).x.toDouble() }.average() -
-                    b.map { positions.getValue(it).x.toDouble() }.average()
-                val dy = a.map { positions.getValue(it).y.toDouble() }.average() -
-                    b.map { positions.getValue(it).y.toDouble() }.average()
-                if (dx * dx + dy * dy < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
-                    a.addAll(b)
-                    clusters.removeAt(j)
-                    merged = true
-                    break@outer
+        val clusters=clusterLocationsVisually(projected,CLUSTER_DISTANCE_PX)
+        clusters.forEach { group ->
+            val isCluster=group.locationCount > 1
+            val icon: Icon
+            if (isCluster) {
+                val key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createAvailabilityClusterBitmap(
+                        group.locationCount,group.locationsWithFree,
+                        group.locationsWithNoFree,group.locationsUnknown
+                    ))
+                }
+            } else {
+                val location=group.members.single()
+                val color=when (location.availability.status) {
+                    AvailabilityStatus.Available -> AVAILABLE_COLOR
+                    AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
+                    AvailabilityStatus.Unknown -> UNKNOWN_COLOR
+                }
+                val favorite=location.featureId in favoriteIds
+                val key="single:${color}:${location.availability.label}:${favorite}"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createMarkerBitmap(
+                        color,location.availability.label,favorite
+                    ))
                 }
             }
+            val marker=map.addMarker(MarkerOptions()
+                .position(LatLng(group.latitude,group.longitude)).icon(icon)
+                .title(if (isCluster) "${group.locationCount} laadlocaties"
+                    else group.members.single().title))
+            markerGroups[marker.id]=group.members
         }
-    } while (merged)
-
-    clusters.forEach { group ->
-        val isCluster = group.size > 1
-        val location = group.first()
-        val aggregate = if (isCluster) summarizeCluster(group) else null
-        val label = aggregate?.label ?: location.availability.label
-        val displayStatus = aggregate?.status ?: location.availability.status
-        val color = when (displayStatus) {
-            AvailabilityStatus.Available -> AVAILABLE_COLOR
-            AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
-            AvailabilityStatus.Unknown -> UNKNOWN_COLOR
-        }
-        val isFavorite = group.any { it.featureId in favoriteIds }
-        val key = isCluster.toString() + ":" + color + ":" + label + ":" + isFavorite
-        val icon = icons.getOrPut(key) {
-            iconFactory.fromBitmap(
-                if (isCluster) createClusterBitmap(color, label, isFavorite)
-                else createMarkerBitmap(color, label, isFavorite)
-            )
-        }
-        val latitude = group.map { it.latitude }.average()
-        val longitude = group.map { it.longitude }.average()
-        val marker = map.addMarker(
-            MarkerOptions()
-                .position(LatLng(latitude, longitude))
-                .icon(icon)
-                .title(if (isCluster) group.size.toString() + " laadlocaties" else location.title)
-        )
-        markerGroups[marker.id] = group.toList()
-    }
     }
     destination?.let { chosen ->
         val icon = icons.getOrPut("destination-pin") { iconFactory.fromBitmap(createDestinationMarkerBitmap()) }
@@ -2277,7 +2246,12 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     return bitmap
 }
 
-private fun createOverviewClusterBitmap(cluster: OverviewVisualGroup): Bitmap {
+private fun createAvailabilityClusterBitmap(
+    locationCount: Int,
+    locationsWithFree: Int,
+    locationsWithNoFree: Int,
+    locationsUnknown: Int
+): Bitmap {
     val bitmap = Bitmap.createBitmap(160,160,Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -2291,12 +2265,12 @@ private fun createOverviewClusterBitmap(cluster: OverviewVisualGroup): Bitmap {
     paint.strokeCap=Paint.Cap.BUTT
     var angle=-90f
     for ((count,color) in listOf(
-        cluster.locationsWithFree to AVAILABLE_COLOR,
-        cluster.locationsWithNoFree to NONE_AVAILABLE_COLOR,
-        cluster.locationsUnknown to UNKNOWN_COLOR
+        locationsWithFree to AVAILABLE_COLOR,
+        locationsWithNoFree to NONE_AVAILABLE_COLOR,
+        locationsUnknown to UNKNOWN_COLOR
     )) {
         if (count == 0) continue
-        val sweep=360f*count.toFloat()/cluster.locationCount
+        val sweep=360f*count.toFloat()/locationCount
         paint.color=Color.parseColor(color)
         canvas.drawArc(arc,angle,sweep,false,paint)
         angle+=sweep
@@ -2308,54 +2282,11 @@ private fun createOverviewClusterBitmap(cluster: OverviewVisualGroup): Bitmap {
     paint.textAlign=Paint.Align.CENTER
     paint.typeface=android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD)
     paint.textSize=when {
-        cluster.locationCount >= 10000 -> 27f
-        cluster.locationCount >= 1000 -> 32f
+        locationCount >= 10000 -> 27f
+        locationCount >= 1000 -> 32f
         else -> 39f
     }
-    canvas.drawText(cluster.locationCount.toString(),80f,92f,paint)
-    return bitmap
-}
-
-private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(150, 150, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    val statusColor = Color.parseColor(colorHex)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    paint.color = Color.argb(48, 0, 0, 0)
-    canvas.drawCircle(75f, 82f, 61f, paint)
-
-    // Cluster halo stays subtle even though the marker itself is slightly larger.
-    paint.color = Color.argb(
-        70,
-        Color.red(statusColor),
-        Color.green(statusColor),
-        Color.blue(statusColor)
-    )
-    canvas.drawCircle(75f, 76f, 60f, paint)
-
-    paint.color = Color.parseColor("#F5F7F8")
-    canvas.drawCircle(75f, 76f, 53f, paint)
-
-    paint.color = statusColor
-    canvas.drawCircle(75f, 76f, 48f, paint)
-
-    paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1.5f
-    paint.color = Color.argb(84, 255, 255, 255)
-    canvas.drawCircle(75f, 76f, 46.5f, paint)
-
-    paint.style = Paint.Style.FILL
-    paint.color = Color.WHITE
-    paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create(
-        "sans-serif-medium",
-        android.graphics.Typeface.BOLD
-    )
-    paint.textSize = if (label.length > 4) 31f else 37f
-    canvas.drawText(label, 75f, 89f, paint)
-
-    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 75f, 76f, 48f)
+    canvas.drawText(locationCount.toString(),80f,92f,paint)
     return bitmap
 }
 
