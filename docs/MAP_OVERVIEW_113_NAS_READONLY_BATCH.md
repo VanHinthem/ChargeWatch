@@ -26,8 +26,9 @@ git fetch origin
 git switch test/map-overview-113-nas-readonly-batch
 git pull --ff-only
 $path = Join-Path $env:TEMP 'chargewatch-p2n-phasec.sql'
-dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj -- --emit-overview-phasec-nas-batch | Set-Content -Encoding utf8 $path
+$sqlText = (& dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj -- --emit-overview-phasec-nas-batch) -join "`n"
 if ($LASTEXITCODE -ne 0) { throw 'SQL-export mislukt, niet uitvoeren.' }
+[System.IO.File]::WriteAllText($path, $sqlText + "`n", [System.Text.UTF8Encoding]::new($false))
 if ((Select-String -Path $path -Pattern '^EXECUTE cw_p2n_').Count -ne 3) { throw 'Onverwacht aantal SQL-queries.' }
 scp $path hinthem@HINNAS:/tmp/chargewatch-p2n-phasec.sql
 ```
@@ -36,6 +37,7 @@ scp $path hinthem@HINNAS:/tmp/chargewatch-p2n-phasec.sql
 
 ```bash
 cd /volume2/docker/chargewatch
+set -o pipefail
 sudo docker compose ps db
 sudo docker compose exec -T db psql -X -v ON_ERROR_STOP=1 \
   -U chargewatch_owner -d chargewatch \

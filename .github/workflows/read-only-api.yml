@@ -262,7 +262,59 @@ jobs:
           grep -q 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY' /tmp/cw-phasec-nas-batch.sql
           grep -q "SET ROLE chargewatch_read;" /tmp/cw-phasec-nas-batch.sql
           psql -X -v ON_ERROR_STOP=1 -f /tmp/cw-phasec-nas-batch.sql | tee /tmp/cw-phasec-batch-results.txt
-          test "$(grep -c ' t | t' /tmp/cw-phasec-batch-results.txt)" -eq 3
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          result = Path('/tmp/cw-phasec-batch-results.txt').read_text()
+          match = re.findall(
+              r'^\\s*(\\d+)\\s*\\|\\s*(\\d+)\\s*\\|\\s*(\\d+)\\s*\\|\\s*(\\d+)\\s*\\|\\s*(\\d+)\\s*\\|\\s*t\\s*\\|\\s*t\\s*
+
+      - name: Verify complete HTTP overview using read-only Npgsql API
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CW_API_CONNECTION="Host=localhost;Port=5432;Username=chargewatch_read;Password=read-test-only;Database=chargewatch"
+          export CW_ENABLE_MAP_OVERVIEW=true
+          export ASPNETCORE_URLS=http://127.0.0.1:5091
+          dotnet run --project src/ChargeWatch.Api --configuration Release --no-build --no-launch-profile > /tmp/cw-overview-phasec.log 2>&1 &
+          service=$!
+          trap 'kill "$service" 2>/dev/null || true; cat /tmp/cw-overview-phasec.log' EXIT
+          for retry in $(seq 1 70); do
+            if curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null; then break; fi
+            if ! kill -0 "$service" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null
+          python3 tools/test_map_overview_phase_c_http.py
+          kill "$service" 2>/dev/null || true
+          wait "$service" || true
+          unset CW_ENABLE_MAP_OVERVIEW
+          dotnet run --project src/ChargeWatch.Api --configuration Release --no-build --no-launch-profile > /tmp/cw-overview-disabled.log 2>&1 &
+          disabled=$!
+          trap 'kill "$disabled" 2>/dev/null || true; cat /tmp/cw-overview-phasec.log /tmp/cw-overview-disabled.log' EXIT
+          for retry in $(seq 1 70); do
+            if curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null; then break; fi
+            if ! kill -0 "$disabled" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import urllib.error,urllib.request
+          try:
+              urllib.request.urlopen('http://127.0.0.1:5091/api/v1/map/overview?bbox=5,51,6,52&zoom=12',timeout=10)
+          except urllib.error.HTTPError as failure:
+              assert failure.code==404,failure.code
+          else:
+              raise AssertionError("Featureflag-off overview route unexpectedly exists")
+          print("Phase C flag-off HTTP 404 PASS")
+          PY
+,
+              result, re.M)
+          assert len(match) == 3, f'Expected three valid read-only metrics rows, received {match}'
+          for row in match:
+              markers, total, green, red, unknown = map(int,row)
+              assert markers <= 500 and green+red+unknown == total, row
+          print('All three production-derived SQL benchmark rows PASS')
+          PY
 
       - name: Verify complete HTTP overview using read-only Npgsql API
         shell: bash
