@@ -1,5 +1,10 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## #113 fase D — Android-integratie in draft PR #119 (4 november 2026)
+
+Na de merge van PR #118 (`6d5c320`) wordt de bestaande MapLibre-kaart op een afzonderlijke featurebranch uitgebreid met een optionele landelijke overviewmodus, serverclusters met groen/rood/onbekend-ring, een paginated read-only rastercelroute voor locatiekeuze en een tijdelijke kaartmoduskeuze in Instellingen. **De standaard blijft de bestaande kaart** totdat de nieuwe API afzonderlijk mag worden gedeployed en geactiveerd. [Fase-D-ontwerp en implementatie](MAP_OVERVIEW_113_PHASE_D_ANDROID.md) · [Draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119). Nog vereist: groene CI, fysieke Android-acceptatie, geautoriseerde NAS-HTTP/meting, expliciete merge- en deploymentbesluiten.
+
+
 **Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
 
 ## #113 fase C — adaptief landelijke overview in draft PR #117 (4 november 2026)
