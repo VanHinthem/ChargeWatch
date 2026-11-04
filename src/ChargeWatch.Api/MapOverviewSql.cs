@@ -43,6 +43,7 @@ internal static class MapOverviewSql
                      )::int AS free_evses
               FROM selected s
               LEFT JOIN evse e ON e.location_id=s.id AND e.is_active
+              {cellPredicate}
               GROUP BY s.id,s.country_code,s.party_id,s.source_id,
                        s.longitude,s.latitude,s.cx,s.cy
             )
