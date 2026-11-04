@@ -57,7 +57,12 @@ internal sealed record MapOverviewResponse(
     string? DataVersion,
     DateTimeOffset? FeedLastObservedAt,
     bool FeedIsStale,
-    IReadOnlyList<MapOverviewMarker> Markers);
+    IReadOnlyList<MapOverviewMarker> Markers)
+{
+    // Diagnostic sum, not a substitute for independent SQL coverage checks.
+    public long RepresentedLocationCount => Markers.Sum(marker =>
+        marker is MapOverviewClusterMarker cluster ? (long)cluster.LocationCount : 1L);
+}
 
 internal sealed record MapOverviewCoverage(
     bool Complete,

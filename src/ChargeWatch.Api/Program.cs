@@ -101,6 +101,8 @@ if (string.Equals(Environment.GetEnvironmentVariable("CW_ENABLE_MAP_OVERVIEW"),
         if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
             return Results.BadRequest(new { error=filterError });
         if (!ApiOptions.TryParseBbox(bbox,out var bounds) ||
+            !double.IsFinite(bounds.MinLon) || !double.IsFinite(bounds.MinLat) ||
+            !double.IsFinite(bounds.MaxLon) || !double.IsFinite(bounds.MaxLat) ||
             bounds.MinLat < -MapGrid.MaxMercatorLatitude ||
             bounds.MaxLat > MapGrid.MaxMercatorLatitude)
             return Results.BadRequest(new { error="Valid Web Mercator bbox is required." });
@@ -111,6 +113,7 @@ if (string.Equals(Environment.GetEnvironmentVariable("CW_ENABLE_MAP_OVERVIEW"),
             var result = await database.GetMapOverview(bounds,zoom.Value,filters,
                 context.RequestAborted);
             context.Response.Headers["X-ChargeWatch-Filter-Version"]="1";
+            context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(result);
         }
         catch (MapOverviewBudgetException)
