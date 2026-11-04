@@ -1493,7 +1493,7 @@ private fun renderNativeMarkers(
                     AvailabilityStatus.Unknown -> UNKNOWN_COLOR
                 }
                 val favorite=location.featureId in favoriteIds
-                val key="single:$" + "{color}:$" + "{location.availability.label}:$" + "{favorite}"
+                val key="single:${color}:${location.availability.label}:${favorite}"
                 icon=icons.getOrPut(key) {
                     iconFactory.fromBitmap(createMarkerBitmap(
                         color,location.availability.label,favorite
