@@ -176,11 +176,11 @@ def verify(params, *, expected_total=None, kinds=None):
                     marker["locationsWithNoFree"],marker["locationsUnknown"]) == (
                 len(members),green,red,unknown),marker
             assert green+red+unknown==len(members)
-            size = WORLD/(1<<level)
-            cx,cy=marker["gridX"],marker["gridY"]
-            expected_lon=((cx+0.5)*size-HALF)/RADIUS*180/math.pi
-            expected_lat=(2*math.atan(math.exp((HALF-(cy+0.5)*size)/RADIUS))
-                          -math.pi/2)*180/math.pi
+            # The canonical grid remains the stable ownership partition.
+            # The VISUAL marker is anchored to the population centroid, not
+            # the center of an artificial square on the map.
+            expected_lon=sum(loc["lon"] for loc in members)/len(members)
+            expected_lat=sum(loc["lat"] for loc in members)/len(members)
             assert abs(marker["longitude"]-expected_lon)<1e-7
             assert abs(marker["latitude"]-expected_lat)<1e-7
     assert response["representedLocationCount"] == population, response
