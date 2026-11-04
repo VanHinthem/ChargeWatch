@@ -51,16 +51,18 @@ class OverviewVisualClusteringTest {
             second.map { it.members.map { p -> p.gridX to p.gridY }.toSet() }.toSet())
     }
 
-    @Test fun extremeZoomCanRetainSeparatelySelectableCanonicalCells() {
+    @Test fun overlappingBackendCellsRemainOneVisibleClusterEvenAtHighZoom() {
+        // The caller's screen pixels come from the current camera zoom;
+        // there is intentionally no separate draw-as-grid switch.
         val points=listOf(
             ProjectedOverviewMarker(cellA,10.0,10.0),
             ProjectedOverviewMarker(cellB,11.0,11.0),
             ProjectedOverviewMarker(single,12.0,12.0)
         )
-        val result=clusterOverviewVisually(points,144.0,group=false)
-        assertEquals(3,result.size)
-        assertEquals(8,result.sumOf { it.locationCount })
-        assertEquals(1,result.count { it.isIndividualLocation })
+        val result=clusterOverviewVisually(points,144.0)
+        assertEquals(1,result.size)
+        assertEquals(8,result.single().locationCount)
+        assertEquals(3,result.single().members.size)
     }
 
     @Test fun coincidentSitesDoNotDisappear() {
