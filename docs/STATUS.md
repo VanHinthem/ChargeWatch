@@ -1,3 +1,9 @@
+## #113 fase C op draft PR #117 — 4 november 2026
+
+Ontwerp-optie A door gebruiker goedgekeurd: conservatieve, offset-onafhankelijke keuze van een complete canonieke rasterresolutie met maximaal 500 markerobjecten, één read-only SQL-query, geen truncatie. Implementatie en echte geïsoleerde HTTP/Npgsql/PostGIS-tests toegevoegd op `feat/map-overview-113-phase-c`. **CI en review zijn afzonderlijke gates; geen merge/NAS-deploy/featureflagwijziging.** Zie [fase-C-documentatie](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md) en [draft PR #117](https://github.com/VanHinthem/ChargeWatch/pull/117).
+
+---
+
 ## #113 P2m-G1 ID-/celpariteit PASS; P2m-G2 voorbereid — 4 november 2026
 
 NAS read-only G1: oorspronkelijke en fase-B-query elk 1.612 unieke locaties, twee richtingen 0 afwijkende (id,cx,cy), 0 ongeldige assignments, id_cell_parity_matches=t. P2m-F had reeds 256,378 ms connector-first runtime en 11 cellen. Nieuw op fase-B-branch: P2m-G2 generator voor volledige cel-/statusaggregaten via een geparametriseerde PREPARE/EXECUTE op één REPEATABLE READ READ ONLY snapshot met 5s timeout; nog niet gebouwd of uitgevoerd. Zie [P2m-G2-runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). PR #114/#115/#116 draft; geen DB-/API-/Androidwijzigingen of merge/deploy.
