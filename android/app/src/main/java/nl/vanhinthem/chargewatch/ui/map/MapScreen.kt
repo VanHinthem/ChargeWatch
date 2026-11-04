@@ -1445,7 +1445,7 @@ private fun renderNativeMarkers(
                     ))
                 }
             } else {
-                key="server:${group.locationCount}:${group.locationsWithFree}:"+
+                key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
                     "${group.locationsWithNoFree}:${group.locationsUnknown}"
                 icon=icons.getOrPut(key) {
                     iconFactory.fromBitmap(createAvailabilityClusterBitmap(
