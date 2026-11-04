@@ -1589,7 +1589,7 @@ fun LocationSelectionSheet(
     var enrichment by remember(selectedId) { mutableStateOf<EnrichmentResult?>(null) }
     LaunchedEffect(selectedId) {
         enrichment = null
-        if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
+        if (selectedId != null) enrichment = enrichmentClient.load(selectedId,locations.single())
     }
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
@@ -1697,7 +1697,7 @@ fun LocationSelectionSheet(
                 Spacer(Modifier.height(20.dp))
             }
         } else {
-            val location = locations.single()
+            val location = (enrichment as? EnrichmentResult.Found)?.mapLocation ?: locations.single()
             val statusColor = when (location.availability.status) {
                 AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
                 AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
