@@ -1,5 +1,12 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## #113 Android-acceptatie: clustersemantiek over beide kaartmodi gelijkgetrokken (4 november 2026)
+
+Na PR #120 is de rasterindeling visueel verdwenen, maar op de Samsung verschilt clustersemantiek nog: een regionale kaart toont locatieaantallen met statusring (bijv. `419`), terwijl de lokale kaart `vrij/totaal`-somlabels in een monochrome groene/rode cluster toont (bijv. `31/46`). De correctie op `fix/map-cluster-consistent-presentation-113` voert één pixel-gebaseerde clusterengine en één groen/rood/onbekend-ring voor **alle** clusters in, met centraal het **aantal laadlocaties**; uitsluitend losse locaties tonen `vrij/totaal`. Beide clustertappaden delen dezelfde zoom-/selectielogica. [Technisch en UX-contract](MAP_CLUSTER_CONSISTENCY_113.md). Nieuw werk blijft ter review; **geen merge/deployment zonder afzonderlijk akkoord**.
+
+---
+
+
 ## #113 Samsung-acceptatie: rastervormige clustering afgewezen (4 november 2026)
 
 De landelijke overview in `main` na PR #119 bleek bij Oss zichtbare, regelmatig verdeelde vierkante rasteraggregaten te tonen (bijv. na aantikken van 19 locaties opnieuw 4/6/3/6/2/4). Dit is nadrukkelijk **niet** de gewenste kaartinteractie. Correctie op `fix/map-overview-113-street-level-clustering`: overview gebruikt het daadwerkelijke locatiegewogen centroid en beeldscherm-gebaseerde visuele clustering, terwijl de volledige bestaande viewport met individuele `vrij/totaal`-markers gebruikt wordt in kleine gebieden. Alleen bij de 999-locatiegrens blijft het volledige overview-aggregaat nodig. [Ontwerp/testplan](MAP_OVERVIEW_113_NATURAL_CLUSTERING_FIX.md). Niet gemerged/gedeployed; bestaande NAS draait nog fase D.
