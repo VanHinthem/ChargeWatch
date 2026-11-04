@@ -1,3 +1,742 @@
+## #113 P2m-G1 ID-/celpariteit PASS; P2m-G2 voorbereid — 4 november 2026
+
+NAS read-only G1: oorspronkelijke en fase-B-query elk 1.612 unieke locaties, twee richtingen 0 afwijkende (id,cx,cy), 0 ongeldige assignments, id_cell_parity_matches=t. P2m-F had reeds 256,378 ms connector-first runtime en 11 cellen. Nieuw op fase-B-branch: P2m-G2 generator voor volledige cel-/statusaggregaten via een geparametriseerde PREPARE/EXECUTE op één REPEATABLE READ READ ONLY snapshot met 5s timeout; nog niet gebouwd of uitgevoerd. Zie [P2m-G2-runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). PR #114/#115/#116 draft; geen DB-/API-/Androidwijzigingen of merge/deploy.
+
+---
+
+## #113 P2m-G1 minimale, geparametriseerde ID-/celpariteit voorbereid — 4 november 2026
+
+Na de geslaagde P2m-F-executie (256,378 ms, 1.612 geselecteerde locaties, 11 niet-lege grid8-cellen) is op `feat/map-overview-113-phase-b` een afzonderlijke **P2m-G1**-generator gemaakt (`--emit-overview-phaseb-g1-ids`). Eén `PREPARE/EXECUTE` met echt gebonden `$1..$7` vergelijkt de P2l- en fase-B-**(id,cx,cy)**-sets binnen één `REPEATABLE READ READ ONLY`-snapshot. De oude gecombineerde P2m-test met vier zware status-/selectie-CTE's wordt niet herhaald. G1 checkt bidirectionele EXCEPT, uniciteit en celtoewijzing onder 5s. **Nog niet lokaal gebouwd of op NAS uitgevoerd.** Na PASS volgt G2 als aparte celcount-/statuspariteit, pas daarna API/Android-contracttests. [Exact runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Geen productiedatabasewijzigingen, API-activering, merge of NAS-deploy; #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-F geparametriseerde fase-B-query uitgevoerd: performance PASS — 4 november 2026
+
+Echte nationale CCS2/DC-grid8 `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY)` op de NAS: **Execution Time 256,378 ms**, **Planning Time 22,039 ms**, **1.612** geselecteerde locaties en **11** niet-lege rastercellen. Connector-first-plan met `Parallel Seq Scan on connector` + PK-indexjoins en 1.612 `idx_evse_active_location`-lookups; geen gemelde temp-spills. Planner schat ten onrechte slechts 5 locaties. Root buffers `hit=35556 read=34202 dirtied=799 written=4961`. Vergelijking met de oudere P2k-meting (265,966 ms / 1.608 locaties) is **geen gelijke-snapshot-pariteitsbewijs of structurele snelheidswinst**. P2m-F is een **performance-PASS**, niet een volledige correctness-PASS. De gecombineerde P2m-vier-CTE-pariteit was eerder op 5s getime-out; vervolg: kleine exacte ID-/cel-/statuspariteitsproef binnen één read-only snapshot, zonder onrepresentatieve synthetische geografische parameters. Zie [P2m-runbook op fase-B-branch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Geen API-activatie, DB/schema/NDW-wijzigingen, merge of deployment; PR #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-E echte parameterquery kiest connector-first; P2m-F één uitvoering voorbereid — 4 november 2026
+
+Gebruiker leverde `EXPLAIN (VERBOSE, SETTINGS) EXECUTE cw_phaseb_planner` van de daadwerkelijke geparametriseerde nieuwe fase-B-`MapOverviewSql` aan. Het plan kiest **`Parallel Seq Scan on connector` (2 workers gepland) → `evse_pkey` → `charging_location_pkey` → per-location EVSE-statusaggregatie → raster-`GroupAggregate`**. Dat is **connector-first**, overeenkomstig de eerder efficiënte P2k-route. De voorafgaande P2m-DIAG geo-first `Nested Loop Semi Join` met `ix_charging_location_active_position` was van een *synthetische SQL met InitPlan-/subquerybbox*, niet van deze echte parameterbinding. De rijschatting voor `selected` blijft **5** (voorheen werkelijk ~1.608 bij P2l-snapshot), maar het fysiek geselecteerde plan is gunstig. **Nog geen echte execution tijd of data-pariteit gemeten.** Geen reden om reeds `MapOverviewSql`/indexes aan te passen of 5s-timeout te verhogen. In [PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) is `--emit-overview-phaseb-execution` voorbereid: de **zelfde geparametriseerde fase-B-query eenmalig** met `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY)`, in `chargewatch_read` **read-only transaction** onder 5s, in plaats van de vier herhaalde zware P2m-pariteits-CTE's. [Runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md) bijgewerkt. **P2m-F nog niet lokaal gebouwd/gedraaid op NAS**, aparte ID/statusvalidatie blijft open. Geen merge/deploy/schema-/NDW-/Androidwijziging; #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-DIAG plannerplan ontvangen: ernstige onderschatting locatiegebied — 4 november 2026
+
+Gebruiker leverde een succesvolle planning-only `EXPLAIN (VERBOSE, SETTINGS)` aan (57 rijen), zie [P2m-analyse en P2m-E-vervolg](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Het synthetische `phaseb_region`-plan gebruikt vier `InitPlan`-parameters om `ST_MakeEnvelope` op te bouwen, schat bij `Index Scan using ix_charging_location_active_position` **8 locaties** en daarna `CTE selected rows=1`; het kiest **locatie-first `Nested Loop Semi Join` → per-locatie EVSE-index en connector-index**. Dit verschilt van P2k's snelle connector-first landelijke route. Omdat de query de geografische grenzen via runtime-subselects aanlevert, is nog **niet bewezen dat de echte door Npgsql gebonden $1..$7-query hetzelfde plan kiest**. In fase-B-branch is `--emit-overview-phaseb-prepared-plan` toegevoegd: `PREPARE` met zeven echte PostgreSQL-parameters en één `EXPLAIN (VERBOSE, SETTINGS) EXECUTE` voor dezelfde complete grid8-NL-bounds; **zonder ANALYZE**, read-only 5s. Eerst die planning beoordelen, geen gecombineerde P2m-pariteit herhalen en geen timeout verhogen. Productieoverzicht blijft gated/uit, query niet gewijzigd, PR #114/#115/#116 blijven draft; geen merge/deploy/DB-wijziging.
+
+---
+## #113 P2m-DIAG: Windows-generatorfout gerepareerd — 4 november 2026
+
+Gebruiker rapporteerde bij het aanmaken van de planning-only SQL `System.InvalidOperationException: P2m template boundaries changed`, uit `OverviewPhaseBPlanExporter.Create()`. De vorige generator maakte een **fragiele tekstextractie uit het samengestelde P2m-script op basis van exacte witruimte**; hij kwam daardoor niet tot SQL-generatie (geen NAS-plan uitgevoerd). Op `feat/map-overview-113-phase-b` is de generator in commit `826f8a1` aangepast: rechtstreeks de gedeelde echte `MapOverviewSql.Build(MapFilter)` aanroepen, uitsluitend gecontroleerde vaste parameters invullen en één `EXPLAIN (VERBOSE, SETTINGS)` zonder `ANALYZE` genereren in een read-only 5s-transactie. Geen interpolatie op P2m-CTE-grenzen meer. [P2m-runbook en foutanalyse](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md) bijgewerkt. **Lokale herbuild/-run nog niet door gebruiker bevestigd; P2m-pariteit blijft OPEN na de eerdere 5s-timeout; geen DB-/API-/Android-wijzigingen, geen merge of deploy, alle PR's draft.**
+
+---
+## #113 P2m NAS-test afgebroken op 5s; afzonderlijke fase-B-planinspectie voorbereid — 4 november 2026
+
+Gebruiker voerde P2m `p2m-phaseb-parity.sql` uit op NAS en ontving **`ERROR: canceling statement due to statement timeout`** na `SET; BEGIN; SET; SET; SET`. **Geen pariteitsresultaat** (niet als PASS of correctness-FAIL aanmerken). De P2m-validatie berekent vier zware `MATERIALIZED`-CTE's (`original_ids`, `phaseb_ids`, `original_grid`, `phaseb_grid`) die selectie/aggregatie dupliceren; het eerdere P2k-resultaat **265,966 ms** betreft alleen de oude afzonderlijke query, niet dit validatiepakket of nieuwe fase-B SQL. Een mogelijk andere plannerroute voor nieuwe SQL is nog niet vastgesteld. Op `feat/map-overview-113-phase-b` is `--emit-overview-phaseb-plan` toegevoegd voor **één `EXPLAIN (VERBOSE, SETTINGS)` zonder `ANALYZE`** van de werkelijk gedeelde `MapOverviewSql.Build(MapFilter)` met CCS2/DC en volledige landelijke grid8-celbounds. Read-only 5s, géén zware queryuitvoering, geen automatische timeoutverhoging. Instructies [P2m-DIAG](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Eerst planoutput beoordelen vóór nieuwe execution/parity-run; `CW_ENABLE_MAP_OVERVIEW` blijft uit, PR #114/#115/#116 draft, geen merge/deploy/schemawijziging.
+
+---
+## #113 P2m: read-only integratiepariteit voor daadwerkelijke fase-B-SQL voorbereid — 4 november 2026
+
+Op de fase-B-branch [PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) is de echte query uit `MapOverviewDatabase.ReadAsync` zonder bedoelde semantische wijziging naar **`MapOverviewSql.Build(MapFilter)`** verplaatst. De standalone MapFilterQ4Probe compileert diezelfde bron en genereert met `--emit-overview-phaseb-parity` precies **één read-only repeatable-read PostgreSQL-vergelijking** op de NAS, nationale complete grid8-bbox en CCS2/DC, tegen de eerder P2l-gevalideerde oorspronkelijke overview. Controle: volledige `id,cx,cy`-set, alle zes rastervelden (inclusief groen/rood/onbekend), celsommen/statuspartitie en aantallen. Handleiding [P2m op fase-B-branch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). **P2m nog niet gebouwd/uitgevoerd; geen PASS geclaimd.** Bestaande API- en fase-A-selftests op fase B waren eerder PASS; dat vervangt P2m niet. Nieuwe endpoint blijft standaard uitgeschakeld, geen automatische 500-budget-coarsening vóór fase C, geen DB-/NDW-/Android-mutatie of merge/deploy. PR #114/#115/#116 draft.
+
+---
+
+## #113 fase B branch selftests PASS — 4 november 2026
+
+Gebruiker leverde na lokaal testen van [draft PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) twee meldingen aan: `ChargeWatch API selftest passed.` en `Map overview phase A selftest passed.`. **Bestaande API- en pure raster-/contractselftests PASS op fase B.** De fase-B-route is standaard uitgeschakeld; deze output bewijst nog **geen SQL-/PostgreSQL-executie, response-/statuspariteit of echte HTTP-test**. Afzonderlijke buildlog/CI-check niet aangeleverd. [Fase-B-documentatie](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_PHASE_B_IMPLEMENTED.md) bijgewerkt. Vervolg: gerichte read-only SQL-validatie van de daadwerkelijke nieuwe query plus correctheid van beschikbare/unknown-tellingen, voordat een opt-in NAS-test of fase-C-werk wordt gestart. Ontwerp PR #114, fase A PR #115, fase B PR #116 nog draft; geen merge/deploy.
+
+---
+## #113 fase B-code in gestapelde draft PR #116 — 4 november 2026
+
+Na fase A (Windows API/fase-A-selftests beide PASS; PR #115 nog draft) is **[PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116)** geopend: `feat/map-overview-113-phase-b` → `feat/map-overview-113-phase-a` (gestapelde review; ontwerp PR #114 blijft draft). Nieuw opt-in `GET /api/v1/map/overview` alleen bij `CW_ENABLE_MAP_OVERVIEW=true` (**standaard niet geregistreerd**). Query gebruikt `chargewatch_read`-connectie, `REPEATABLE READ` + `SET TRANSACTION READ ONLY`, productie-`MapFilter.LocationPredicate(6)`/`AddParameters`, wereldvaste complete celbbox, per-locatie EVSE-aggregation zonder zware connector-JSON en celaggregatie; OCPI-string `featureId` behouden. **Geen 999-limiet op ruwe locaties.** Provisorische zoommapping `floor(zoom)+2`; voor `>500` niet-lege cellen volgt **expliciete 503 budgetfout** (nooit complete partial coverage), automatische grovere zoom volgt pas fase C. Feed timestamp uit dezelfde transactie, bestaande configured stale-threshold, `dataVersion=null` (niet veilig om cross-request samen te voegen). **Nog geen .NET-build/selftest of NAS-/PostgreSQL-API-test op fase B bevestigd**; P2-benchmarkstatusclassificatie mag niet zonder controle als bestaande Android/legacy `?`-kwaliteitslogica worden beschouwd. Review-/runbook: [fase B op featurebranch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_PHASE_B_IMPLEMENTED.md). Geen API-opt-in in NAS, merge, deploy, Android/NDW-/DB-schemamutatie; PR #114/#115/#116 allemaal draft.
+
+---
+
+## #113 fase A — Windows selftests PASS (4 november 2026)
+
+Gebruiker bevestigde na ophalen van draft **PR [#115](https://github.com/VanHinthem/ChargeWatch/pull/115)** de uitvoer `ChargeWatch API selftest passed.` en `Map overview phase A selftest passed.`. Daarmee **slagen de bestaande API- en nieuwe pure kaart-raster-/JSON-/contractselftests** van fase A. De afzonderlijke `dotnet build`-log (warnings) en CI-uitvoer zijn niet aangeleverd; *selftests PASS* is geen formele bevestiging van alle build-/integratiegates. De fase-A-notitie op `feat/map-overview-113-phase-a` is bijgewerkt. **PR #115 en ontwerp-PR #114 blijven draft, niet gemerged, niet gedeployed.** Fase B (nieuwe read-only overview-handler, MapFilter-query, volledige coverage en betrouwbare statusprojectie) is de volgende implementatiefase na review.
+
+---
+## #113 fase A implementatie opgesteld in aparte draft-PR #115 — 4 november 2026
+
+Na akkoord om verder te gaan met de implementatiefasering is **PR [#115](https://github.com/VanHinthem/ChargeWatch/pull/115)** als **draft** geopend vanaf `feat/map-overview-113-phase-a` naar deze ontwerpbranch (`docs/location-dataflow-113-design`, PR #114 blijft zelf draft). Fase A bevat uitsluitend pure `MapGrid` Web Mercator-wereldraster- en coverage-berekeningen, getypeerde JSON-overview `cluster`/`location`-DTO's met de **bestaande OCPI-`featureId` als string**, een expliciete `complete`-coverage en nullable `dataVersion`, plus pure selftests gekoppeld aan `ChargeWatch.Api --self-test`. Begroting **500 markerobjecten** is voorlopig als constante vermeld maar **nog niet runtime afgedwongen**. Zie de [fase-A-handleiding op featurebranch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-a/docs/MAP_OVERVIEW_113_PHASE_A_IMPLEMENTED.md). **Nog geen succesvolle .NET-build of uitvoering van selftests bevestigd** (geen SDK in assistentomgeving); Windows-validatie is vereist vóór merge. **Geen nieuwe overview-HTTP-route, SQL, Android, NDW, database-/schemawijziging of deploy**. PR #114/#115 allebei draft; er is niets gemerged.
+
+---
+
+## #113 technisch implementatieplan voor nieuw map-overviewendpoint opgesteld — 3 november 2026
+
+Na het voorlopige akkoord op **500 markerobjecten per response** (budget kan na Android-metingen worden gewijzigd) is [MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md](MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md) toegevoegd. Op basis van actuele `Program.cs`, `ApiDatabase.GetMapViewport`, `ApiModels.MapLocationItem` en `ApiOptions` zijn vijf afzonderlijke uitvoeringsfasen met acceptatiegates uitgewerkt: **PR-A DTO's/canoniek raster**, **PR-B read-only overview SQL/handler**, **PR-C objectbudget/cache/foutafhandeling**, **PR-D Android-rendering en clustertap**, **PR-E echte NAS-/Android-test en releaseschakelaar**. Belangrijke code-auditcorrectie: bestaande kaart-`featureId` is een **samengestelde OCPI-string**, géén PostgreSQL-`long`; ontwerpvoorbeeld en contractnotities zijn gecorrigeerd. De bestaande `GetMapViewport` verwerkt connector-JSON/`count(DISTINCT evse)`, wat **niet automatisch gelijk** is aan de P2i–P2l-proefclassificatie; nieuwe statusprojectie moet direct met huidige Android-markersemantiek worden vergeleken. Houd origineel endpoint met 999-cap tijdens overgang intact, geen nieuwe MapFilter- of NDW-classifier, geen geforceerde geo-first-P2e-/zoom-routering zonder bewijs, geen ongeverifieerde dataVersion voor cross-request-merging. **Alleen ontwerpdocumentatie gecommit**, nog geen API-/Android-/DB-implementatie, merge of NAS-deploy. PR #114 draft.
+
+---
+
+## #113 nieuwe fase: API overview-/coverage-/zoomcontract in review — 3 november 2026
+
+Gebruiker heeft na P2l expliciet gekozen om **niet de volledige filtermatrix nogmaals te benchmarken**, maar het definitieve landelijke **kaartcontract** uit te werken. Zie het nieuwe [MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md](MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md). Basis: Q1–Q4 bestaande `MapFilter`-semantiek; P2j **81.945 unieke actieve locaties/13 niet-lege grid8-cellen/0 afwijkingen** bij nationale ongefilterde census; P2k/P2l **1.608 CCS2/DC-locaties/11 cellen/0 afwijkingen, 265,966 ms**; P2h original connector-first in grotere regio sneller dan geforceerd P2e-indexpad. **Geen universele zoomdrempel of tweede filterclassifier**. Contractvoorstel: nieuw `GET /api/v1/map/overview`, bbox+cameraZoom+originele MapFilter-parameters, wereldvaste complete Web Mercator-celrange, gemelde effectieve gridLevel, getypeerde `cluster/location`-markers, grijs clustercentrum met locatieaantal en groen/rood/onbekend-ring, individueel `vrij/totaal`, expliciete `coverage.complete`, bronversheid, geen 999-truncatie, cache-/requestgelijkheidsregels en beknopte regressie-/Android-testpoorten. Voorlopige 500-markerbudget en zoom-buckets **voorstel, niet geaccordeerd**. Nog open: consistente dataversie, exacte cel-/zoomgrenzen, foutcontract, exacte fallback, volledige Android-interactietest. **Alleen ontwerpdocument**, geen API-/Android-/databasewijziging of merge/deploy. PR #114 draft.
+
+---
+
+## P2l landelijke CCS2/DC-pariteit PASS — 3 november 2026
+
+De gebruiker leverde de P2l-resultaatrij aan: **original_locations=1608, reference_locations=1608, differing_id_cell_rows=0; original_cells=11, reference_cells=11; original_grid_locations=1608, reference_grid_locations=1608, differing_grid_rows=0, parity_matches=t**. Daarmee zijn voor bbox `3.00,50.60,7.40,53.80` en volledig gridLevel8 zowel de exacte `(id,cx,cy)`-set als alle volledige celwaarden (locaties/groen/rood/onbekend) gelijk tussen originele productie-`MapFilter`-selectie en onafhankelijk connector-first CCS2/DC-filter. P2k leverde daarnaast **265,966 ms** voor de oorspronkelijke landelijke route met **1.608 locaties, 11 niet-lege cellen** zonder 999-cap. **P2k/P2l samen PASS voor specifiek CCS2/DC, geen generieke filter- of API-contractdekking**. Zie [P2l resultaten](MAP_GRID_P2L_NATIONAL_FILTER_PARITY.md). Vervolg: onafhankelijke landelijke Q4-filtermatrix (`minFree`, power, operator), zoom-/coverage-contract; geen NDW-/Q5-herontwerp, productie-API/Android/DB-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2l landelijke CCS2/DC-ID-/rasterstatuspariteit voorbereid — 3 november 2026
+
+Na P2k (oorspronkelijke landelijke CCS2/DC-overview: **1.608 locaties, 11 niet-lege cellen, Execution 265,966 ms**) is de onafhankelijke landelijke correctheidstest **P2l** op de ontwerpbranch toegevoegd: [runbook](MAP_GRID_P2L_NATIONAL_FILTER_PARITY.md), standalone CLI `--emit-overview-national-filter-parity`. Eén read-only `REPEATABLE READ`-statement met 5s timeout vergelijkt (A) alle `id,cx,cy` van echte productie-`MapFilter`-selectie versus een **onafhankelijke connector-first** CCS2/DC-kwalificatie en (B) de **volledige zeskoloms-celaggregatie** voor dezelfde gridLevel8 Nederlandgerichte bbox, inclusief groen/rood/onbekend. Beide checks dubbelzijdig `EXCEPT`, plus locatie-/celtotalen en `parity_matches`. Geen geforceerde geografische EVSE-indexscan voor alle ~82k locaties: referentie start bij gefilterde connectoren, daarna alleen matched locaties. **Code nog niet lokaal gebouwd; NAS-uitkomst nog niet bekend.** Het experiment verandert geen productie-`MapFilter`, statusinterpretatie, collector, database/index, API of Android. Geen merge/deploy; PR #114 draft.
+
+---
+## P2k landelijke CCS2/DC-overview: connector-first query in 266 ms — 3 november 2026
+
+Gebruiker leverde `p2k-national-ccs2-result.txt`. Oorspronkelijke overview-query met gelinkte productie-`MapFilter`, `connectorType=ccs2`, `mode=dc`, NL-omsluitende gridLevel8 bbox en zonder 999-cap: **Execution Time 265,966 ms**, Planning **35,016 ms**, **1.608 geselecteerde locaties**, **11 niet-lege rastercellen**, finale EVSE-join **9.304 rijen**. `Parallel Seq Scan on connector` 6.473 matched connectoren / 6.467 distinct EVSE's, daarna 1.637 locaties voorafgaand aan geo-filter en 1.608 finale `idx_evse_active_location`-indexlookups. Root `shared hit=35984 read=33236 dirtied=63 written=1145`; geen gemelde temp-spill. De origineel connector-first-route blijft op landelijk CCS2/DC-filter **binnen de 5s grens** en veroorzaakt geen nationale EVSE Seq Scan. P2i ongefilterd 81.934 geselecteerd/13 cellen in 986 ms; P2j exacte landelijke **ongefilterde** census 81.945/13 met `population_matches=t` op later snapshot. **P2k is alleen EXPLAIN, dus landelijke CCS2/DC-ID-/celtotaal-/beschikbaarheidspariteit nog niet onafhankelijk bewezen**; P2g regiopariteit mag niet worden veralgemeniseerd. Volgende gate: afzonderlijke read-only landelijke **gefilterde** count-/statuspariteit, zonder automatisch geo-first query over 82k locaties te forceren. Zie [P2i fase-2 meetrapport](MAP_GRID_P2I_NATIONAL_BASELINE.md). Geen API-/Android-/DB-/NDW-implementatie, merge/deploy; PR #114 draft.
+
+---
+
+## P2j nationale rasterpopulatiepariteit bevestigd — 3 november 2026
+
+De gebruiker leverde P2j `--emit-overview-national-census`-NAS-uitvoer aan: op één read-only `REPEATABLE READ`-snapshot zijn **81.945** geolocatierijen, **81.945 unieke IDs**, **81.945 som van onafhankelijke celcounts** en **81.945 som van originele overview-celcounts** vastgesteld. Beide routes: **13 niet-lege gridLevel8-cellen**; **0 afwijkende celcounts**, **0 ongeldige celtoewijzingen**, **`population_matches=t`**. De NL-omsluitende bbox en het wereldvaste raster dekken de gehele onafhankelijke geselecteerde populatie af zonder 999-afkapping. Verschil +11 met P2i 81.934 is een later snapshot en geen interne pariteitsafwijking. **Geen bewijs** van lege-celcoverage, exacte landsgrenzen, status-/filterpariteit nationaal, viewport-overlap of productie-API. Zie [P2j meetresultaten](MAP_GRID_P2J_NATIONAL_CENSUS.md). **Volgende aparte test:** één landelijke oorspronkelijke CCS2/DC-`EXPLAIN` via reeds bestaande `--emit-overview-national-ccs2`, 5s timeout; daarna pas landelijke filter-/aggregatiepariteit. Geen productiecode, NDW-/Q5-herontwerp, API-/Android-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+## P2i landelijke ongefilterde baseline PASS; P2j onafhankelijke locatiedekking voorbereid — 3 november 2026
+
+De gebruiker leverde `p2i-national-unfiltered-result.txt`: één **geslaagde read-only nationale gridLevel8**-EXPLAIN (Nederlandgerichte uitgelijnde bbox `3.00,50.60,7.40,53.80`). **Execution Time 986,275 ms**, Planning **26,881 ms**, **81.934 geselecteerde actieve locaties** uit `charging_location`, **216.786 actieve EVSE's** in een brede scan, **206.207 joinrijen**, **13 niet-lege rastercellen**. Root `shared hit=3794 read=50661`, `temp read=248 written=941`; per-location HashAggregate `Batches: 5, Disk Usage 3376 kB`, selected CTE ook tijdelijke opslag. Geen `LIMIT 999`, maar **EXPLAIN bewijst geen totale populatiepariteit of lege-cel-coverage**; bbox is geen landsgrenzenpolygon. Zie [P2i meetrapport](MAP_GRID_P2I_NATIONAL_BASELINE.md).
+
+Op de ontwerpbranch is nu **P2j (nog niet gebouwd/uitgevoerd)** voorbereid: [onafhankelijke landelijke census](MAP_GRID_P2J_NATIONAL_CENSUS.md) via `--emit-overview-national-census`, vergelijkt in één read-only repeatable-read statement en snapshot een onafhankelijk geolocatie-grid8-census met P2i's originele productie-`MapFilter`-overviewsom en **per-cel `(cx,cy,location_count)`**, controles unieke IDs, bounds, verschillen en totalen. 5s statement-timeout. **Landelijke CCS2/DC fase-2 nog niet uitvoeren** vóór P2j-resultaat. Geen NDW-/Q5-herontwerp, API-/Android-/DB-schemawijziging, merge/deploy; PR #114 draft.
+
+---
+
+## P2i nationale ongefilterde rasterbenchmark voorbereid (fase 1) — 3 november 2026
+
+Na de P2h-regioconclusie (original connector-first 222,733/149,309 ms versus P2e-indexed 857,348/678,463 ms) gaat #113 terug naar het primaire productdoel: **landelijke kaartdekking zonder de huidige 999-cap**. Nieuwe [P2i-stappen](MAP_GRID_P2I_NATIONAL_BASELINE.md) en `OverviewNationalBaselineExporter` maken **twee strikt gescheiden** read-only SQL-exportopties: `--emit-overview-national-unfiltered` (fase 1, **nu uit te voeren**) en `--emit-overview-national-ccs2` (fase 2, **nog niet uitvoeren**). Ze hergebruiken oorspronkelijke overview-`MapFilter`-SQL, enkel vaste Nederlandse omsluitende bbox `3.00,50.60,7.40,53.80` en volledig wereldraster gridLevel8 in plaats van Oss-grid11. Fase 1 is één nationale `EXPLAIN ANALYZE` onder `chargewatch_read`, 5s timeout, géén national P2e geforceerde indexprobes. **Nog niet gecompileerd of uitgevoerd**. Een Nederlandgerichte rechthoek is geen NL-landsgrenspolygon; aantal niet-lege cellen en ontbrekende `LIMIT 999` bewijzen nog geen volledige eigen-dekking. Na fase 1 volgen aparte exacte rasterpopulatie-/coveragecontroles. Geen NDW-/Q5-herontwerp, API-/Android-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2h regionale A/B-performance: originele connector-first duidelijk sneller — 3 november 2026
+
+NAS-resultaat `p2h-region-paired-result.txt`: vier succesvolle read-only `EXPLAIN ANALYZE`-runs op bbox `5.20,51.60,5.90,52.10`, gridLevel10, CCS2/DC. **Original 222,733 en 149,309 ms (gem. 186,021 ms)**; **indexed P2e 857,348 en 678,463 ms (gem. 767,906 ms)**. Beide: **420 locaties, 12 niet-lege cellen**; volledige exacte regionale ID-/rasteraggregaatpariteit reeds in P2g bevestigd. Original loopt ondanks nationale `Parallel Seq Scan on connector` slechts 1.637 locatielookups plus 420 EVSE-final-lookups; P2e doet **22.839 EVSE- en 54.031 connector-indexlookups** vóór 420 matches. De vele random probes domineren regio-performance. Root shared reads original **31.594/24.966**, P2e **83.549/79.226**; cache-/I/O-verschillen verhinderen SLA-conclusies, maar queryplan en beide metingen pleiten overtuigend tegen P2e als universele strategie. **Niet blind landelijke query via P2e**. Voorgesteld: selectiviteit/viewport-omvang-afhankelijke routing of plannerkeuze evalueren en afzonderlijk landelijke volledigheid/zoomtests; geen bewezen universele zoomdrempel. Zie [P2h resultaten](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md). Geen NDW-/Q5-herontwerp, API-/Android-/DB-schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2h Windows-exportvalidatie gecorrigeerd — 3 november 2026
+
+Gebruiker meldde dat de P2h-`dotnet build` en `dotnet run --no-build ... --emit-overview-region-paired` succesvol leken, maar de documentatiecheck `($sql -split 'EXPLAIN ...').Count -ne 5` ten onrechte `P2h SQL-generatie ongeldig` gaf. **PowerShell vangt uitvoer als regels-array op**; de oude `-split`-controle was onjuist. In [P2h](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) is de check vervangen door `$sqlText = $sql -join "`n"`, **exact vier** `EXPLAIN`-matches en vier `\\echo P2h`-runlabels; bbox en beide celmaatnotaties worden gecontroleerd. **P2h nog niet op NAS bevestigd**: bestaand gegenereerd bestand eerst opnieuw valideren, dan pas scp/run. Geen productie-/DB-/API-/Android-wijziging, merge of deployment; PR #114 draft.
+
+---
+
+## P2g regio correctheid bevestigd; P2h gepaarde regiobenchmark voorbereid — 3 november 2026
+
+P2g op regionale bbox `5.20,51.60,5.90,52.10`, zoom10, CCS2/DC **PASS**: originele en geoptimaliseerde selectie **420/420 locaties, 0 verschillende IDs, ids_match=t**; volledige rasteruitvoer **12/12 niet-lege cellen, 420/420 locaties, 0 verschillende celrijen, aggregates_match=t**, inclusief groen/rood/onbekend. Zie [P2g resultaten](MAP_GRID_P2G_REGIONAL_PARITY.md). Op de ontwerpbranch staat nu ook **P2h (nog niet gebouwd/uitgevoerd)**: [vier afwisselende regio-EXPLAIN's](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) `original → indexed → indexed → original`, via nieuwe `--emit-overview-region-paired` CLI in `MapFilterQ4Probe`. Origineel hergebruikt oorspronkelijke `MapFilter`-SQL met uitsluitend bbox en zoom10-celmaat aangepast; indexed hergebruikt exact P2f-schaalquery. Beide read-only, 5s per statement, geen voorafgaande parity-warm-up. **Geen gemeten P2h-performance of nationale uitkomst**, geen production/DB/NDW-/API-/Android-implementatie, merge of deploy. PR #114 draft.
+
+---
+
+## P2g regionale ID-/aggregatiepariteit voorbereid — 3 november 2026
+
+Na de P2f-regiometing (22.827 geo-locaties, 420 CCS2/DC-matches, 12 niet-lege rastercellen, 866,215 ms) is [MAP_GRID_P2G_REGIONAL_PARITY.md](MAP_GRID_P2G_REGIONAL_PARITY.md) toegevoegd. De bestaande `OverviewGeoFirstExporter` exposeert `CreateMediumRegionParityCcs2Dc()` via `--emit-overview-region-parity`. **Nog niet lokaal gebouwd of uitgevoerd**. P2g draait twee regionale, read-only `REPEATABLE READ`-correctheidscontroles op dezelfde bbox/gridLevel/filter (via de bestaande productie-`MapFilter`): (1) exacte locatie-ID-`EXCEPT`-pariteit oorspronkelijke versus gecorreleerde filterselectie; (2) per-cel volledige rasteruitvoer-`EXCEPT`-pariteit van oorspronkelijke EVSE-join versus `LEFT JOIN LATERAL` met identiek geselecteerde locaties en dezelfde COUNT-expressies. Geen `EXPLAIN ANALYZE`-run in dit script; 5s statement-timeout begrenst elk statement. Alleen bij geslaagde pariteit volgt gecontroleerde oorspronkelijke regiobaseline en afwisselende performancevergelijking. Nog geen nationale test, NDW-/Q5-herontwerp, API-/Android-/DB-/schemawijziging, merge of deployment. PR #114 draft.
+
+---
+
+## P2f regionale schaaltest uitgevoerd: 22.827 geografische locaties, 866 ms — 3 november 2026
+
+Gebruiker leverde `p2f-region-result.txt` met geslaagde read-only `EXPLAIN ANALYZE` voor bbox `5.20,51.60,5.90,52.10` (zoom/gridLevel10, CCS2/DC). **Execution 866,215 ms, Planning 25,375 ms**; `geo_locations` **22.827**, gefilterd **420** locaties, **12 niet-lege gridcellen**, finale selected-EVSE join **2.530** rijen. Indexpad: locatie GiST, **22.827** `idx_evse_active_location` plus **54.007** `idx_connector_active_evse` voor technische filter, daarna **420** EVSE-indexzoekacties voor aggregatie. **Geen landelijke connector- of EVSE-Seq Scan**, geen temp spill; root buffers `shared hit=273645 read=86722 dirtied=1840 written=13439`. Grootste werk zit in technische filterselectie (`selected` 847,774 ms). **Nog geen regionale exacte ID-/rasteraggregaatpariteit en geen oorspronkelijke-plan-baseline op dezelfde bbox**. Niet automatisch nationale run; eerst regionale pariteit en gecontroleerde routevergelijking, daarna landelijke schaalbesluit. Zie [MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md](MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md). Geen NDW-/Q5-herontwerp, API/Android/DB-schemawijziging, merge/deployment. PR #114 draft.
+
+---
+
+## P2f middelgrote regionale schaalprobe voorbereid — 3 november 2026
+
+Na P2e (Oss filter- en volledige rasteraggregaatpariteit geslaagd, lokale EVSE-indexjoin) is [MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md](MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md) toegevoegd. De bestaande `OverviewGeoFirstExporter` kreeg `CreateMediumRegionCcs2Dc()` en CLI `--emit-overview-region`: **één** read-only `EXPLAIN ANALYZE` van P2e met bbox `5.20,51.60,5.90,52.10`, gridLevel10 (hele cellen), CCS2+DC via productie-`MapFilter`, `statement_timeout=5s`; **geen dure voorafgaande dubbele `EXCEPT`-queries** en **nog geen landelijke uitvoering**. Exacte regionale pariteit wordt pas na eerste schaal-/risico-inspectie uitgevoerd; eerdere Oss-pariteit mag niet automatisch regionaal worden aangenomen. **CLI nog niet lokaal gebouwd of op NAS uitgevoerd**; gebruiker voert gedocumenteerde commando's uit. Geen nieuwe NDW-/statussemantiek of productiecode/schema-/API-/Android-wijziging, merge of deploy. PR #114 draft.
+
+---
+## P2e voltooid: exacte rasterpariteit en indexgerichte EVSE-aggregatie — 3 november 2026
+
+NAS-uitvoer `p2e-lateral-availability-result.txt`: **locatie-ID-pariteit 34=34, differing_ids=0, ids_match=t** én **volledige rasteraggregaatpariteit 4=4 cellen, 34=34 locaties, differing_cell_rows=0, aggregates_match=t** (alle kolommen inclusief groen/rood/onbekend). P2e `EXPLAIN ANALYZE`: **Execution 71,316 ms, Planning 2,951 ms**, root `shared hit=33513 read=0`; eerste GiST-geoselectie 2.101 locaties; gecorreleerde CCS2/DC-filtercontrole 2.101 EVSE- en 4.838 connector-indexlookups; laatste availability-join via `Nested Loop Left Join` en **34× `idx_evse_active_location`** voor 244 EVSE-rijen. **Beide landelijke fullscans (connector en EVSE) zijn verdwenen voor deze kleine Oss-case.** P2d 160,477 ms met 23.993 shared reads, maar P2e volledig warm door voorafgaande pariteitsqueries: geen bewezen continue latencywinst claimen. **Volgende stap:** oplopende regio-/landelijke complete-cell-read-only benchmark vóór API-/Android-architectuurkeuze; geen extra lokale queryvariant zonder noodzaak. Zie [MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md](MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md). Geen NDW-/statuswijziging, schema-/API-/Android-code, merge of deploy; PR #114 blijft draft.
+
+---
+
+## P2e geselecteerde-locatie EVSE-aggregatie/pariteit voorbereid — 3 november 2026
+
+De P2d-validatie (34=34 locatie-ID's, 0 verschillen) bewees dat de gecorreleerde technische `MapFilter`-selectie de landelijke connector-Seq Scan elimineert, maar er bleef een **EVSE Seq Scan van 216.524 actieve rijen** in de eindaggregatie. P2e ([read-only benchmarkinstructies](MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md)) voegt `--emit-overview-lateral-availability` aan de bestaande MapFilterQ4Probe CLI toe. **Ongewijzigde P2d-filterselectie**, maar vervangt de beschikbaarheids-EVSE-join door `LEFT JOIN LATERAL (SELECT e.id,e.status FROM evse e WHERE e.location_id=s.id AND e.is_active OFFSET 0)`. De bestaande status-COUNT FILTER-expressies zijn niet gewijzigd. De generator controleert eerst ID-pariteit, daarna **per-cel outputpariteit van alle kolommen met dubbelzijdig EXCEPT op één snapshot**, en toont vervolgens `EXPLAIN ANALYZE` voor de indexed kandidaat. **Nog niet lokaal gebouwd of op NAS uitgevoerd**, dus geen performanceresultaat claimen. Geen nieuwe NDW-/beschikbaarheidsregels, productie-API/Android/DB-wijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2d CCS2/DC filter-indexpad werkt, EVSE-fullscan blijft — 3 november 2026
+
+Read-only NAS-proef na exporter-fix: **exacte ID-pariteit geslaagd (34/34 locaties, 0 diff, ids_match=t)** en 4 gridcellen. P2d selecteert met `geo_locations AS MATERIALIZED` eerst 2.101 lokale locaties; de filterpredicate wordt gecorreleerd uitgevoerd via **2.101× `idx_evse_active_location`** en **4.838× `idx_connector_active_evse`**, **geen landelijke connector-Seq Scan**. Execution **160,477 ms** (planning 3,063 ms). **Nieuwe resterende bottleneck**: aggregatie maakt alsnog `Hash Right Join` met **Seq Scan over 216.524 actieve EVSE's** (103,365 ms scan, 23.957 shared reads); root 23.993 reads. Volgende gerichte proef: alléén beschikbaarheidstelling voor de 34 geselecteerde locaties indexgericht maken, met exacte outputpariteit en bestaande statussemantiek. Geen generieke performancewinst claimen op deze ene run; geen NDW-/Q5-herontwerp, code-/DB-mutatiewerk, merge/deploy. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). PR #114 draft.
+
+---
+## P2d exporter-generatiefout gerepareerd — 3 november 2026
+
+Eerste Windows-`--emit-overview-correlated` faalde met `InvalidOperationException: Correlated filter SQL template not applied`. Oorzaak: whitespacegevoelige vervanging van een C# raw SQL-string. Op `docs/location-dataflow-113-design` is de vervanging gecorrigeerd naar unieke `WHERE true __FILTER__`-marker, met aanwezigheidcontrole. Herhaal na `git pull --ff-only` en `dotnet build`; **nieuwe compilatie/NAS-uitvoering nog niet bevestigd**, geen benchmarkuitkomst. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). Geen productieschema-/API-wijziging, merge of deployment.
+
+---
+## P2d locatiegecorreleerde CCS2/DC-filterproef voorbereid — 3 november 2026
+
+Na P2c (acht echte NAS-EXPLAIN-plannen) blijft de landelijke connector Parallel Seq Scan bij CCS2/DC zonder minFree een concrete bottleneck. [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md) beschrijft **één nog niet gebouwde/uitgevoerde** read-only P2d-variant die eerst `geo_locations AS MATERIALIZED` selecteert en de **ongewijzigde via productie-`MapFilter.LocationPredicate(6)` gegenereerde predicate** vervolgens met `CROSS JOIN LATERAL (SELECT 1 WHERE true <predicate> OFFSET 0)` per locatie probeert uit te voeren. De bestaande `OverviewGeoFirstExporter.cs` is hiervoor uitgebreid; CLI `--emit-overview-correlated` genereert ID-EXCEPT-pariteit en `EXPLAIN ANALYZE` op Oss zoom11. Eerst `differing_ids=0` / `ids_match=t` en daarna alleen op werkelijke SQL-plan/I/O-oordelen. `OFFSET 0` is een toetsbare plannerhypothese, geen definitieve productieoplossing. Geen tweede filterlogica, index-/schema-/NDW-wijziging, API/Android-implementatie, merge of deploy. PR #114 draft.
+
+---
+
+## P2c acht gepaarde gefilterde overzichtsmetingen uitgevoerd — 3 november 2026
+
+Gebruiker leverde het complete `p2c-paired-result.txt` met acht werkelijke `EXPLAIN (ANALYZE, BUFFERS)`-plannen. [Volledige P2c-analyse](MAP_GRID_P2C_RESULTS.md). Voor **CCS2+DC**: oorspronkelijke SQL **200,823/134,760 ms**, geography-first **136,676/138,138 ms**, bij alle vier de runs een **landelijke Parallel Seq Scan op connector**; 34 geselecteerde locaties, 4 gridcellen. Voor **CCS2+DC+minFree1**: oorspronkelijke SQL **113,278/149,672 ms**, geography-first **97,247/62,337 ms**, uitsluitend geography-first gebruikte **lokale EVSE-/connector-indexzoekacties zonder landelijke connector Seq Scan**; 32 locaties/4 cellen in alle runs (eerder 30 bij P2b, dataset gewijzigd). Eerste oorspronkelijke CCS2/DC planningtijd 28 ms versus ~3 ms in overige runs; cache-/I/O-verschillen blijven groot. **Geen algemene geography-first-prestatieclaim of productiecontractbesluit.** P2b exacte ID-pariteit bewezen voor eerdere snapshot; P2c zelf verifieerde alleen gelijke aantallen/cellen. Volgende gerichte hypothese: locatiegecorreleerde technische filter zonder semantische duplicatie, en uiteindelijk landelijke schaaltest. Geen nieuwe NDW-/beschikbaarheidsdefinities, API-/Android-/schemawijzigingen, merge of deployment. PR #114 draft.
+
+---
+
+## P2c gecontroleerde gefilterde A/B-meetreeks voorbereid — 3 november 2026
+
+[MAP_GRID_P2C_PAIRED_FILTER_PERFORMANCE.md](MAP_GRID_P2C_PAIRED_FILTER_PERFORMANCE.md) bevat de **nieuwe, nog niet uitgevoerde** P2c NAS-read-only benchmark. De bestaande `MapFilterQ4Probe` kreeg een `--emit-overview-paired` CLI-optie die per filter `origineel → geography-first → geography-first → origineel` exporteert voor `ccs2_dc` en `ccs2_dc_minfree1` (totaal **acht** afzonderlijke `EXPLAIN ANALYZE`-queries), met zichtbare labels per run. De originele P2a- en P2b-exporters worden hergebruikt; P2b's reeds geslaagde ID-pariteit wordt niet telkens opnieuw uitgevoerd om ongelijke cache-opwarming te voorkomen. Geen handgeschreven tweede filtercontract: beide query's blijven de gelinkte productie-`MapFilter.cs` gebruiken. **Build/uitvoering nog niet geverifieerd**; gebruiker kan met de gedocumenteerde Windows/NAS-commando's meten. Pas bij reproduceerbaar knelpunt de landelijke connectorscan gericht aanpakken. PR #114 draft; geen DB-/API-/Android-wijziging, merge of deployment.
+
+---
+
+## P2b gefilterde geography-first SQL: exacte ID-pariteit, gemengde performance — 3 november 2026
+
+Gebruiker leverde twee werkelijke NAS-read-only P2b-queryplannen en `EXCEPT`-pariteit aan: **`ccs2_dc` 34=34 locaties, 0 verschil, ids_match=t**; **`ccs2_dc_minfree1` 30=30 locaties, 0 verschil, ids_match=t**. Eindaggregatie 4 rastercellen in beide gevallen. P2b geography-first duurde **187,509 ms** voor CCS2/DC (P2a oorspronkelijk 160,011 ms) en **41,749 ms** voor CCS2/DC/minFree1 (P2a 137,799 ms). Bij CCS2/DC bleef een landelijke connector Parallel Seq Scan (~6.473 matches) ondanks geography-CTE; bij minFree1 koos planner 2.101 lokale actieve-EVSE-indexzoekacties + 3.578 connector-indexzoekacties, zonder landelijke connectorscan. De snelle gecombineerde run had `shared read=31` tegenover P2a `read=23531`: **cache-effect groot, winst niet causaal bewezen**. Volgende focus: afwisselende vergelijkbare herhalingen of een aantoonbaar gerichte locatie-eerst-join-proef die exact dezelfde productie-`MapFilter` blijft gebruiken. Geen nieuwe NDW-/beschikbaarheidssemantiek. Zie [MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md](MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md). PR #114 draft; geen API/Android/DB-mutatiewerk, merge of deploy.
+
+---
+## P2b geography-first filterpariteit en benchmark voorbereid — 3 november 2026
+
+Na de P2a-plannen is [MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md](MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md) met de geïsoleerde `OverviewGeoFirstExporter.cs` / CLI `--emit-overview-geofirst` toegevoegd. De **nog niet gebouwde of uitgevoerde** proef vergelijkt voor CCS2+DC en CCS2+DC+minFree1 eerst op dezelfde PostgreSQL-snapshot de geselecteerde locatie-ID's van oorspronkelijke selectie en `geo_locations AS MATERIALIZED` vóór de ongewijzigde productie-`MapFilter.LocationPredicate(6)` (`EXCEPT`-pariteit); alleen bij `ids_match=t` is `EXPLAIN ANALYZE`-performance informatief. P2a bestaande prestaties: unfiltered 214,024 ms/2.101, CCS2+DC 160,011 ms/34, gecombineerd 137,799 ms/30; gefilterde queryplanner startte op connectorlandelijke Seq Scan. Geen wijziging van NDW-/statussemantiek, productie-API/Android, DB, deployment of merge. PR #114 draft.
+
+---
+
+## P2a drie echte gefilterde overview-plannen voltooid — 3 november 2026
+
+Gebruiker stuurde één volledige NAS-run met drie `EXPLAIN ANALYZE`-plannen op Oss zoom11 complete cells: **ongefilterd 2.101 locaties / 4 cellen / 214,024 ms**, **CCS2+DC 34 locaties / 4 cellen / 160,011 ms**, **CCS2+DC+minFree1 30 locaties / 4 cellen / 137,799 ms**. Ongefilterd gebruikt GiST-locatieselectie maar een landelijke EVSE Seq Scan. Beide technische filters veroorzaken een **landelijke connector Parallel Seq Scan** (6.473 matching connectorrijen; ~23k connector shared reads) en 1.637 location-PK lookups vóór geografisch filter; daarnaast 34 minFree-subplans in gecombineerde case. Concrete volgende optimalisatiehypothese: geselecteerde geo-locaties eerst materialiseren en dezelfde productie-`MapFilter.LocationPredicate` toepassen; ID-pariteit onafhankelijk toetsen vóór performanceclaim. Geen productiecode/schema/NDW-verandering. Zie [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md). PR #114 draft, geen merge/deploy.
+
+---
+## P2a eerste gefilterde overview-plan ontvangen: connector-first knelpunt — 3 november 2026
+
+Gebruiker leverde compleet PostgreSQL-plan van **`ccs2_dc_minfree1`** aan: **135,861 ms execution**, 3,423 ms planning, 30 geselecteerde locaties en 4 gridcellen. PostgreSQL begon met **landelijke Parallel Seq Scan van connectoren** (6.473 passend, 23.331 shared reads), voerde 6.467 `evse_pkey` indexlookups en 1.637 `charging_location_pkey` lookups uit; pas daarna ruimtelijke filter, met 34 `minFree`-SubPlan-locatieruns. De uiteindelijke availability-join met alle actieve EVSE's op 30 locaties heeft 235 rows. Geen productiefilterverandering of aantoonbare fout; **concrete performance-optimalisatiehypothese**: geografische locatie-CTE materialiseren vóór uitvoeren van de ongewijzigde `MapFilter.LocationPredicate`, en meet dezelfde feature-ID-set. **Overige P2a-plannen (ongefilterd en CCS2/DC) nog niet ontvangen**; eerst die beoordelen. Zie [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md). PR #114 draft, geen productie-/DB-mutaties of merge/deploy.
+
+---
+
+## P2a complete-cell overview met echte MapFilter voorbereid — 3 november 2026
+
+Na A1/A2/A3/Oss- en indexbenchmarks is [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md) toegevoegd met een **nog niet uitgevoerde** gecombineerde overview-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-proef. Nieuwe geïsoleerde testharnessbron `tools/MapFilterQ4Probe/OverviewPerformanceExporter.cs` en Program CLI `--emit-overview-perf` genereren drie vaste Oss-zoom11 complete-cell queries (geen filter, CCS2/DC, CCS2/DC/minFree=1). De predicate komt **direct uit de gelinkte productie-MapFilter.cs** via `LocationPredicate(6)`/`AddParameters`; geen tweede handgeschreven filterlogica. Benchmarktelling telt alle operationele EVSE's van de geselecteerde locaties. **SQL is voor handmatige read-only NAS-proef, niet voor productie-Npgsql API**. .NET build / NAS-uitvoering nog niet geverifieerd; gebruiker doet dit zelf. Voorgaande A1 Oss 121,861 ms, A2 496,361 ms en A3 152,302 ms blijven de losse-run-baselines; geen nieuwe beschikbaarheidsclassificatie. Geen productiecode, schemawijziging, merge of deploy. PR #114 draft.
+
+---
+
+## P1d/A3 bestaande EVSE-index daadwerkelijk gebruikt, niet sneller in deze run — 3 november 2026
+
+Gebruiker voerde de Oss-A3-`LATERAL`-benchmark uit: **152,302 ms Execution Time**, 30,399 ms Planning Time, 2.101 locaties/4 cellen. PostgreSQL gebruikte `idx_evse_active_location` via `Nested Loop Left Join`, **2.101 Index Searches**, gemiddeld 2,43 actieve EVSE's/lookup. Root buffers hit 6.714/read 7.308/written 6.688; veel minder shared reads dan A1 (30.422), maar niet sneller dan recente A1 (121,861 ms); A2 (496,361 ms) ruim langzamer. Dit is losse-run-vergelijking, niet bewijs van structurele rangorde. Geen indexaanmaak nodig. **Vervolg:** A1 als eenvoudige performance-baseline behouden; niet eindeloos A1/A2/A3 blijven tweaken, maar de echte filtered complete-grid overview-query en daarna landelijke dekking/schaal toetsen. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft; geen productie-/schemawijziging, merge of deployment.
+
+---
+## P1d EVSE-indexen op NAS bevestigd — 3 november 2026
+
+`idx_evse_active_location ON evse(location_id) WHERE is_active` **bestaat al**, evenals `evse_identity(location_id,source_uid)` en de gebruikte partial GiST `ix_charging_location_active_position`. EVSE geschatte live rows 216.362, dead rows 27.621, laatste autoanalyze `2026-11-03 12:44:33+00`; dit is geen reden voor indexaanmaak/vacuum zonder meting. Oss-A1 koos desondanks landelijke Seq Scan; volgende gerichte proef: bestaand A3 LATERAL-indexpad vergelijken met A1 op identieke complete Oss-cellen, niet opnieuw NDW-statuslogica onderzoeken. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft, geen mutaties/merge/deploy.
+
+---
+## P1c Oss A1/A2 performance bevestigd — 3 november 2026
+
+Gebruiker voerde beide read-only Oss-queryplannen uit: **2.101 locaties, 4 gridcellen, 216.219 actieve EVSE-rijen**. A1 directe join **121,861 ms**, A2 EVSE-preaggregatie **496,361 ms** (A1 circa **4,07× sneller**). A2 aggregeerde landelijk 84.241 EVSE-locatiegroepen, met gematerialiseerde CTE `Storage: Disk` en `temp written=349`. Beide gebruiken een sequentiële scan van alle actieve EVSE's, ook A1 voor slechts 2.101 geselecteerde locaties / 5.099 joinrijen. Dit is een concrete aanleiding om het bestaande EVSE-indexpad voor kleine viewports te analyseren, **niet** om meteen een schemawijziging of nieuwe statuslogica te starten. Bij grote zoom8-gebieden geen consistente A1/A2 winnaar uit twee gepaarde runs. Zie [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md). PR #114 draft; geen merge/deploy.
+
+---
+## P1c klein Oss-raster A1/A2 benchmark voorbereid — 3 november 2026
+
+Na twee omgekeerd uitgevoerde P1a/P1b grootgebiedparen zonder stabiele winnaar is [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md) toegevoegd. Het bevat **twee complete, uitvoerbare read-only NAS Bash-blokken** voor A1 direct join en A2 EVSE-preaggregatie, beide met dezelfde Oss-bbox (5.40,51.70,5.62,51.83), volledig Web Mercator-gridniveau 11, `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`, 5s-timeout, `jit=off` en rollback. **Nog niet uitgevoerd**. Eerst één paar A1→A2 meten, exacte queryplannen beoordelen, daarna pas zo nodig omgekeerde herhaling. Geen heropening NDW-/Q5-logica, geen productiecode/DB-wijziging, merge of deploy. PR #114 draft.
+
+---
+
+## P1b omgekeerde A2/A1-performanceproef: geen stabiele winnaar — 3 november 2026
+
+Tweede groot-zoom8-paar, op verzoek in omgekeerde volgorde **A2 → A1** uitgevoerd: A2 **665,995 ms** en A1 **621,199 ms**. Eerste paar A1 **770,699 ms** versus A2 **736,899 ms**. Gemiddeld uit twee runs elk: A1 **695,949 ms**, A2 **701,447 ms** (verschil circa 0,8%); de winnaar wisselde tussen paren. P1b-planning A2 30,920 ms, A1 34,732 ms. Voor P1b zijn alleen eindregels aangeleverd: niet opnieuw alle plankenmerken of buffers te toetsen. **Nog geen bewijs dat preaggregatie sneller is, geen adaptieve querystrategie invoeren.** Zie [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Volgende focus: één extra gecontroleerd paar indien nodig, daarna kleine Oss-A1/A2-metingen en concrete bottleneckanalyse; geen Q5-redesign. PR #114 draft, geen productie-/DB-mutaties of merge/deploy.
+
+---
+## P1a A1/A2 eerste grote-regiopaar compleet — 3 november 2026
+
+Twee echte NAS-`EXPLAIN (ANALYZE, BUFFERS)`-runs: A1 direct join **770,699 ms** en A2 EVSE-preaggregatie **736,899 ms** op dezelfde geselecteerde **71.026 locaties / 8 complete zoom-8-gridcellen**. Beide scannen 216.159 actieve EVSE's. A2 groepeert eerst 84.212 EVSE-locaties; de `evse_counts`-CTE materialiseert gedeeltelijk op schijf (`temp written=349`), maar de HashAggregates rapporteren `Batches=1`. Eerste paar: A2 **33,8 ms (~4,4%) sneller**, nog geen statistisch betrouwbare ranking vanwege veranderende cache/collectorbelasting. **Vervolg P1b:** omgekeerde/afwisselende herhalingen van dezelfde bestaande A1/A2 complete-grid-query's, daarna Oss; niet opnieuw Q5-statuslogica uitwerken. Resultaten in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). PR #114 blijft draft; geen deploy/merge of productiewijzigingen.
+
+---
+
+## P1a eerste A1 grote-regio benchmark ontvangen — 3 november 2026
+
+De gebruiker leverde een werkelijke A1-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-uitvoer: **770,699 ms uitvoering**, 34,818 ms planning, 71.026 locaties, 8 rastercellen; ruimtelijke bitmap-indexscan met 2 parallel workers; 216.159 actieve EVSE-rijen via een Seq Scan; Hash Right Join en HashAggregates met Batches=1 (geen aangetoonde disk-spill). Root buffers `hit=1763,read=52252,dirtied=3018,written=10305`. De eerdere A1-groteregio-meting van 844,151 ms is niet rechtstreeks causaal vergelijkbaar. **De gepaarde A2-uitvoer ontbreekt nog**; geen performancewinnaar aanwijzen. Vastgelegd in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Geen schema/app-wijzigingen, merge of deployment.
+
+---
+
+## P1a eerste gepaarde A1/A2-read-only benchmark voorbereid — 3 november 2026
+
+[MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md) geeft het eerstvolgende uitvoerbare performancewerk: één sanity-checkpaar `EXPLAIN (ANALYZE, BUFFERS)` voor directe join (A1) versus bestaande complete-grid nationale EVSE-preaggregatie (A2), **dezelfde grote zoom-8-rastercellen en eenvoudige proefstatussen**. Nog **niet uitgevoerd**; eerst resultaten en outputplannen beoordelen, daarna gecontroleerde afwisselende herhalingen en kleinere Oss-regio. Eerder gemeten A1/A2-resultaten zijn slechts losse runs, geen definitieve ranking. Geen heropening Q5 of bestaande NDW-logica. Geen productiecode, schema, deployment of merge; PR #114 draft.
+
+---
+
+## #113 terug op oorspronkelijke planning: performance na grid- en filtervalidatie — 3 november 2026
+
+**Leidend vervolg: [MAP_GRID_PERFORMANCE_NEXT_STEPS.md](MAP_GRID_PERFORMANCE_NEXT_STEPS.md).** De gebruiker heeft de scope opnieuw bevestigd: landelijke server-side rasteraggregatie en filtering valideren, daarna **meten en gericht optimaliseren**, vervolgens API/Android-implementatie. Q1–Q3 gridintegriteit en Q4-00..07 precluster filter-ID-pariteit zijn volgens uitgevoerde read-only tests geslaagd; Q4-08-basisinvarianten ook. De twee extra synthetische Q4-proeven (04c deduplicatie en 08b bredere ring) zijn nog niet door gebruiker als uitgevoerd bevestigd: blijven als kleine regressietests open, maar blokkeren de eerste performancevergelijking niet.
+
+**Geen nieuwe Q5-classifier ontwerpen.** Q5a–Q5c zijn als diagnostisch archief behouden; Q5d is nadrukkelijk geparkeerd/niet goedgekeurd. NDW, lifecycle, statussen en bestaande kwaliteitslogica blijven ongewijzigd en leidend.
+
+A1–A4 performance **was al gemeten**: A1 klein/groot 78,890/844,151 ms; A2 369,545/743,756 ms; A3 104,811/1100,014 ms; A4 229,671/763,406 ms (eenmalige, niet onder gelijke belasting gecontrolleerde samples). **Volgende stap P1:** gecontroleerde herhaalde `EXPLAIN (ANALYZE, BUFFERS)`-runs van **A1 versus A2** in Oss en grote regio; daarna pas eventuele bottleneckoptimalisatie en landelijke schaalproef. Geen nieuwe SQL-variant zonder meetmotief. PR #114 blijft draft; geen code-/schemawijziging, merge of NAS-deploy.
+
+---
+
+## Q5d voorlopig classificatieontwerp toegevoegd — 3 november 2026
+
+[MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md](MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md) bevat een **voorstel, nog niet definitief goedgekeurd** met aparte lagen voor waarnemingskwaliteit en locatiebrede EVSE-status, een statusbeslismatrix en tien nog uit te voeren fixtures. Het ontwerp voorkomt dat een oude `source_last_updated` zonder ander bewijs automatisch grijs oplevert of dat nul AVAILABLE + UNKNOWN ten onrechte als zeker bezet wordt gepresenteerd. Fault-only, groene locaties met onbekende capaciteit, completeness-bewijs en responsemetadata vragen nog expliciete beslissingen. Q5a–Q5c diagnostische tests geslaagd; Q4c-04c en Q4c-08b synthetisch open. PR #114 draft, geen API/Android-/DB-wijzigingen, deployment of merge.
+
+---
+
+## Q5c feed versus bronupdate NAS geslaagd — 3 november 2026
+
+De gebruiker voerde de Q5c-read-only-proef uit: feedcheckpoint `2026-11-03 11:42:30.020752+00` (**3,5 minuten oud bij meting**), laatste completed import `11:42:30.064218+00`. In de Oss-bbox zijn **204 operationele EVSE's** verdeeld in bronupdate-leeftijdsbanden: **4 ≤15 min, 149 15 min–1 dag, 43 1–7 dagen, 8 >7 dagen**, nul ontbrekende/toekomstige timestamps, perfecte partitie. Statuswaarden: 149 AVAILABLE, 50 CHARGING, 4 UNKNOWN, 1 OUTOFORDER. Ten opzichte van Q5b wijzigden de live statusaantallen (151/48 naar 149/50); dit zijn verschillende snapshots, geen automatische inconsistentie. Bronupdate-ouderdom mag niet als enige freshnessregel dienen; recente globale feedwaarneming bewijst evenmin complete individuele actuele status. Zie [MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md). Vervolg Q5d semantische status/coverage-fixtures. Q4c-04c en Q4c-08b synthetische tests blijven open. PR #114 draft, geen mutaties, merge of deploy.
+
+---
+## Q5c bronupdate versus feedwaarneming vastgelegd — 3 november 2026
+
+[MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md) staat nu op de ontwerpbranch (commit `51425d64`). Het document bevat een **nog niet uitgevoerde** read-only NAS-proef met het globale `snapshot_poll_checkpoint.last_observed_at`, de laatste voltooide import en bronupdate-leeftijdsbanden voor operationele EVSE's in de bestaande Oss-bbox. Q5c onderscheidt expliciet `source_last_updated` van onafhankelijke, geslaagde NDW-feedwaarneming; oude statuswijzigingen worden niet zonder meer als verouderde beschikbaarheid aangemerkt. Q5a/Q5b zijn uitgevoerd; Q4c-04c en Q4c-08b synthetisch blijven open. Geen productiecode, mutaties, merge of deploy; PR #114 draft.
+
+---
+
+## Q5b status- en locatieonzekerheid NAS gevalideerd — 3 november 2026
+
+Werkelijke Q5b-output: **204 operationele EVSE's = 151 AVAILABLE, 48 CHARGING, 4 UNKNOWN, 1 OUTOFORDER; alle 204 met niet-null `source_last_updated`**. Oudste bron-updateleeftijden (min): AVAILABLE 121937,3 (~84,7 d), CHARGING 8585,5 (~6,0 d), UNKNOWN 3802,2 (~2,6 d), OUTOFORDER 2548,4 (~1,8 d). **98 locaties**: 86 minstens één AVAILABLE zonder UNKNOWN; 10 geen AVAILABLE en wel volledig bekende statussen; **2 geen AVAILABLE met UNKNOWN**; 0 free+UNKNOWN, 0 zonder operationele EVSE's; `location_partition_ok=t`. De Q5b-partitie is geslaagd, maar bronupdateleeftijd is niet hetzelfde als feed-/individuele waarnemingsouderdom. Twee onzekerheidslocaties mogen niet stellig rood worden getoond. Q5c bronobservatie/completeness nog nodig. Zie [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md). Q4c-04c en Q4c-08b synthetisch blijven open. PR #114 draft; geen mutaties, merge of deploy.
+
+---
+## Q5b onbekende EVSE-statussen en locatieonzekerheid voorbereid — 3 november 2026
+
+De read-only [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md) is opgesteld voor een **nog niet uitgevoerde** vervolgcontrole: werkelijke NDW-statuswaarden en `source_last_updated`-verdeling, plus een volledige locatie-partitie in vrij+UNKNOWN, geen-vrij+UNKNOWN, vrij zonder UNKNOWN, geen-vrij volledig bekend en nul operationele EVSE's. De bronupdate-ouderdom wordt **niet** gelijkgesteld aan feedstaleness. Q5a is uitgevoerd en geslaagd (204 operationele EVSE's; 4 onbekend, checkpoint-age 5,8 min); Q4c-04c en Q4c-08b synthetisch blijven open. Geen mutaties, deploy of merge; PR #114 draft.
+
+---
+
+## Q5a NDW-statusverdeling nulmeting geslaagd — 3 november 2026
+
+Gebruiker draaide Q5a read-only: **206 actieve EVSE-rijen; 2 PLANNED/REMOVED uitgesloten; 204 operationeel; 151 AVAILABLE, 48 CHARGING/BLOCKED/RESERVED, 1 INOPERATIVE/OUTOFORDER, 4 UNKNOWN/overig; partition_ok=t**. Feedobservatie `2026-11-03 11:32:29.014798+00`, leeftijd **5,8 min** op meetmoment. Statuspartitie klopt; nog geen locatie-/EVSE-versheid of complete snapshotdekking bewezen. Zie [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md). Volgende Q5b: onbekende statussen, locatiedekking, aparte bron-/feed-versheid. Q4c-04c en Q4c-08b synthetische fixtures nog open. PR #114 draft; geen mutaties/merge/deploy.
+
+---
+## Q5a NDW-statuskwaliteit voorbereid — 3 november 2026
+
+Na de geslaagde Q4c-08 NAS-basiscontrole (2 CCS2/DC-locaties, scope_ok=t, maar geen extra niet-passende EVSE's) is [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md) opgesteld als **nog niet uitgevoerde** read-only status- en feedobservatienulmeting in de kleine Oss-bbox. De bestaande API heeft `CW_API_STALE_AFTER_MINUTES` met standaard 15 minuten; `snapshot_poll_checkpoint.last_observed_at` wordt voor feedstaleness gebruikt. Het Q5-besluit moet bron-/observatietijd, UNKNOWN, incomplete dekking en toestandscategorieën expliciet onderscheiden; de Q4c-08 kleurclassificatie was uitsluitend voorlopig. **Q4c-04c en Q4c-08b synthetische tests zijn nog niet als uitgevoerd bevestigd**, blijven open. Geen API/Android-/DB-mutaties, merge of deploy. PR #114 draft.
+
+---
+
+## Q4c-08 basisinvarianten NAS geslaagd, positieve bredere-ringfixture ontbreekt — 3 november 2026
+
+De gecorrigeerde Q4c-08-query is door de gebruiker op productie succesvol uitgevoerd. CCS2/DC-locaties **81262** (2 technisch passend, 2 operationeel, 2 vrij, groen voorlopig) en **85663** (2 technisch passend, 2 operationeel, 1 vrij, groen voorlopig): beide `scope_ok=t`, maar beide `has_other_evses=f`. Aggregaat 2 geselecteerd, 2 groen, 0 rood, 0 onbekend, `partition_ok=t`. **Basisinvarianten geslaagd; nog geen praktijkbewijs voor extra niet-passende EVSE's op een geselecteerde locatie**. Volgende stap read-only synthetische locatiebrede ringfixture. Q5 bepaalt definitieve status-/stalenesssemantiek. Q4c-04c EVSE-deduplicatiefixture niet als uitgevoerd bevestigd. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). PR #114 blijft draft; geen productiedatawijziging, deploy of merge.
+
+---
+
+
+### Aanvullende correctie — 3 november 2026
+
+Tweede gebruikersbuild meldde opnieuw `CS9006` en `dotnet run --no-build` startte daarna een oude binary zonder `--emit-q4c08`. Controle van de GitHub-bestandinhoud toonde dat de eerdere commit de raw-stringdelimiter niet daadwerkelijk had gewijzigd. **Nieuwe correctie commit `5ed4937`: geen geïnterpoleerde raw-string meer; de SQL staat in `return """..."""` met twee expliciete, identieke plaatsvervangers die met `.Replace("__Q4C08_LOCATION_PREDICATE__", predicate, StringComparison.Ordinal)` worden ingevoegd.** De remote broncode is gecontroleerd op twee query-plaatsvervangers. Een nieuwe lokale build en NAS-executie zijn nog niet aangetoond. `--no-build` pas gebruiken na een geslaagde `dotnet build`; bij een buildfout niets exporteren en ook geen eerdere SQL-file uitvoeren. Controleer tevens `git branch --show-current` en `git rev-parse --short HEAD`, aangezien een `git pull` op een andere branch de ontwerpcode niet binnenhaalt.
+
+---
+## Q4c-08 generator compileerfout hersteld (nog niet geverifieerd) — 3 november 2026
+
+De gebruiker kreeg `CS9006` bij het genereren van Q4c-08 doordat een C# interpolated raw string `$"""` gebruikte terwijl `{{predicate}}` twee dollar-tekens vereist. Dat schreef de compilerfout in `q4c08-generated.sql`, waarna `psql` `invalid command \\GITHUB` meldde. De stringdelimiter is aangepast naar `$$"""` (commit `ebfdcfa`), en de Q4c-08-instructies vereisen nu eerst een geslaagde `dotnet build` en een SQL-headercontrole voordat er wordt gekopieerd of uitgevoerd. **Nog niet lokaal gebouwd; nog geen Q4c-08 NAS-resultaten.** Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Geen productie-mutaties of deployment; PR #114 draft.
+
+---
+## Q4c-08 locatiebrede voorlopige ringaudit voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` ondersteunt nu `--emit-q4c08` voor een **nog niet uitgevoerde** read-only vergelijking van CCS2/DC-technisch passende EVSE's versus **alle operationele EVSE's van geselecteerde locaties**, inclusief een voorlopige groen/rood/onbekend-partitie. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Er is nog geen API-ringcontract uitgevoerd; definitieve bronkwaliteitsclassificatie is Q5. Q4c-07 is werkelijk geslaagd (0/0, differing_ids=0); Q4c-04c synthetische EVSE-deduplicatie is nog onbevestigd. Geen productiemutaties, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-07 lege selecties geslaagd — 3 november 2026
+
+Gebruiker voerde de read-only Q4c-07-proef op de NAS uit. Niet-bestaande operator: **viewport_ids=0, grid_candidates=0, grid_owned=0, overview_clipped_ids=0, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. De lege SQL-ID-setpariteit is hiermee bevestigd. De dekking van een lege response met toekomstige `coverage.complete` is nog niet als API-contract beproefd. Zie [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md). Vervolg Q4-08 ringclassificatie op *alle* operationele EVSE's van gefilterde locaties en open synthetische Q4c-04c deduplicatie. Q5 blijft open. Geen productiedatawijziging, deployment of merge; PR #114 draft.
+
+---
+## Q4c-07 lege locatie-ID-settest voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-06 meervoudige connector-/modusfilter-ID-sets geslaagd — 3 november 2026
+
+Werkelijke read-only NAS-uitvoer: **CCS2+CHAdeMO AC+DC** viewport/clip 2/2, grid-owned 13; **TYPE2+CCS2 AC+DC** 98/98, grid-owned 419; **CCS2+CHAdeMO DC** 2/2, grid-owned 13. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-06 heeft drie positieve selecties en is voor deze data geslaagd. De onderliggende same-connector AND/OR-semantiek verdient nog onafhankelijke fixturecontrole. Zie [MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md). **Vervolg Q4-07** lege resultaten; vervolgens Q4-08 locatiebrede ring, Q4c-04c synthetische deduplicatie en Q5. PR #114 draft; geen productiewijziging, merge of deployment.
+
+---
+## Q4c-06 meervoudige connector-/modusfilters voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md) en `MapFilterQ4Probe --emit-q4c06` bevatten drie **nog niet uitgevoerde** read-only ID-setvergelijkingen voor meervoudige `connectorType`- en `mode`-waarden. De centrale `MapFilter`-generator wordt hergebruikt met dezelfde bbox als Q4c-05. Q4c-05 is **3/3 geslaagd** met reële operatoren (87/87, 93/93 en 87/87, telkens `differing_ids=0`). Q4c-04c synthetische EVSE-duplicatie blijft onbevestigd; Q4-07/Q4-08 en Q5 blijven open. Geen API/Android-productiewijziging, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-05b operatorfilterpariteit geslaagd — 3 november 2026
+
+Gebruiker voerde drie `MapFilter`-gegenereerde read-only operatorscenario's uit. **Vattenfall InCharge: 87 viewport/87 geclipte raster-ID's (337 grid-owned); Vattenfall + 50five: 93/93 (362); Vattenfall tweemaal: 87/87 (337)**. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4-05 geslaagd voor deze dataset en operatorcombinaties; aanvullende grensgevallen case/whitespace blijven afzonderlijk te beoordelen. Zie [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). Volgende Q4-06 multi-connector/mode, Q4-07 lege ID-sets, Q4-08 ringclassificatie; Q4c-04c duplicatiefixture nog niet uitgevoerd. Geen productieimplementatie, mutaties, deploy of merge; PR #114 draft.
+
+---
+## Q4-05a operator-discovery uitgevoerd, Q4-05b voorbereid — 3 november 2026
+
+De echte Oss-bbox bevatte volgens de NAS-read-only operator-discovery **87 Vattenfall InCharge, 6 50five, en elk 1 bp pulse, E-Flux by Road, Laadnet, PowerGo, Qwello Benelux BV**, samen 98. Alle `source_values_with_edge_whitespace=0`. Zie [MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md). `MapFilterQ4Probe --emit-q4c05` heeft nu drie queryvarianten met één, twee en herhaalde operatorwaarden; NAS-uitvoerstappen in [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). **Q4-05b nog niet uitgevoerd**. Ook Q4c-04c synthetische EVSE-deduplicatie blijft open. Geen API/Android-productieimplementatie, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
+## Q4-05 operatorfixture-verkenning voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md) bevat een **nog niet uitgevoerde** kleine read-only NAS-query die echte `btrim(operator_name)`-waarden en hun aantallen uit de reeds gebruikte 98-locaties Oss-bbox zoekt. Na de resultaten worden één/twee/herhaalde operatoren getest via de bestaande `MapFilter`-generator, niet via een eigen operatorfilter. Q4c-04b is positief geslaagd; **Q4c-04c synthetische connector-duplicatiefixture is voorbereid maar uitvoering niet bevestigd**. Geen productiecode, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-04b onafhankelijke EVSE-positieve case geslaagd — 3 november 2026
+
+De gebruiker draaide de read-only Q4c-04b-audit. Eén passende productie-laadlocatie: **DB ID 81262**, `NL-BPE-6d278e19-8278-4a1d-9609-45025fca3a8a`; **2 passende connectorrijen, 2 unieke AVAILABLE EVSE's, 0 EVSE's met meerdere passende connectoren, passes_min_free_2=t**. Aggregaat `locations_matching_independent=1`, `qualifying_unique_evses=2`. Onafhankelijke positieve telling geslaagd; expliciet voorkomen van dubbeltelling bij één EVSE met meerdere passende connectoren blijft **ongetest op deze sample**. Volgende stap synthetische read-only duplicatiefixture en daarna Q4-05..08. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). Geen mutaties, deployment of merge; PR #114 draft.
+
+---
+## Q4c-04b onafhankelijke unieke-EVSE-telling voorbereid — 3 november 2026
+
+De bestaande MapFilterQ4Probe biedt `--emit-q4c04b` voor een **nog niet uitgevoerde** onafhankelijke read-only controle van de eerdere positieve CCS2/DC/gte150/minFree=2-locatie. In plaats van de gedeelde `LocationPredicate`-telling gebruikt de controlevorm een zelfstandige `JOIN connector`, `GROUP BY location_id, evse_id` en `count(DISTINCT evse_id)`, terwijl het vermogen rechtstreeks uit `MapFilter.EffectiveWattsSql` wordt gegenereerd. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). De werkelijke resultaten kunnen de unieke-EVSE-telling en connectorrijverschillen bevestigen, maar voor bewijs van exact dezelfde feature-ID is een expliciete ID-vergelijking nodig als deze niet al is vastgelegd. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Geen API/Android-implementatie, DB-wijziging, merge of deployment.
+
+---
+
+## Q4c-04 gecombineerde filter-ID-setpariteit geslaagd — 3 november 2026
+
+Werkelijke NAS-proef: `ccs2+dc+gte150+minFree=2` selecteerde **1 viewport-ID, 7 volledige grid-owned ID's en 1 geclipte ID**, met `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-04 ID-setpariteit geslaagd met positieve match, maar onafhankelijk bewijs van minstens twee *unieke passende AVAILABLE EVSE's* is nog nodig; de bestaande `MapFilter` wordt immers aan beide zijden gebruikt. Daarna operatoren/multivalue/lege set en locatiebrede ringstatus valideren. Zie [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md). PR #114 draft; geen schemawijziging, deploy of merge.
+
+---
+## Q4c-03 geslaagd; Q4c-04 gecombineerd filter voorbereid — 3 november 2026
+
+Gebruiker voerde Q4c-03 met de bestaande `MapFilter`-SQL-generator read-only uit: **minFree=1: 86 viewport-ID's/86 geclipte raster-ID's (380 grid-owned), differing_ids=0, beide unique=t, ids_match=t; minFree=2: 54/54 (266 grid-owned), differing_ids=0, beide unique=t, ids_match=t**. Q4c-03 is geslaagd met twee positieve testsets, zie [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md).
+
+Vervolg: [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md) en harness-optie `--emit-q4c04` voor `ccs2+dc+gte150+minFree=2`; **nog niet lokaal gebouwd of op NAS uitgevoerd**. Nul/nul-resultaten tellen niet als positieve validatie; onafhankelijke EVSE-deduplicatie en locatiebrede ringstatus volgen. Q5 open. Geen DB-mutaties, productieroute, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-03 minFree zonder techniekfilter voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` bevat nu `--emit-q4c03` voor twee nog niet uitgevoerde read-only precluster locatie-ID-setvergelijkingen met `minFree=1` en `minFree=2`, rechtstreeks uit de bestaande `MapFilter.LocationPredicate(5/6)`. Stappen in [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md). Na de eerdere geslaagde Q4c-02b (15/15 grensgevallen) is dit de volgende NAS-test; gecombineerde technische filters volgen pas daarna. Geen deployment, migratie, productiemutaties of merge.
+
+---
+
+## Q4c-02b EffectiveWattsSql-grenzen en echte NDW-vermogens geslaagd — 3 november 2026
+
+De door gebruiker op NAS gedraaide read-only Q4c-02b-proef was **15/15 PASS** voor de synthetische grens- en fallbackgevallen met de echte productie-`MapFilter.EffectiveWattsSql`. Echte connectorpopulatie: **216.262 actief; 144.940 expliciet positief, 67.893 berekend positief, 3.429 onbekend**. Exacte drempelwaarden: **1.116 × 50 kW, 1.862 × 150 kW, 1.318 × 300 kW**. Deze eerste grens-/fallbackvalidatie is geslaagd, geen algemeen bewijs voor alle mogelijke invoergegevens. Zie [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md). **Vervolg Q4-03:** `minFree=1/2` vergelijken via werkelijke gegenereerde SQL-ID-sets, dan overige gecombineerde filters. Q5 bronkwaliteit open. PR #114 draft; geen mutaties, deploy of merge.
+
+---
+## Q4c-02b vermogensgrens- en brondata-proef voorbereid — 3 november 2026
+
+De geïsoleerde C#-harness heeft nu `--emit-q4c02b`: read-only SQL direct vanuit productie-`MapFilter.EffectiveWattsSql`, met synthetische waarden rond 50/150/300 kW, AC/DC fallback, expliciete-vermogen-prioriteit en `NULL`-gedrag. Daarnaast een telling van expliciete, berekende, onbekende en exact-grensconnectorvermogens in de echte database. [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md) bevat de Windows/NAS-stappen. **Nog niet gebouwd of uitgevoerd**. Q4c-02 vier live ID-setvergelijkingen geslaagd, inclusief lege gte300 viewport. Q4-03..08 en Q5 blijven open. Geen productiecode- of DB-wijziging, merge of deploy.
+
+---
+
+## Q4c-02 vier vermogensfilter-ID-sets geslaagd — 3 november 2026
+
+De gebruiker voerde alle vier door `MapFilter.LocationPredicate` gegenereerde powerfilters daadwerkelijk read-only uit: `lt50` viewport/clip **97/97**, `gte50` **1/1**, `gte150` **1/1**, `gte300` **0/0**; telkens `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Volledige grid-owned resultaten respectievelijk **412, 10, 8, 4**. Q4c-02 ID-setpariteit PASS, maar `gte300` heeft geen positieve match binnen de kleine viewport. **Volgende validatie Q4c-02b:** werkelijke en synthetische grenswaarden en berekend connectorvermogen via de productie-`EffectiveWattsSql`. Zie [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). Geen productiecode, DB-mutaties, deploy of merge; PR #114 draft.
+
+---
+## Q4c-02 vier vermogensbanden voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-01 CCS2/DC gefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker heeft de door de gedeelde productie-`MapFilter.cs` gegenereerde read-only Q4c-01 SQL op NAS uitgevoerd: **viewport_ids=2; grid_candidates=13; grid_owned=13; overview_clipped_ids=2; differing_ids=0; viewport_unique=t; overview_unique=t; ids_match=t**. Daarmee is de exacte ID-setpariteit voor CCS2/DC op de kleine Oss-bbox geslaagd, met twee positieve matches. Zie [MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md). Q4a/Q4b/Q4c-00 waren eveneens geslaagd. **Vervolg:** stapsgewijs vermogensgrenzen, `minFree`, operatoren en filtercombinaties op werkelijke data toetsen; Q5 bronkwaliteit blijft open. Geen API-/Android-productiewijziging, migratie, deployment of merge; PR #114 draft.
+
+---
+## Q4c-01 gefilterde ID-setcontrole voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md) beschrijft een **nog niet uitgevoerde** test met `connectorType=ccs2&mode=dc` op de kleine 98-locaties Oss-bbox. De lokale [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) bevat nu `--emit-q4c01`: deze genereert twee PostgreSQL-selecties met de **daadwerkelijke** productie-`MapFilter.LocationPredicate(5/6)` en `AddParameters`. Voor handmatige NAS-uitvoering worden uitsluitend vooraf gevalideerde, vaste filterarrays als veilige SQL-constanten geëxporteerd; productieroutes blijven geparametriseerd. De NAS voert de vergelijking uit met de `chargewatch_read`-rol in één `REPEATABLE READ READ ONLY`-snapshot. **Generator nog niet lokaal gebouwd; SQL nog niet uitgevoerd**. Eerst lokale export, daarna NAS-uitvoer beoordelen. Geen productiecodewijziging, schemawijziging, deployment of merge.
+
+---
+
+## Q4c-00 ongefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker voerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) daadwerkelijk read-only op de NAS uit: **98 viewport-locaties, 419 volledige grid-kandidaten/owned locaties, 98 grid-ID's na clip naar viewport, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. Q4c-00 is daarmee geslaagd op deze Oss-bbox. Q4a en Q4b waren eveneens geslaagd. **Volgende stap Q4c-01:** werkelijke gefilterde ID-setvergelijking met dezelfde C#-`MapFilter` SQL-generator en correcte Npgsql-binding, zonder afzonderlijk handmatig geschreven productie-filterlogica. Q5 open. Geen productiemutaties, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-00 ongefilterde ID-setvergelijking voorbereid — 3 november 2026
+
+Productiepreflight door gebruiker: **98 actieve locaties** in bbox `5.50,51.75,5.53,51.77`, onder de oude viewportcap. De read-only, nog niet uitgevoerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) vergelijkt binnen één PostgreSQL-transactie de ongefilterde viewport-ID's met de naar diezelfde bbox teruggeclipte volledige grid-owned ID's, inclusief symmetrisch verschil en uniekheid. Q4a en Q4b geslaagd; Q4c-00-resultaat nog onbekend. Technische filterpariteit volgt met de bestaande C# `MapFilter`-generator. Geen productiecode, schemawijziging, merge of deployment.
+
+---
+
+## Q4b lokale MapFilter-generatorcontrole geslaagd — 3 november 2026
+
+De gebruiker heeft `dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj` lokaal uitgevoerd: **14/14 PASS**, inclusief Q4-00..Q4-08 en de afzonderlijke arrayparametercombinatie. De daadwerkelijke output bevestigt het aantal Npgsql-commandparameters voor viewport/overview (4/5 zonder filters; 7/8 met alle drie filterarrays), identieke filterwaarden, `text[]`-typen en dezelfde SQL-predicaten met indexverschuiving 5→6. Dit is een **generatorcontracttest zonder SQL-database-uitvoering**. Q4a SQL-semantiekcontrole (CCS2/DC/minFree 1/2) was eerder eveneens geslaagd. **Q4c open:** op één read-only PostgreSQL-snapshot daadwerkelijke precluster locatie-ID-sets vergelijken, zonder aparte gekopieerde productiefilterlogica. Geen API-/Android-implementatie, migration, deploy of merge.
+
+---
+
+## Q4a EVSE-filter-ID-setcontrole geslaagd — 3 november 2026
+
+De gebruiker voerde de read-only Q4a-proef op productie uit. Bij `connectorType=ccs2&mode=dc` leverde `minFree=1` **12 referentie-ID's / 12 afgeleide ID's, differing_ids=0, ids_match=t**; bij `minFree=2` **10/10, differing_ids=0, ids_match=t**. Zie [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) voor query en werkelijke uitvoer. Deze geslaagde SQL-semantiekcontrole bewijst **niet** dat de definitieve overview C#-generator of Npgsql-binding correct is, noch de overige Q4-scenario's.
+
+**Vervolg:** kleine lokale, niet-productie C#-testharness met echte `MapFilter.TryParse`, `LocationPredicate` en `AddParameters`; daarna Q4-ID-setvergelijking onder één read-only databasesnapshot. Q5 (bronkwaliteitsclassificatie) blijft open. Geen productiecode, schemawijziging, deploy of merge; PR #114 blijft draft.
+
+---
+
+## Q4a read-only filter-ID-controle voorbereid — 3 november 2026
+
+[MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) is toegevoegd: **nog niet uitgevoerde**, read-only SQL-controle op de oorspronkelijke Oss-bbox. De proef vergelijkt onafhankelijke **locatie-ID-sets** bij `connectorType=ccs2`, `mode=dc`, `minFree=1` en `minFree=2` tussen de bestaande `MapFilter.LocationPredicate`-achtige `EXISTS/count`-structuur en een `COUNT(DISTINCT EVSE)`-vrije, één-rij-per-EVSE aggregatie met connector-`EXISTS`. Criteria: `differing_ids=0`, `ids_match=t` voor beide minFree-waarden. Dit is expliciet **nog geen C#-Npgsql-integratietest** en geen volledige filterpariteit: operator, alle power-banden, multi-value, statusbrongegevens moeten later getoetst worden. Om die reden verwijst de proef naar de oorspronkelijke bbox en mag absolute telling niet gelijkgesteld worden met Q1's uitgebreid-celgebied.
+
+Q1, Q2 en Q3 zijn daadwerkelijk geslaagd; Q4a nog niet gedraaid. Geen DB-mutatiewerk, API-/Android-implementatie, merge of deployment.
+
+---
+
+## Q3 geometrische grenscontrole geslaagd — 3 november 2026
+
+Gebruiker heeft [MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) werkelijk in PostgreSQL uitgevoerd met read-only rol/transactie. **Acht van acht synthetische punten** op/nabij horizontale celgrens en viercellige hoek: `owned_matches=1`, `exactly_once=t`, `all_ok=t`. Het exacte viercellige hoekpunt `corner_exact` had **candidate_matches=4** en **owned_matches=1**, canonieke cel `(1055,681)`. `horizontal_exact` had `candidate_matches=1` en `owned_matches=1`; numerieke transformaties kunnen het exacte grensgedrag van `ST_Intersects` beïnvloeden, maar dit testpunt ging niet verloren. Andere punten liggen volgens de test op de verwachte cellen.
+
+**Geometrische probes Q1, Q2, Q3 geslaagd** voor de geteste punten en Oss-coverage; deze vormen een voorlopig gevalideerde basis, geen bewijs voor alle geografische grenzen. **Vervolg Q4**: filterpariteit met de bestaande gevalideerde `MapFilter.LocationPredicate` en de locatiebrede statusclassificatie; **Q5**: daadwerkelijke bronbetrouwbaarheid en count-quality. Nog geen API-/Android-code, merge, deployment of DB-migratie.
+
+---
+
+## Q3 horizontale grens/viercellige hoek voorbereid — 3 november 2026
+
+[MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) is toegevoegd. De **nog niet uitgevoerde** read-only SQL-fixture test acht synthetische punten op/nabij de horizontale zoom-11-rastergrens en het kruispunt van vier cellen, gemodelleerd als vier aangrenzende celverzoeken. Voor elk punt verwachten we `owned_matches=1`, `exactly_once=t`, `all_ok=t`; meerdere `candidate_matches` op grens/hoek zijn toegestaan. Dit is de laatste geometrische fixture vóór MapFilter-pariteit en count-quality-onderzoek. Geen productie-/codewijzigingen, merge of deployment.
+
+---
+
+## Q2 grenspuntfixture daadwerkelijk geslaagd — 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) uit op productiedatabase met read-only rol/transactie. **Drie synthetische punten op/naast verticale zoom-11-rastergrens:**
+- `exact_boundary`: `own_x=1055`, `own_y=681`, **candidate_matches=2**, **owned_matches=1**, `exactly_once=t`, `all_ok=t`.
+- `left_1m`: `own_x=1054`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+- `right_1m`: `own_x=1055`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+
+Deze echte meting demonstreert dat twee geografisch overlappende grenskandidaten bij canonieke celownership één resultaat opleveren. Alleen deze verticale grens en lokale projectie/roundtrip zijn gedekt, geen bewijs voor horizontale grenzen, viercellige hoeken of alle geografische uitersten. Volgende stap Q3 synthetische horizontale en 4-cellenhoek-fixture; daarna filterpariteit en count-quality. Geen mutaties, implementatie, merge of deploy.
+
+---
+
+## Q2 grenspuntcontrole voorbereid — 3 november 2026
+
+Na geslaagde Q1 op productie is [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) opgesteld: een **nog niet uitgevoerde** read-only PostgreSQL-fixture met drie synthetische 3857-punten (1 m links, exact op, 1 m rechts van een vaste zoom-11-celgrens) en twee aangrenzende volledige celverzoeken. De fixture test `candidate_matches` versus `owned_matches`, en verwacht `owned_matches=1` per synthetisch punt, `all_ok=t`, zodat grensraakkandidaten niet dubbel op de kaart verschijnen. Exacte grenspunten worden via 4326/geography roundtrips getoetst. Dit valideert niet vanzelf horizontale grenzen en vier-cel-hoeken; die blijven aparte checks. Geen productiemutaties, implementatie of merge/deploy.
+
+---
+
+## Q1 rasterintegriteit werkelijk geslaagd — Oss, 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) uit op productiedatabase met `chargewatch_read` en `READ ONLY`. **matched_locations=2.101; unique_matched_locations=2.101; owned_locations=2.101; classified_locations=2.101; grid_cells=4; cell_location_sum=2.101; green_locations=1.834; red_locations=177; unknown_locations=90; partition_ok=t**. Alle locatie-/cel- en drie-kleuren-somregels sluiten in deze reële Oss-dataset. Het is slechts één geografisch gebied op zoom 11, onder **voorlopige conservatieve statusclassifier**, dus nog geen bewijs van de definitieve NDW/Android-bronbetrouwbaarheid, gehele NL-dekking, filters of grenspunten. Q1 heeft geen productiedata gewijzigd.
+
+**Vervolg:** Q2 synthetische Web Mercator-celgrenspunten en aangrenzende cell requests read-only toetsen, plus filterpariteit en betrouwbaarheid apart. Geen API/Android-implementatie, merge of NAS-deploy.
+
+---
+
+## Q1 functionele integriteitscontrole voorbereid — 3 november 2026
+
+Na de A1–A4-read-only benchmarks is [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) toegevoegd aan de ontwerpbranch. Deze **nog niet uitgevoerde**, direct in `psql` bruikbare **read-only** controle begint bij Oss zoom 11 en toetst: `matched = unique = owned = classified = sum(cell.location_count)` en `sum(cell.location_count)=green+red+unknown`. Hiermee toetsen we de volledige Web Mercator-celuitbreiding, canonieke individuele celtoewijzing en interne telintegriteit; expliciet `partition_ok`. Het prototype kent een conservatieve voorlopige statusclassifier, **geen** gevalideerde staleness-/brongegevensregel of volledige API-filterpariteit. Na een geslaagde Q1 zijn grenspuntfixtures, filterpariteit en bronkwaliteit nog expliciet open.
+
+Code-audit bevestigt bestaande `MapFilter.LocationPredicate`/parameterbinding (connectorType/mode/power/minFree/operator) en de oude `GetMapViewport`-samenvatting met unieke EVSE's. De nieuwe API moet filtergenerator hergebruiken; geen handmatige SQL-filterkopie. Geen wijzigingen aan productiedata, schema, API/Android, merge of deployment.
+
+---
+
+## A4-productiemeting Oss en afronding A1–A4-verkenning — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only/JIT uit:** A4 Oss zoom-11 volledige cellen **2.101 laadlocaties, 4 gridcellen**; `Execution Time=229.671 ms`, `Planning Time=26.250 ms`. Ondanks relatief kleine selectie kiest PostgreSQL `Seq Scan on evse` van **214.804 actieve EVSE's**, `Hash Join` naar **5.099 actieve EVSE's** in geselecteerde locaties en `HashAggregate` naar 2.101 `location_id`-samenvattingen. Shared buffers `hit=840/read=30.289/dirtied=2.175/written=4.321`. Het spatial-filter gebruikt `ix_charging_location_active_position`. Data wijzigen tijdens reeks (Oss 2.100 eerder, nu 2.101).
+
+**Volledige eenmalige JIT-uit productiemetingen (niet gecorrigeerd voor cache, NAS-belasting, datagroei):**
+- A1 direct join: Oss **78,890 ms**, zoom-8 uitgebreid gebied **844,151 ms**
+- A2 volledige EVSE-preaggregatie: Oss **369,545 ms**, groot **743,756 ms**
+- A3 LATERAL per geselecteerde locatie: Oss **104,811 ms**, groot **1100,014 ms**
+- A4 locaties + geselecteerde EVSE-join/group: Oss **229,671 ms**, groot **763,406 ms**.
+
+**Aanbevolen richting:** niet meer op ad-hoc varianten sturen. Vergelijk daarna een **adaptieve A1/A2-keuze op geschat/gemeten aantal locaties** en eventueel één A1-query met PostgreSQL's automatische joinplankeuze (A1 kiest immers zelf al nested-loop/index voor klein en merge/seq voor groot). A2 was in de grote regio slechts 100 ms sneller dan A1 in niet-gecontroleerde runs; omschakeling is daarom nog **geen bewezen behoefte**. Test meerdere herhalingen/warm-cache, representatieve geografische gebieden, filters, echte bronbetrouwbaarheidsregels, exacte griddekking/celdaantallen, concurrency en collectorimpact vóór keuze. **Geen code, schema, migratie, merge of deploy.**
+
+---
+
+## A4-productiemeting grote zoom-8-coverage — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only, JIT uit:** A4: **70.700 geselecteerde actieve laadlocaties** (A3 eerder 70.664), 8 rastercellen; `Execution Time 763.406 ms`, `Planning Time 29.260 ms`, buffers `shared hit=1.499, read=52.528, dirtied=2.563, written=15.558`. `locations` gebruikt `ix_charging_location_active_position`; `evse_counts` gebruikt één `Seq Scan` van **214.692 actieve EVSE's** gevolgd door `Hash Join` op 70.700 geselecteerde `location_id` en `HashAggregate` van **180.094 gekoppelde EVSE-rijen** naar 70.700 `location_id`-samenvattingen. Einde: `Hash Left Join` en `HashAggregate` naar 8 cellen. Hash-aggregaties blijven in 1 batch en RAM, geen temp-I/O gerapporteerd. Deze ene uitvoering is **~19,7 ms trager dan A2 groot (743.756 ms)** en sneller dan A3 groot (1100.014 ms), maar datasets/cache/NAS-belasting verschillen; dus geen harde rangorde.
+
+**Volgende toets:** exact A4 met Oss zoom-11-grid (5.40,51.70–5.62,51.83). Beoordeel of planner `Index Scan` kiest bij kleine selecties en hoe dit vergelijkt met A1 78,890 ms en A3 104,811 ms. Als A4 ook volledig `Seq Scan evse` doet, mogelijk hybride strategie nodig. De huidige benchmarkclassificatie is vereenvoudigd en voldoet nog niet aan productiekwaliteit/filters. Geen schemawijziging, API-/Android-implementatie, merge of deploy.
+
+---
+
+## A4 read-only benchmark voorbereid — 3 november 2026
+
+Nieuwe proefdocumentatie: [MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md](MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md). Na de eerdere A3-productiemeting (grote zoom-8-regio 70.664 locaties/8 rastercellen, 1100,014 ms, 70.664 EVSE-indexscans) onderzoeken we nu A4: **eerst locaties geografisch selecteren**, dan via een **gewone JOIN met actieve EVSE's** per `location_id` aggregeren in `evse_counts AS MATERIALIZED`, vervolgens de gridgroepen tellen. Het is een andere SQL-vorm dan A3/LATERAL en A2/landelijk vooraggregeren, maar de planner kan dezelfde dure lookups kiezen. Eerste vergelijkingsrun grote regio; bij succes Oss. Read-only rol/transactie, JIT uit, timeouts. **A4 is nog niet uitgevoerd.** Geen schema-/API-/Android-wijziging, merge of deploy.
+
+---
+
+## A3-productiemeting grote zoom-8-coverage — 3 november 2026
+
+Gebruiker voerde A3 `LEFT JOIN LATERAL` met JIT uit op productie/read-only uit. Werkelijk resultaat: **70.664 actieve laadlocaties, 8 rastercellen** (7 meer dan voorgaande runs, onderliggende NDW-data kan zijn gewijzigd), `Execution Time 1100.014 ms`, `Planning Time 12.023 ms`. Spatial `Bitmap Index Scan` op `ix_charging_location_active_position`, daarna `Nested Loop Left Join` met `Aggregate` **70.664 keer** en `Index Scan using idx_evse_active_location` **70.664 keer** (gemiddeld 2,55 indexrijen/locatie). Buffers `shared hit=300.337, read=102.730, written=8.782`, `temp read=364, written=365`. Vergeleken met eerdere grotere-regiometingen: A1 parallel 844,151 ms; A2 met preaggregation 743,756 ms. A3 voorkomt brede EVSE-scan maar doet vele indexlookups; bij deze near-national coverage een slechter gemeten resultaat.
+
+Volledig A1/A2/A3-overzicht met JIT uit (verschillende runs/cache-/collectorbelasting): **Oss** A1 78,890; A2 369,545; A3 104,811 ms. **Grote regio** A1 844,151; A2 743,756; A3 1100,014 ms. A2 is bij klein bereik structureel ongunstig vanwege full EVSE-aggregatie, A3 bij groot bereik potentieel ongunstig door tientallen duizenden indexscans. **Vervolg:** A4 hybride plan onderzoeken (SQL met eerst geselecteerde locaties, dan join + per-locatie hash-aggregatie of omvanggestuurde querykeuze A1/A2). Alleen na read-only prototype en queryplan vergelijken; geen schema, code, merge of deployment. Alle eerdere metingen op grote regio zijn door full-cell grid expansion bijna nationaal en vormen nog geen p95.
+
+---
+
+## A3-productiemeting Oss — 3 november 2026
+
+**Door gebruiker uitgevoerd**, read-only en JIT uit: A3 `LEFT JOIN LATERAL` telt de actieve EVSE's alleen van de 2.100 actieve locaties in de volledige zoom-11-rastercellen rond Oss. `Execution Time=104.811 ms`, `Planning Time=26.392 ms`; eindresultaat **4 rastercellen**, `Index Scan idx_evse_active_location` **2.100 keer**, bij gemiddeld 2,42 actieve EVSE's per locatie (waarbij de plan-rijen geen definitieve totale EVSE-count zijn door LEFT JOIN). De locatieselectie gebruikt `ix_charging_location_active_position`. Shared buffers **hit=6.723, read=7.364, written=4.349**; geen temp-I/O in het plan. A1 Oss was 78,890 ms, A2 Oss 369,545 ms. A3 was in deze enkele meting **~71,6% sneller dan A2**, maar **~33% trager dan A1**; niet als vaststaand relatieve performance beschouwen wegens variabele cache-/NAS-activiteit.
+
+**Volgende benchmark:** exact A3 met groot zoom-8-grid (4.15,51.20–6.05,51.85), verder alle instellingen gelijk. De gemeten ~70.657 locaties kunnen leiden tot veel indexzoekacties; controleer maximumduur/DB-belasting. Vergelijk ook statussemantiek en filtering voordat ontwerp definitief wordt. Geen databasewijzigingen, implementatie, merge of deployment.
+
+---
+
+## A3 read-only EVSE-selectiebenchmark klaar — 3 november 2026
+
+De nieuwe [A3-proefquery](MAP_GRID_A3_SELECTED_EVSE_BENCHMARK.md) selecteert eerst actieve locaties in het geografische raster en telt daarna via `LEFT JOIN LATERAL` alleen hun actieve EVSE's. Doel: vermijden dat A2 bij een kleine viewport alle **214.400** EVSE's van de dataset vooraf aggregeert. Vergelijkingen: A1 Oss 78,890 ms / groot raster 844,151 ms; A2 Oss 369,545 ms / groot raster 743,756 ms. De nieuwe A3 is **nog niet uitgevoerd**. Begin met Oss zoom 11; pas na beoordeling het grote zoom-8-gebied; JIT uit, read-only rol en statement-/lock-timeout van respectievelijk 5/1 seconden. De voorlopige eenvoudige statusclassificatie en filterloze SQL zijn niet bedoeld als uiteindelijke API-implementatie.
+
+Geen productiegegevens gewijzigd, code-implementatie, merge of NAS-deployment.
+
+---
+
+## A2-productiebenchmark EVSE-preaggregatie — 3 november 2026
+
+**Werkelijk door gebruiker gedraaid** met `chargewatch_read`, JIT uit, zoom-8 grote-regiocellen. `Execution Time=743.756 ms`, `Planning=43.582 ms`. `locations` leverde **70.657 actieve laadlocaties**, eind-HashAggregate **8 gridcellen**. `evse_counts AS MATERIALIZED` gaf een `HashAggregate` met **83.530 afzonderlijke location_id-rijen** uit **214.400 actieve EVSE-rijen** via één Seq Scan; geheugen 6.681 kB, batches 1. Erna `Hash Left Join` op `location_id`; join-hash circa 5.593 kB. Buffers shared hit **11.109**, read **42.867**, temp written **346** (CTE Scan disk). Dit zijn 83.530 EVSE-locatie-ID's, niet hetzelfde als 83.530 actieve kaartlocaties; ook inactieve locaties kunnen gerelateerde actieve EVSE's bezitten.
+
+Vergeleken met A1 parallel **844.151 ms** is A2 **100.395 ms / 11,9% sneller in deze ene meting**. A1 serieel was 1131.140 ms. Door afwijkende I/O-/cachebelasting geen bewezen structurele verbetering. Potentiële A2-nadeel: alle EVSE's worden gegroepeerd, ook voor kleine mapviewports. Volgende kandidaat **A3 selecteer eerst actieve locaties, bereken per geselecteerde locatie EVSE-counts met LATERAL of pre-aggregate via join op geselecteerde IDs**. Benchmark op dezelfde grote cellen én klein Oss-gebied met JIT uit, zonder datawrites; bewaak dezelfde eenvoudige telregels. Geen implementatie-, merge- of deploymentakkoord.
+
+---
+
+## A2-productiebenchmark klaar voor uitvoering — 3 november 2026
+
+De nieuwe [A2 read-only benchmarkquery](MAP_GRID_A2_PREAGG_BENCHMARK.md) is toegevoegd aan ontwerpbranch #114. **Doel:** de bestaande grote regio/zoom-8-coverage met 70.657 actieve locaties en acht rastercellen opnieuw meten, nu met `evse_counts AS MATERIALIZED (SELECT location_id, count(*) FILTER (...) ... GROUP BY location_id)` vóór de join naar kaartlocaties. De geografische query en eenvoudige statusclassificatie blijven gelijk aan A1; JIT uit en standaard PostgreSQL-parallelisme toegestaan. Deze variant kan door volledige EVSE-preaggregatie bij kleine viewports slechter presteren; nog geen meetclaims.
+
+A1-meting parallel: 844,151 ms. A1 zonder parallel workers: 1.131,140 ms. Gebruiker heeft gecontroleerde read-only productiemetingen toegestaan. De A2-query is gereed om door gebruiker op NAS uit te voeren; vanuit deze tools geen NAS-shell beschikbaar. **Nog niet uitgevoerd**; geen databasewijziging, migratie, code, merge of deploy.
+
+---
+
+## A1-productiemeting parallelisatie uit — 3 november 2026
+
+Gebruiker voerde identieke read-only zoom-8 query uit met `jit=off`, `max_parallel_workers_per_gather=0`, zelfde circa-NL-gridcoverage: **70.657 locaties, 8 gridcellen**, `Execution Time 1131.140 ms`, `Planning Time 31.229 ms`; buffers `shared hit=20, read=52.535, written=1478`, temp `read=1882, written=1887`. Planner gebruikt actieve-locaties-GiST, `Merge Left Join` naar één `Seq Scan` van **214.400 actieve EVSE-rijen**, met externe sortering. De vorige parallelle run was **844.151 ms** met `hit=35.506/read=74.055`: deze twee runs verschillen sterk in cache-/I/O-toestand, dus het verschil van ~34% is geen zuiver causaal parallelisme-effect.
+
+**Vervolgarchitectuur:** in plaats van steeds settings wijzigen een proef met `evse` éénmalig per `location_id` aggregateren en daarna pas samenvoegen met gefilterde/ruimtelijk geselecteerde locatie-gridcellen. Vergelijk `EXPLAIN (ANALYZE, BUFFERS)` en correctheid in dezelfde read-only transactiestijl; geen wijziging van DB-schema, importer, API/Android. SQL-construct en queryplanner moeten op echte data worden beoordeeld; kosten van een totale EVSE-preaggregate kunnen ook nadelig zijn bij kleine viewports.
+
+---
+
+## A1-productiemeting breed zoom-8 raster — 3 november 2026
+
+**Gebruiker uitgevoerd, read-only, JIT uit:** oorspronkelijk Noord-Brabant-bbox, maar het **naar hele zoom-8-cellen uitgebreide gebied** bevat **70.657 laadlocaties van 81.004 actieve locaties** (~87,2% van Nederland) en groepeert die in **8 gridcellen**. Dit is door cell alignment dus bijna een *landelijke benchmark*, **niet** alleen een Noord-Brabant-meting. `Execution Time = 844.151 ms`, `Planning = 31.772 ms`, `shared hit=35.506, read=74.055`, temp read=3.619/written=3.629; queryplan: `Parallel Bitmap Heap Scan` op `charging_location` via `ix_charging_location_active_position`, gevolgd door een `Merge Left Join` met `Seq Scan` op actieve EVSE's (ca. 214.400 actieve EVSE's **per participant** in het plan, drie parallelle deelnemers) en externe sortering (~8.680 kB per participant); 179.864 joinrijen. Parallelle workers: 2 plus leader. Dit is veel dubbel EVSE-scan-/sorteerwerk, maar niet per se een probleem met een ontbrekende index: indexen zijn aanwezig, planner verkiest seq/merge bij groot bereik.
+
+**Vervolgcontrole:** isoleer queryplankeuze met `SET LOCAL max_parallel_workers_per_gather=0` bij JIT uit, uitsluitend na read-only timeout; controleer of EVSE nog maar één keer wordt gescand, de tijd/IO/disk spill en bewaar dezelfde bbox/grid en statussemantiek. Test vervolgens een A1-variant die EVSE's per locatie éénmaal aggregeert vóór de gridgroep. Niet aannemen dat 844 ms een definitieve landelijke p95 is: 1 sample, collector concurrentie, cachevariatie. Geen productiemutaties, code, merge of deploy.
+
+---
+
+## Tweede A1-benchmark Oss — JIT uit (3 november 2026)
+
+Gebruiker voerde dezelfde read-only `EXPLAIN (ANALYZE, BUFFERS)` uit op de productiedatabase met aanvullend `SET LOCAL jit=off`. Resultaat: **2.100 locaties in 4 rastercellen**, `Execution Time 78.890 ms`, `Planning Time 27.224 ms`, buffers `shared hit=7621 read=6440`, 2.100 `idx_evse_active_location` indexscans en een `Bitmap Index Scan` op `ix_charging_location_active_position`. Queryplan is structureel gelijk aan eerste uitvoering. Eerste uitvoering JIT aan: `Execution Time 145.899 ms`, `Planning Time 35.105 ms`, `JIT Total 32.374 ms`, `shared hit=7919 read=6140`. Gemeten uitvoeringsverschil **67.009 ms / 45,9%** ten gunste van JIT uit; dit is **geen bewezen causaal JIT-effect** door cache-/NAS-belastingvariatie tussen opeenvolgende runs.
+
+**Interpretatie:** `SET LOCAL jit=off` in kaartquery-/benchmarktransactie onderzoeken, niet globaal uitschakelen. Eerst herhalen (meerdere runs, omgekeerde volgorde) en regionaal testen voordat nationale schaal wordt voorspeld. Werkelijk uitgevoerde `SELECT` blijft read-only; geen productiegegevens gemuteerd, code gewijzigd, gemerged of gedeployed.
+
+---
+
+## Eerste A1-productiemeting Oss — 3 november 2026
+
+**Uitgevoerd door gebruiker met `chargewatch_read` in `REPEATABLE READ READ ONLY`**. `EXPLAIN (ANALYZE, BUFFERS)` voor zoomraster 11, bbox Oss (5.40,51.70)–(5.62,51.83), geen filters: `Execution Time=145.899 ms`, `Planning Time=35.105 ms`, `JIT Total=32.374 ms`. `GroupAggregate` leverde **4 gridgroepen** uit **2.100 locaties**; `Gather Merge` verwerkte **5.075 LEFT JOIN-resultaatrijen** (niet noodzakelijk allemaal EVSE-records, want LEFT JOIN kan een null-e-regel toevoegen).
+
+**Werkelijk plan:** `Bitmap Index Scan on ix_charging_location_active_position` (2.298 indexkandidaten), `Parallel Bitmap Heap Scan` na ST_Intersects (2.100 locaties), gevolgd door **2.100 Index Scans op `idx_evse_active_location`**. Buffers `shared hit=7919 read=6140 dirtied=209 written=5078` (read-only SELECT kan al gewijzigde shared buffers lezen/flushen; dit zijn geen applicatiedata-mutaties door de query). De eerste meting is mogelijk beïnvloed door koude cache en JIT. De 4 celgroepen op raster 11 zijn een artefact van resolutie: **geen bewijs voor juiste visuele clusterdichtheid**.
+
+**Vervolg:** eerst dezelfde read-only query herhalen met `SET LOCAL jit=off` (zelfde regio en query) en timings/BUFFERS vergelijken; daarna een begrensd regionaal en landelijk scenario met passend grover grid, zonder huidige A1-statusclassifier of filtersemantiek als productiecorrect te bestempelen. Nog geen backend-/Android-implementatie, merge of deployment.
+
+---
+
+## Productie-preflight kaart v2 #113 — 3 november 2026
+
+**Werkelijk door gebruiker op NAS uitgevoerd:** `current_user=chargewatch_read`, `current_database=chargewatch`, `transaction_read_only=on`; `active_locations=81.004`. Indexen op productie: `ix_charging_location_active_position` (partiële GiST op actieve posities), `ix_location_position` (GiST), `idx_evse_active_location` (partiële B-tree actieve EVSE per location), `idx_connector_active_evse` (partiële B-tree actieve connector per EVSE), plus PK/unique. De uitvoer bevat nog **geen waarde** voor `active_evses`; niet raden. **Dit bewijst indexaanwezigheid, niet de daadwerkelijke indexkeuze of queryprestatie.** Volgende stap is een begrensde, read-only test op klein Oss-gebied met EXPLAIN ANALYZE en daarna exacte locatie-/ringcontroles.
+
+Geen databasewijzigingen, code/merge/deploy; PR #114 blijft draft.
+
+---
+
+## A1b SQL-review — centrale filters en rastergrenzen (#113; 2 november 2026)
+
+**Aangepast ontwerp:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) gebruikt geen handmatig gedupliceerde filterlogica meer. De SQL-template vereist de bestaande `MapFilter.LocationPredicate(6)` + `AddParameters` voor `connectorType`, `mode`, alle vermogensbanden, `minFree` en operator. Bbox wordt naar volledige Mercator-rastercellen afgerond en elke locatie bezit precies één `cell_x/cell_y` met expliciete ownershipfilter. Er is een fixturematrix F0–F9 toegevoegd voor status, volledige dekking, filtercombinaties en grenzen.
+
+**Nog open:** C#-binding en SQL-parser-/planverificatie, exacte bronstatuskwaliteit en daadwerkelijke vergelijking met bestaande kaartresultaten. De template is niet direct in psql uitvoerbaar en **niet tegen PostgreSQL uitgevoerd**. Geen API-/Android-code, migratie, NAS-run, merge of deploy. Draft PR #114 blijft open.
+
+---
+
+## A1b — volledige rastercellen en filterpariteit (2 november 2026)
+
+**SQL-ontwerp aangevuld:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) onderzoekt het uitlijnen van de zichtbare bbox naar volledige Web Mercator-gridcellen en de combinatie van technische, operator- en `minFree`-filters. De review toont het risico van **gedupliceerde filterpredicaten**: een handmatige SQL-kopie wijkt nog af bij enkele vermogensbanden en `minFree` met technische filters. **De schets is daarom nadrukkelijk geen goedgekeurde of uitvoeringsklare benchmarkquery**. De definitieve query moet `MapFilter.LocationPredicate` hergebruiken of een centraal geteste helper gebruiken, met expliciet semi-open celgrensbeleid en source-quality-regressietests.
+
+**Geen SQL uitgevoerd op NAS; geen API-/Android-code, schemawijziging, merge of deployment.** De eerstvolgende taak is de query/pariteit en gridranden corrigeren voordat we een meetakkoord vragen.
+
+---
+
+## A1 SQL-review — twee correcties (2 november 2026)
+
+De niet-uitgevoerde `docs/MAP_GRID_A1_SQL_PROBE.md` is inhoudelijk herzien. (1) De proef selecteert enkel punten binnen de bbox en kan daardoor **geen volledige rastercellen aan de bboxrand garanderen**; productiekaart v2 moet bbox-grenzen eerst naar hele gridcellen afronden. (2) Niet-herkende operationele EVSE-statussen werden als `0 vrij / >0 totaal` impliciet rood; proef classificeert zulke locaties voorlopig conservatief als **unknown**. De definitieve NDW-/bronkwaliteitssemantiek en huidige `MapFilter`-pariteit blijven open voor tests. Geen SQL-uitvoering of NAS-metingen, geen code, merge of deployment.
+
+---
+
+## A1 SQL-proefquery voor review — #113 (2 november 2026)
+
+**Nieuw:** [MAP_GRID_A1_SQL_PROBE.md](MAP_GRID_A1_SQL_PROBE.md) bevat de eerste expliciet **niet uitgevoerde**, ongefilterde PostGIS-`SELECT` voor een klein Oss-proefgebied. Pipeline: geografische selectie via bestaande `charging_location.position` → actieve EVSE's per locatie tellen → vaste Web Mercator-gridcellen → `locationCount/free/noFree/unknown` en singleton-ID. Korte `REPEATABLE READ READ ONLY`-transactie, conservatieve SQL-timeouts en `ROLLBACK` staan in het reviewvoorbeeld.
+
+**Grenzen:** geen technische `MapFilter`-equivalentie in deze eerste proef, nog geen volledig gevulde tile-/celcoverage voor verschuivende viewport en bronbetrouwbaarheid nog te verfijnen. Geen PostgreSQL-parser-/benchmarkuitvoering, geen NAS-toegang, geen schema-/codewijzigingen, geen merge of deployment. Eerst SQL en kwaliteitsinvarianten reviewen, daarna afzonderlijk akkoord voor een gecontroleerde test.
+
+---
+
+## Read-only benchmarkprotocol — kaart v2 / #113 (2 november 2026)
+
+**Vastgelegd, nog niet uitgevoerd:** [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) bevat nu een gecontroleerd benchmarkprotocol voor huidige kaartquery (A0), live PostGIS-gridaggregatie (A1), eventuele per-locatie-availabilitysummary in een **geïsoleerde proefdatabase** (B) en optionele tilecache (C). Scenario's: straat Oss, Oss/Elst, druk stadscentrum, Noord-Brabant, volledig Nederland, technische en statusfilters, lege/ambigue resultaten, gridranden.
+
+**Meetmethode:** daadwerkelijke DB/indexen en alleen-lezen rol vaststellen; eerst `EXPLAIN` zonder uitvoering, daarna onder grenzen `EXPLAIN (ANALYZE, BUFFERS)` uitsluitend op SELECT met `REPEATABLE READ READ ONLY`, korte transacties en conservatieve `statement_timeout`/lock-timeout. Op productie **geen** nieuwe samenvattingstabellen, writes, onbeperkte landelijke runs of ongeremde concurrency. Metingen moeten de tijd/IO/responsebytes/objecten, filters, kwaliteit en volledige dekkingsinvarianten aantonen, niet alleen snelheidswinst.
+
+**Status:** alleen documentatie; **nul benchmarks daadwerkelijk uitgevoerd**, geen code, merge of NAS-deploy. Ontwerp-PR #114 blijft draft; eerst afzonderlijk akkoord op meetuitvoering, vervolgens pas technische keuze en implementatie.
+
+---
+
+## Clusterberekening: live SQL versus locatiesamenvatting (#113; 2 november 2026)
+
+**Codecontrole:** `BulkImporter` verwerkt de NDW-locaties, EVSE's en checkpoint-/statistiekupdates in één PostgreSQL-transactie; init-schema bevat een GiST-positionindex en unieke `evse(location_id,source_uid)`. Dat biedt aanknopingspunten voor zowel live aggregatie als eventueel een transactioneel bijgewerkte per-locatie-`availability_summary`, **maar die extra samenvatting bestaat nog niet**. Bijkomend aandachtspunt: meerdere SELECT-statements bij standaard `READ COMMITTED` kunnen tussentijds verschillende gecommitte importerstatussen zien; een consistent snapshot voor een complete kaartresponse moet worden gegarandeerd.
+
+**Afweging in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** A — live filter-/EVSE-aggregatie vanuit PostGIS en actieve EVSE's (geen migratie, eerst benchmarken); B — compacte status per locatie atomair onderhouden tijdens de importertransactie (snellere hergebruikte read, wel backfill/migratie en extra schrijfwerk); C — vooraf berekende clusters/tiles (alleen na aantoonbare schaalbehoefte). Ook bij B blijven technische connector-/vermogensfilters hun bestaande EVSE-`EXISTS`-semantiek vereisen. NDW-polltijd is geen individuele statusverificatie. **Nog geen SQL-benchmark of implementatie-/merge-/deployakkoord.**
+
+---
+
+## API-contractvoorstel kaart v2 — #113 (2 november 2026)
+
+**Ontwerpfase:** eerste concreet, nog niet definitief goedgekeurd contract in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). Schematische `GET /api/v1/map/overview?bbox=...&zoom=...&<filters>` met getypeerde `cluster`- en `location`-items. Eén neutraal clustercentrum toont `locationCount`, de ring wordt bepaald door exacte `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`. Een individueel locatieobject krijgt ID, coördinaten, betrouwbare `vrij/totaal` en bronmetadata. Filterpariteit met huidige `MapFilter` blijft verplicht.
+
+**Volledigheid:** `coverage.complete`, cell IDs, daadwerkelijk `gridLevel`, genormaliseerde filterset, aantoonbaar consistente publicatieversie en `coverage.locationCount` geven de client expliciete dekking. Geldige invariant: som van clusterlocaties plus losse items = totaal, elke onderliggende locatie exact eenmaal; geen stille truncatie, geen verschillende statusversies als één actueel geheel. Fictieve voorbeeldresponse en testmatrix opgenomen. Een NDW-pollcheckpoint is **niet automatisch** een consistente catalogusversie.
+
+**Nog open:** route/veldnaam en minimale eerste-frame sheetvelden, tegel-/gridschema, foutcontract en cacheversie, landelijke performance, bron-fallback, afgewogen responsive zoomresolutie. **Geen backend- of Android-code, geen NAS-deploy of merge; draft-PR #114.**
+
+---
+
+## Kaartnavigatie en tile-cache — onderzoek #113 (2 november 2026)
+
+**Ontwerpuitwerking in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** tijdens slepen/zoomen bestaande geldige markers laten staan, alleen bij camera-idle of cachemiss complete geografische raster-/tilecellen ophalen, en bij korte pans aangrenzende cellen cachen/prefetchen. Een **begrensde in-memory tile-LRU** is de eerste benchmarkkandidaat; een ring aangrenzende cellen is slechts een te meten uitgangsscenario. Geen vastgelegde TTL, kaartobjectlimiet of nieuwe debounce zonder NAS-/Samsung-metingen.
+
+**Correctheid:** cache key omvat grid-/tile-ID, contractversie, filterhash en gepubliceerde datasnapshot; ruwe geografische plaatsing en sneller veranderende bezettingsstatus vereisen verschillende geldigheidsafwegingen. Stale-while-revalidate toont oudere gegevens alleen als `Laatst bekend`, nooit als verse metingen; wissel complete coverage-sets gecontroleerd zonder dubbele clusters en kinderen, en laat trage oude responses geen nieuwe camera-/filtertoestand overschrijven. API-/NDW-fallback en lege/ontbrekende tilegebieden moeten zichtbaar en eerlijk worden afgehandeld. Android `MapScreen` gebruikt nu nog `map.clear()` en de huidige viewportcoördinator debounce van 500 ms; dat zijn reviewpunten, geen nieuwe implementatie.
+
+**Status:** ontwerp-PR #114 draft, issue #113 open; geen code, merge of deployment. De gebruiker beslist over ontwerp en uitvoeringsvolgorde voordat we API-/Android-werk starten.
+
+---
+
+## PostGIS-raster en caching — ontwerpuitwerking #113 (2 november 2026)
+
+**Onderzochte bestaande databasebasis:** `db/init/001_schema.sql` bevat de PostGIS `geography(Point,4326)`-kolom `charging_location.position` en een GiST-index `ix_location_position`, naast de unieke OCPI-identiteit. `ApiDatabase.GetMapViewport` selecteert de volledige individuele records binnen bbox/filters, beperkt op 1000 en bouwt daarna connector-json en beschikbare EVSE-sommen. Er is **nog geen werkelijke NAS-queryplanmeting** uitgevoerd; de aanwezigheid/benutting van de index op productie moet worden geverifieerd.
+
+**Vervolgontwerp:** `bbox` → complete, wereldvast uitgelijnde Web Mercator-gridcellen op zoomniveau → bestaande filters per individuele locatie → per-locatie EVSE-beschikbaarheid → per-cel `locationCount`, `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown` → lichte `location|cluster`-response zonder volledig EVSE/connector-json. **Niet** 999 ruwe locaties selecteren en de rest laten vallen. Performancebudget via gekozen gridresolutie, geen stilzwijgende truncatie. Vergelijk live SQL, compacte per-locatie-samenvatting en tile-/cachelagen bij verschillende schaalniveaus en filters. Cachevalidatie wordt gekoppeld aan correcte bron-/publicatiestatus. **Nog geen SQL, API of Android geïmplementeerd; eerst metingen en goedkeuring.** Zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) en draft-PR #114.
+
+---
+
+## Kaart-clusterontwerp — eerste voorstel voor bespreking (2 november 2026)
+
+Na bevestiging van landelijke dekking is het eerste **concrete zoom-/cluster-/tap- en bronkwaliteitsontwerp** toegevoegd aan [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), onderdeel *Eerste interactie-/clusterregels*. Dit is **nog geen expliciet goedgekeurd definitief gedrag**, behalve het eerder vastgelegde doel: landelijke zoomdekking, filtercorrectheid en geen stille truncatie.
+
+**Onderzoeksvoorstel:** vaste, zoomafhankelijke wereldraster-/tilecellen in Web Mercator, consistente clusteridentiteit binnen cel/zoom/filterversie, individuele markers als er slechts één locatie in de cel zit, stabiele clusters voor meerdere locaties. Onderzoek een clustermarker met **aantal laadlocaties in het midden** en statusverdeling van locaties in een groen/rode/onbekende ring. Een losse locatie blijft `vrij/totaal` tonen. Clustertap zoomt op celbounds; bij maximaal bruikbare zoom en samenvallende locaties volgt een begrensde locatieselectie. Bekende lokale favorieten blijven apparaatprivé en krijgen geen misleidende ster als filterlidmaatschap onbekend is.
+
+**Betrouwbaarheidsgrondslag uit bestaande code:** `ClusterAvailability.summarizeCluster` geeft een geaggregeerde `vrij/totaal`-ratio alleen als **alle** leden betrouwbare aantallen hebben; anders `?`. Een toekomstig ringdiagram mag onbekende locaties niet als bezet of beschikbaar meetellen; filter eerst, tel per operationele EVSE maximaal één keer en laat aantallen locaties niet doorgaan voor aantal EVSE's. Voor volledige landelijke cellen vs. pan-buffer moeten totalen zonder dubbeltellingen te valideren zijn.
+
+**Open UX-keuze voor de gebruiker:** clusters altijd een `locationCount`-middenlabel + statusring (aanbevolen) versus op kleine clusters de huidige geaggregeerde EVSE-ratio blijven tonen. Geen API-/Android-implementatie, geen NAS-deploy of merge; draft-PR #114.
+
+---
+
+## Vastgesteld kaartdoel #113 — heel Nederland op elk zoomniveau (2 november 2026)
+
+**Expliciet productakkoord van gebruiker:** de kaart moet **heel Nederland kunnen weergeven**, ook wanneer sterk uitgezoomd. Op lage zoom levert de API vooral grotere clusters; op middelmatige zoom een **mix van clusters en losse locaties**; bij inzoomen vallen clusters uiteen tot individuele laadlocaties. Bestaande **kaartfilters blijven volledig correct werken vóór aggregatie** en er mogen geen onderliggende locaties stilzwijgend worden weggelaten wegens de huidige 999-grens. Dit is een **vastgesteld product- en UX-doel**, geen keuze voor een specifiek raster, vector tiles, routecontract of implementatie.
+
+**Gecontroleerd huidig gedrag:** `GetMapViewport` selecteert maximaal 1000 individuele locaties en retourneert bij `>=1000` HTTP 413; het gebied is daarnaast begrensd op 1.0 graad². Android groepeert deze individuele resultaten pas na downloaden met herhaalde clusterberekeningen en `map.clear()`. De API retourneert tevens connectorcategorieën die voor louter een kaartmarker mogelijk overbodig zijn. Daarom is **server-side zoomafhankelijke clustering + minimale kaartpayload** de leidende *onderzoekshypothese* voor #113, te benchmarken tegenover geaggregeerde vector tiles en caching/vooraggregatie. Clusterkleuren moeten betrouwbaar blijven; `locationCount` mag nooit met aantal EVSE's worden verward. Lokale favorieten blijven privé. Het bestaande endpoint en zijn volledigheidsgarantie blijven intact tot een nieuw contract daadwerkelijk is goedgekeurd.
+
+**Uitwerking:** zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), sectie *Kaart eerst*. Eerst de concrete UX- en datacontracten, aggregatie-/querykosten en meetcriteria; daarna eventueel een aparte API-/Android-PR na expliciet implementatieakkoord. Ontwerp-PR [#114](https://github.com/VanHinthem/ChargeWatch/pull/114) blijft draft; widget-PR #112 blijft onaangeroerd. **Geen codewijziging, NAS-deploy of merge.**
+
+---
+
+## Actieve architectuurverkenning — gerichte locatiegegevens #113 (2 november 2026)
+
+**Nieuw productbesluit:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) is een **zelfstandige feature** om de volledige laadlocatie-datastroom slimmer en sneller te maken: kaart, compacte/uitgebreide detailsheet, favorieten en native widget. De gebruiker heeft expliciet gekozen om **eerst architectuur, betrouwbare data en performance samen uit te werken**, vóór een nieuwe API-/Android-implementatie. Inventarisatie en alternatieven staan in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). De voorgestelde bulk-ID-API, gedeelde samenvatting en lazy statistieken zijn **nog geen goedgekeurde technische keuzes**.
+
+**Codeonderzoek:** kaart via `GET /api/v1/map/viewport` (API-first, toegestane NDW-fallback); markerselectie gebruikt bestaande `MapLocation` voor beide sheetgroottes zonder aparte statusrefresh. Bij openen van **één** locatie start `LocationEnrichmentClient` nu direct een **volledige detailcall gevolgd door statistiekencall** op `/api/v1/locations/by-ndw-id/{featureId}`, ook wanneer de sheet compact blijft. Favorieten/widget kennen het lokaal opgeslagen `featureId`, maar doen in draft-widgetfeature nog kaart-`bbox`-verzoeken om beschikbaarheid op te halen. Bestaande detail-API kan één featureId naar de interne DB-sleutel vertalen. Te onderzoeken: direct-/bulk-ID-varianten, query- en payloadkosten, timing/lazy loading, identiteits-/kwaliteitscontract en NDW-fallback.
+
+**Werkgrens:** deze inventarisatie staat op zelfstandige documentatiebranch `docs/location-dataflow-113-design` vanaf `main`, in [draft-PR #114](https://github.com/VanHinthem/ChargeWatch/pull/114). **Geen API-/Android-code, databasewijziging of NAS-deployment.** Widget-[issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101) en [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) blijven gescheiden en open; niet mergen/deployen zonder expliciete toestemming. De widget-PR kan zijn bestaande viewport-aanpak behouden tot een nieuw ontwerp daadwerkelijk besloten is.
+
+**Verificatie:** actuele GitHub-implementatie van `MapViewModel`, `MapScreen`, `LocationEnrichmentClient`, `FavoritesRepository`, `FavoritesAvailabilityClient`, `ApiDatabase` en API-routes gelezen. Dit werkblok bevat **uitsluitend documentatie**, dus geen build, tests, querybenchmarks of fysieke toesteltest uitgevoerd.
+
+**Volgende stap:** met gebruiker de `oppervlak × gegevens × endpoint`-matrix en timing van detail-/statistiekrequests bespreken; daarna concrete contractalternatieven en prestatiemetingen ontwerpen. **Implementatie, merge en deployment hebben afzonderlijke goedkeuring nodig.**
+
+---
+
 ## Android — GPS/huidige locatie en nabije alternatieven (#99; 2 november 2026)
 
 **Productbesluiten:** GPS-optie A (tik `Mijn locatie` → één verse foreground-fix → maximaal vijf nearest in 25 km; resultatenlade standaard ingeklapt). Alternatieven-optie A (alleen bestaande actieve kaartfilters, géén automatisch overgenomen connector-/vermogenseisen). Ook goedgekeurd: sectie *Locatie* in Instellingen met lokale schakelaar standaard aan en afzonderlijk Android-permissiebeheer. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99).
