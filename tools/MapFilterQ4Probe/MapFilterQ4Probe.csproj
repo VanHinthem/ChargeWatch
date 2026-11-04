@@ -10,5 +10,7 @@
     <PackageReference Include="Npgsql" Version="10.0.0" />
     <Compile Include="../../src/ChargeWatch.Api/MapFilter.cs" Link="MapFilter.cs" />
     <Compile Include="../../src/ChargeWatch.Api/MapOverviewSql.cs" Link="MapOverviewSql.cs" />
+    <Compile Include="../../src/ChargeWatch.Api/MapGrid.cs" Link="MapGrid.cs" />
+    <Compile Include="../../src/ChargeWatch.Api/MapOverviewGridSelector.cs" Link="MapOverviewGridSelector.cs" />
   </ItemGroup>
 </Project>
