@@ -9,5 +9,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Npgsql" Version="10.0.0" />
     <Compile Include="../../src/ChargeWatch.Api/MapFilter.cs" Link="MapFilter.cs" />
+    <Compile Include="../../src/ChargeWatch.Api/MapOverviewSql.cs" Link="MapOverviewSql.cs" />
   </ItemGroup>
 </Project>

@@ -6,6 +6,52 @@ using NpgsqlTypes;
 
 // Standalone Q4 contract probe; includes the production MapFilter.cs as a linked source.
 // No database connection and no production API changes.
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-h2-unfiltered")
+{
+    Console.WriteLine(OverviewPhaseBH2CompatibilityExporter.Create("unfiltered"));
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-h2-ccs2")
+{
+    Console.WriteLine(OverviewPhaseBH2CompatibilityExporter.Create("ccs2_dc"));
+    return;
+}
+// H1 is a historical pre-fix diagnostic, NOT the post-fix parity gate.
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-h1-marker-audit")
+{
+    Console.WriteLine(OverviewPhaseBHMarkerSemanticsExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-g2-grid")
+{
+    Console.WriteLine(OverviewPhaseBGGridParityExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-g1-ids")
+{
+    Console.WriteLine(OverviewPhaseBGIdParityExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-execution")
+{
+    Console.WriteLine(OverviewPhaseBExecutionExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-prepared-plan")
+{
+    Console.WriteLine(OverviewPhaseBPreparedPlanExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-plan")
+{
+    Console.WriteLine(OverviewPhaseBPlanExporter.Create());
+    return;
+}
+if (args.Length == 1 && args[0] == "--emit-overview-phaseb-parity")
+{
+    Console.WriteLine(OverviewPhaseBParityExporter.CreateCcs2Dc());
+    return;
+}
 if (args.Length == 1 && args[0] == "--emit-overview-national-filter-parity")
 {
     Console.WriteLine(OverviewNationalFilteredParityExporter.Create());

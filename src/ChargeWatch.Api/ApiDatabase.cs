@@ -115,6 +115,16 @@ internal sealed class ApiDatabase(ApiOptions options)
     }
 
 
+    // Phase B: separate, opt-in read-only overview. Old viewport unchanged.
+    public async Task<MapOverviewResponse> GetMapOverview(
+        Bbox bbox, double zoom, MapFilter filters, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await MapOverviewDatabase.ReadAsync(connection,bbox,zoom,filters,
+            _staleAfter,cancellationToken);
+    }
+
     // A dedicated map path: a bounded, read-only viewport query. Never return
     // a deceptively complete partial result when the viewport exceeds the cap.
     public async Task<MapViewportResult> GetMapViewport(Bbox bbox, MapFilter? filters = null)

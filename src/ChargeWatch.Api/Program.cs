@@ -8,6 +8,7 @@ if (args.Length == 1 && args[0] == "--self-test")
     OcpiTariffEvaluatorTests.Run();
     MapFilter.SelfTest();
     MapOverviewPhaseASelfTest.Run();
+    MapOverviewPhaseBCompatibilitySelfTest.Run();
     return;
 }
 
@@ -88,6 +89,43 @@ app.MapGet("/api/v1/locations", async (
     }
 });
 
+
+// Phase B opt-in preview: no client is switched over automatically.
+// Enabling requires explicit deployment/rollout approval after NAS tests.
+if (string.Equals(Environment.GetEnvironmentVariable("CW_ENABLE_MAP_OVERVIEW"),
+    "true",StringComparison.OrdinalIgnoreCase))
+{
+    app.MapGet("/api/v1/map/overview", async (
+        string? bbox, double? zoom, HttpContext context, ApiDatabase database) =>
+    {
+        if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
+            return Results.BadRequest(new { error=filterError });
+        if (!ApiOptions.TryParseBbox(bbox,out var bounds) ||
+            bounds.MinLat < -MapGrid.MaxMercatorLatitude ||
+            bounds.MaxLat > MapGrid.MaxMercatorLatitude)
+            return Results.BadRequest(new { error="Valid Web Mercator bbox is required." });
+        if (zoom is null || !double.IsFinite(zoom.Value) || zoom < 0 || zoom > 22)
+            return Results.BadRequest(new { error="Finite zoom between 0 and 22 is required." });
+        try
+        {
+            var result = await database.GetMapOverview(bounds,zoom.Value,filters,
+                context.RequestAborted);
+            context.Response.Headers["X-ChargeWatch-Filter-Version"]="1";
+            return Results.Ok(result);
+        }
+        catch (MapOverviewBudgetException)
+        {
+            return Results.Json(new { error="Map overview marker budget exceeded.",
+                code="OVERVIEW_BUDGET_EXCEEDED",retryable=false },
+                statusCode:503);
+        }
+        catch (Npgsql.PostgresException e) when (e.SqlState=="57014")
+        {
+            return Results.Json(new { error="Map overview database query timeout.",
+                code="OVERVIEW_TIMEOUT",retryable=true },statusCode:503);
+        }
+    });
+}
 
 // Full-map coverage is required for an honest benchmark. On overflow ask the
 // Android client to zoom in; do not return a partial map as if complete.
