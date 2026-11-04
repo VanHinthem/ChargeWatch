@@ -6,6 +6,11 @@ using NpgsqlTypes;
 
 // Standalone Q4 contract probe; includes the production MapFilter.cs as a linked source.
 // No database connection and no production API changes.
+if (args.Length == 1 && args[0] == "--emit-overview-phasec-nas-batch")
+{
+    Console.Write(OverviewPhaseCNasReadOnlyExporter.Create());
+    return;
+}
 if (args.Length == 1 && args[0] == "--emit-overview-phaseb-h2-unfiltered")
 {
     Console.WriteLine(OverviewPhaseBH2CompatibilityExporter.Create("unfiltered"));

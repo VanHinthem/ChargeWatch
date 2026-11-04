@@ -1,3 +1,15 @@
+## #113 fase C landelijke NAS SQL-batch PASS — 4 november 2026
+
+Gebundelde read-only test van de **echte productiesql en rasterselector** op bestaande NAS-data geslaagd, zonder deployment, databasewijziging of featureflag-activatie. Nationaal ongefilterd (zoom 6 / grid8): **83.408 locaties, 13 markers, 1.464,780 ms**; nationaal CCS2/DC (zoom 12 / grid10): **1.612 locaties, 84 markers, 164,856 ms**; Oss (zoom 15 / grid15): **489 locaties, 116 markers, 13,035 ms**. Alle drie: statuspartitionering correct, markerbudget ≤500 en uitvoering onder 5 seconden, zonder fout of timeout. **Eenmalige SQL-executietijden, geen HTTP-p95 of loadtest.** [Volledige resultaten en vervolggates](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md). [Draft PR #118](https://github.com/VanHinthem/ChargeWatch/pull/118) blijft open; geen merge/deploy zonder afzonderlijk akkoord. #113 blijft open voor gecontroleerde HTTP-rollout en Android-integratie.
+
+---
+
+## #113 na fase-C-merge — read-only NAS-batch voorbereid (4 november 2026)
+
+PR #117 is op 4 november 2026 na expliciet akkoord en drie groene workflows als squash naar `main` gemerged (commit `9fba66e`). **Niet op de NAS gedeployed; de nieuwe overviewroute blijft daar standaard uit.** De volgende stap is één gebundelde read-only SQL-praktijkmeting op de bestaande productiegegevens, zonder nieuwe container of gewijzigde productieconfiguratie. Deze meet alleen SQL-tijden en volledige cel-/statusaggregaten; voor echte HTTP-/Android-latency is een aparte deploymentgate vereist. [Runbook](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md).
+
+---
+
 ## #113 fase C op draft PR #117 — 4 november 2026
 
 Ontwerp-optie A door gebruiker goedgekeurd: conservatieve, offset-onafhankelijke keuze van een complete canonieke rasterresolutie met maximaal 500 markerobjecten, één read-only SQL-query, geen truncatie. Implementatie en echte geïsoleerde HTTP/Npgsql/PostGIS-tests toegevoegd op `feat/map-overview-113-phase-c`. **CI en review zijn afzonderlijke gates; geen merge/NAS-deploy/featureflagwijziging.** Zie [fase-C-documentatie](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md) en [draft PR #117](https://github.com/VanHinthem/ChargeWatch/pull/117).
