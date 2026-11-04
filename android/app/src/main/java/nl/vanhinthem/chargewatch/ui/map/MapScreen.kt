@@ -487,6 +487,8 @@ fun MapScreen(
                 filterSheetOpen = false
             },
             favoriteIds = favoriteIds,
+            favorites = favorites,
+            filtersActive = filters.active,
             cameraTarget = cameraTarget,
             destination = destination,
             gpsPosition = if (locationEnabled) gpsPosition else null,
@@ -1106,6 +1108,8 @@ private class MapRenderSnapshot {
     var locations: List<MapLocation>? = null
     var overview: OverviewDataset? = null
     var favoriteIds: Set<String>? = null
+    var favorites: List<FavoriteLocation>? = null
+    var filtersActive: Boolean? = null
     var destination: Destination? = null
     var gpsPosition: DevicePosition? = null
 }
@@ -1120,6 +1124,8 @@ private fun ChargeMap(
     onLocationsSelected: (List<MapLocation>) -> Unit,
     onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     cameraTarget: CameraTarget?,
     destination: Destination?,
     gpsPosition: DevicePosition?,
@@ -1136,6 +1142,8 @@ private fun ChargeMap(
     val currentOverview = rememberUpdatedState(overview)
     val currentClusterHandler = rememberUpdatedState(onClusterSelected)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
+    val currentFavorites = rememberUpdatedState(favorites)
+    val currentFiltersActive = rememberUpdatedState(filtersActive)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentMapTapHandler = rememberUpdatedState(onMapTapped)
     val currentDestination = rememberUpdatedState(destination)
@@ -1239,6 +1247,8 @@ private fun ChargeMap(
                         markerGroups = markerGroups,
                         markerClusters = markerClusters,
                         favoriteIds = currentFavoriteIds.value,
+                        favorites = currentFavorites.value,
+                        filtersActive = currentFiltersActive.value,
                         destination = currentDestination.value,
                         gpsPosition = currentGpsPosition.value
                     )
@@ -1252,6 +1262,8 @@ private fun ChargeMap(
                             markerGroups,
                             markerClusters,
                             currentFavoriteIds.value,
+                            currentFavorites.value,
+                            currentFiltersActive.value,
                             currentDestination.value,
                             currentGpsPosition.value
                         )
@@ -1266,6 +1278,8 @@ private fun ChargeMap(
                             markerGroups,
                             markerClusters,
                             currentFavoriteIds.value,
+                            currentFavorites.value,
+                            currentFiltersActive.value,
                             currentDestination.value,
                             currentGpsPosition.value
                         )
@@ -1303,22 +1317,26 @@ private fun ChargeMap(
                 val markersChanged = renderSnapshot.locations !== locations ||
                     renderSnapshot.overview !== overview ||
                     renderSnapshot.favoriteIds != favoriteIds ||
+                    renderSnapshot.favorites != favorites ||
+                    renderSnapshot.filtersActive != filtersActive ||
                     renderSnapshot.destination != destination ||
                     renderSnapshot.gpsPosition != gpsPosition
                 if (styleChanged) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
-                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
                     }
                 } else if (markersChanged) {
                     map.getStyle {
-                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
                     }
                 }
                 if (styleChanged || markersChanged) {
                     renderSnapshot.locations = locations
                     renderSnapshot.overview = overview
                     renderSnapshot.favoriteIds = favoriteIds
+                    renderSnapshot.favorites = favorites
+                    renderSnapshot.filtersActive = filtersActive
                     renderSnapshot.destination = destination
                     renderSnapshot.gpsPosition = gpsPosition
                 }
@@ -1376,11 +1394,13 @@ private fun configureStyle(
     markerGroups: MutableMap<Long, List<MapLocation>>,
     markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, destination, gpsPosition)
+        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
         requestViewport(map, onViewportChanged)
     }
 }
@@ -1410,6 +1430,8 @@ private fun renderNativeMarkers(
     markerGroups: MutableMap<Long, List<MapLocation>>,
     markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
@@ -1445,12 +1467,14 @@ private fun renderNativeMarkers(
                     ))
                 }
             } else {
+                val hasFavorite=overviewGroupHasFavorite(group,favorites,filtersActive)
                 key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
-                    "${group.locationsWithNoFree}:${group.locationsUnknown}"
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}:$hasFavorite"
                 icon=icons.getOrPut(key) {
                     iconFactory.fromBitmap(createAvailabilityClusterBitmap(
                         group.locationCount,group.locationsWithFree,
-                        group.locationsWithNoFree,group.locationsUnknown
+                        group.locationsWithNoFree,group.locationsUnknown,
+                        hasFavorite
                     ))
                 }
             }
@@ -1477,12 +1501,14 @@ private fun renderNativeMarkers(
             val isCluster=group.locationCount > 1
             val icon: Icon
             if (isCluster) {
+                val hasFavorite=localGroupHasFavorite(group,favoriteIds)
                 val key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
-                    "${group.locationsWithNoFree}:${group.locationsUnknown}"
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}:$hasFavorite"
                 icon=icons.getOrPut(key) {
                     iconFactory.fromBitmap(createAvailabilityClusterBitmap(
                         group.locationCount,group.locationsWithFree,
-                        group.locationsWithNoFree,group.locationsUnknown
+                        group.locationsWithNoFree,group.locationsUnknown,
+                        hasFavorite
                     ))
                 }
             } else {
@@ -2250,7 +2276,8 @@ private fun createAvailabilityClusterBitmap(
     locationCount: Int,
     locationsWithFree: Int,
     locationsWithNoFree: Int,
-    locationsUnknown: Int
+    locationsUnknown: Int,
+    isFavorite: Boolean
 ): Bitmap {
     val bitmap = Bitmap.createBitmap(160,160,Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
@@ -2287,6 +2314,7 @@ private fun createAvailabilityClusterBitmap(
         else -> 39f
     }
     canvas.drawText(locationCount.toString(),80f,92f,paint)
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas,80f,80f,54f)
     return bitmap
 }
 
