@@ -9,6 +9,7 @@ if (args.Length == 1 && args[0] == "--self-test")
     MapFilter.SelfTest();
     MapOverviewPhaseASelfTest.Run();
     MapOverviewPhaseBCompatibilitySelfTest.Run();
+    MapOverviewPhaseCSelfTest.Run();
     return;
 }
 
