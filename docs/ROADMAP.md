@@ -4,7 +4,7 @@
 
 ## #113 fase C — adaptief landelijke overview in draft PR #117 (4 november 2026)
 
-De backend-overview krijgt één conservatief gekozen canoniek Web Mercator-gridlevel per request, hoogstens 500 markerobjecten, volledige celdekking zonder locatie-LIMIT en dezelfde filter-/beschikbaarheidsregels. Geautomatiseerde HTTP/Npgsql-tests in GitHub Actions zijn onderdeel van fase C. **Draft/CI-review, geen merge of NAS-deploy, featureflag uit; Android volgt pas na stabiel API-contract.** [Detailstatus](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md).
+De backend-overview kiest één conservatief canoniek Web Mercator-gridlevel per request met maximaal 500 markerobjecten en volledige celdekking, zonder locatie-LIMIT; filter- en beschikbaarheidsregels blijven gelijk. **Fase C is naar `main` gemerged via PR #117** (4 november 2026). Geautomatiseerde echte HTTP/Npgsql/PostGIS-tests zijn groen, maar **er is geen NAS-deployment en de productiefeatureflag blijft uit**. Nu: [één gebundelde read-only SQL-validatie op echte NAS-data](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md), daarna separaat HTTP/Android-acceptatie. [Detailstatus](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md).
 
 ## Besluit kaartarchitectuur — landelijke dekking op ieder zoomniveau (2 november 2026)
 

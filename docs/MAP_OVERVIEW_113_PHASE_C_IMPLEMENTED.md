@@ -1,6 +1,6 @@
-# ChargeWatch #113 — fase C: adaptieve map overview (draft PR #117)
+# ChargeWatch #113 — fase C: adaptieve map overview (naar main gemerged)
 
-**Datum:** 4 november 2026. **Status:** code en geautomatiseerde testset op `feat/map-overview-113-phase-c` (draft [PR #117](https://github.com/VanHinthem/ChargeWatch/pull/117)); alleen bewezen PASS-resultaten mogen als acceptatie worden genoteerd. **Niet gedeployed, featureflag niet op productie gezet, geen merge.**
+**Datum:** 4 november 2026. **Status:** [PR #117](https://github.com/VanHinthem/ChargeWatch/pull/117) na volledige CI en expliciet akkoord via squash gemerged naar `main`, commit `9fba66e817f788909fd98210236cea9d930f09e3`. **Geen NAS-deployment; `CW_ENABLE_MAP_OVERVIEW` blijft in productie uit.** Vervolg voor real-data performance: [NAS read-only batch](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md).
 
 ## Vastgestelde aanpak (gebruikersakkoord)
 
@@ -36,7 +36,9 @@ De nieuwe `map-overview-http-integration`-job in `.github/workflows/read-only-ap
 
 [Read-only API-workflowresultaat](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544647).
 
-**Andere relevante workflows eveneens PASS:** [NAS Images](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544540) (incl. integratie-/release-safetychecks; PR bouwt images maar deployt niet naar de NAS) en [Tariff snapshot presence](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544759).\n\n**Bewijsgrens:** CI met gesimuleerde data toont correctness en API-contract; echte NAS-productieperformance (p50/p95, concurrency) en Android UX blijven expliciete latere acceptatiegates.
+**Andere relevante workflows eveneens PASS:** [NAS Images](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544540) (incl. integratie-/release-safetychecks; PR bouwt images maar deployt niet naar de NAS) en [Tariff snapshot presence](https://github.com/VanHinthem/ChargeWatch/actions/runs/41838544759).
+
+**Bewijsgrens:** CI met gesimuleerde data toont correctness en API-contract; echte NAS-productieperformance (p50/p95, concurrency) en Android UX blijven expliciete latere acceptatiegates.
 
 ## Nog niet bewezen door CI
 
@@ -46,4 +48,4 @@ De nieuwe `map-overview-http-integration`-job in `.github/workflows/read-only-ap
 
 ## Releasegrenzen
 
-PR #117 blijft draft; alleen na groene workflows en expliciete gebruikerstoestemming mag worden gesquash-merget. Geen NAS-deploy of productie-activatie zonder afzonderlijk akkoord. Vervolgwerk Android kaart/clusterinteractie, gerichte favoriete ID-calls en fysieke toestelacceptatie blijft buiten fase C.
+PR #117 is gemerged naar `main`; géén NAS-deploy of productie-activatie zonder afzonderlijk akkoord. Vervolgwerk Android kaart/clusterinteractie, gerichte favoriete ID-calls en fysieke toestelacceptatie blijft buiten fase C.
