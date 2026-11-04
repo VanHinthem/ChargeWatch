@@ -107,7 +107,7 @@ class LocationEnrichmentClient(
             if (base.isBlank() || !base.startsWith("https://") ||
                 !NDW_ID.matches(featureId)) return@withContext null
             val request = Request.Builder()
-                .url("$" + "{base}/api/v1/locations/by-ndw-id/$" + "{featureId}/statistics")
+                .url("${base}/api/v1/locations/by-ndw-id/${featureId}/statistics")
                 .header("Accept", "application/json")
                 .build()
             try {
