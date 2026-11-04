@@ -13,10 +13,10 @@ internal static class MapOverviewDatabase
     {
         if (!double.IsFinite(zoom) || zoom < 0 || zoom > 22)
             throw new ArgumentOutOfRangeException(nameof(zoom));
-        // Provisional zoom mapping. Phase C will tune object budgeting and
-        // effective grid resolution; do not promise a production zoom policy.
-        var gridLevel = Math.Clamp((int)Math.Floor(zoom) + 2, MapGrid.MinLevel, MapGrid.MaxLevel);
-        var grid = MapGrid.Cover(bbox, gridLevel);
+        // Choose resolution BEFORE the only expensive overview query.
+        var selection = MapOverviewGridSelector.Select(bbox, zoom);
+        var gridLevel = selection.Level;
+        var grid = selection.Coverage;
         // SQL uses the same meter origin/cell length as MapGrid and P2i/P2l.
         var cellMeters = MapGrid.WorldMeters / (1L << gridLevel);
         var southwest = MapGrid.Bounds(new MapGridCell(gridLevel, grid.MinCellX, grid.MaxCellY));
@@ -38,7 +38,7 @@ internal static class MapOverviewDatabase
         // Per_location is the only place where EVSE rows are counted.
         // No connectors joined in the aggregator, so EVSEs are never duplicated.
         // Filters still use the *original* correlated MapFilter predicate.
-        var sql = MapOverviewSql.Build(filters);
+        var sql = MapOverviewSql.Build(filters, constrainToCoverage: true);
 
         await using var command = new NpgsqlCommand(sql,connection,transaction);
         command.CommandTimeout = 5;
@@ -47,6 +47,11 @@ internal static class MapOverviewDatabase
         command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Double, Value=northeast.MaxLon });
         command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Double, Value=northeast.MaxLat });
         command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Double, Value=cellMeters });
+        // Exact canonical coverage; no additional cell or location LIMIT.
+        command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Bigint, Value=grid.MinCellX });
+        command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Bigint, Value=grid.MaxCellX });
+        command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Bigint, Value=grid.MinCellY });
+        command.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlDbType.Bigint, Value=grid.MaxCellY });
         filters.AddParameters(command);
 
         var markers = new List<MapOverviewMarker>();
@@ -54,8 +59,8 @@ internal static class MapOverviewDatabase
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                // Phase B does NOT perform dynamic coarsening yet; a budget
-                // overflow is an explicit error, never a partial complete map.
+                // Defensive assertion; the selected footprint already has
+                // at most 500 cells, so overflow indicates a contract bug.
                 if (markers.Count == MapGrid.InitialMarkerBudget)
                     throw new MapOverviewBudgetException();
                 var cx=reader.GetInt64(0);

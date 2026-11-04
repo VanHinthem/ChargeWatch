@@ -3,8 +3,21 @@
 // source for filter predicates.
 internal static class MapOverviewSql
 {
-    public static string Build(MapFilter filters)
+    public static string Build(MapFilter filters, bool constrainToCoverage = false)
     {
+        // The historical SQL probe uses the original five parameters; only
+        // the new HTTP path supplies explicit canonical cell bounds ($6..$9).
+        var filterStart = constrainToCoverage ? 10 : 6;
+        var spatial = constrainToCoverage
+            // Geography bounding-box overlap is a conservative spatial
+            // prefilter; exact ownership is decided by canonical cx/cy.
+            // Longitudes spanning >= 180 degrees bypass the polygon index
+            // prefilter to avoid geographic antimeridian ambiguity.
+            ? "($3 - $1 >= 180 OR l.position && ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)"
+            : "ST_Intersects(l.position,ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)";
+        var cellPredicate = constrainToCoverage
+            ? "WHERE s.cx BETWEEN $6 AND $7 AND s.cy BETWEEN $8 AND $9"
+            : "";
         return $"""
             WITH selected AS MATERIALIZED (
               SELECT l.id,l.country_code,l.party_id,l.source_id,
@@ -15,8 +28,8 @@ internal static class MapOverviewSql
                            -ST_Y(ST_Transform(l.position::geometry,3857)))/$5)::bigint AS cy
               FROM charging_location l
               WHERE l.is_active AND l.position IS NOT NULL
-                AND ST_Intersects(l.position,ST_MakeEnvelope($1,$2,$3,$4,4326)::geography)
-                {filters.LocationPredicate(6)}
+                AND {spatial}
+                {filters.LocationPredicate(filterStart)}
             ), per_location AS (
               SELECT s.id,s.country_code,s.party_id,s.source_id,
                      s.longitude,s.latitude,s.cx,s.cy,
@@ -30,6 +43,7 @@ internal static class MapOverviewSql
                      )::int AS free_evses
               FROM selected s
               LEFT JOIN evse e ON e.location_id=s.id AND e.is_active
+              {cellPredicate}
               GROUP BY s.id,s.country_code,s.party_id,s.source_id,
                        s.longitude,s.latitude,s.cx,s.cy
             )

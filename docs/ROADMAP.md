@@ -2,6 +2,10 @@
 
 **Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
 
+## #113 fase C — adaptief landelijke overview in draft PR #117 (4 november 2026)
+
+De backend-overview krijgt één conservatief gekozen canoniek Web Mercator-gridlevel per request, hoogstens 500 markerobjecten, volledige celdekking zonder locatie-LIMIT en dezelfde filter-/beschikbaarheidsregels. Geautomatiseerde HTTP/Npgsql-tests in GitHub Actions zijn onderdeel van fase C. **Draft/CI-review, geen merge of NAS-deploy, featureflag uit; Android volgt pas na stabiel API-contract.** [Detailstatus](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md).
+
 ## Besluit kaartarchitectuur — landelijke dekking op ieder zoomniveau (2 november 2026)
 
 Binnen [#113](https://github.com/VanHinthem/ChargeWatch/issues/113) krijgt de **kaartlaag als eerste prioriteit**. De gebruiker heeft expliciet gekozen dat ChargeWatch **heel Nederland** moet kunnen tonen, ook volledig uitgezoomd: grote clusters bij lage zoom, clusters en losse laadlocaties gemengd bij tussenzoom en individuele locaties bij voldoende hoge zoom. Daarbij blijft filtering vóór aggregatie betrouwbaar en worden nooit locaties stilzwijgend weggelaten om onder een markerlimiet te blijven. De huidige 999-locatieblokkade is niet het gewenste gedrag van het nieuwe overzichtscontract.

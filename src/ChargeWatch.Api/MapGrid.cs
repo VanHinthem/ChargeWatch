@@ -73,6 +73,16 @@ internal static class MapGrid
             InverseMercatorLatitude(WorldHalfMeters - (cell.Y + 0.5) * size));
     }
 
+    // Shared with the offset-independent overview resolution selector.
+    public static double MercatorNorthingMeters(double latitude)
+    {
+        if (!double.IsFinite(latitude) ||
+            latitude < -MaxMercatorLatitude || latitude > MaxMercatorLatitude)
+            throw new ArgumentOutOfRangeException(nameof(latitude));
+        return EarthRadiusMeters * Math.Log(
+            Math.Tan(Math.PI / 4.0 + latitude * Math.PI / 360.0));
+    }
+
     private static double InverseMercatorLatitude(double yMeters) =>
         (2.0 * Math.Atan(Math.Exp(yMeters / EarthRadiusMeters)) - Math.PI / 2.0) * 180.0 / Math.PI;
 
