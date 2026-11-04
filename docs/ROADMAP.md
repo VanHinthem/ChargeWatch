@@ -1,5 +1,12 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## Android-sheetstatistieken on-demand (4 november 2026)
+
+De compacte kaart-sheet vraagt voortaan alleen locatiedetails en tarieven via `by-ndw-id/{featureId}` op. De aparte `/statistics`-aanroep wordt pas gestart wanneer de sheet daadwerkelijk wordt uitgebreid en wordt binnen dezelfde sheet per locatie onthouden. Het favorietenscherm opent de gedeelde sheet al direct volledig, zodat historie daar gewoon meteen wordt geladen. De favorietenlijst blijft beschikbaarheid verversen via de bestaande viewport-API met maximaal twee minuten fetchcache; aan die datastroom is niets gewijzigd. [Technisch verslag](SHEET_STATISTICS_ON_DEMAND_ANDROID.md). **Android-only, eerst draft-PR en CI; geen merge/deployment zonder afzonderlijk akkoord.**
+
+---
+
+
 ## #113 — Favorietster op clusters (4 november 2026)
 
 De Samsung-acceptatie na PR #121 liet zien dat de clusterpresentatie nu consistent is, maar dat de gele favorietster op clusters ontbreekt. Fix op `fix/map-cluster-favorite-badge-113`: lokale groepen krijgen de ster via exacte `featureId`-membership, landelijke groepen via opgeslagen lokale coördinaten en canonieke celmembership (zonder actieve filters), met één identieke sterbadge en correct cachegedrag. Bij gefilterde serveraggregaten wordt geen onbewezen ster getoond. [Ontwerp, privacygrens en testmatrix](MAP_CLUSTER_FAVORITES_113.md). Geen API/NAS-wijziging; PR blijft eerst draft, geen merge/deploy zonder akkoord.
