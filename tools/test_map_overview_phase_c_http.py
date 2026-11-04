@@ -226,4 +226,56 @@ for bad in [
     dict(bbox="5,86,6,87",zoom="10"),dict(bbox=BROAD,zoom="12",power="invalid"),
 ]:
     fetch(bad,expected_status=400)
+
+def verify_cell_page(cluster, offset, limit, filters=None, expected_status=200):
+    params = dict(gridLevel=cluster["gridLevel"],gridX=cluster["gridX"],
+                  gridY=cluster["gridY"],offset=offset,limit=limit)
+    params.update(filters or {})
+    url = BASE + "map/overview/cell?" + urllib.parse.urlencode(params, doseq=True)
+    try:
+        with urllib.request.urlopen(url,timeout=20) as response:
+            status=response.status
+            payload=json.load(response)
+            headers=response.headers
+    except urllib.error.HTTPError as failure:
+        status=failure.code
+        payload=json.load(failure)
+        headers=failure.headers
+    assert status==expected_status,(url,status,payload)
+    if status!=200:
+        return
+    assert headers["Cache-Control"]=="no-store"
+    assert headers["X-ChargeWatch-Filter-Version"]=="1"
+    assert (payload["gridLevel"],payload["gridX"],payload["gridY"]) == (
+        cluster["gridLevel"],cluster["gridX"],cluster["gridY"])
+    expected = sorted([
+        (id_,loc) for id_,loc in locations.items()
+        if cell_at(loc,cluster["gridLevel"]) == (cluster["gridX"],cluster["gridY"]) and
+        matches(loc,filters or {})
+    ])
+    assert payload["totalCount"]==len(expected),(payload["totalCount"],len(expected))
+    expected_page=expected[offset:offset+limit]
+    assert len(payload["items"])==len(expected_page)
+    assert payload["hasMore"]==(offset+len(expected_page)<len(expected))
+    for item,(_,loc) in zip(payload["items"],expected_page):
+        assert item["featureId"]=="-".join((loc["country"],loc["party"],loc["source"]))
+        assert (item["availableCount"],item["totalCount"])==counts(loc)
+        assert abs(item["longitude"]-loc["lon"]) < 1e-7
+        assert abs(item["latitude"]-loc["lat"]) < 1e-7
+    return payload
+
+# Phase D: HTTP query reads only the selected complete canonical cell;
+# verify paging, stable ID ordering, status counts, and filter parity.
+large=verify(base,expected_total=1635)
+cluster=max((m for m in large["markers"] if m["kind"]=="cluster"),
+            key=lambda m:m["locationCount"])
+assert cluster["locationCount"]>1000
+verify_cell_page(cluster,0,30)
+verify_cell_page(cluster,30,30)
+verify_cell_page(cluster,cluster["locationCount"]-1,30)
+verify_cell_page(cluster,cluster["locationCount"]+2,30)
+verify_cell_page(cluster,0,30,{"connectorType":["ccs2"],"mode":["dc"]})
+verify_cell_page(cluster,0,0,expected_status=400)
+verify_cell_page(dict(cluster,gridX=-1),0,20,expected_status=400)
+print("Phase D paginated read-only overview cell HTTP/Npgsql/filter integration PASS")
 print("Phase C genuine overview HTTP/JSON/Npgsql/coverage integration PASS")

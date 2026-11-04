@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import nl.vanhinthem.chargewatch.BuildConfig
+import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -47,7 +48,7 @@ data class LocationEnrichment(
 )
 
 sealed interface EnrichmentResult {
-    data class Found(val value: LocationEnrichment) : EnrichmentResult
+    data class Found(val value: LocationEnrichment, val mapLocation: MapLocation? = null) : EnrichmentResult
     data object Unconfigured : EnrichmentResult
     data object NotFound : EnrichmentResult
     data object Unavailable : EnrichmentResult
@@ -60,7 +61,7 @@ class LocationEnrichmentClient(
         .callTimeout(10, TimeUnit.SECONDS)
         .build()
 ) {
-    suspend fun load(featureId: String): EnrichmentResult = withContext(Dispatchers.IO) {
+    suspend fun load(featureId: String, mapLocation: MapLocation? = null): EnrichmentResult = withContext(Dispatchers.IO) {
         val base = baseUrl.trimEnd('/')
         if (base.isBlank() || !base.startsWith("https://")) return@withContext EnrichmentResult.Unconfigured
         if (!NDW_ID.matches(featureId)) return@withContext EnrichmentResult.NotFound
@@ -87,7 +88,8 @@ class LocationEnrichmentClient(
                             }.getOrDefault(emptyList())
                             EnrichmentResult.Found(detail.copy(
                                 statisticsAvailable = stats.isNotEmpty(),
-                                hourlyAvailability = stats))
+                                hourlyAvailability = stats),
+                                mapLocation?.let { parseMapLocationDetail(body,it) })
                         }.getOrDefault(EnrichmentResult.Unavailable)
                     }
                 }

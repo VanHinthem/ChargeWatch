@@ -1,3 +1,9 @@
+## #113 fase D Android-kaartintegratie — draft PR #119 (4 november 2026)
+
+Het landelijke overzicht is in [draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119) geïntegreerd in de bestaande Android-MapLibre-kaart, met optionele moduskeuze in Instellingen (standaard legacy), complete overview-responses, servercluster-ringen, canonical celtapzoom en gepagineerde celkeuze via een nieuwe feature-gated read-only route. De bestaande kaart en API/collector zijn ongewijzigd als terugvalpad. [Technisch verslag](MAP_OVERVIEW_113_PHASE_D_ANDROID.md). **PR #118 is op 4 november al naar main gemerged als `6d5c320`; #119 is niet gemerged of gedeployed. Productieflag `CW_ENABLE_MAP_OVERVIEW` blijft uit.** Automatische CI en fysieke toestel-/HTTP-releasegates worden afzonderlijk beoordeeld; geen merge/deploy zonder toestemming. #113 blijft open.
+
+---
+
 ## #113 fase C landelijke NAS SQL-batch PASS — 4 november 2026
 
 Gebundelde read-only test van de **echte productiesql en rasterselector** op bestaande NAS-data geslaagd, zonder deployment, databasewijziging of featureflag-activatie. Nationaal ongefilterd (zoom 6 / grid8): **83.408 locaties, 13 markers, 1.464,780 ms**; nationaal CCS2/DC (zoom 12 / grid10): **1.612 locaties, 84 markers, 164,856 ms**; Oss (zoom 15 / grid15): **489 locaties, 116 markers, 13,035 ms**. Alle drie: statuspartitionering correct, markerbudget ≤500 en uitvoering onder 5 seconden, zonder fout of timeout. **Eenmalige SQL-executietijden, geen HTTP-p95 of loadtest.** [Volledige resultaten en vervolggates](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md). [Draft PR #118](https://github.com/VanHinthem/ChargeWatch/pull/118) blijft open; geen merge/deploy zonder afzonderlijk akkoord. #113 blijft open voor gecontroleerde HTTP-rollout en Android-integratie.
