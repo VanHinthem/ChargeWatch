@@ -28,7 +28,21 @@ internal sealed record MapOverviewLocationMarker(
     double Longitude, double Latitude,
     string FeatureId, // Existing external country_code-party_id-source_id identity.
     int? AvailableCount, int? TotalCount, string CountQuality)
-    : MapOverviewMarker(GridLevel, GridX, GridY, Longitude, Latitude);
+    : MapOverviewMarker(GridLevel, GridX, GridY, Longitude, Latitude)
+{
+    // The legacy ChargeWatch/Android map always has numeric counts.
+    // 0/0 remains a numeric label with unknown availability, not null/?.
+    public static MapOverviewLocationMarker FromCounts(
+        int gridLevel, long gridX, long gridY, double longitude, double latitude,
+        string featureId, int availableCount, int totalCount)
+    {
+        if (availableCount < 0 || totalCount < 0 || availableCount > totalCount)
+            throw new InvalidDataException("Invalid map location available/total counts.");
+        return new MapOverviewLocationMarker(gridLevel, gridX, gridY,
+            longitude, latitude, featureId, availableCount, totalCount,
+            totalCount > 0 ? "known" : "unknown");
+    }
+}
 
 // A complete response does not imply fresh charging status data.
 // DataVersion remains null until a *real* atomically published source version
