@@ -1,5 +1,11 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## Widget issue #101 — voortzetting in bestaande PR #112 (5 november 2026)
+
+De eerdere widget-APK verloor zijn receiver in de inmiddels gemergede Android-PR's, doordat de widgetwerkbranch nog niet was samengevoegd. Het herstel vindt plaats in de **bestaande draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112)**. Huidige `main` inclusief #123 is geïntegreerd zonder het Glance-ontwerp te wijzigen (4×1, 2×2, 4×2, 4×3). Widgets gebruiken nu de batchlocatie-API (#124) met `includeStatistics=false`, snelle gzip-JSON (#125), één in-process `LocationDetailsCache` met kaart/favorieten en een persistente kleine widget-last-known cache. Losse geografische beschikbaarheids- en metadata-GET-paden zijn niet meer nodig. Eerst Android CI, daarna fysieke Samsung-acceptatie; niet mergen zonder nieuw akkoord. [Widgetontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md).
+
+---
+
 ## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
 
 Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.

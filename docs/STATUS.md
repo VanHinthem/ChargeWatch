@@ -1,3 +1,33 @@
+## PR #112 — widget tussenmaat hersteld na Samsung-review (5 november 2026)
+
+De compactere 2×2-layout is op Samsung zichtbaar en leesbaar, maar de horizontale widget daaronder schakelde eveneens over naar de gestapelde variant. In draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is daarom de responsieve `150×62dp`-tussenmaat toegevoegd. `100×62dp` behoudt de gestapelde compacte indeling, `150×62dp` en `260×62dp` krijgen de horizontale layout. De grote formaten zijn ongemoeid gelaten. Een echte 1×1 is een kans voor een later expliciet ontwerp, **niet** onderdeel van deze correctie. Nog CI en fysieke Samsung-hertest vereist; geen merge zonder akkoord.
+
+---
+
+## PR #112 — One UI 2×2-responsieve layout-correctie (5 november 2026)
+
+De nieuwe Samsung-screenshot liet zien dat de kleine widget na de vorige UI-aanpassing nog de **4×1-layout** renderde (`...`/`S...` naast de badge). Jetpack Glance gebruikte bij het ontbreken van een passend 2×2-formaat de kleinste geregistreerde `260×62dp`-variant. In [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is een aparte `100×62dp`-layout toegevoegd: leesbare favoriete naam, bezettingsbadge op eigen regel, klein versheidslabel, verversactie en `+N`. De bestaande 4×1 en grote widgets blijven behouden. Pure formaatroutingtests toegevoegd. Nieuwe CI en Samsung-heracceptatie nodig; PR blijft draft en ongemerged.
+
+---
+
+## PR #112 — smalle 2×2-widget toont één leesbare favoriet (5 november 2026)
+
+De gebruiker heeft de nieuwe brede en horizontale widgetlayout op Samsung goedgekeurd, maar 2×2 toonde afgekorte locatienaam en plaats. In de bestaande draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is **alleen de smalle 2×2-weergave** aangepast: één favoriet met volledige breedte voor naam (maximaal twee regels), groen/rode EVSE-badge op een aparte regel, geen adres, versheidsstatus onderaan en `+N meer` bij andere geselecteerde favorieten. De brede en 4×1-layout blijven identiek. Unit-test voor 1 zichtbare favoriet bij smalle breedtes; nieuwe Android-CI en Samsung-review vereist. Nog niet mergen.
+
+---
+
+## Widgetlay-out: favorieten bovenaan, versheid naast titel (5 november 2026)
+
+Op basis van de nieuwste Samsung-screenshot van de brede widget in PR #112 worden geselecteerde favorieten direct onder de header weergegeven in plaats van verticaal gecentreerd. De brede widget toont kleine bronversheid rechts van `⚡ ChargeWatch` (bijv. `1 min geleden`, `Laatst bekend`, `Deels onbekend`, `Bronmoment verschilt` of `Verversen…`). De footer is verwijderd uit dit formaat; eventuele verborgen extra favorieten worden na de zichtbare rijen aangegeven. De afzonderlijke 2×2- en 4×1-layouts zijn bewust niet veranderd. Pure regressietests voor bronstatus blijven verplicht, nieuwe Android-CI en Samsung-review nodig. **PR #112 blijft draft; geen merge zonder akkoord.**
+
+---
+
+## PR #112 Android-widgets hervat op actuele main (5 november 2026)
+
+Na succesvolle merge en Samsung-acceptatie van Android-cache PR [#123](https://github.com/VanHinthem/ChargeWatch/pull/123) en NAS-acceptatie van API gzip PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125), wordt het **bestaande draft PR #112** bijgewerkt, niet vervangen. Ontwerp en resizable Glance-widgetvormen blijven behouden. De widget haalt geselecteerde favorieten via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false`; de kaart en widget delen binnen een app-proces de 2-minuten-`LocationDetailsCache`. Widgetstatus en plaats-/adresmetadata worden atomair in de persistente `WidgetStore` bewaard, inclusief laatst-bekende betrouwbare EVSE-ratio bij fouten/offline. Geen oude viewport-/NDW-fallback of losse metadata-GET; een tik opent de uitgebreide sheet via de gedeelde cache. Nieuwe CI en Samsung-smoketest nog nodig; geen merge of release zonder expliciete goedkeuring. Zie [widgetontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md).
+
+---
+
 ## Android gedeelde locatiecache — PR #123 (5 november 2026)
 
 Na het akkoord op de NAS-benchmark is PR #123 uitgebreid met één gedeelde `LocationDetailsCache` voor kaart- en favorietensheets. Details, EVSEs en tarieven worden maximaal één keer per ID per **2 minuten** via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false` opgehaald. Historische statistieken zijn **on-demand** bij uitklappen en hebben een eigen cache van **15 minuten**; een fout haalt de compacte details niet onderuit. Batchomvang blijft maximaal twintig, met ondersteuning voor bestaande favorieten boven de limiet. Nieuw Android-build/smoketest en CI-acceptatie zijn nodig voordat deze PR gemerged mag worden. De verdwenen widgets blijven voor een aparte PR. Zie [Android sheet/cache ontwerp](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).

@@ -71,6 +71,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     implementation("org.maplibre.gl:android-sdk:13.7.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
