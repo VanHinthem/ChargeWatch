@@ -34,6 +34,12 @@ data class FavoriteLocation(
     }
 }
 
+const val MAX_SAVED_FAVORITES = 20
+
+/** A previously saved favorite may always be removed, including legacy >20 lists. */
+internal fun mayToggleFavorite(current: List<FavoriteLocation>, id: String): Boolean =
+    current.any { it.featureId == id } || current.size < MAX_SAVED_FAVORITES
+
 /** Private device storage only: never sends favorites or user aliases to the backend. */
 class FavoritesRepository(context: Context) {
     private val store = context.applicationContext.favoritesDataStore
@@ -43,15 +49,22 @@ class FavoritesRepository(context: Context) {
         decode(prefs[FAVORITES])
     }
 
-    suspend fun toggle(location: MapLocation) {
+    /** Returns false when adding this favorite would exceed the 20-slot limit. */
+    suspend fun toggle(location: MapLocation): Boolean {
+        var accepted = true
         store.edit { prefs ->
             val current = decode(prefs[FAVORITES])
-            prefs[FAVORITES] = json.encodeToString(
-                if (current.any { it.featureId == location.featureId })
-                    current.filterNot { it.featureId == location.featureId }
-                else current + FavoriteLocation.from(location)
-            )
+            if (!mayToggleFavorite(current, location.featureId)) {
+                accepted = false
+            } else {
+                prefs[FAVORITES] = json.encodeToString(
+                    if (current.any { it.featureId == location.featureId })
+                        current.filterNot { it.featureId == location.featureId }
+                    else current + FavoriteLocation.from(location)
+                )
+            }
         }
+        return accepted
     }
 
     suspend fun rename(id: String, alias: String) {
