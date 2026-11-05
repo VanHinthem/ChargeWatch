@@ -121,7 +121,8 @@ fun visibleWidgetRows(widthDp: Float, heightDp: Float): Int {
     val reservedDp = if (compact) 58f else 65f
     val rowDp = if (compact) 40f else 50f
     val heightCapacity = ((heightDp - reservedDp) / rowDp).toInt().coerceAtLeast(1)
-    return minOf(5, if (widthDp < 230f) 2 else 5, heightCapacity)
+    // The compact 2x2 Glance layout prioritizes one readable favorite.
+    return minOf(5, if (widthDp < 230f) 1 else 5, heightCapacity)
 }
 
 /** Never call a '?' with no trustworthy cache "last known". */
