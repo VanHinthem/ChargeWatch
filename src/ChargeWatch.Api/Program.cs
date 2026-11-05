@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
@@ -10,6 +12,7 @@ if (args.Length == 1 && args[0] == "--self-test")
     MapOverviewPhaseASelfTest.Run();
     MapOverviewPhaseBCompatibilitySelfTest.Run();
     MapOverviewPhaseCSelfTest.Run();
+    LocationBatchContracts.SelfTest();
     return;
 }
 
@@ -32,6 +35,16 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.AddSingleton(apiOptions);
 builder.Services.AddSingleton<ApiDatabase>();
+// Public read-only JSON data only. Clients must explicitly accept gzip;
+// plain JSON remains unchanged for clients without compression support.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ["application/json"];
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -56,6 +69,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseRateLimiter();
 
 app.MapGet("/api/v1/locations", async (
@@ -186,6 +200,19 @@ app.MapGet("/api/v1/locations/{id:long}/statistics", async (long id,ApiDatabase 
 {
     var result = await database.GetStatistics(id);
     return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+// The read-only batch endpoint serves Favorites and future Android widgets.
+// IDs are external NDW keys; no per-user favorite list is persisted or logged.
+// Always validate the entire request before any DB access.
+app.MapPost("/api/v1/locations/by-ndw-id/batch", async (
+    LocationBatchRequest request, ApiDatabase database) =>
+{
+    if (!LocationBatchContracts.TryValidate(request, out var keys, out var error))
+        return Results.BadRequest(new { error });
+
+    var result = await database.GetLocationBatch(keys, request.IncludeStatistics);
+    return Results.Ok(result);
 });
 
 // External NDW GeoJSON lookup. Does not expose internal IDs as an identity requirement.
