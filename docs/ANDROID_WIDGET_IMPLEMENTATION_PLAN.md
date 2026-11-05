@@ -198,3 +198,14 @@ Na CI volgt een nieuwe Samsung-screenshot/test voor 2×2. PR #112 blijft draft e
 De fysieke hertest na de eerste 2×2-vereenvoudiging toonde nog steeds `...` en `S...` naast de badge, met de verversknop op één horizontale rij. Dit was niet de nieuw geschreven 2×2-compositie maar de bestaande 4×1-layout. **Oorzaak:** One UI biedt voor deze kleine tegel vermoedelijk een kleiner beschikbaar dp-formaat dan de eerder geregistreerde `150×140dp`; bij `SizeMode.Responsive` selecteert Glance, wanneer geen formaat past, de kleinste variant, tot nu toe `260×62dp` (4×1).
 
 **Gerichte correctie:** `DpSize(100.dp, 62.dp)` toevoegen aan de bestaande responsieve formaten en vóór de 4×1-check routeren naar een eigen `TinySquareWidgetContent`. Hier krijgt de geselecteerde favoriet een eigen naamregel (zonder straat- of plaatsregel), een eigen groen/rood/?-badge, klein versheidslabel, verversicoon en `+N` bij meerdere selecties. Bestaande 4×1-, normale 2×2- en brede layouts blijven code-technisch ongewijzigd. De nieuwe pure test valideert dat het kleine One UI-formaat niet als 4×1 wordt herkend. **Nogmaals een fysieke Samsung-test vereist**; Glance kan per launcher andere werkelijk beschikbare formaten rapporteren.
+
+
+### Samsung-validatie 5 november — horizontale tussenmaat herstellen; 1×1 als optie
+
+De laatste Samsung-screenshot toont dat de kleinste tegel nu correct een eigen naamregel, badge en leeftijd heeft, maar **de bredere onderste horizontale tegel onbedoeld ook die compacte gestapelde variant toont**. De oorzaak is dezelfde `SizeMode.Responsive`-groottematrix: `100×62dp` paste ook in die tussenmaat, terwijl `260×62dp` te breed was. Volgens de Android-documentatie kiest het systeem bij Responsive de best passende geregistreerde `DpSize`.
+
+**Correctie in dezelfde PR:** voeg een tussenmaat `150×62dp` toe en stuur deze, naast `260×62dp`, weer naar de reeds bestaande horizontale `SingleRowWidgetContent`. De kleine `100×62dp` blijft de eigen gestapelde `TinySquareWidgetContent` gebruiken. De bestaande brede inhoud en de grote formaten worden niet aangepast. Unit-tests toetsen de drie maatklassen en dat een hogere 150×140-widget niet als horizontale rij wordt behandeld.
+
+De compacte inhoud **zou als basis voor een echte 1×1-widget kunnen dienen**, maar daar is nog géén afzonderlijke launcherconfiguratie of 1×1-garantie voor toegevoegd: huidige `android:minResizeWidth=140dp` en `targetCellWidth=4` zijn daarvoor nog niet bedoeld. Een latere 1×1-support moet via metadata en fysieke One UI-validatie expliciet worden gekozen. Eerst voorkomen dat de bestaande onderste horizontale widget opnieuw verandert.
+
+**Acceptatie:** nieuwe APK op Samsung; kleine tegel gestapeld, onderste tussenmaat weer horizontaal (naam + adres + badge + verversactie), grote/brede widgets ongewijzigd. PR #112 blijft draft en ongemerged.
