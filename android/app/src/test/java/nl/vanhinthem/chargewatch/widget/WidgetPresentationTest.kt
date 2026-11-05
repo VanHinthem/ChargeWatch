@@ -81,6 +81,18 @@ class WidgetPresentationTest {
         assertEquals(2, selected.size - visibleWidgetRows(150f, 140f))
     }
 
+    @Test fun tinyOneUiSquareMustNotChooseWideSingleRowLayout() {
+        // One UI may offer a 2x2 widget smaller than the previous 150x140dp
+        // size. The new registered 100x62dp variant needs its own layout.
+        assertTrue(isTinySquareWidget(100f, 62f))
+        assertTrue(isTinySquareWidget(115f, 70f))
+        assertFalse(isSingleRowWidget(100f, 62f))
+        assertFalse(isTinySquareWidget(260f, 62f))
+        assertTrue(isSingleRowWidget(260f, 62f))
+        assertFalse(isTinySquareWidget(150f, 140f))
+        assertFalse(isTinySquareWidget(285f, 140f))
+    }
+
     @Test fun singleRowWidgetIsOnlyUsedForWideLowLauncherSizes() {
         assertTrue(isSingleRowWidget(260f, 62f))
         assertTrue(isSingleRowWidget(285f, 78f))
