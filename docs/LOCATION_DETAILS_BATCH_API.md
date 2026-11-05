@@ -53,4 +53,4 @@ Het voorbeeld is schematisch: detailobjecten bevatten ook de bestaande optionele
 
 ## Grenzen
 
-Maximaal 20 aangeleverde ID's per verzoek is een **API-limiet**, geen garantie dat lokaal opgeslagen favorieten boven dit aantal worden verwijderd. Een limiet van maximaal 20 opgeslagen favorieten in de Android-UI vergt een eigen productbeslissing. Dit ontwerp introduceert geen ongevraagde automatische verwijdering van bestaande favorieten.
+Maximaal 20 aangeleverde ID's per verzoek is een **API-limiet**, geen garantie dat lokaal opgeslagen favorieten boven dit aantal worden verwijderd. De afzonderlijke Android-PR #123 beperkt nieuwe opgeslagen favorieten tot 20, maar verwijdert bestaande lijsten met meer favorieten niet; zulke lijsten worden per maximaal 20 IDs in een of meer batches verwerkt.
