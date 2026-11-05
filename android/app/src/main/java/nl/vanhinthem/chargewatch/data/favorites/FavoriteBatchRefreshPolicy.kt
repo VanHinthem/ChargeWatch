@@ -3,16 +3,18 @@ package nl.vanhinthem.chargewatch.data.favorites
 import java.time.Duration
 import java.time.Instant
 
-/** The batch contains full details/history, not just recent map availability. */
+/**
+ * Each favorite has its own successful retrieval timestamp. Adding one new
+ * favorite must not extend the freshness window of the older favorites.
+ * Missing locations are also considered checked for two minutes.
+ */
 internal fun favoriteIdsNeedingBatchFetch(
     ids: List<String>,
-    coveredIds: Set<String>,
-    fetchedAt: Instant?,
+    fetchedAtById: Map<String, Instant>,
     now: Instant,
     force: Boolean
-): List<String> {
-    val fresh=fetchedAt?.let {
-        !it.isAfter(now) && Duration.between(it,now) <= Duration.ofMinutes(2)
-    } ?: false
-    return if (force || !fresh) ids.distinct() else ids.distinct().filterNot(coveredIds::contains)
+): List<String> = ids.distinct().filter { id ->
+    if (force) return@filter true
+    val checkedAt=fetchedAtById[id] ?: return@filter true
+    checkedAt.isAfter(now) || Duration.between(checkedAt,now) > Duration.ofMinutes(2)
 }
