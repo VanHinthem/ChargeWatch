@@ -43,6 +43,7 @@ class FavoriteBatchClientTest {
         assertEquals(setOf(missing),parsed.missingIds)
         val location=parsed.locations.getValue(one)
         assertEquals("Teststraat 1",location.mapLocation.title)
+        assertEquals("Oss",location.city)
         assertEquals("ChargeWatch",location.mapLocation.operatorName)
         assertEquals("1/1",location.mapLocation.availability.label)
         assertEquals(false,location.mapLocation.feedIsStale)
