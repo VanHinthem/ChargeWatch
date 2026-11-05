@@ -1,3 +1,9 @@
+## PR #112 — One UI 2×2-responsieve layout-correctie (5 november 2026)
+
+De nieuwe Samsung-screenshot liet zien dat de kleine widget na de vorige UI-aanpassing nog de **4×1-layout** renderde (`...`/`S...` naast de badge). Jetpack Glance gebruikte bij het ontbreken van een passend 2×2-formaat de kleinste geregistreerde `260×62dp`-variant. In [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is een aparte `100×62dp`-layout toegevoegd: leesbare favoriete naam, bezettingsbadge op eigen regel, klein versheidslabel, verversactie en `+N`. De bestaande 4×1 en grote widgets blijven behouden. Pure formaatroutingtests toegevoegd. Nieuwe CI en Samsung-heracceptatie nodig; PR blijft draft en ongemerged.
+
+---
+
 ## PR #112 — smalle 2×2-widget toont één leesbare favoriet (5 november 2026)
 
 De gebruiker heeft de nieuwe brede en horizontale widgetlayout op Samsung goedgekeurd, maar 2×2 toonde afgekorte locatienaam en plaats. In de bestaande draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is **alleen de smalle 2×2-weergave** aangepast: één favoriet met volledige breedte voor naam (maximaal twee regels), groen/rode EVSE-badge op een aparte regel, geen adres, versheidsstatus onderaan en `+N meer` bij andere geselecteerde favorieten. De brede en 4×1-layout blijven identiek. Unit-test voor 1 zichtbare favoriet bij smalle breedtes; nieuwe Android-CI en Samsung-review vereist. Nog niet mergen.
