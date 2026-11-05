@@ -169,3 +169,12 @@ Dit zijn **richtmaten**: daadwerkelijke `DpSize` na resizing, launcher-padding, 
 - De API/database/NAS worden in deze PR **niet** gewijzigd. De NAS draait volgens de gebruiker de samengevoegde batch/gzip-API. Gzip over publiek HTTPS is op 5 november bevestigd (`HTTP/2 200`, `Content-Encoding: gzip`, `Vary: Accept-Encoding`).
 
 **Nog open voor acceptatie:** actuele Android CI + fysieke Samsung-test van widgetregistratie/toevoegen, formaat 4×1/2×2/4×2, selectie en alias, betrouwbare groen/rood-aantallen, handmatige snelle refresh, correct openen van details, en offline/last-known. PR #112 blijft draft en ongemerged tot expliciet akkoord.
+
+
+## Widgetlay-outverfijning — 5 november 2026
+
+- De bredere 4×2/4×3-widgets gebruiken bovenuitlijning: de eerste favoriet begint direct onder de header, niet in het midden van een leeg gebied.
+- De grote footer onderaan vervalt voor deze formaten. Rechts naast de headertekst `⚡ ChargeWatch` verschijnt een klein versheidslabel, bijvoorbeeld `1 min geleden`.
+- Het label is betekenisbewust: `Verversen…` tijdens ophalen; `Laatst bekend` bij oude of onzekere betrouwbaarheid van het bronmoment, `Deels onbekend` en `Onbekend` bij ontbrekende betrouwbare aantallen; `Bronmoment verschilt` wanneer favorieten verschillende brontijden hebben. Een enkele brontijd wordt dus nooit als representatief voor gemengde data getoond.
+- Als meer favoriete locaties zijn geselecteerd dan het formaat toestaat, blijft de `+N meer`-melding bestaan, direct onder de zichtbare rijen.
+- De aparte 2×2- en 4×1-layouts veranderen niet door deze verfijning. Android-CI en visuele Samsung-validatie blijven nodig vóór merge.
