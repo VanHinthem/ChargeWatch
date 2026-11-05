@@ -42,7 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
-import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchClient
+import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
 import nl.vanhinthem.chargewatch.data.favorites.favoriteIdsNeedingBatchFetch
@@ -108,12 +108,8 @@ fun ChargeWatchApp() {
     var settingsLoading by remember { mutableStateOf(false) }
     var settingsError by remember { mutableStateOf<String?>(null) }
 
-    val favoriteBatchClient = remember { FavoriteBatchClient() }
+    val locationDetailsCache = remember { LocationDetailsCache() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
-    var favoriteDetails by remember {
-        mutableStateOf<Map<String, FavoriteBatchLocation>>(emptyMap())
-    }
-    var batchFetchedAt by remember { mutableStateOf<Map<String, Instant>>(emptyMap()) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
     var statusCheckedAt by remember { mutableStateOf(Instant.now()) }
@@ -137,44 +133,22 @@ fun ChargeWatchApp() {
     suspend fun refresh(force: Boolean = false) {
         val ids = favorites.map { it.featureId }.distinct()
         if (ids.isEmpty()) return
-        val now = Instant.now()
-        val needed = favoriteIdsNeedingBatchFetch(ids,batchFetchedAt,now,force)
-        if (needed.isEmpty()) {
+        if (locationDetailsCache.needingDetails(ids, force).isEmpty()) {
             refreshMessage = null
             return
         }
-
         refreshing = true
         refreshMessage = null
-        val found = mutableMapOf<String, FavoriteBatchLocation>()
-        val missing = mutableSetOf<String>()
-        val completed = mutableSetOf<String>()
-        var failure: String? = null
         try {
-            // 20 is the API request limit. Chunking also preserves existing
-            // installations which may already have more than 20 favorites.
-            for (chunk in needed.chunked(FavoriteBatchClient.MAX_BATCH)) {
-                when (val result = favoriteBatchClient.load(chunk)) {
-                    is FavoriteBatchResult.Success -> {
-                        found.putAll(result.locations)
-                        missing.addAll(result.missingIds)
-                        completed.addAll(chunk)
-                    }
-                    is FavoriteBatchResult.Unavailable -> {
-                        failure = result.message
-                        break
-                    }
+            when (val result = locationDetailsCache.loadDetails(ids, force)) {
+                is FavoriteBatchResult.Success -> {
+                    latestStatuses = latestStatuses.filterKeys { it !in result.missingIds } +
+                        result.locations.mapValues { it.value.mapLocation }
+                    refreshMessage = if (result.missingIds.isNotEmpty())
+                        "${result.missingIds.size} opgeslagen laadlocatie(s) niet gevonden."
+                    else null
                 }
-            }
-            favoriteDetails = favoriteDetails.filterKeys { it !in missing } + found
-            latestStatuses = latestStatuses.filterKeys { it !in missing } +
-                found.mapValues { it.value.mapLocation }
-            val checkedAt=Instant.now()
-            batchFetchedAt = batchFetchedAt + completed.associateWith { checkedAt }
-            refreshMessage = when {
-                failure != null -> failure
-                missing.isNotEmpty() -> "${missing.size} opgeslagen laadlocatie(s) niet gevonden."
-                else -> null
+                is FavoriteBatchResult.Unavailable -> refreshMessage = result.message
             }
         } finally {
             statusCheckedAt = Instant.now()
@@ -219,6 +193,7 @@ fun ChargeWatchApp() {
         androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
             if (selectedTab == 0) {
                 MapScreen(
+                    locationDetailsCache = locationDetailsCache,
                     viewModel = mapViewModel,
                     locationEnabled = locationEnabled,
                     alternativeRequest = pendingAlternative,
@@ -256,14 +231,13 @@ fun ChargeWatchApp() {
                         }
                     },
                     onOpen = { favorite ->
-                        val cached = favoriteDetails[favorite.featureId]
+                        val cached = locationDetailsCache.peekDetails(favorite.featureId)
                         if (cached != null) {
                             favoriteDetail = cached
                         } else {
                             scope.launch {
-                                when (val result = favoriteBatchClient.load(listOf(favorite.featureId))) {
+                                when (val result = locationDetailsCache.loadDetails(listOf(favorite.featureId))) {
                                     is FavoriteBatchResult.Success -> {
-                                        favoriteDetails = favoriteDetails + result.locations
                                         latestStatuses = latestStatuses + result.locations.mapValues {
                                             it.value.mapLocation
                                         }
@@ -307,6 +281,7 @@ fun ChargeWatchApp() {
             favoriteDetail?.let { detail ->
                 LocationSelectionSheet(
                     locations = listOf(detail.mapLocation),
+                    locationDetailsCache = locationDetailsCache,
                     preloaded = detail,
                     onDismiss = { favoriteDetail = null },
                     onLocationSelected = { },
