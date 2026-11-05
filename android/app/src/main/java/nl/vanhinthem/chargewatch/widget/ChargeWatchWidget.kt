@@ -70,6 +70,9 @@ private fun homeIntent(context: Context, widgetId: Int) =
 class ChargeWatchWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(
         setOf(
+            // One UI can give a 2x2 tile only ~100x62dp. Without this size
+            // Glance falls back to the 260x62 4x1 layout and truncates names.
+            DpSize(100.dp, 62.dp),
             DpSize(260.dp, 62.dp), // 4x1: one favorite without a separate header/footer
             DpSize(150.dp, 140.dp), DpSize(285.dp, 140.dp),
             DpSize(285.dp, 215.dp), DpSize(285.dp, 270.dp), DpSize(285.dp, 320.dp)
@@ -117,6 +120,10 @@ class ChargeWatchWidget : GlanceAppWidget() {
 private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>,
                           hasFavorites: Boolean, dark: Boolean, refreshing: Boolean) {
     val size = LocalSize.current
+    if (isTinySquareWidget(size.width.value, size.height.value)) {
+        TinySquareWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
+        return
+    }
     if (isSingleRowWidget(size.width.value, size.height.value)) {
         SingleRowWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
         return
@@ -209,6 +216,78 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
             Text("+${rows.size - maxRows} meer",
                 modifier = GlanceModifier.padding(start = 2.dp, top = 4.dp),
                 maxLines = 1, style = TextStyle(color = secondary, fontSize = 10.sp))
+        }
+    }
+}
+
+/**
+ * Very small square tile rendered by Samsung One UI at roughly 100x62dp.
+ * Two-line titles plus a header do not fit here. Show just one favorite,
+ * with a readable name, status badge and small freshness indicator.
+ * Never use the 4x1 layout, which assumes far more horizontal space.
+ */
+@Composable
+private fun TinySquareWidgetContent(
+    context: Context,
+    widgetId: Int,
+    rows: List<WidgetRow>,
+    hasFavorites: Boolean,
+    dark: Boolean,
+    refreshing: Boolean
+) {
+    val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
+    val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
+    val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
+    val favorite = rows.firstOrNull()
+    Column(
+        modifier = GlanceModifier.fillMaxSize().background(surface).cornerRadius(18.dp)
+            .padding(horizontal = 6.dp, vertical = 3.dp)
+    ) {
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val name = favorite?.name ?: if (hasFavorites) "Instellen" else "Geen favorieten"
+            val open = if (favorite == null) {
+                Intent(context, WidgetConfigurationActivity::class.java).apply {
+                    action = AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    data = Uri.parse("chargewatch://widget/$widgetId/configure")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+            } else widgetFavoriteIntent(context, widgetId, favorite.featureId)
+            Text(name, modifier = GlanceModifier.defaultWeight()
+                .clickable(actionStartActivity(open)),
+                maxLines = 1, style = TextStyle(color = foreground, fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium))
+            Text("⟳", modifier = GlanceModifier.padding(start = 2.dp)
+                .clickable(actionRunCallback<WidgetRefreshAction>()),
+                style = TextStyle(color = foreground, fontSize = 16.sp))
+        }
+        if (favorite != null) {
+            val badge = when (favorite.status) {
+                AvailabilityStatus.Available -> if (dark) Color(0xFF214F39) else Color(0xFFD8F1E3)
+                AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFF572A30) else Color(0xFFFCE1E1)
+                AvailabilityStatus.Unknown -> if (dark) Color(0xFF414B52) else Color(0xFFE4E9ED)
+            }
+            val badgeText = when (favorite.status) {
+                AvailabilityStatus.Available -> if (dark) Color(0xFF74D7A1) else Color(0xFF168653)
+                AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
+                AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
+            }
+            Spacer(GlanceModifier.height(2.dp))
+            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(favorite.label, maxLines = 1,
+                    modifier = GlanceModifier.background(badge).cornerRadius(6.dp)
+                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                        .clickable(actionStartActivity(widgetFavoriteIntent(context, widgetId, favorite.featureId))),
+                    style = TextStyle(color = ColorProvider(badgeText),
+                        fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                Spacer(GlanceModifier.defaultWeight())
+                if (rows.size > 1) {
+                    Text("+${rows.size - 1}", maxLines = 1,
+                        style = TextStyle(color = secondary, fontSize = 9.sp))
+                }
+            }
+            Text(if (refreshing) "Verversen…" else compactWidgetFreshness(favorite),
+                maxLines = 1, style = TextStyle(color = secondary, fontSize = 9.sp))
         }
     }
 }
