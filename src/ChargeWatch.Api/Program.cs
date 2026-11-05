@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
@@ -33,6 +35,16 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.AddSingleton(apiOptions);
 builder.Services.AddSingleton<ApiDatabase>();
+// Public read-only JSON data only. Clients must explicitly accept gzip;
+// plain JSON remains unchanged for clients without compression support.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ["application/json"];
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -57,6 +69,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseRateLimiter();
 
 app.MapGet("/api/v1/locations", async (

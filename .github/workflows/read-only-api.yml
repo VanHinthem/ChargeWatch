@@ -6,6 +6,7 @@ on:
       - 'db/tests/018_readonly_api_role_smoke.sql'
       - 'db/tests/026_map_overview_phase_c_fixture.sql'
       - 'tools/test_map_overview_phase_c_http.py'
+      - 'tools/test_api_gzip_http.py'
       - 'tools/MapFilterQ4Probe/**'
       - 'db/migrations/022_connector_snapshot_presence.sql'
       - 'db/tests/022_connector_snapshot_presence_smoke.sql'
@@ -172,6 +173,7 @@ jobs:
           print('Batch by-NDW-ID full detail, optional history and 20-ID limits passed.')
           print('Active-only API location, detail, viewport and data-status contract passed.')
           PY
+          python3 tools/test_api_gzip_http.py --base-url http://127.0.0.1:5089 --feature-id NL-TST-PRESENCE
 
       - name: Verify map filters and nearest selection against isolated HTTP API
         shell: bash
@@ -314,6 +316,7 @@ jobs:
           done
           curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null
           python3 tools/test_map_overview_phase_c_http.py
+          python3 tools/test_api_gzip_http.py --base-url http://127.0.0.1:5091 --overview
           kill "$service" 2>/dev/null || true
           wait "$service" || true
           unset CW_ENABLE_MAP_OVERVIEW
