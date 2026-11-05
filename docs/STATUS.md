@@ -1,3 +1,15 @@
+## Android gedeelde locatiecache — PR #123 (5 november 2026)
+
+Na het akkoord op de NAS-benchmark is PR #123 uitgebreid met één gedeelde `LocationDetailsCache` voor kaart- en favorietensheets. Details, EVSEs en tarieven worden maximaal één keer per ID per **2 minuten** via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false` opgehaald. Historische statistieken zijn **on-demand** bij uitklappen en hebben een eigen cache van **15 minuten**; een fout haalt de compacte details niet onderuit. Batchomvang blijft maximaal twintig, met ondersteuning voor bestaande favorieten boven de limiet. Nieuw Android-build/smoketest en CI-acceptatie zijn nodig voordat deze PR gemerged mag worden. De verdwenen widgets blijven voor een aparte PR. Zie [Android sheet/cache ontwerp](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).
+
+---
+
+## API JSON-gzip — PR #125 gemerged en NAS gedeployed (5 november 2026)
+
+PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125) is met alle checks groen gesquasht naar main (`5a698266fe3a803327ec3d3c3d64b200a898443a`). De gebruiker meldt dat de NAS op die versie is gedeployed. De API ondersteunt onderhandelde gzip-compressie (`CompressionLevel.Fastest`) voor publieke `application/json` responses, waaronder de batch-, kaart-overview- en cluster-cell-endpoints. Geïsoleerde HTTP-tests controleren JSON-pariteit en gzip/identity. Publieke HTTPS-headerverificatie moet nog gebeuren. Zie [API gzip ontwerp/acceptatie](API_GZIP_RESPONSE_COMPRESSION.md).
+
+---
+
 ## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
 
 Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.
