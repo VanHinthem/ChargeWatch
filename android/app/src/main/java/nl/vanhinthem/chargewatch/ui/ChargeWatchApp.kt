@@ -40,9 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
-import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
+import nl.vanhinthem.chargewatch.data.enrichment.SharedLocationDetails
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
 import nl.vanhinthem.chargewatch.data.favorites.favoriteIdsNeedingBatchFetch
@@ -59,7 +60,7 @@ import nl.vanhinthem.chargewatch.ui.map.LocationSelectionSheet
 import nl.vanhinthem.chargewatch.ui.settings.SettingsScreen
 
 @Composable
-fun ChargeWatchApp() {
+fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE) }
     var themeChoice by remember { mutableStateOf(prefs.getString("theme", "system") ?: "system") }
@@ -108,7 +109,7 @@ fun ChargeWatchApp() {
     var settingsLoading by remember { mutableStateOf(false) }
     var settingsError by remember { mutableStateOf<String?>(null) }
 
-    val locationDetailsCache = remember { LocationDetailsCache() }
+    val locationDetailsCache = remember { SharedLocationDetails.cache }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
@@ -153,6 +154,36 @@ fun ChargeWatchApp() {
         } finally {
             statusCheckedAt = Instant.now()
             refreshing = false
+        }
+    }
+
+    // A widget row opens its exact favorite, never the nearest map location.
+    // Use the same process-wide details cache as map and Favorites.
+    LaunchedEffect(widgetTarget) {
+        val id = widgetTarget ?: return@LaunchedEffect
+        try {
+            val favorite = repository.favorites.first().firstOrNull { it.featureId == id }
+            if (favorite == null) {
+                snackbarHostState.showSnackbar("Deze favoriet is niet meer beschikbaar.")
+            } else {
+                selectedTab = 1
+                val cached = locationDetailsCache.peekDetails(id)
+                if (cached != null) {
+                    favoriteDetail = cached
+                } else {
+                    when (val result = locationDetailsCache.loadDetails(listOf(id))) {
+                        is FavoriteBatchResult.Success -> {
+                            favoriteDetail = result.locations[id]
+                            if (favoriteDetail == null)
+                                snackbarHostState.showSnackbar("Deze laadlocatie is niet beschikbaar.")
+                        }
+                        is FavoriteBatchResult.Unavailable ->
+                            snackbarHostState.showSnackbar(result.message)
+                    }
+                }
+            }
+        } finally {
+            onWidgetTargetConsumed()
         }
     }
 
