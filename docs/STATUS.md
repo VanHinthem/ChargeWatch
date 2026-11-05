@@ -1,3 +1,9 @@
+## PR #112 — widget tussenmaat hersteld na Samsung-review (5 november 2026)
+
+De compactere 2×2-layout is op Samsung zichtbaar en leesbaar, maar de horizontale widget daaronder schakelde eveneens over naar de gestapelde variant. In draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is daarom de responsieve `150×62dp`-tussenmaat toegevoegd. `100×62dp` behoudt de gestapelde compacte indeling, `150×62dp` en `260×62dp` krijgen de horizontale layout. De grote formaten zijn ongemoeid gelaten. Een echte 1×1 is een kans voor een later expliciet ontwerp, **niet** onderdeel van deze correctie. Nog CI en fysieke Samsung-hertest vereist; geen merge zonder akkoord.
+
+---
+
 ## PR #112 — One UI 2×2-responsieve layout-correctie (5 november 2026)
 
 De nieuwe Samsung-screenshot liet zien dat de kleine widget na de vorige UI-aanpassing nog de **4×1-layout** renderde (`...`/`S...` naast de badge). Jetpack Glance gebruikte bij het ontbreken van een passend 2×2-formaat de kleinste geregistreerde `260×62dp`-variant. In [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is een aparte `100×62dp`-layout toegevoegd: leesbare favoriete naam, bezettingsbadge op eigen regel, klein versheidslabel, verversactie en `+N`. De bestaande 4×1 en grote widgets blijven behouden. Pure formaatroutingtests toegevoegd. Nieuwe CI en Samsung-heracceptatie nodig; PR blijft draft en ongemerged.
