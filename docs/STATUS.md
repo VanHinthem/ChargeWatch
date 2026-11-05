@@ -1,3 +1,9 @@
+## Widgetlay-out: favorieten bovenaan, versheid naast titel (5 november 2026)
+
+Op basis van de nieuwste Samsung-screenshot van de brede widget in PR #112 worden geselecteerde favorieten direct onder de header weergegeven in plaats van verticaal gecentreerd. De brede widget toont kleine bronversheid rechts van `⚡ ChargeWatch` (bijv. `1 min geleden`, `Laatst bekend`, `Deels onbekend`, `Bronmoment verschilt` of `Verversen…`). De footer is verwijderd uit dit formaat; eventuele verborgen extra favorieten worden na de zichtbare rijen aangegeven. De afzonderlijke 2×2- en 4×1-layouts zijn bewust niet veranderd. Pure regressietests voor bronstatus blijven verplicht, nieuwe Android-CI en Samsung-review nodig. **PR #112 blijft draft; geen merge zonder akkoord.**
+
+---
+
 ## PR #112 Android-widgets hervat op actuele main (5 november 2026)
 
 Na succesvolle merge en Samsung-acceptatie van Android-cache PR [#123](https://github.com/VanHinthem/ChargeWatch/pull/123) en NAS-acceptatie van API gzip PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125), wordt het **bestaande draft PR #112** bijgewerkt, niet vervangen. Ontwerp en resizable Glance-widgetvormen blijven behouden. De widget haalt geselecteerde favorieten via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false`; de kaart en widget delen binnen een app-proces de 2-minuten-`LocationDetailsCache`. Widgetstatus en plaats-/adresmetadata worden atomair in de persistente `WidgetStore` bewaard, inclusief laatst-bekende betrouwbare EVSE-ratio bij fouten/offline. Geen oude viewport-/NDW-fallback of losse metadata-GET; een tik opent de uitgebreide sheet via de gedeelde cache. Nieuwe CI en Samsung-smoketest nog nodig; geen merge of release zonder expliciete goedkeuring. Zie [widgetontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md).
