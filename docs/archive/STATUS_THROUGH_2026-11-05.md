@@ -1,0 +1,1740 @@
+# Historisch archief: docs/STATUS.md
+
+> Momentopname van 5 november 2026 vóór opschoning van de live documentatie. De vermeldingen hieronder zijn **historische werklogboeken** en kunnen inmiddels gesloten PR's, achterhaalde gates of oude plannen als open beschrijven. Raadpleeg voor de actuele stand [STATUS](../STATUS.md) en [ROADMAP](../ROADMAP.md). Dit archief behoudt eerdere meetresultaten en projectbesluiten; het is geen actuele takenlijst.
+
+---
+
+## PR #112 — widget tussenmaat hersteld na Samsung-review (5 november 2026)
+
+De compactere 2×2-layout is op Samsung zichtbaar en leesbaar, maar de horizontale widget daaronder schakelde eveneens over naar de gestapelde variant. In draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is daarom de responsieve `150×62dp`-tussenmaat toegevoegd. `100×62dp` behoudt de gestapelde compacte indeling, `150×62dp` en `260×62dp` krijgen de horizontale layout. De grote formaten zijn ongemoeid gelaten. Een echte 1×1 is een kans voor een later expliciet ontwerp, **niet** onderdeel van deze correctie. Nog CI en fysieke Samsung-hertest vereist; geen merge zonder akkoord.
+
+---
+
+## PR #112 — One UI 2×2-responsieve layout-correctie (5 november 2026)
+
+De nieuwe Samsung-screenshot liet zien dat de kleine widget na de vorige UI-aanpassing nog de **4×1-layout** renderde (`...`/`S...` naast de badge). Jetpack Glance gebruikte bij het ontbreken van een passend 2×2-formaat de kleinste geregistreerde `260×62dp`-variant. In [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is een aparte `100×62dp`-layout toegevoegd: leesbare favoriete naam, bezettingsbadge op eigen regel, klein versheidslabel, verversactie en `+N`. De bestaande 4×1 en grote widgets blijven behouden. Pure formaatroutingtests toegevoegd. Nieuwe CI en Samsung-heracceptatie nodig; PR blijft draft en ongemerged.
+
+---
+
+## PR #112 — smalle 2×2-widget toont één leesbare favoriet (5 november 2026)
+
+De gebruiker heeft de nieuwe brede en horizontale widgetlayout op Samsung goedgekeurd, maar 2×2 toonde afgekorte locatienaam en plaats. In de bestaande draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is **alleen de smalle 2×2-weergave** aangepast: één favoriet met volledige breedte voor naam (maximaal twee regels), groen/rode EVSE-badge op een aparte regel, geen adres, versheidsstatus onderaan en `+N meer` bij andere geselecteerde favorieten. De brede en 4×1-layout blijven identiek. Unit-test voor 1 zichtbare favoriet bij smalle breedtes; nieuwe Android-CI en Samsung-review vereist. Nog niet mergen.
+
+---
+
+## Widgetlay-out: favorieten bovenaan, versheid naast titel (5 november 2026)
+
+Op basis van de nieuwste Samsung-screenshot van de brede widget in PR #112 worden geselecteerde favorieten direct onder de header weergegeven in plaats van verticaal gecentreerd. De brede widget toont kleine bronversheid rechts van `⚡ ChargeWatch` (bijv. `1 min geleden`, `Laatst bekend`, `Deels onbekend`, `Bronmoment verschilt` of `Verversen…`). De footer is verwijderd uit dit formaat; eventuele verborgen extra favorieten worden na de zichtbare rijen aangegeven. De afzonderlijke 2×2- en 4×1-layouts zijn bewust niet veranderd. Pure regressietests voor bronstatus blijven verplicht, nieuwe Android-CI en Samsung-review nodig. **PR #112 blijft draft; geen merge zonder akkoord.**
+
+---
+
+## PR #112 Android-widgets hervat op actuele main (5 november 2026)
+
+Na succesvolle merge en Samsung-acceptatie van Android-cache PR [#123](https://github.com/VanHinthem/ChargeWatch/pull/123) en NAS-acceptatie van API gzip PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125), wordt het **bestaande draft PR #112** bijgewerkt, niet vervangen. Ontwerp en resizable Glance-widgetvormen blijven behouden. De widget haalt geselecteerde favorieten via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false`; de kaart en widget delen binnen een app-proces de 2-minuten-`LocationDetailsCache`. Widgetstatus en plaats-/adresmetadata worden atomair in de persistente `WidgetStore` bewaard, inclusief laatst-bekende betrouwbare EVSE-ratio bij fouten/offline. Geen oude viewport-/NDW-fallback of losse metadata-GET; een tik opent de uitgebreide sheet via de gedeelde cache. Nieuwe CI en Samsung-smoketest nog nodig; geen merge of release zonder expliciete goedkeuring. Zie [widgetontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md).
+
+---
+
+## Android gedeelde locatiecache — PR #123 (5 november 2026)
+
+Na het akkoord op de NAS-benchmark is PR #123 uitgebreid met één gedeelde `LocationDetailsCache` voor kaart- en favorietensheets. Details, EVSEs en tarieven worden maximaal één keer per ID per **2 minuten** via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false` opgehaald. Historische statistieken zijn **on-demand** bij uitklappen en hebben een eigen cache van **15 minuten**; een fout haalt de compacte details niet onderuit. Batchomvang blijft maximaal twintig, met ondersteuning voor bestaande favorieten boven de limiet. Nieuw Android-build/smoketest en CI-acceptatie zijn nodig voordat deze PR gemerged mag worden. De verdwenen widgets blijven voor een aparte PR. Zie [Android sheet/cache ontwerp](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).
+
+---
+
+## API JSON-gzip — PR #125 gemerged en NAS gedeployed (5 november 2026)
+
+PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125) is met alle checks groen gesquasht naar main (`5a698266fe3a803327ec3d3c3d64b200a898443a`). De gebruiker meldt dat de NAS op die versie is gedeployed. De API ondersteunt onderhandelde gzip-compressie (`CompressionLevel.Fastest`) voor publieke `application/json` responses, waaronder de batch-, kaart-overview- en cluster-cell-endpoints. Geïsoleerde HTTP-tests controleren JSON-pariteit en gzip/identity. Publieke HTTPS-headerverificatie moet nog gebeuren. Zie [API gzip ontwerp/acceptatie](API_GZIP_RESPONSE_COMPRESSION.md).
+
+---
+
+## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
+
+Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.
+
+---
+
+## #113 — Favorietster op clusters (4 november 2026)
+
+De Samsung-acceptatie na PR #121 liet zien dat de clusterpresentatie nu consistent is, maar dat de gele favorietster op clusters ontbreekt. Fix op `fix/map-cluster-favorite-badge-113`: lokale groepen krijgen de ster via exacte `featureId`-membership, landelijke groepen via opgeslagen lokale coördinaten en canonieke celmembership (zonder actieve filters), met één identieke sterbadge en correct cachegedrag. Bij gefilterde serveraggregaten wordt geen onbewezen ster getoond. [Ontwerp, privacygrens en testmatrix](MAP_CLUSTER_FAVORITES_113.md). Geen API/NAS-wijziging; PR blijft eerst draft, geen merge/deploy zonder akkoord.
+
+---
+
+## #113 Android-acceptatie: clustersemantiek over beide kaartmodi gelijkgetrokken (4 november 2026)
+
+Na PR #120 is de rasterindeling visueel verdwenen, maar op de Samsung verschilt clustersemantiek nog: een regionale kaart toont locatieaantallen met statusring (bijv. `419`), terwijl de lokale kaart `vrij/totaal`-somlabels in een monochrome groene/rode cluster toont (bijv. `31/46`). De correctie op `fix/map-cluster-consistent-presentation-113` voert één pixel-gebaseerde clusterengine en één groen/rood/onbekend-ring voor **alle** clusters in, met centraal het **aantal laadlocaties**; uitsluitend losse locaties tonen `vrij/totaal`. Beide clustertappaden delen dezelfde zoom-/selectielogica. [Technisch en UX-contract](MAP_CLUSTER_CONSISTENCY_113.md). Nieuw werk blijft ter review; **geen merge/deployment zonder afzonderlijk akkoord**.
+
+---
+
+## #113 Samsung-acceptatie: rastervormige clustering afgewezen (4 november 2026)
+
+De landelijke overview in `main` na PR #119 bleek bij Oss zichtbare, regelmatig verdeelde vierkante rasteraggregaten te tonen (bijv. na aantikken van 19 locaties opnieuw 4/6/3/6/2/4). Dit is nadrukkelijk **niet** de gewenste kaartinteractie. Correctie op `fix/map-overview-113-street-level-clustering`: overview gebruikt het daadwerkelijke locatiegewogen centroid en beeldscherm-gebaseerde visuele clustering, terwijl de volledige bestaande viewport met individuele `vrij/totaal`-markers gebruikt wordt in kleine gebieden. Alleen bij de 999-locatiegrens blijft het volledige overview-aggregaat nodig. [Ontwerp/testplan](MAP_OVERVIEW_113_NATURAL_CLUSTERING_FIX.md). Niet gemerged/gedeployed; bestaande NAS draait nog fase D.
+
+---
+
+## #113 fase D Android-kaartintegratie — draft PR #119 (4 november 2026)
+
+Het landelijke overzicht is in [draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119) geïntegreerd in de bestaande Android-MapLibre-kaart, met optionele moduskeuze in Instellingen (standaard legacy), complete overview-responses, servercluster-ringen, canonical celtapzoom en gepagineerde celkeuze via een nieuwe feature-gated read-only route. De bestaande kaart en API/collector zijn ongewijzigd als terugvalpad. [Technisch verslag](MAP_OVERVIEW_113_PHASE_D_ANDROID.md). **PR #118 is op 4 november al naar main gemerged als `6d5c320`; #119 is niet gemerged of gedeployed. Productieflag `CW_ENABLE_MAP_OVERVIEW` blijft uit.** Automatische CI en fysieke toestel-/HTTP-releasegates worden afzonderlijk beoordeeld; geen merge/deploy zonder toestemming. #113 blijft open.
+
+---
+
+## #113 fase C landelijke NAS SQL-batch PASS — 4 november 2026
+
+Gebundelde read-only test van de **echte productiesql en rasterselector** op bestaande NAS-data geslaagd, zonder deployment, databasewijziging of featureflag-activatie. Nationaal ongefilterd (zoom 6 / grid8): **83.408 locaties, 13 markers, 1.464,780 ms**; nationaal CCS2/DC (zoom 12 / grid10): **1.612 locaties, 84 markers, 164,856 ms**; Oss (zoom 15 / grid15): **489 locaties, 116 markers, 13,035 ms**. Alle drie: statuspartitionering correct, markerbudget ≤500 en uitvoering onder 5 seconden, zonder fout of timeout. **Eenmalige SQL-executietijden, geen HTTP-p95 of loadtest.** [Volledige resultaten en vervolggates](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md). [Draft PR #118](https://github.com/VanHinthem/ChargeWatch/pull/118) blijft open; geen merge/deploy zonder afzonderlijk akkoord. #113 blijft open voor gecontroleerde HTTP-rollout en Android-integratie.
+
+---
+
+## #113 na fase-C-merge — read-only NAS-batch voorbereid (4 november 2026)
+
+PR #117 is op 4 november 2026 na expliciet akkoord en drie groene workflows als squash naar `main` gemerged (commit `9fba66e`). **Niet op de NAS gedeployed; de nieuwe overviewroute blijft daar standaard uit.** De volgende stap is één gebundelde read-only SQL-praktijkmeting op de bestaande productiegegevens, zonder nieuwe container of gewijzigde productieconfiguratie. Deze meet alleen SQL-tijden en volledige cel-/statusaggregaten; voor echte HTTP-/Android-latency is een aparte deploymentgate vereist. [Runbook](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md).
+
+---
+
+## #113 fase C op draft PR #117 — 4 november 2026
+
+Ontwerp-optie A door gebruiker goedgekeurd: conservatieve, offset-onafhankelijke keuze van een complete canonieke rasterresolutie met maximaal 500 markerobjecten, één read-only SQL-query, geen truncatie. Implementatie en echte geïsoleerde HTTP/Npgsql/PostGIS-tests toegevoegd op `feat/map-overview-113-phase-c`. **CI en review zijn afzonderlijke gates; geen merge/NAS-deploy/featureflagwijziging.** Zie [fase-C-documentatie](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md) en [draft PR #117](https://github.com/VanHinthem/ChargeWatch/pull/117).
+
+---
+
+## #113 P2m-G1 ID-/celpariteit PASS; P2m-G2 voorbereid — 4 november 2026
+
+NAS read-only G1: oorspronkelijke en fase-B-query elk 1.612 unieke locaties, twee richtingen 0 afwijkende (id,cx,cy), 0 ongeldige assignments, id_cell_parity_matches=t. P2m-F had reeds 256,378 ms connector-first runtime en 11 cellen. Nieuw op fase-B-branch: P2m-G2 generator voor volledige cel-/statusaggregaten via een geparametriseerde PREPARE/EXECUTE op één REPEATABLE READ READ ONLY snapshot met 5s timeout; nog niet gebouwd of uitgevoerd. Zie [P2m-G2-runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). PR #114/#115/#116 draft; geen DB-/API-/Androidwijzigingen of merge/deploy.
+
+---
+
+## #113 P2m-G1 minimale, geparametriseerde ID-/celpariteit voorbereid — 4 november 2026
+
+Na de geslaagde P2m-F-executie (256,378 ms, 1.612 geselecteerde locaties, 11 niet-lege grid8-cellen) is op `feat/map-overview-113-phase-b` een afzonderlijke **P2m-G1**-generator gemaakt (`--emit-overview-phaseb-g1-ids`). Eén `PREPARE/EXECUTE` met echt gebonden `$1..$7` vergelijkt de P2l- en fase-B-**(id,cx,cy)**-sets binnen één `REPEATABLE READ READ ONLY`-snapshot. De oude gecombineerde P2m-test met vier zware status-/selectie-CTE's wordt niet herhaald. G1 checkt bidirectionele EXCEPT, uniciteit en celtoewijzing onder 5s. **Nog niet lokaal gebouwd of op NAS uitgevoerd.** Na PASS volgt G2 als aparte celcount-/statuspariteit, pas daarna API/Android-contracttests. [Exact runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Geen productiedatabasewijzigingen, API-activering, merge of NAS-deploy; #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-F geparametriseerde fase-B-query uitgevoerd: performance PASS — 4 november 2026
+
+Echte nationale CCS2/DC-grid8 `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY)` op de NAS: **Execution Time 256,378 ms**, **Planning Time 22,039 ms**, **1.612** geselecteerde locaties en **11** niet-lege rastercellen. Connector-first-plan met `Parallel Seq Scan on connector` + PK-indexjoins en 1.612 `idx_evse_active_location`-lookups; geen gemelde temp-spills. Planner schat ten onrechte slechts 5 locaties. Root buffers `hit=35556 read=34202 dirtied=799 written=4961`. Vergelijking met de oudere P2k-meting (265,966 ms / 1.608 locaties) is **geen gelijke-snapshot-pariteitsbewijs of structurele snelheidswinst**. P2m-F is een **performance-PASS**, niet een volledige correctness-PASS. De gecombineerde P2m-vier-CTE-pariteit was eerder op 5s getime-out; vervolg: kleine exacte ID-/cel-/statuspariteitsproef binnen één read-only snapshot, zonder onrepresentatieve synthetische geografische parameters. Zie [P2m-runbook op fase-B-branch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Geen API-activatie, DB/schema/NDW-wijzigingen, merge of deployment; PR #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-E echte parameterquery kiest connector-first; P2m-F één uitvoering voorbereid — 4 november 2026
+
+Gebruiker leverde `EXPLAIN (VERBOSE, SETTINGS) EXECUTE cw_phaseb_planner` van de daadwerkelijke geparametriseerde nieuwe fase-B-`MapOverviewSql` aan. Het plan kiest **`Parallel Seq Scan on connector` (2 workers gepland) → `evse_pkey` → `charging_location_pkey` → per-location EVSE-statusaggregatie → raster-`GroupAggregate`**. Dat is **connector-first**, overeenkomstig de eerder efficiënte P2k-route. De voorafgaande P2m-DIAG geo-first `Nested Loop Semi Join` met `ix_charging_location_active_position` was van een *synthetische SQL met InitPlan-/subquerybbox*, niet van deze echte parameterbinding. De rijschatting voor `selected` blijft **5** (voorheen werkelijk ~1.608 bij P2l-snapshot), maar het fysiek geselecteerde plan is gunstig. **Nog geen echte execution tijd of data-pariteit gemeten.** Geen reden om reeds `MapOverviewSql`/indexes aan te passen of 5s-timeout te verhogen. In [PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) is `--emit-overview-phaseb-execution` voorbereid: de **zelfde geparametriseerde fase-B-query eenmalig** met `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY)`, in `chargewatch_read` **read-only transaction** onder 5s, in plaats van de vier herhaalde zware P2m-pariteits-CTE's. [Runbook](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md) bijgewerkt. **P2m-F nog niet lokaal gebouwd/gedraaid op NAS**, aparte ID/statusvalidatie blijft open. Geen merge/deploy/schema-/NDW-/Androidwijziging; #114/#115/#116 blijven draft.
+
+---
+
+## #113 P2m-DIAG plannerplan ontvangen: ernstige onderschatting locatiegebied — 4 november 2026
+
+Gebruiker leverde een succesvolle planning-only `EXPLAIN (VERBOSE, SETTINGS)` aan (57 rijen), zie [P2m-analyse en P2m-E-vervolg](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Het synthetische `phaseb_region`-plan gebruikt vier `InitPlan`-parameters om `ST_MakeEnvelope` op te bouwen, schat bij `Index Scan using ix_charging_location_active_position` **8 locaties** en daarna `CTE selected rows=1`; het kiest **locatie-first `Nested Loop Semi Join` → per-locatie EVSE-index en connector-index**. Dit verschilt van P2k's snelle connector-first landelijke route. Omdat de query de geografische grenzen via runtime-subselects aanlevert, is nog **niet bewezen dat de echte door Npgsql gebonden $1..$7-query hetzelfde plan kiest**. In fase-B-branch is `--emit-overview-phaseb-prepared-plan` toegevoegd: `PREPARE` met zeven echte PostgreSQL-parameters en één `EXPLAIN (VERBOSE, SETTINGS) EXECUTE` voor dezelfde complete grid8-NL-bounds; **zonder ANALYZE**, read-only 5s. Eerst die planning beoordelen, geen gecombineerde P2m-pariteit herhalen en geen timeout verhogen. Productieoverzicht blijft gated/uit, query niet gewijzigd, PR #114/#115/#116 blijven draft; geen merge/deploy/DB-wijziging.
+
+---
+## #113 P2m-DIAG: Windows-generatorfout gerepareerd — 4 november 2026
+
+Gebruiker rapporteerde bij het aanmaken van de planning-only SQL `System.InvalidOperationException: P2m template boundaries changed`, uit `OverviewPhaseBPlanExporter.Create()`. De vorige generator maakte een **fragiele tekstextractie uit het samengestelde P2m-script op basis van exacte witruimte**; hij kwam daardoor niet tot SQL-generatie (geen NAS-plan uitgevoerd). Op `feat/map-overview-113-phase-b` is de generator in commit `826f8a1` aangepast: rechtstreeks de gedeelde echte `MapOverviewSql.Build(MapFilter)` aanroepen, uitsluitend gecontroleerde vaste parameters invullen en één `EXPLAIN (VERBOSE, SETTINGS)` zonder `ANALYZE` genereren in een read-only 5s-transactie. Geen interpolatie op P2m-CTE-grenzen meer. [P2m-runbook en foutanalyse](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md) bijgewerkt. **Lokale herbuild/-run nog niet door gebruiker bevestigd; P2m-pariteit blijft OPEN na de eerdere 5s-timeout; geen DB-/API-/Android-wijzigingen, geen merge of deploy, alle PR's draft.**
+
+---
+## #113 P2m NAS-test afgebroken op 5s; afzonderlijke fase-B-planinspectie voorbereid — 4 november 2026
+
+Gebruiker voerde P2m `p2m-phaseb-parity.sql` uit op NAS en ontving **`ERROR: canceling statement due to statement timeout`** na `SET; BEGIN; SET; SET; SET`. **Geen pariteitsresultaat** (niet als PASS of correctness-FAIL aanmerken). De P2m-validatie berekent vier zware `MATERIALIZED`-CTE's (`original_ids`, `phaseb_ids`, `original_grid`, `phaseb_grid`) die selectie/aggregatie dupliceren; het eerdere P2k-resultaat **265,966 ms** betreft alleen de oude afzonderlijke query, niet dit validatiepakket of nieuwe fase-B SQL. Een mogelijk andere plannerroute voor nieuwe SQL is nog niet vastgesteld. Op `feat/map-overview-113-phase-b` is `--emit-overview-phaseb-plan` toegevoegd voor **één `EXPLAIN (VERBOSE, SETTINGS)` zonder `ANALYZE`** van de werkelijk gedeelde `MapOverviewSql.Build(MapFilter)` met CCS2/DC en volledige landelijke grid8-celbounds. Read-only 5s, géén zware queryuitvoering, geen automatische timeoutverhoging. Instructies [P2m-DIAG](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). Eerst planoutput beoordelen vóór nieuwe execution/parity-run; `CW_ENABLE_MAP_OVERVIEW` blijft uit, PR #114/#115/#116 draft, geen merge/deploy/schemawijziging.
+
+---
+## #113 P2m: read-only integratiepariteit voor daadwerkelijke fase-B-SQL voorbereid — 4 november 2026
+
+Op de fase-B-branch [PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) is de echte query uit `MapOverviewDatabase.ReadAsync` zonder bedoelde semantische wijziging naar **`MapOverviewSql.Build(MapFilter)`** verplaatst. De standalone MapFilterQ4Probe compileert diezelfde bron en genereert met `--emit-overview-phaseb-parity` precies **één read-only repeatable-read PostgreSQL-vergelijking** op de NAS, nationale complete grid8-bbox en CCS2/DC, tegen de eerder P2l-gevalideerde oorspronkelijke overview. Controle: volledige `id,cx,cy`-set, alle zes rastervelden (inclusief groen/rood/onbekend), celsommen/statuspartitie en aantallen. Handleiding [P2m op fase-B-branch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_P2M_SQL_PARITY.md). **P2m nog niet gebouwd/uitgevoerd; geen PASS geclaimd.** Bestaande API- en fase-A-selftests op fase B waren eerder PASS; dat vervangt P2m niet. Nieuwe endpoint blijft standaard uitgeschakeld, geen automatische 500-budget-coarsening vóór fase C, geen DB-/NDW-/Android-mutatie of merge/deploy. PR #114/#115/#116 draft.
+
+---
+
+## #113 fase B branch selftests PASS — 4 november 2026
+
+Gebruiker leverde na lokaal testen van [draft PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116) twee meldingen aan: `ChargeWatch API selftest passed.` en `Map overview phase A selftest passed.`. **Bestaande API- en pure raster-/contractselftests PASS op fase B.** De fase-B-route is standaard uitgeschakeld; deze output bewijst nog **geen SQL-/PostgreSQL-executie, response-/statuspariteit of echte HTTP-test**. Afzonderlijke buildlog/CI-check niet aangeleverd. [Fase-B-documentatie](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_PHASE_B_IMPLEMENTED.md) bijgewerkt. Vervolg: gerichte read-only SQL-validatie van de daadwerkelijke nieuwe query plus correctheid van beschikbare/unknown-tellingen, voordat een opt-in NAS-test of fase-C-werk wordt gestart. Ontwerp PR #114, fase A PR #115, fase B PR #116 nog draft; geen merge/deploy.
+
+---
+## #113 fase B-code in gestapelde draft PR #116 — 4 november 2026
+
+Na fase A (Windows API/fase-A-selftests beide PASS; PR #115 nog draft) is **[PR #116](https://github.com/VanHinthem/ChargeWatch/pull/116)** geopend: `feat/map-overview-113-phase-b` → `feat/map-overview-113-phase-a` (gestapelde review; ontwerp PR #114 blijft draft). Nieuw opt-in `GET /api/v1/map/overview` alleen bij `CW_ENABLE_MAP_OVERVIEW=true` (**standaard niet geregistreerd**). Query gebruikt `chargewatch_read`-connectie, `REPEATABLE READ` + `SET TRANSACTION READ ONLY`, productie-`MapFilter.LocationPredicate(6)`/`AddParameters`, wereldvaste complete celbbox, per-locatie EVSE-aggregation zonder zware connector-JSON en celaggregatie; OCPI-string `featureId` behouden. **Geen 999-limiet op ruwe locaties.** Provisorische zoommapping `floor(zoom)+2`; voor `>500` niet-lege cellen volgt **expliciete 503 budgetfout** (nooit complete partial coverage), automatische grovere zoom volgt pas fase C. Feed timestamp uit dezelfde transactie, bestaande configured stale-threshold, `dataVersion=null` (niet veilig om cross-request samen te voegen). **Nog geen .NET-build/selftest of NAS-/PostgreSQL-API-test op fase B bevestigd**; P2-benchmarkstatusclassificatie mag niet zonder controle als bestaande Android/legacy `?`-kwaliteitslogica worden beschouwd. Review-/runbook: [fase B op featurebranch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-b/docs/MAP_OVERVIEW_113_PHASE_B_IMPLEMENTED.md). Geen API-opt-in in NAS, merge, deploy, Android/NDW-/DB-schemamutatie; PR #114/#115/#116 allemaal draft.
+
+---
+
+## #113 fase A — Windows selftests PASS (4 november 2026)
+
+Gebruiker bevestigde na ophalen van draft **PR [#115](https://github.com/VanHinthem/ChargeWatch/pull/115)** de uitvoer `ChargeWatch API selftest passed.` en `Map overview phase A selftest passed.`. Daarmee **slagen de bestaande API- en nieuwe pure kaart-raster-/JSON-/contractselftests** van fase A. De afzonderlijke `dotnet build`-log (warnings) en CI-uitvoer zijn niet aangeleverd; *selftests PASS* is geen formele bevestiging van alle build-/integratiegates. De fase-A-notitie op `feat/map-overview-113-phase-a` is bijgewerkt. **PR #115 en ontwerp-PR #114 blijven draft, niet gemerged, niet gedeployed.** Fase B (nieuwe read-only overview-handler, MapFilter-query, volledige coverage en betrouwbare statusprojectie) is de volgende implementatiefase na review.
+
+---
+## #113 fase A implementatie opgesteld in aparte draft-PR #115 — 4 november 2026
+
+Na akkoord om verder te gaan met de implementatiefasering is **PR [#115](https://github.com/VanHinthem/ChargeWatch/pull/115)** als **draft** geopend vanaf `feat/map-overview-113-phase-a` naar deze ontwerpbranch (`docs/location-dataflow-113-design`, PR #114 blijft zelf draft). Fase A bevat uitsluitend pure `MapGrid` Web Mercator-wereldraster- en coverage-berekeningen, getypeerde JSON-overview `cluster`/`location`-DTO's met de **bestaande OCPI-`featureId` als string**, een expliciete `complete`-coverage en nullable `dataVersion`, plus pure selftests gekoppeld aan `ChargeWatch.Api --self-test`. Begroting **500 markerobjecten** is voorlopig als constante vermeld maar **nog niet runtime afgedwongen**. Zie de [fase-A-handleiding op featurebranch](https://github.com/VanHinthem/ChargeWatch/blob/feat/map-overview-113-phase-a/docs/MAP_OVERVIEW_113_PHASE_A_IMPLEMENTED.md). **Nog geen succesvolle .NET-build of uitvoering van selftests bevestigd** (geen SDK in assistentomgeving); Windows-validatie is vereist vóór merge. **Geen nieuwe overview-HTTP-route, SQL, Android, NDW, database-/schemawijziging of deploy**. PR #114/#115 allebei draft; er is niets gemerged.
+
+---
+
+## #113 technisch implementatieplan voor nieuw map-overviewendpoint opgesteld — 3 november 2026
+
+Na het voorlopige akkoord op **500 markerobjecten per response** (budget kan na Android-metingen worden gewijzigd) is [MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md](MAP_OVERVIEW_113_IMPLEMENTATION_PLAN.md) toegevoegd. Op basis van actuele `Program.cs`, `ApiDatabase.GetMapViewport`, `ApiModels.MapLocationItem` en `ApiOptions` zijn vijf afzonderlijke uitvoeringsfasen met acceptatiegates uitgewerkt: **PR-A DTO's/canoniek raster**, **PR-B read-only overview SQL/handler**, **PR-C objectbudget/cache/foutafhandeling**, **PR-D Android-rendering en clustertap**, **PR-E echte NAS-/Android-test en releaseschakelaar**. Belangrijke code-auditcorrectie: bestaande kaart-`featureId` is een **samengestelde OCPI-string**, géén PostgreSQL-`long`; ontwerpvoorbeeld en contractnotities zijn gecorrigeerd. De bestaande `GetMapViewport` verwerkt connector-JSON/`count(DISTINCT evse)`, wat **niet automatisch gelijk** is aan de P2i–P2l-proefclassificatie; nieuwe statusprojectie moet direct met huidige Android-markersemantiek worden vergeleken. Houd origineel endpoint met 999-cap tijdens overgang intact, geen nieuwe MapFilter- of NDW-classifier, geen geforceerde geo-first-P2e-/zoom-routering zonder bewijs, geen ongeverifieerde dataVersion voor cross-request-merging. **Alleen ontwerpdocumentatie gecommit**, nog geen API-/Android-/DB-implementatie, merge of NAS-deploy. PR #114 draft.
+
+---
+
+## #113 nieuwe fase: API overview-/coverage-/zoomcontract in review — 3 november 2026
+
+Gebruiker heeft na P2l expliciet gekozen om **niet de volledige filtermatrix nogmaals te benchmarken**, maar het definitieve landelijke **kaartcontract** uit te werken. Zie het nieuwe [MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md](MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md). Basis: Q1–Q4 bestaande `MapFilter`-semantiek; P2j **81.945 unieke actieve locaties/13 niet-lege grid8-cellen/0 afwijkingen** bij nationale ongefilterde census; P2k/P2l **1.608 CCS2/DC-locaties/11 cellen/0 afwijkingen, 265,966 ms**; P2h original connector-first in grotere regio sneller dan geforceerd P2e-indexpad. **Geen universele zoomdrempel of tweede filterclassifier**. Contractvoorstel: nieuw `GET /api/v1/map/overview`, bbox+cameraZoom+originele MapFilter-parameters, wereldvaste complete Web Mercator-celrange, gemelde effectieve gridLevel, getypeerde `cluster/location`-markers, grijs clustercentrum met locatieaantal en groen/rood/onbekend-ring, individueel `vrij/totaal`, expliciete `coverage.complete`, bronversheid, geen 999-truncatie, cache-/requestgelijkheidsregels en beknopte regressie-/Android-testpoorten. Voorlopige 500-markerbudget en zoom-buckets **voorstel, niet geaccordeerd**. Nog open: consistente dataversie, exacte cel-/zoomgrenzen, foutcontract, exacte fallback, volledige Android-interactietest. **Alleen ontwerpdocument**, geen API-/Android-/databasewijziging of merge/deploy. PR #114 draft.
+
+---
+
+## P2l landelijke CCS2/DC-pariteit PASS — 3 november 2026
+
+De gebruiker leverde de P2l-resultaatrij aan: **original_locations=1608, reference_locations=1608, differing_id_cell_rows=0; original_cells=11, reference_cells=11; original_grid_locations=1608, reference_grid_locations=1608, differing_grid_rows=0, parity_matches=t**. Daarmee zijn voor bbox `3.00,50.60,7.40,53.80` en volledig gridLevel8 zowel de exacte `(id,cx,cy)`-set als alle volledige celwaarden (locaties/groen/rood/onbekend) gelijk tussen originele productie-`MapFilter`-selectie en onafhankelijk connector-first CCS2/DC-filter. P2k leverde daarnaast **265,966 ms** voor de oorspronkelijke landelijke route met **1.608 locaties, 11 niet-lege cellen** zonder 999-cap. **P2k/P2l samen PASS voor specifiek CCS2/DC, geen generieke filter- of API-contractdekking**. Zie [P2l resultaten](MAP_GRID_P2L_NATIONAL_FILTER_PARITY.md). Vervolg: onafhankelijke landelijke Q4-filtermatrix (`minFree`, power, operator), zoom-/coverage-contract; geen NDW-/Q5-herontwerp, productie-API/Android/DB-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2l landelijke CCS2/DC-ID-/rasterstatuspariteit voorbereid — 3 november 2026
+
+Na P2k (oorspronkelijke landelijke CCS2/DC-overview: **1.608 locaties, 11 niet-lege cellen, Execution 265,966 ms**) is de onafhankelijke landelijke correctheidstest **P2l** op de ontwerpbranch toegevoegd: [runbook](MAP_GRID_P2L_NATIONAL_FILTER_PARITY.md), standalone CLI `--emit-overview-national-filter-parity`. Eén read-only `REPEATABLE READ`-statement met 5s timeout vergelijkt (A) alle `id,cx,cy` van echte productie-`MapFilter`-selectie versus een **onafhankelijke connector-first** CCS2/DC-kwalificatie en (B) de **volledige zeskoloms-celaggregatie** voor dezelfde gridLevel8 Nederlandgerichte bbox, inclusief groen/rood/onbekend. Beide checks dubbelzijdig `EXCEPT`, plus locatie-/celtotalen en `parity_matches`. Geen geforceerde geografische EVSE-indexscan voor alle ~82k locaties: referentie start bij gefilterde connectoren, daarna alleen matched locaties. **Code nog niet lokaal gebouwd; NAS-uitkomst nog niet bekend.** Het experiment verandert geen productie-`MapFilter`, statusinterpretatie, collector, database/index, API of Android. Geen merge/deploy; PR #114 draft.
+
+---
+## P2k landelijke CCS2/DC-overview: connector-first query in 266 ms — 3 november 2026
+
+Gebruiker leverde `p2k-national-ccs2-result.txt`. Oorspronkelijke overview-query met gelinkte productie-`MapFilter`, `connectorType=ccs2`, `mode=dc`, NL-omsluitende gridLevel8 bbox en zonder 999-cap: **Execution Time 265,966 ms**, Planning **35,016 ms**, **1.608 geselecteerde locaties**, **11 niet-lege rastercellen**, finale EVSE-join **9.304 rijen**. `Parallel Seq Scan on connector` 6.473 matched connectoren / 6.467 distinct EVSE's, daarna 1.637 locaties voorafgaand aan geo-filter en 1.608 finale `idx_evse_active_location`-indexlookups. Root `shared hit=35984 read=33236 dirtied=63 written=1145`; geen gemelde temp-spill. De origineel connector-first-route blijft op landelijk CCS2/DC-filter **binnen de 5s grens** en veroorzaakt geen nationale EVSE Seq Scan. P2i ongefilterd 81.934 geselecteerd/13 cellen in 986 ms; P2j exacte landelijke **ongefilterde** census 81.945/13 met `population_matches=t` op later snapshot. **P2k is alleen EXPLAIN, dus landelijke CCS2/DC-ID-/celtotaal-/beschikbaarheidspariteit nog niet onafhankelijk bewezen**; P2g regiopariteit mag niet worden veralgemeniseerd. Volgende gate: afzonderlijke read-only landelijke **gefilterde** count-/statuspariteit, zonder automatisch geo-first query over 82k locaties te forceren. Zie [P2i fase-2 meetrapport](MAP_GRID_P2I_NATIONAL_BASELINE.md). Geen API-/Android-/DB-/NDW-implementatie, merge/deploy; PR #114 draft.
+
+---
+
+## P2j nationale rasterpopulatiepariteit bevestigd — 3 november 2026
+
+De gebruiker leverde P2j `--emit-overview-national-census`-NAS-uitvoer aan: op één read-only `REPEATABLE READ`-snapshot zijn **81.945** geolocatierijen, **81.945 unieke IDs**, **81.945 som van onafhankelijke celcounts** en **81.945 som van originele overview-celcounts** vastgesteld. Beide routes: **13 niet-lege gridLevel8-cellen**; **0 afwijkende celcounts**, **0 ongeldige celtoewijzingen**, **`population_matches=t`**. De NL-omsluitende bbox en het wereldvaste raster dekken de gehele onafhankelijke geselecteerde populatie af zonder 999-afkapping. Verschil +11 met P2i 81.934 is een later snapshot en geen interne pariteitsafwijking. **Geen bewijs** van lege-celcoverage, exacte landsgrenzen, status-/filterpariteit nationaal, viewport-overlap of productie-API. Zie [P2j meetresultaten](MAP_GRID_P2J_NATIONAL_CENSUS.md). **Volgende aparte test:** één landelijke oorspronkelijke CCS2/DC-`EXPLAIN` via reeds bestaande `--emit-overview-national-ccs2`, 5s timeout; daarna pas landelijke filter-/aggregatiepariteit. Geen productiecode, NDW-/Q5-herontwerp, API-/Android-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+## P2i landelijke ongefilterde baseline PASS; P2j onafhankelijke locatiedekking voorbereid — 3 november 2026
+
+De gebruiker leverde `p2i-national-unfiltered-result.txt`: één **geslaagde read-only nationale gridLevel8**-EXPLAIN (Nederlandgerichte uitgelijnde bbox `3.00,50.60,7.40,53.80`). **Execution Time 986,275 ms**, Planning **26,881 ms**, **81.934 geselecteerde actieve locaties** uit `charging_location`, **216.786 actieve EVSE's** in een brede scan, **206.207 joinrijen**, **13 niet-lege rastercellen**. Root `shared hit=3794 read=50661`, `temp read=248 written=941`; per-location HashAggregate `Batches: 5, Disk Usage 3376 kB`, selected CTE ook tijdelijke opslag. Geen `LIMIT 999`, maar **EXPLAIN bewijst geen totale populatiepariteit of lege-cel-coverage**; bbox is geen landsgrenzenpolygon. Zie [P2i meetrapport](MAP_GRID_P2I_NATIONAL_BASELINE.md).
+
+Op de ontwerpbranch is nu **P2j (nog niet gebouwd/uitgevoerd)** voorbereid: [onafhankelijke landelijke census](MAP_GRID_P2J_NATIONAL_CENSUS.md) via `--emit-overview-national-census`, vergelijkt in één read-only repeatable-read statement en snapshot een onafhankelijk geolocatie-grid8-census met P2i's originele productie-`MapFilter`-overviewsom en **per-cel `(cx,cy,location_count)`**, controles unieke IDs, bounds, verschillen en totalen. 5s statement-timeout. **Landelijke CCS2/DC fase-2 nog niet uitvoeren** vóór P2j-resultaat. Geen NDW-/Q5-herontwerp, API-/Android-/DB-schemawijziging, merge/deploy; PR #114 draft.
+
+---
+
+## P2i nationale ongefilterde rasterbenchmark voorbereid (fase 1) — 3 november 2026
+
+Na de P2h-regioconclusie (original connector-first 222,733/149,309 ms versus P2e-indexed 857,348/678,463 ms) gaat #113 terug naar het primaire productdoel: **landelijke kaartdekking zonder de huidige 999-cap**. Nieuwe [P2i-stappen](MAP_GRID_P2I_NATIONAL_BASELINE.md) en `OverviewNationalBaselineExporter` maken **twee strikt gescheiden** read-only SQL-exportopties: `--emit-overview-national-unfiltered` (fase 1, **nu uit te voeren**) en `--emit-overview-national-ccs2` (fase 2, **nog niet uitvoeren**). Ze hergebruiken oorspronkelijke overview-`MapFilter`-SQL, enkel vaste Nederlandse omsluitende bbox `3.00,50.60,7.40,53.80` en volledig wereldraster gridLevel8 in plaats van Oss-grid11. Fase 1 is één nationale `EXPLAIN ANALYZE` onder `chargewatch_read`, 5s timeout, géén national P2e geforceerde indexprobes. **Nog niet gecompileerd of uitgevoerd**. Een Nederlandgerichte rechthoek is geen NL-landsgrenspolygon; aantal niet-lege cellen en ontbrekende `LIMIT 999` bewijzen nog geen volledige eigen-dekking. Na fase 1 volgen aparte exacte rasterpopulatie-/coveragecontroles. Geen NDW-/Q5-herontwerp, API-/Android-/schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2h regionale A/B-performance: originele connector-first duidelijk sneller — 3 november 2026
+
+NAS-resultaat `p2h-region-paired-result.txt`: vier succesvolle read-only `EXPLAIN ANALYZE`-runs op bbox `5.20,51.60,5.90,52.10`, gridLevel10, CCS2/DC. **Original 222,733 en 149,309 ms (gem. 186,021 ms)**; **indexed P2e 857,348 en 678,463 ms (gem. 767,906 ms)**. Beide: **420 locaties, 12 niet-lege cellen**; volledige exacte regionale ID-/rasteraggregaatpariteit reeds in P2g bevestigd. Original loopt ondanks nationale `Parallel Seq Scan on connector` slechts 1.637 locatielookups plus 420 EVSE-final-lookups; P2e doet **22.839 EVSE- en 54.031 connector-indexlookups** vóór 420 matches. De vele random probes domineren regio-performance. Root shared reads original **31.594/24.966**, P2e **83.549/79.226**; cache-/I/O-verschillen verhinderen SLA-conclusies, maar queryplan en beide metingen pleiten overtuigend tegen P2e als universele strategie. **Niet blind landelijke query via P2e**. Voorgesteld: selectiviteit/viewport-omvang-afhankelijke routing of plannerkeuze evalueren en afzonderlijk landelijke volledigheid/zoomtests; geen bewezen universele zoomdrempel. Zie [P2h resultaten](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md). Geen NDW-/Q5-herontwerp, API-/Android-/DB-schemawijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2h Windows-exportvalidatie gecorrigeerd — 3 november 2026
+
+Gebruiker meldde dat de P2h-`dotnet build` en `dotnet run --no-build ... --emit-overview-region-paired` succesvol leken, maar de documentatiecheck `($sql -split 'EXPLAIN ...').Count -ne 5` ten onrechte `P2h SQL-generatie ongeldig` gaf. **PowerShell vangt uitvoer als regels-array op**; de oude `-split`-controle was onjuist. In [P2h](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) is de check vervangen door `$sqlText = $sql -join "`n"`, **exact vier** `EXPLAIN`-matches en vier `\\echo P2h`-runlabels; bbox en beide celmaatnotaties worden gecontroleerd. **P2h nog niet op NAS bevestigd**: bestaand gegenereerd bestand eerst opnieuw valideren, dan pas scp/run. Geen productie-/DB-/API-/Android-wijziging, merge of deployment; PR #114 draft.
+
+---
+
+## P2g regio correctheid bevestigd; P2h gepaarde regiobenchmark voorbereid — 3 november 2026
+
+P2g op regionale bbox `5.20,51.60,5.90,52.10`, zoom10, CCS2/DC **PASS**: originele en geoptimaliseerde selectie **420/420 locaties, 0 verschillende IDs, ids_match=t**; volledige rasteruitvoer **12/12 niet-lege cellen, 420/420 locaties, 0 verschillende celrijen, aggregates_match=t**, inclusief groen/rood/onbekend. Zie [P2g resultaten](MAP_GRID_P2G_REGIONAL_PARITY.md). Op de ontwerpbranch staat nu ook **P2h (nog niet gebouwd/uitgevoerd)**: [vier afwisselende regio-EXPLAIN's](MAP_GRID_P2H_REGIONAL_PAIRED_BENCHMARK.md) `original → indexed → indexed → original`, via nieuwe `--emit-overview-region-paired` CLI in `MapFilterQ4Probe`. Origineel hergebruikt oorspronkelijke `MapFilter`-SQL met uitsluitend bbox en zoom10-celmaat aangepast; indexed hergebruikt exact P2f-schaalquery. Beide read-only, 5s per statement, geen voorafgaande parity-warm-up. **Geen gemeten P2h-performance of nationale uitkomst**, geen production/DB/NDW-/API-/Android-implementatie, merge of deploy. PR #114 draft.
+
+---
+
+## P2g regionale ID-/aggregatiepariteit voorbereid — 3 november 2026
+
+Na de P2f-regiometing (22.827 geo-locaties, 420 CCS2/DC-matches, 12 niet-lege rastercellen, 866,215 ms) is [MAP_GRID_P2G_REGIONAL_PARITY.md](MAP_GRID_P2G_REGIONAL_PARITY.md) toegevoegd. De bestaande `OverviewGeoFirstExporter` exposeert `CreateMediumRegionParityCcs2Dc()` via `--emit-overview-region-parity`. **Nog niet lokaal gebouwd of uitgevoerd**. P2g draait twee regionale, read-only `REPEATABLE READ`-correctheidscontroles op dezelfde bbox/gridLevel/filter (via de bestaande productie-`MapFilter`): (1) exacte locatie-ID-`EXCEPT`-pariteit oorspronkelijke versus gecorreleerde filterselectie; (2) per-cel volledige rasteruitvoer-`EXCEPT`-pariteit van oorspronkelijke EVSE-join versus `LEFT JOIN LATERAL` met identiek geselecteerde locaties en dezelfde COUNT-expressies. Geen `EXPLAIN ANALYZE`-run in dit script; 5s statement-timeout begrenst elk statement. Alleen bij geslaagde pariteit volgt gecontroleerde oorspronkelijke regiobaseline en afwisselende performancevergelijking. Nog geen nationale test, NDW-/Q5-herontwerp, API-/Android-/DB-/schemawijziging, merge of deployment. PR #114 draft.
+
+---
+
+## P2f regionale schaaltest uitgevoerd: 22.827 geografische locaties, 866 ms — 3 november 2026
+
+Gebruiker leverde `p2f-region-result.txt` met geslaagde read-only `EXPLAIN ANALYZE` voor bbox `5.20,51.60,5.90,52.10` (zoom/gridLevel10, CCS2/DC). **Execution 866,215 ms, Planning 25,375 ms**; `geo_locations` **22.827**, gefilterd **420** locaties, **12 niet-lege gridcellen**, finale selected-EVSE join **2.530** rijen. Indexpad: locatie GiST, **22.827** `idx_evse_active_location` plus **54.007** `idx_connector_active_evse` voor technische filter, daarna **420** EVSE-indexzoekacties voor aggregatie. **Geen landelijke connector- of EVSE-Seq Scan**, geen temp spill; root buffers `shared hit=273645 read=86722 dirtied=1840 written=13439`. Grootste werk zit in technische filterselectie (`selected` 847,774 ms). **Nog geen regionale exacte ID-/rasteraggregaatpariteit en geen oorspronkelijke-plan-baseline op dezelfde bbox**. Niet automatisch nationale run; eerst regionale pariteit en gecontroleerde routevergelijking, daarna landelijke schaalbesluit. Zie [MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md](MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md). Geen NDW-/Q5-herontwerp, API/Android/DB-schemawijziging, merge/deployment. PR #114 draft.
+
+---
+
+## P2f middelgrote regionale schaalprobe voorbereid — 3 november 2026
+
+Na P2e (Oss filter- en volledige rasteraggregaatpariteit geslaagd, lokale EVSE-indexjoin) is [MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md](MAP_GRID_P2F_REGIONAL_SCALE_PROBE.md) toegevoegd. De bestaande `OverviewGeoFirstExporter` kreeg `CreateMediumRegionCcs2Dc()` en CLI `--emit-overview-region`: **één** read-only `EXPLAIN ANALYZE` van P2e met bbox `5.20,51.60,5.90,52.10`, gridLevel10 (hele cellen), CCS2+DC via productie-`MapFilter`, `statement_timeout=5s`; **geen dure voorafgaande dubbele `EXCEPT`-queries** en **nog geen landelijke uitvoering**. Exacte regionale pariteit wordt pas na eerste schaal-/risico-inspectie uitgevoerd; eerdere Oss-pariteit mag niet automatisch regionaal worden aangenomen. **CLI nog niet lokaal gebouwd of op NAS uitgevoerd**; gebruiker voert gedocumenteerde commando's uit. Geen nieuwe NDW-/statussemantiek of productiecode/schema-/API-/Android-wijziging, merge of deploy. PR #114 draft.
+
+---
+## P2e voltooid: exacte rasterpariteit en indexgerichte EVSE-aggregatie — 3 november 2026
+
+NAS-uitvoer `p2e-lateral-availability-result.txt`: **locatie-ID-pariteit 34=34, differing_ids=0, ids_match=t** én **volledige rasteraggregaatpariteit 4=4 cellen, 34=34 locaties, differing_cell_rows=0, aggregates_match=t** (alle kolommen inclusief groen/rood/onbekend). P2e `EXPLAIN ANALYZE`: **Execution 71,316 ms, Planning 2,951 ms**, root `shared hit=33513 read=0`; eerste GiST-geoselectie 2.101 locaties; gecorreleerde CCS2/DC-filtercontrole 2.101 EVSE- en 4.838 connector-indexlookups; laatste availability-join via `Nested Loop Left Join` en **34× `idx_evse_active_location`** voor 244 EVSE-rijen. **Beide landelijke fullscans (connector en EVSE) zijn verdwenen voor deze kleine Oss-case.** P2d 160,477 ms met 23.993 shared reads, maar P2e volledig warm door voorafgaande pariteitsqueries: geen bewezen continue latencywinst claimen. **Volgende stap:** oplopende regio-/landelijke complete-cell-read-only benchmark vóór API-/Android-architectuurkeuze; geen extra lokale queryvariant zonder noodzaak. Zie [MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md](MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md). Geen NDW-/statuswijziging, schema-/API-/Android-code, merge of deploy; PR #114 blijft draft.
+
+---
+
+## P2e geselecteerde-locatie EVSE-aggregatie/pariteit voorbereid — 3 november 2026
+
+De P2d-validatie (34=34 locatie-ID's, 0 verschillen) bewees dat de gecorreleerde technische `MapFilter`-selectie de landelijke connector-Seq Scan elimineert, maar er bleef een **EVSE Seq Scan van 216.524 actieve rijen** in de eindaggregatie. P2e ([read-only benchmarkinstructies](MAP_GRID_P2E_LATERAL_AVAILABILITY_BENCHMARK.md)) voegt `--emit-overview-lateral-availability` aan de bestaande MapFilterQ4Probe CLI toe. **Ongewijzigde P2d-filterselectie**, maar vervangt de beschikbaarheids-EVSE-join door `LEFT JOIN LATERAL (SELECT e.id,e.status FROM evse e WHERE e.location_id=s.id AND e.is_active OFFSET 0)`. De bestaande status-COUNT FILTER-expressies zijn niet gewijzigd. De generator controleert eerst ID-pariteit, daarna **per-cel outputpariteit van alle kolommen met dubbelzijdig EXCEPT op één snapshot**, en toont vervolgens `EXPLAIN ANALYZE` voor de indexed kandidaat. **Nog niet lokaal gebouwd of op NAS uitgevoerd**, dus geen performanceresultaat claimen. Geen nieuwe NDW-/beschikbaarheidsregels, productie-API/Android/DB-wijziging, merge of deploy; PR #114 draft.
+
+---
+
+## P2d CCS2/DC filter-indexpad werkt, EVSE-fullscan blijft — 3 november 2026
+
+Read-only NAS-proef na exporter-fix: **exacte ID-pariteit geslaagd (34/34 locaties, 0 diff, ids_match=t)** en 4 gridcellen. P2d selecteert met `geo_locations AS MATERIALIZED` eerst 2.101 lokale locaties; de filterpredicate wordt gecorreleerd uitgevoerd via **2.101× `idx_evse_active_location`** en **4.838× `idx_connector_active_evse`**, **geen landelijke connector-Seq Scan**. Execution **160,477 ms** (planning 3,063 ms). **Nieuwe resterende bottleneck**: aggregatie maakt alsnog `Hash Right Join` met **Seq Scan over 216.524 actieve EVSE's** (103,365 ms scan, 23.957 shared reads); root 23.993 reads. Volgende gerichte proef: alléén beschikbaarheidstelling voor de 34 geselecteerde locaties indexgericht maken, met exacte outputpariteit en bestaande statussemantiek. Geen generieke performancewinst claimen op deze ene run; geen NDW-/Q5-herontwerp, code-/DB-mutatiewerk, merge/deploy. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). PR #114 draft.
+
+---
+## P2d exporter-generatiefout gerepareerd — 3 november 2026
+
+Eerste Windows-`--emit-overview-correlated` faalde met `InvalidOperationException: Correlated filter SQL template not applied`. Oorzaak: whitespacegevoelige vervanging van een C# raw SQL-string. Op `docs/location-dataflow-113-design` is de vervanging gecorrigeerd naar unieke `WHERE true __FILTER__`-marker, met aanwezigheidcontrole. Herhaal na `git pull --ff-only` en `dotnet build`; **nieuwe compilatie/NAS-uitvoering nog niet bevestigd**, geen benchmarkuitkomst. Zie [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md). Geen productieschema-/API-wijziging, merge of deployment.
+
+---
+## P2d locatiegecorreleerde CCS2/DC-filterproef voorbereid — 3 november 2026
+
+Na P2c (acht echte NAS-EXPLAIN-plannen) blijft de landelijke connector Parallel Seq Scan bij CCS2/DC zonder minFree een concrete bottleneck. [MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md](MAP_GRID_P2D_CORRELATED_FILTER_BENCHMARK.md) beschrijft **één nog niet gebouwde/uitgevoerde** read-only P2d-variant die eerst `geo_locations AS MATERIALIZED` selecteert en de **ongewijzigde via productie-`MapFilter.LocationPredicate(6)` gegenereerde predicate** vervolgens met `CROSS JOIN LATERAL (SELECT 1 WHERE true <predicate> OFFSET 0)` per locatie probeert uit te voeren. De bestaande `OverviewGeoFirstExporter.cs` is hiervoor uitgebreid; CLI `--emit-overview-correlated` genereert ID-EXCEPT-pariteit en `EXPLAIN ANALYZE` op Oss zoom11. Eerst `differing_ids=0` / `ids_match=t` en daarna alleen op werkelijke SQL-plan/I/O-oordelen. `OFFSET 0` is een toetsbare plannerhypothese, geen definitieve productieoplossing. Geen tweede filterlogica, index-/schema-/NDW-wijziging, API/Android-implementatie, merge of deploy. PR #114 draft.
+
+---
+
+## P2c acht gepaarde gefilterde overzichtsmetingen uitgevoerd — 3 november 2026
+
+Gebruiker leverde het complete `p2c-paired-result.txt` met acht werkelijke `EXPLAIN (ANALYZE, BUFFERS)`-plannen. [Volledige P2c-analyse](MAP_GRID_P2C_RESULTS.md). Voor **CCS2+DC**: oorspronkelijke SQL **200,823/134,760 ms**, geography-first **136,676/138,138 ms**, bij alle vier de runs een **landelijke Parallel Seq Scan op connector**; 34 geselecteerde locaties, 4 gridcellen. Voor **CCS2+DC+minFree1**: oorspronkelijke SQL **113,278/149,672 ms**, geography-first **97,247/62,337 ms**, uitsluitend geography-first gebruikte **lokale EVSE-/connector-indexzoekacties zonder landelijke connector Seq Scan**; 32 locaties/4 cellen in alle runs (eerder 30 bij P2b, dataset gewijzigd). Eerste oorspronkelijke CCS2/DC planningtijd 28 ms versus ~3 ms in overige runs; cache-/I/O-verschillen blijven groot. **Geen algemene geography-first-prestatieclaim of productiecontractbesluit.** P2b exacte ID-pariteit bewezen voor eerdere snapshot; P2c zelf verifieerde alleen gelijke aantallen/cellen. Volgende gerichte hypothese: locatiegecorreleerde technische filter zonder semantische duplicatie, en uiteindelijk landelijke schaaltest. Geen nieuwe NDW-/beschikbaarheidsdefinities, API-/Android-/schemawijzigingen, merge of deployment. PR #114 draft.
+
+---
+
+## P2c gecontroleerde gefilterde A/B-meetreeks voorbereid — 3 november 2026
+
+[MAP_GRID_P2C_PAIRED_FILTER_PERFORMANCE.md](MAP_GRID_P2C_PAIRED_FILTER_PERFORMANCE.md) bevat de **nieuwe, nog niet uitgevoerde** P2c NAS-read-only benchmark. De bestaande `MapFilterQ4Probe` kreeg een `--emit-overview-paired` CLI-optie die per filter `origineel → geography-first → geography-first → origineel` exporteert voor `ccs2_dc` en `ccs2_dc_minfree1` (totaal **acht** afzonderlijke `EXPLAIN ANALYZE`-queries), met zichtbare labels per run. De originele P2a- en P2b-exporters worden hergebruikt; P2b's reeds geslaagde ID-pariteit wordt niet telkens opnieuw uitgevoerd om ongelijke cache-opwarming te voorkomen. Geen handgeschreven tweede filtercontract: beide query's blijven de gelinkte productie-`MapFilter.cs` gebruiken. **Build/uitvoering nog niet geverifieerd**; gebruiker kan met de gedocumenteerde Windows/NAS-commando's meten. Pas bij reproduceerbaar knelpunt de landelijke connectorscan gericht aanpakken. PR #114 draft; geen DB-/API-/Android-wijziging, merge of deployment.
+
+---
+
+## P2b gefilterde geography-first SQL: exacte ID-pariteit, gemengde performance — 3 november 2026
+
+Gebruiker leverde twee werkelijke NAS-read-only P2b-queryplannen en `EXCEPT`-pariteit aan: **`ccs2_dc` 34=34 locaties, 0 verschil, ids_match=t**; **`ccs2_dc_minfree1` 30=30 locaties, 0 verschil, ids_match=t**. Eindaggregatie 4 rastercellen in beide gevallen. P2b geography-first duurde **187,509 ms** voor CCS2/DC (P2a oorspronkelijk 160,011 ms) en **41,749 ms** voor CCS2/DC/minFree1 (P2a 137,799 ms). Bij CCS2/DC bleef een landelijke connector Parallel Seq Scan (~6.473 matches) ondanks geography-CTE; bij minFree1 koos planner 2.101 lokale actieve-EVSE-indexzoekacties + 3.578 connector-indexzoekacties, zonder landelijke connectorscan. De snelle gecombineerde run had `shared read=31` tegenover P2a `read=23531`: **cache-effect groot, winst niet causaal bewezen**. Volgende focus: afwisselende vergelijkbare herhalingen of een aantoonbaar gerichte locatie-eerst-join-proef die exact dezelfde productie-`MapFilter` blijft gebruiken. Geen nieuwe NDW-/beschikbaarheidssemantiek. Zie [MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md](MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md). PR #114 draft; geen API/Android/DB-mutatiewerk, merge of deploy.
+
+---
+## P2b geography-first filterpariteit en benchmark voorbereid — 3 november 2026
+
+Na de P2a-plannen is [MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md](MAP_GRID_P2B_GEOFIRST_FILTER_BENCHMARK.md) met de geïsoleerde `OverviewGeoFirstExporter.cs` / CLI `--emit-overview-geofirst` toegevoegd. De **nog niet gebouwde of uitgevoerde** proef vergelijkt voor CCS2+DC en CCS2+DC+minFree1 eerst op dezelfde PostgreSQL-snapshot de geselecteerde locatie-ID's van oorspronkelijke selectie en `geo_locations AS MATERIALIZED` vóór de ongewijzigde productie-`MapFilter.LocationPredicate(6)` (`EXCEPT`-pariteit); alleen bij `ids_match=t` is `EXPLAIN ANALYZE`-performance informatief. P2a bestaande prestaties: unfiltered 214,024 ms/2.101, CCS2+DC 160,011 ms/34, gecombineerd 137,799 ms/30; gefilterde queryplanner startte op connectorlandelijke Seq Scan. Geen wijziging van NDW-/statussemantiek, productie-API/Android, DB, deployment of merge. PR #114 draft.
+
+---
+
+## P2a drie echte gefilterde overview-plannen voltooid — 3 november 2026
+
+Gebruiker stuurde één volledige NAS-run met drie `EXPLAIN ANALYZE`-plannen op Oss zoom11 complete cells: **ongefilterd 2.101 locaties / 4 cellen / 214,024 ms**, **CCS2+DC 34 locaties / 4 cellen / 160,011 ms**, **CCS2+DC+minFree1 30 locaties / 4 cellen / 137,799 ms**. Ongefilterd gebruikt GiST-locatieselectie maar een landelijke EVSE Seq Scan. Beide technische filters veroorzaken een **landelijke connector Parallel Seq Scan** (6.473 matching connectorrijen; ~23k connector shared reads) en 1.637 location-PK lookups vóór geografisch filter; daarnaast 34 minFree-subplans in gecombineerde case. Concrete volgende optimalisatiehypothese: geselecteerde geo-locaties eerst materialiseren en dezelfde productie-`MapFilter.LocationPredicate` toepassen; ID-pariteit onafhankelijk toetsen vóór performanceclaim. Geen productiecode/schema/NDW-verandering. Zie [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md). PR #114 draft, geen merge/deploy.
+
+---
+## P2a eerste gefilterde overview-plan ontvangen: connector-first knelpunt — 3 november 2026
+
+Gebruiker leverde compleet PostgreSQL-plan van **`ccs2_dc_minfree1`** aan: **135,861 ms execution**, 3,423 ms planning, 30 geselecteerde locaties en 4 gridcellen. PostgreSQL begon met **landelijke Parallel Seq Scan van connectoren** (6.473 passend, 23.331 shared reads), voerde 6.467 `evse_pkey` indexlookups en 1.637 `charging_location_pkey` lookups uit; pas daarna ruimtelijke filter, met 34 `minFree`-SubPlan-locatieruns. De uiteindelijke availability-join met alle actieve EVSE's op 30 locaties heeft 235 rows. Geen productiefilterverandering of aantoonbare fout; **concrete performance-optimalisatiehypothese**: geografische locatie-CTE materialiseren vóór uitvoeren van de ongewijzigde `MapFilter.LocationPredicate`, en meet dezelfde feature-ID-set. **Overige P2a-plannen (ongefilterd en CCS2/DC) nog niet ontvangen**; eerst die beoordelen. Zie [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md). PR #114 draft, geen productie-/DB-mutaties of merge/deploy.
+
+---
+
+## P2a complete-cell overview met echte MapFilter voorbereid — 3 november 2026
+
+Na A1/A2/A3/Oss- en indexbenchmarks is [MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md](MAP_GRID_P2A_FILTERED_OVERVIEW_BENCHMARK.md) toegevoegd met een **nog niet uitgevoerde** gecombineerde overview-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-proef. Nieuwe geïsoleerde testharnessbron `tools/MapFilterQ4Probe/OverviewPerformanceExporter.cs` en Program CLI `--emit-overview-perf` genereren drie vaste Oss-zoom11 complete-cell queries (geen filter, CCS2/DC, CCS2/DC/minFree=1). De predicate komt **direct uit de gelinkte productie-MapFilter.cs** via `LocationPredicate(6)`/`AddParameters`; geen tweede handgeschreven filterlogica. Benchmarktelling telt alle operationele EVSE's van de geselecteerde locaties. **SQL is voor handmatige read-only NAS-proef, niet voor productie-Npgsql API**. .NET build / NAS-uitvoering nog niet geverifieerd; gebruiker doet dit zelf. Voorgaande A1 Oss 121,861 ms, A2 496,361 ms en A3 152,302 ms blijven de losse-run-baselines; geen nieuwe beschikbaarheidsclassificatie. Geen productiecode, schemawijziging, merge of deploy. PR #114 draft.
+
+---
+
+## P1d/A3 bestaande EVSE-index daadwerkelijk gebruikt, niet sneller in deze run — 3 november 2026
+
+Gebruiker voerde de Oss-A3-`LATERAL`-benchmark uit: **152,302 ms Execution Time**, 30,399 ms Planning Time, 2.101 locaties/4 cellen. PostgreSQL gebruikte `idx_evse_active_location` via `Nested Loop Left Join`, **2.101 Index Searches**, gemiddeld 2,43 actieve EVSE's/lookup. Root buffers hit 6.714/read 7.308/written 6.688; veel minder shared reads dan A1 (30.422), maar niet sneller dan recente A1 (121,861 ms); A2 (496,361 ms) ruim langzamer. Dit is losse-run-vergelijking, niet bewijs van structurele rangorde. Geen indexaanmaak nodig. **Vervolg:** A1 als eenvoudige performance-baseline behouden; niet eindeloos A1/A2/A3 blijven tweaken, maar de echte filtered complete-grid overview-query en daarna landelijke dekking/schaal toetsen. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft; geen productie-/schemawijziging, merge of deployment.
+
+---
+## P1d EVSE-indexen op NAS bevestigd — 3 november 2026
+
+`idx_evse_active_location ON evse(location_id) WHERE is_active` **bestaat al**, evenals `evse_identity(location_id,source_uid)` en de gebruikte partial GiST `ix_charging_location_active_position`. EVSE geschatte live rows 216.362, dead rows 27.621, laatste autoanalyze `2026-11-03 12:44:33+00`; dit is geen reden voor indexaanmaak/vacuum zonder meting. Oss-A1 koos desondanks landelijke Seq Scan; volgende gerichte proef: bestaand A3 LATERAL-indexpad vergelijken met A1 op identieke complete Oss-cellen, niet opnieuw NDW-statuslogica onderzoeken. Zie [MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md](MAP_GRID_P1D_EVSE_INDEX_INSPECTION.md). PR #114 draft, geen mutaties/merge/deploy.
+
+---
+## P1c Oss A1/A2 performance bevestigd — 3 november 2026
+
+Gebruiker voerde beide read-only Oss-queryplannen uit: **2.101 locaties, 4 gridcellen, 216.219 actieve EVSE-rijen**. A1 directe join **121,861 ms**, A2 EVSE-preaggregatie **496,361 ms** (A1 circa **4,07× sneller**). A2 aggregeerde landelijk 84.241 EVSE-locatiegroepen, met gematerialiseerde CTE `Storage: Disk` en `temp written=349`. Beide gebruiken een sequentiële scan van alle actieve EVSE's, ook A1 voor slechts 2.101 geselecteerde locaties / 5.099 joinrijen. Dit is een concrete aanleiding om het bestaande EVSE-indexpad voor kleine viewports te analyseren, **niet** om meteen een schemawijziging of nieuwe statuslogica te starten. Bij grote zoom8-gebieden geen consistente A1/A2 winnaar uit twee gepaarde runs. Zie [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md). PR #114 draft; geen merge/deploy.
+
+---
+## P1c klein Oss-raster A1/A2 benchmark voorbereid — 3 november 2026
+
+Na twee omgekeerd uitgevoerde P1a/P1b grootgebiedparen zonder stabiele winnaar is [MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md](MAP_GRID_P1C_OSS_A1_A2_BENCHMARK.md) toegevoegd. Het bevat **twee complete, uitvoerbare read-only NAS Bash-blokken** voor A1 direct join en A2 EVSE-preaggregatie, beide met dezelfde Oss-bbox (5.40,51.70,5.62,51.83), volledig Web Mercator-gridniveau 11, `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`, 5s-timeout, `jit=off` en rollback. **Nog niet uitgevoerd**. Eerst één paar A1→A2 meten, exacte queryplannen beoordelen, daarna pas zo nodig omgekeerde herhaling. Geen heropening NDW-/Q5-logica, geen productiecode/DB-wijziging, merge of deploy. PR #114 draft.
+
+---
+
+## P1b omgekeerde A2/A1-performanceproef: geen stabiele winnaar — 3 november 2026
+
+Tweede groot-zoom8-paar, op verzoek in omgekeerde volgorde **A2 → A1** uitgevoerd: A2 **665,995 ms** en A1 **621,199 ms**. Eerste paar A1 **770,699 ms** versus A2 **736,899 ms**. Gemiddeld uit twee runs elk: A1 **695,949 ms**, A2 **701,447 ms** (verschil circa 0,8%); de winnaar wisselde tussen paren. P1b-planning A2 30,920 ms, A1 34,732 ms. Voor P1b zijn alleen eindregels aangeleverd: niet opnieuw alle plankenmerken of buffers te toetsen. **Nog geen bewijs dat preaggregatie sneller is, geen adaptieve querystrategie invoeren.** Zie [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Volgende focus: één extra gecontroleerd paar indien nodig, daarna kleine Oss-A1/A2-metingen en concrete bottleneckanalyse; geen Q5-redesign. PR #114 draft, geen productie-/DB-mutaties of merge/deploy.
+
+---
+## P1a A1/A2 eerste grote-regiopaar compleet — 3 november 2026
+
+Twee echte NAS-`EXPLAIN (ANALYZE, BUFFERS)`-runs: A1 direct join **770,699 ms** en A2 EVSE-preaggregatie **736,899 ms** op dezelfde geselecteerde **71.026 locaties / 8 complete zoom-8-gridcellen**. Beide scannen 216.159 actieve EVSE's. A2 groepeert eerst 84.212 EVSE-locaties; de `evse_counts`-CTE materialiseert gedeeltelijk op schijf (`temp written=349`), maar de HashAggregates rapporteren `Batches=1`. Eerste paar: A2 **33,8 ms (~4,4%) sneller**, nog geen statistisch betrouwbare ranking vanwege veranderende cache/collectorbelasting. **Vervolg P1b:** omgekeerde/afwisselende herhalingen van dezelfde bestaande A1/A2 complete-grid-query's, daarna Oss; niet opnieuw Q5-statuslogica uitwerken. Resultaten in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). PR #114 blijft draft; geen deploy/merge of productiewijzigingen.
+
+---
+
+## P1a eerste A1 grote-regio benchmark ontvangen — 3 november 2026
+
+De gebruiker leverde een werkelijke A1-`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)`-uitvoer: **770,699 ms uitvoering**, 34,818 ms planning, 71.026 locaties, 8 rastercellen; ruimtelijke bitmap-indexscan met 2 parallel workers; 216.159 actieve EVSE-rijen via een Seq Scan; Hash Right Join en HashAggregates met Batches=1 (geen aangetoonde disk-spill). Root buffers `hit=1763,read=52252,dirtied=3018,written=10305`. De eerdere A1-groteregio-meting van 844,151 ms is niet rechtstreeks causaal vergelijkbaar. **De gepaarde A2-uitvoer ontbreekt nog**; geen performancewinnaar aanwijzen. Vastgelegd in [MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md). Geen schema/app-wijzigingen, merge of deployment.
+
+---
+
+## P1a eerste gepaarde A1/A2-read-only benchmark voorbereid — 3 november 2026
+
+[MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md](MAP_GRID_P1A_A1_A2_PAIRED_BENCHMARK.md) geeft het eerstvolgende uitvoerbare performancewerk: één sanity-checkpaar `EXPLAIN (ANALYZE, BUFFERS)` voor directe join (A1) versus bestaande complete-grid nationale EVSE-preaggregatie (A2), **dezelfde grote zoom-8-rastercellen en eenvoudige proefstatussen**. Nog **niet uitgevoerd**; eerst resultaten en outputplannen beoordelen, daarna gecontroleerde afwisselende herhalingen en kleinere Oss-regio. Eerder gemeten A1/A2-resultaten zijn slechts losse runs, geen definitieve ranking. Geen heropening Q5 of bestaande NDW-logica. Geen productiecode, schema, deployment of merge; PR #114 draft.
+
+---
+
+## #113 terug op oorspronkelijke planning: performance na grid- en filtervalidatie — 3 november 2026
+
+**Leidend vervolg: [MAP_GRID_PERFORMANCE_NEXT_STEPS.md](MAP_GRID_PERFORMANCE_NEXT_STEPS.md).** De gebruiker heeft de scope opnieuw bevestigd: landelijke server-side rasteraggregatie en filtering valideren, daarna **meten en gericht optimaliseren**, vervolgens API/Android-implementatie. Q1–Q3 gridintegriteit en Q4-00..07 precluster filter-ID-pariteit zijn volgens uitgevoerde read-only tests geslaagd; Q4-08-basisinvarianten ook. De twee extra synthetische Q4-proeven (04c deduplicatie en 08b bredere ring) zijn nog niet door gebruiker als uitgevoerd bevestigd: blijven als kleine regressietests open, maar blokkeren de eerste performancevergelijking niet.
+
+**Geen nieuwe Q5-classifier ontwerpen.** Q5a–Q5c zijn als diagnostisch archief behouden; Q5d is nadrukkelijk geparkeerd/niet goedgekeurd. NDW, lifecycle, statussen en bestaande kwaliteitslogica blijven ongewijzigd en leidend.
+
+A1–A4 performance **was al gemeten**: A1 klein/groot 78,890/844,151 ms; A2 369,545/743,756 ms; A3 104,811/1100,014 ms; A4 229,671/763,406 ms (eenmalige, niet onder gelijke belasting gecontrolleerde samples). **Volgende stap P1:** gecontroleerde herhaalde `EXPLAIN (ANALYZE, BUFFERS)`-runs van **A1 versus A2** in Oss en grote regio; daarna pas eventuele bottleneckoptimalisatie en landelijke schaalproef. Geen nieuwe SQL-variant zonder meetmotief. PR #114 blijft draft; geen code-/schemawijziging, merge of NAS-deploy.
+
+---
+
+## Q5d voorlopig classificatieontwerp toegevoegd — 3 november 2026
+
+[MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md](MAP_GRID_Q5D_AVAILABILITY_CLASSIFICATION_DECISION.md) bevat een **voorstel, nog niet definitief goedgekeurd** met aparte lagen voor waarnemingskwaliteit en locatiebrede EVSE-status, een statusbeslismatrix en tien nog uit te voeren fixtures. Het ontwerp voorkomt dat een oude `source_last_updated` zonder ander bewijs automatisch grijs oplevert of dat nul AVAILABLE + UNKNOWN ten onrechte als zeker bezet wordt gepresenteerd. Fault-only, groene locaties met onbekende capaciteit, completeness-bewijs en responsemetadata vragen nog expliciete beslissingen. Q5a–Q5c diagnostische tests geslaagd; Q4c-04c en Q4c-08b synthetisch open. PR #114 draft, geen API/Android-/DB-wijzigingen, deployment of merge.
+
+---
+
+## Q5c feed versus bronupdate NAS geslaagd — 3 november 2026
+
+De gebruiker voerde de Q5c-read-only-proef uit: feedcheckpoint `2026-11-03 11:42:30.020752+00` (**3,5 minuten oud bij meting**), laatste completed import `11:42:30.064218+00`. In de Oss-bbox zijn **204 operationele EVSE's** verdeeld in bronupdate-leeftijdsbanden: **4 ≤15 min, 149 15 min–1 dag, 43 1–7 dagen, 8 >7 dagen**, nul ontbrekende/toekomstige timestamps, perfecte partitie. Statuswaarden: 149 AVAILABLE, 50 CHARGING, 4 UNKNOWN, 1 OUTOFORDER. Ten opzichte van Q5b wijzigden de live statusaantallen (151/48 naar 149/50); dit zijn verschillende snapshots, geen automatische inconsistentie. Bronupdate-ouderdom mag niet als enige freshnessregel dienen; recente globale feedwaarneming bewijst evenmin complete individuele actuele status. Zie [MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md). Vervolg Q5d semantische status/coverage-fixtures. Q4c-04c en Q4c-08b synthetische tests blijven open. PR #114 draft, geen mutaties, merge of deploy.
+
+---
+## Q5c bronupdate versus feedwaarneming vastgelegd — 3 november 2026
+
+[MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md](MAP_GRID_Q5C_FEED_VS_SOURCE_AGE_PROBE.md) staat nu op de ontwerpbranch (commit `51425d64`). Het document bevat een **nog niet uitgevoerde** read-only NAS-proef met het globale `snapshot_poll_checkpoint.last_observed_at`, de laatste voltooide import en bronupdate-leeftijdsbanden voor operationele EVSE's in de bestaande Oss-bbox. Q5c onderscheidt expliciet `source_last_updated` van onafhankelijke, geslaagde NDW-feedwaarneming; oude statuswijzigingen worden niet zonder meer als verouderde beschikbaarheid aangemerkt. Q5a/Q5b zijn uitgevoerd; Q4c-04c en Q4c-08b synthetisch blijven open. Geen productiecode, mutaties, merge of deploy; PR #114 draft.
+
+---
+
+## Q5b status- en locatieonzekerheid NAS gevalideerd — 3 november 2026
+
+Werkelijke Q5b-output: **204 operationele EVSE's = 151 AVAILABLE, 48 CHARGING, 4 UNKNOWN, 1 OUTOFORDER; alle 204 met niet-null `source_last_updated`**. Oudste bron-updateleeftijden (min): AVAILABLE 121937,3 (~84,7 d), CHARGING 8585,5 (~6,0 d), UNKNOWN 3802,2 (~2,6 d), OUTOFORDER 2548,4 (~1,8 d). **98 locaties**: 86 minstens één AVAILABLE zonder UNKNOWN; 10 geen AVAILABLE en wel volledig bekende statussen; **2 geen AVAILABLE met UNKNOWN**; 0 free+UNKNOWN, 0 zonder operationele EVSE's; `location_partition_ok=t`. De Q5b-partitie is geslaagd, maar bronupdateleeftijd is niet hetzelfde als feed-/individuele waarnemingsouderdom. Twee onzekerheidslocaties mogen niet stellig rood worden getoond. Q5c bronobservatie/completeness nog nodig. Zie [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md). Q4c-04c en Q4c-08b synthetisch blijven open. PR #114 draft; geen mutaties, merge of deploy.
+
+---
+## Q5b onbekende EVSE-statussen en locatieonzekerheid voorbereid — 3 november 2026
+
+De read-only [MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md](MAP_GRID_Q5B_LOCATION_UNCERTAINTY_PROBE.md) is opgesteld voor een **nog niet uitgevoerde** vervolgcontrole: werkelijke NDW-statuswaarden en `source_last_updated`-verdeling, plus een volledige locatie-partitie in vrij+UNKNOWN, geen-vrij+UNKNOWN, vrij zonder UNKNOWN, geen-vrij volledig bekend en nul operationele EVSE's. De bronupdate-ouderdom wordt **niet** gelijkgesteld aan feedstaleness. Q5a is uitgevoerd en geslaagd (204 operationele EVSE's; 4 onbekend, checkpoint-age 5,8 min); Q4c-04c en Q4c-08b synthetisch blijven open. Geen mutaties, deploy of merge; PR #114 draft.
+
+---
+
+## Q5a NDW-statusverdeling nulmeting geslaagd — 3 november 2026
+
+Gebruiker draaide Q5a read-only: **206 actieve EVSE-rijen; 2 PLANNED/REMOVED uitgesloten; 204 operationeel; 151 AVAILABLE, 48 CHARGING/BLOCKED/RESERVED, 1 INOPERATIVE/OUTOFORDER, 4 UNKNOWN/overig; partition_ok=t**. Feedobservatie `2026-11-03 11:32:29.014798+00`, leeftijd **5,8 min** op meetmoment. Statuspartitie klopt; nog geen locatie-/EVSE-versheid of complete snapshotdekking bewezen. Zie [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md). Volgende Q5b: onbekende statussen, locatiedekking, aparte bron-/feed-versheid. Q4c-04c en Q4c-08b synthetische fixtures nog open. PR #114 draft; geen mutaties/merge/deploy.
+
+---
+## Q5a NDW-statuskwaliteit voorbereid — 3 november 2026
+
+Na de geslaagde Q4c-08 NAS-basiscontrole (2 CCS2/DC-locaties, scope_ok=t, maar geen extra niet-passende EVSE's) is [MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md](MAP_GRID_Q5A_AVAILABILITY_QUALITY_BASELINE.md) opgesteld als **nog niet uitgevoerde** read-only status- en feedobservatienulmeting in de kleine Oss-bbox. De bestaande API heeft `CW_API_STALE_AFTER_MINUTES` met standaard 15 minuten; `snapshot_poll_checkpoint.last_observed_at` wordt voor feedstaleness gebruikt. Het Q5-besluit moet bron-/observatietijd, UNKNOWN, incomplete dekking en toestandscategorieën expliciet onderscheiden; de Q4c-08 kleurclassificatie was uitsluitend voorlopig. **Q4c-04c en Q4c-08b synthetische tests zijn nog niet als uitgevoerd bevestigd**, blijven open. Geen API/Android-/DB-mutaties, merge of deploy. PR #114 draft.
+
+---
+
+## Q4c-08 basisinvarianten NAS geslaagd, positieve bredere-ringfixture ontbreekt — 3 november 2026
+
+De gecorrigeerde Q4c-08-query is door de gebruiker op productie succesvol uitgevoerd. CCS2/DC-locaties **81262** (2 technisch passend, 2 operationeel, 2 vrij, groen voorlopig) en **85663** (2 technisch passend, 2 operationeel, 1 vrij, groen voorlopig): beide `scope_ok=t`, maar beide `has_other_evses=f`. Aggregaat 2 geselecteerd, 2 groen, 0 rood, 0 onbekend, `partition_ok=t`. **Basisinvarianten geslaagd; nog geen praktijkbewijs voor extra niet-passende EVSE's op een geselecteerde locatie**. Volgende stap read-only synthetische locatiebrede ringfixture. Q5 bepaalt definitieve status-/stalenesssemantiek. Q4c-04c EVSE-deduplicatiefixture niet als uitgevoerd bevestigd. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). PR #114 blijft draft; geen productiedatawijziging, deploy of merge.
+
+---
+
+
+### Aanvullende correctie — 3 november 2026
+
+Tweede gebruikersbuild meldde opnieuw `CS9006` en `dotnet run --no-build` startte daarna een oude binary zonder `--emit-q4c08`. Controle van de GitHub-bestandinhoud toonde dat de eerdere commit de raw-stringdelimiter niet daadwerkelijk had gewijzigd. **Nieuwe correctie commit `5ed4937`: geen geïnterpoleerde raw-string meer; de SQL staat in `return """..."""` met twee expliciete, identieke plaatsvervangers die met `.Replace("__Q4C08_LOCATION_PREDICATE__", predicate, StringComparison.Ordinal)` worden ingevoegd.** De remote broncode is gecontroleerd op twee query-plaatsvervangers. Een nieuwe lokale build en NAS-executie zijn nog niet aangetoond. `--no-build` pas gebruiken na een geslaagde `dotnet build`; bij een buildfout niets exporteren en ook geen eerdere SQL-file uitvoeren. Controleer tevens `git branch --show-current` en `git rev-parse --short HEAD`, aangezien een `git pull` op een andere branch de ontwerpcode niet binnenhaalt.
+
+---
+## Q4c-08 generator compileerfout hersteld (nog niet geverifieerd) — 3 november 2026
+
+De gebruiker kreeg `CS9006` bij het genereren van Q4c-08 doordat een C# interpolated raw string `$"""` gebruikte terwijl `{{predicate}}` twee dollar-tekens vereist. Dat schreef de compilerfout in `q4c08-generated.sql`, waarna `psql` `invalid command \\GITHUB` meldde. De stringdelimiter is aangepast naar `$$"""` (commit `ebfdcfa`), en de Q4c-08-instructies vereisen nu eerst een geslaagde `dotnet build` en een SQL-headercontrole voordat er wordt gekopieerd of uitgevoerd. **Nog niet lokaal gebouwd; nog geen Q4c-08 NAS-resultaten.** Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Geen productie-mutaties of deployment; PR #114 draft.
+
+---
+## Q4c-08 locatiebrede voorlopige ringaudit voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` ondersteunt nu `--emit-q4c08` voor een **nog niet uitgevoerde** read-only vergelijking van CCS2/DC-technisch passende EVSE's versus **alle operationele EVSE's van geselecteerde locaties**, inclusief een voorlopige groen/rood/onbekend-partitie. Zie [MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md](MAP_GRID_Q4C_08_RING_SCOPE_PROBE.md). Er is nog geen API-ringcontract uitgevoerd; definitieve bronkwaliteitsclassificatie is Q5. Q4c-07 is werkelijk geslaagd (0/0, differing_ids=0); Q4c-04c synthetische EVSE-deduplicatie is nog onbevestigd. Geen productiemutaties, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-07 lege selecties geslaagd — 3 november 2026
+
+Gebruiker voerde de read-only Q4c-07-proef op de NAS uit. Niet-bestaande operator: **viewport_ids=0, grid_candidates=0, grid_owned=0, overview_clipped_ids=0, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. De lege SQL-ID-setpariteit is hiermee bevestigd. De dekking van een lege response met toekomstige `coverage.complete` is nog niet als API-contract beproefd. Zie [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md). Vervolg Q4-08 ringclassificatie op *alle* operationele EVSE's van gefilterde locaties en open synthetische Q4c-04c deduplicatie. Q5 blijft open. Geen productiedatawijziging, deployment of merge; PR #114 draft.
+
+---
+## Q4c-07 lege locatie-ID-settest voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-06 meervoudige connector-/modusfilter-ID-sets geslaagd — 3 november 2026
+
+Werkelijke read-only NAS-uitvoer: **CCS2+CHAdeMO AC+DC** viewport/clip 2/2, grid-owned 13; **TYPE2+CCS2 AC+DC** 98/98, grid-owned 419; **CCS2+CHAdeMO DC** 2/2, grid-owned 13. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-06 heeft drie positieve selecties en is voor deze data geslaagd. De onderliggende same-connector AND/OR-semantiek verdient nog onafhankelijke fixturecontrole. Zie [MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md). **Vervolg Q4-07** lege resultaten; vervolgens Q4-08 locatiebrede ring, Q4c-04c synthetische deduplicatie en Q5. PR #114 draft; geen productiewijziging, merge of deployment.
+
+---
+## Q4c-06 meervoudige connector-/modusfilters voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md](MAP_GRID_Q4C_06_MULTIVALUE_PARITY_PROBE.md) en `MapFilterQ4Probe --emit-q4c06` bevatten drie **nog niet uitgevoerde** read-only ID-setvergelijkingen voor meervoudige `connectorType`- en `mode`-waarden. De centrale `MapFilter`-generator wordt hergebruikt met dezelfde bbox als Q4c-05. Q4c-05 is **3/3 geslaagd** met reële operatoren (87/87, 93/93 en 87/87, telkens `differing_ids=0`). Q4c-04c synthetische EVSE-duplicatie blijft onbevestigd; Q4-07/Q4-08 en Q5 blijven open. Geen API/Android-productiewijziging, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-05b operatorfilterpariteit geslaagd — 3 november 2026
+
+Gebruiker voerde drie `MapFilter`-gegenereerde read-only operatorscenario's uit. **Vattenfall InCharge: 87 viewport/87 geclipte raster-ID's (337 grid-owned); Vattenfall + 50five: 93/93 (362); Vattenfall tweemaal: 87/87 (337)**. Alle `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4-05 geslaagd voor deze dataset en operatorcombinaties; aanvullende grensgevallen case/whitespace blijven afzonderlijk te beoordelen. Zie [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). Volgende Q4-06 multi-connector/mode, Q4-07 lege ID-sets, Q4-08 ringclassificatie; Q4c-04c duplicatiefixture nog niet uitgevoerd. Geen productieimplementatie, mutaties, deploy of merge; PR #114 draft.
+
+---
+## Q4-05a operator-discovery uitgevoerd, Q4-05b voorbereid — 3 november 2026
+
+De echte Oss-bbox bevatte volgens de NAS-read-only operator-discovery **87 Vattenfall InCharge, 6 50five, en elk 1 bp pulse, E-Flux by Road, Laadnet, PowerGo, Qwello Benelux BV**, samen 98. Alle `source_values_with_edge_whitespace=0`. Zie [MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md). `MapFilterQ4Probe --emit-q4c05` heeft nu drie queryvarianten met één, twee en herhaalde operatorwaarden; NAS-uitvoerstappen in [MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md](MAP_GRID_Q4C_05B_OPERATOR_PARITY_PROBE.md). **Q4-05b nog niet uitgevoerd**. Ook Q4c-04c synthetische EVSE-deduplicatie blijft open. Geen API/Android-productieimplementatie, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
+## Q4-05 operatorfixture-verkenning voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md](MAP_GRID_Q4C_05A_OPERATOR_DISCOVERY.md) bevat een **nog niet uitgevoerde** kleine read-only NAS-query die echte `btrim(operator_name)`-waarden en hun aantallen uit de reeds gebruikte 98-locaties Oss-bbox zoekt. Na de resultaten worden één/twee/herhaalde operatoren getest via de bestaande `MapFilter`-generator, niet via een eigen operatorfilter. Q4c-04b is positief geslaagd; **Q4c-04c synthetische connector-duplicatiefixture is voorbereid maar uitvoering niet bevestigd**. Geen productiecode, schemawijziging, deploy of merge; PR #114 draft.
+
+---
+
+## Q4c-04b onafhankelijke EVSE-positieve case geslaagd — 3 november 2026
+
+De gebruiker draaide de read-only Q4c-04b-audit. Eén passende productie-laadlocatie: **DB ID 81262**, `NL-BPE-6d278e19-8278-4a1d-9609-45025fca3a8a`; **2 passende connectorrijen, 2 unieke AVAILABLE EVSE's, 0 EVSE's met meerdere passende connectoren, passes_min_free_2=t**. Aggregaat `locations_matching_independent=1`, `qualifying_unique_evses=2`. Onafhankelijke positieve telling geslaagd; expliciet voorkomen van dubbeltelling bij één EVSE met meerdere passende connectoren blijft **ongetest op deze sample**. Volgende stap synthetische read-only duplicatiefixture en daarna Q4-05..08. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). Geen mutaties, deployment of merge; PR #114 draft.
+
+---
+## Q4c-04b onafhankelijke unieke-EVSE-telling voorbereid — 3 november 2026
+
+De bestaande MapFilterQ4Probe biedt `--emit-q4c04b` voor een **nog niet uitgevoerde** onafhankelijke read-only controle van de eerdere positieve CCS2/DC/gte150/minFree=2-locatie. In plaats van de gedeelde `LocationPredicate`-telling gebruikt de controlevorm een zelfstandige `JOIN connector`, `GROUP BY location_id, evse_id` en `count(DISTINCT evse_id)`, terwijl het vermogen rechtstreeks uit `MapFilter.EffectiveWattsSql` wordt gegenereerd. Zie [MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md](MAP_GRID_Q4C_04B_EVSE_DEDUP_AUDIT.md). De werkelijke resultaten kunnen de unieke-EVSE-telling en connectorrijverschillen bevestigen, maar voor bewijs van exact dezelfde feature-ID is een expliciete ID-vergelijking nodig als deze niet al is vastgelegd. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Geen API/Android-implementatie, DB-wijziging, merge of deployment.
+
+---
+
+## Q4c-04 gecombineerde filter-ID-setpariteit geslaagd — 3 november 2026
+
+Werkelijke NAS-proef: `ccs2+dc+gte150+minFree=2` selecteerde **1 viewport-ID, 7 volledige grid-owned ID's en 1 geclipte ID**, met `differing_ids=0`, beide `unique=t`, `ids_match=t`. Q4c-04 ID-setpariteit geslaagd met positieve match, maar onafhankelijk bewijs van minstens twee *unieke passende AVAILABLE EVSE's* is nog nodig; de bestaande `MapFilter` wordt immers aan beide zijden gebruikt. Daarna operatoren/multivalue/lege set en locatiebrede ringstatus valideren. Zie [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md). PR #114 draft; geen schemawijziging, deploy of merge.
+
+---
+## Q4c-03 geslaagd; Q4c-04 gecombineerd filter voorbereid — 3 november 2026
+
+Gebruiker voerde Q4c-03 met de bestaande `MapFilter`-SQL-generator read-only uit: **minFree=1: 86 viewport-ID's/86 geclipte raster-ID's (380 grid-owned), differing_ids=0, beide unique=t, ids_match=t; minFree=2: 54/54 (266 grid-owned), differing_ids=0, beide unique=t, ids_match=t**. Q4c-03 is geslaagd met twee positieve testsets, zie [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md).
+
+Vervolg: [MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md](MAP_GRID_Q4C_04_COMBINED_FILTER_PROBE.md) en harness-optie `--emit-q4c04` voor `ccs2+dc+gte150+minFree=2`; **nog niet lokaal gebouwd of op NAS uitgevoerd**. Nul/nul-resultaten tellen niet als positieve validatie; onafhankelijke EVSE-deduplicatie en locatiebrede ringstatus volgen. Q5 open. Geen DB-mutaties, productieroute, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-03 minFree zonder techniekfilter voorbereid — 3 november 2026
+
+De bestaande `MapFilterQ4Probe` bevat nu `--emit-q4c03` voor twee nog niet uitgevoerde read-only precluster locatie-ID-setvergelijkingen met `minFree=1` en `minFree=2`, rechtstreeks uit de bestaande `MapFilter.LocationPredicate(5/6)`. Stappen in [MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md](MAP_GRID_Q4C_03_MINFREE_PARITY_PROBE.md). Na de eerdere geslaagde Q4c-02b (15/15 grensgevallen) is dit de volgende NAS-test; gecombineerde technische filters volgen pas daarna. Geen deployment, migratie, productiemutaties of merge.
+
+---
+
+## Q4c-02b EffectiveWattsSql-grenzen en echte NDW-vermogens geslaagd — 3 november 2026
+
+De door gebruiker op NAS gedraaide read-only Q4c-02b-proef was **15/15 PASS** voor de synthetische grens- en fallbackgevallen met de echte productie-`MapFilter.EffectiveWattsSql`. Echte connectorpopulatie: **216.262 actief; 144.940 expliciet positief, 67.893 berekend positief, 3.429 onbekend**. Exacte drempelwaarden: **1.116 × 50 kW, 1.862 × 150 kW, 1.318 × 300 kW**. Deze eerste grens-/fallbackvalidatie is geslaagd, geen algemeen bewijs voor alle mogelijke invoergegevens. Zie [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md). **Vervolg Q4-03:** `minFree=1/2` vergelijken via werkelijke gegenereerde SQL-ID-sets, dan overige gecombineerde filters. Q5 bronkwaliteit open. PR #114 draft; geen mutaties, deploy of merge.
+
+---
+## Q4c-02b vermogensgrens- en brondata-proef voorbereid — 3 november 2026
+
+De geïsoleerde C#-harness heeft nu `--emit-q4c02b`: read-only SQL direct vanuit productie-`MapFilter.EffectiveWattsSql`, met synthetische waarden rond 50/150/300 kW, AC/DC fallback, expliciete-vermogen-prioriteit en `NULL`-gedrag. Daarnaast een telling van expliciete, berekende, onbekende en exact-grensconnectorvermogens in de echte database. [MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md](MAP_GRID_Q4C_02B_POWER_BOUNDARY_PROBE.md) bevat de Windows/NAS-stappen. **Nog niet gebouwd of uitgevoerd**. Q4c-02 vier live ID-setvergelijkingen geslaagd, inclusief lege gte300 viewport. Q4-03..08 en Q5 blijven open. Geen productiecode- of DB-wijziging, merge of deploy.
+
+---
+
+## Q4c-02 vier vermogensfilter-ID-sets geslaagd — 3 november 2026
+
+De gebruiker voerde alle vier door `MapFilter.LocationPredicate` gegenereerde powerfilters daadwerkelijk read-only uit: `lt50` viewport/clip **97/97**, `gte50` **1/1**, `gte150` **1/1**, `gte300` **0/0**; telkens `differing_ids=0`, `viewport_unique=t`, `overview_unique=t`, `ids_match=t`. Volledige grid-owned resultaten respectievelijk **412, 10, 8, 4**. Q4c-02 ID-setpariteit PASS, maar `gte300` heeft geen positieve match binnen de kleine viewport. **Volgende validatie Q4c-02b:** werkelijke en synthetische grenswaarden en berekend connectorvermogen via de productie-`EffectiveWattsSql`. Zie [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). Geen productiecode, DB-mutaties, deploy of merge; PR #114 draft.
+
+---
+## Q4c-02 vier vermogensbanden voorbereid — 3 november 2026
+
+De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-01 CCS2/DC gefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker heeft de door de gedeelde productie-`MapFilter.cs` gegenereerde read-only Q4c-01 SQL op NAS uitgevoerd: **viewport_ids=2; grid_candidates=13; grid_owned=13; overview_clipped_ids=2; differing_ids=0; viewport_unique=t; overview_unique=t; ids_match=t**. Daarmee is de exacte ID-setpariteit voor CCS2/DC op de kleine Oss-bbox geslaagd, met twee positieve matches. Zie [MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md). Q4a/Q4b/Q4c-00 waren eveneens geslaagd. **Vervolg:** stapsgewijs vermogensgrenzen, `minFree`, operatoren en filtercombinaties op werkelijke data toetsen; Q5 bronkwaliteit blijft open. Geen API-/Android-productiewijziging, migratie, deployment of merge; PR #114 draft.
+
+---
+## Q4c-01 gefilterde ID-setcontrole voorbereid — 3 november 2026
+
+[MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](MAP_GRID_Q4C_01_FILTER_ID_PROBE.md) beschrijft een **nog niet uitgevoerde** test met `connectorType=ccs2&mode=dc` op de kleine 98-locaties Oss-bbox. De lokale [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) bevat nu `--emit-q4c01`: deze genereert twee PostgreSQL-selecties met de **daadwerkelijke** productie-`MapFilter.LocationPredicate(5/6)` en `AddParameters`. Voor handmatige NAS-uitvoering worden uitsluitend vooraf gevalideerde, vaste filterarrays als veilige SQL-constanten geëxporteerd; productieroutes blijven geparametriseerd. De NAS voert de vergelijking uit met de `chargewatch_read`-rol in één `REPEATABLE READ READ ONLY`-snapshot. **Generator nog niet lokaal gebouwd; SQL nog niet uitgevoerd**. Eerst lokale export, daarna NAS-uitvoer beoordelen. Geen productiecodewijziging, schemawijziging, deployment of merge.
+
+---
+
+## Q4c-00 ongefilterde ID-setvergelijking geslaagd — 3 november 2026
+
+De gebruiker voerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) daadwerkelijk read-only op de NAS uit: **98 viewport-locaties, 419 volledige grid-kandidaten/owned locaties, 98 grid-ID's na clip naar viewport, differing_ids=0, viewport_unique=t, overview_unique=t, ids_match=t**. Q4c-00 is daarmee geslaagd op deze Oss-bbox. Q4a en Q4b waren eveneens geslaagd. **Volgende stap Q4c-01:** werkelijke gefilterde ID-setvergelijking met dezelfde C#-`MapFilter` SQL-generator en correcte Npgsql-binding, zonder afzonderlijk handmatig geschreven productie-filterlogica. Q5 open. Geen productiemutaties, schemawijziging, deployment of merge; PR #114 draft.
+
+---
+
+## Q4c-00 ongefilterde ID-setvergelijking voorbereid — 3 november 2026
+
+Productiepreflight door gebruiker: **98 actieve locaties** in bbox `5.50,51.75,5.53,51.77`, onder de oude viewportcap. De read-only, nog niet uitgevoerde [MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md](MAP_GRID_Q4C_00_UNFILTERED_ID_PROBE.md) vergelijkt binnen één PostgreSQL-transactie de ongefilterde viewport-ID's met de naar diezelfde bbox teruggeclipte volledige grid-owned ID's, inclusief symmetrisch verschil en uniekheid. Q4a en Q4b geslaagd; Q4c-00-resultaat nog onbekend. Technische filterpariteit volgt met de bestaande C# `MapFilter`-generator. Geen productiecode, schemawijziging, merge of deployment.
+
+---
+
+## Q4b lokale MapFilter-generatorcontrole geslaagd — 3 november 2026
+
+De gebruiker heeft `dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj` lokaal uitgevoerd: **14/14 PASS**, inclusief Q4-00..Q4-08 en de afzonderlijke arrayparametercombinatie. De daadwerkelijke output bevestigt het aantal Npgsql-commandparameters voor viewport/overview (4/5 zonder filters; 7/8 met alle drie filterarrays), identieke filterwaarden, `text[]`-typen en dezelfde SQL-predicaten met indexverschuiving 5→6. Dit is een **generatorcontracttest zonder SQL-database-uitvoering**. Q4a SQL-semantiekcontrole (CCS2/DC/minFree 1/2) was eerder eveneens geslaagd. **Q4c open:** op één read-only PostgreSQL-snapshot daadwerkelijke precluster locatie-ID-sets vergelijken, zonder aparte gekopieerde productiefilterlogica. Geen API-/Android-implementatie, migration, deploy of merge.
+
+---
+
+## Q4a EVSE-filter-ID-setcontrole geslaagd — 3 november 2026
+
+De gebruiker voerde de read-only Q4a-proef op productie uit. Bij `connectorType=ccs2&mode=dc` leverde `minFree=1` **12 referentie-ID's / 12 afgeleide ID's, differing_ids=0, ids_match=t**; bij `minFree=2` **10/10, differing_ids=0, ids_match=t**. Zie [MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) voor query en werkelijke uitvoer. Deze geslaagde SQL-semantiekcontrole bewijst **niet** dat de definitieve overview C#-generator of Npgsql-binding correct is, noch de overige Q4-scenario's.
+
+**Vervolg:** kleine lokale, niet-productie C#-testharness met echte `MapFilter.TryParse`, `LocationPredicate` en `AddParameters`; daarna Q4-ID-setvergelijking onder één read-only databasesnapshot. Q5 (bronkwaliteitsclassificatie) blijft open. Geen productiecode, schemawijziging, deploy of merge; PR #114 blijft draft.
+
+---
+
+## Q4a read-only filter-ID-controle voorbereid — 3 november 2026
+
+[MAP_GRID_Q4A_EVSE_FILTER_PROBE.md](MAP_GRID_Q4A_EVSE_FILTER_PROBE.md) is toegevoegd: **nog niet uitgevoerde**, read-only SQL-controle op de oorspronkelijke Oss-bbox. De proef vergelijkt onafhankelijke **locatie-ID-sets** bij `connectorType=ccs2`, `mode=dc`, `minFree=1` en `minFree=2` tussen de bestaande `MapFilter.LocationPredicate`-achtige `EXISTS/count`-structuur en een `COUNT(DISTINCT EVSE)`-vrije, één-rij-per-EVSE aggregatie met connector-`EXISTS`. Criteria: `differing_ids=0`, `ids_match=t` voor beide minFree-waarden. Dit is expliciet **nog geen C#-Npgsql-integratietest** en geen volledige filterpariteit: operator, alle power-banden, multi-value, statusbrongegevens moeten later getoetst worden. Om die reden verwijst de proef naar de oorspronkelijke bbox en mag absolute telling niet gelijkgesteld worden met Q1's uitgebreid-celgebied.
+
+Q1, Q2 en Q3 zijn daadwerkelijk geslaagd; Q4a nog niet gedraaid. Geen DB-mutatiewerk, API-/Android-implementatie, merge of deployment.
+
+---
+
+## Q3 geometrische grenscontrole geslaagd — 3 november 2026
+
+Gebruiker heeft [MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) werkelijk in PostgreSQL uitgevoerd met read-only rol/transactie. **Acht van acht synthetische punten** op/nabij horizontale celgrens en viercellige hoek: `owned_matches=1`, `exactly_once=t`, `all_ok=t`. Het exacte viercellige hoekpunt `corner_exact` had **candidate_matches=4** en **owned_matches=1**, canonieke cel `(1055,681)`. `horizontal_exact` had `candidate_matches=1` en `owned_matches=1`; numerieke transformaties kunnen het exacte grensgedrag van `ST_Intersects` beïnvloeden, maar dit testpunt ging niet verloren. Andere punten liggen volgens de test op de verwachte cellen.
+
+**Geometrische probes Q1, Q2, Q3 geslaagd** voor de geteste punten en Oss-coverage; deze vormen een voorlopig gevalideerde basis, geen bewijs voor alle geografische grenzen. **Vervolg Q4**: filterpariteit met de bestaande gevalideerde `MapFilter.LocationPredicate` en de locatiebrede statusclassificatie; **Q5**: daadwerkelijke bronbetrouwbaarheid en count-quality. Nog geen API-/Android-code, merge, deployment of DB-migratie.
+
+---
+
+## Q3 horizontale grens/viercellige hoek voorbereid — 3 november 2026
+
+[MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md](MAP_GRID_Q3_CORNER_BOUNDARY_PROBE.md) is toegevoegd. De **nog niet uitgevoerde** read-only SQL-fixture test acht synthetische punten op/nabij de horizontale zoom-11-rastergrens en het kruispunt van vier cellen, gemodelleerd als vier aangrenzende celverzoeken. Voor elk punt verwachten we `owned_matches=1`, `exactly_once=t`, `all_ok=t`; meerdere `candidate_matches` op grens/hoek zijn toegestaan. Dit is de laatste geometrische fixture vóór MapFilter-pariteit en count-quality-onderzoek. Geen productie-/codewijzigingen, merge of deployment.
+
+---
+
+## Q2 grenspuntfixture daadwerkelijk geslaagd — 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) uit op productiedatabase met read-only rol/transactie. **Drie synthetische punten op/naast verticale zoom-11-rastergrens:**
+- `exact_boundary`: `own_x=1055`, `own_y=681`, **candidate_matches=2**, **owned_matches=1**, `exactly_once=t`, `all_ok=t`.
+- `left_1m`: `own_x=1054`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+- `right_1m`: `own_x=1055`, `own_y=681`, candidate=1, owned=1, `exactly_once=t`.
+
+Deze echte meting demonstreert dat twee geografisch overlappende grenskandidaten bij canonieke celownership één resultaat opleveren. Alleen deze verticale grens en lokale projectie/roundtrip zijn gedekt, geen bewijs voor horizontale grenzen, viercellige hoeken of alle geografische uitersten. Volgende stap Q3 synthetische horizontale en 4-cellenhoek-fixture; daarna filterpariteit en count-quality. Geen mutaties, implementatie, merge of deploy.
+
+---
+
+## Q2 grenspuntcontrole voorbereid — 3 november 2026
+
+Na geslaagde Q1 op productie is [MAP_GRID_Q2_BOUNDARY_PROBE.md](MAP_GRID_Q2_BOUNDARY_PROBE.md) opgesteld: een **nog niet uitgevoerde** read-only PostgreSQL-fixture met drie synthetische 3857-punten (1 m links, exact op, 1 m rechts van een vaste zoom-11-celgrens) en twee aangrenzende volledige celverzoeken. De fixture test `candidate_matches` versus `owned_matches`, en verwacht `owned_matches=1` per synthetisch punt, `all_ok=t`, zodat grensraakkandidaten niet dubbel op de kaart verschijnen. Exacte grenspunten worden via 4326/geography roundtrips getoetst. Dit valideert niet vanzelf horizontale grenzen en vier-cel-hoeken; die blijven aparte checks. Geen productiemutaties, implementatie of merge/deploy.
+
+---
+
+## Q1 rasterintegriteit werkelijk geslaagd — Oss, 3 november 2026
+
+Gebruiker voerde [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) uit op productiedatabase met `chargewatch_read` en `READ ONLY`. **matched_locations=2.101; unique_matched_locations=2.101; owned_locations=2.101; classified_locations=2.101; grid_cells=4; cell_location_sum=2.101; green_locations=1.834; red_locations=177; unknown_locations=90; partition_ok=t**. Alle locatie-/cel- en drie-kleuren-somregels sluiten in deze reële Oss-dataset. Het is slechts één geografisch gebied op zoom 11, onder **voorlopige conservatieve statusclassifier**, dus nog geen bewijs van de definitieve NDW/Android-bronbetrouwbaarheid, gehele NL-dekking, filters of grenspunten. Q1 heeft geen productiedata gewijzigd.
+
+**Vervolg:** Q2 synthetische Web Mercator-celgrenspunten en aangrenzende cell requests read-only toetsen, plus filterpariteit en betrouwbaarheid apart. Geen API/Android-implementatie, merge of NAS-deploy.
+
+---
+
+## Q1 functionele integriteitscontrole voorbereid — 3 november 2026
+
+Na de A1–A4-read-only benchmarks is [MAP_GRID_Q1_INTEGRITY_PROBE.md](MAP_GRID_Q1_INTEGRITY_PROBE.md) toegevoegd aan de ontwerpbranch. Deze **nog niet uitgevoerde**, direct in `psql` bruikbare **read-only** controle begint bij Oss zoom 11 en toetst: `matched = unique = owned = classified = sum(cell.location_count)` en `sum(cell.location_count)=green+red+unknown`. Hiermee toetsen we de volledige Web Mercator-celuitbreiding, canonieke individuele celtoewijzing en interne telintegriteit; expliciet `partition_ok`. Het prototype kent een conservatieve voorlopige statusclassifier, **geen** gevalideerde staleness-/brongegevensregel of volledige API-filterpariteit. Na een geslaagde Q1 zijn grenspuntfixtures, filterpariteit en bronkwaliteit nog expliciet open.
+
+Code-audit bevestigt bestaande `MapFilter.LocationPredicate`/parameterbinding (connectorType/mode/power/minFree/operator) en de oude `GetMapViewport`-samenvatting met unieke EVSE's. De nieuwe API moet filtergenerator hergebruiken; geen handmatige SQL-filterkopie. Geen wijzigingen aan productiedata, schema, API/Android, merge of deployment.
+
+---
+
+## A4-productiemeting Oss en afronding A1–A4-verkenning — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only/JIT uit:** A4 Oss zoom-11 volledige cellen **2.101 laadlocaties, 4 gridcellen**; `Execution Time=229.671 ms`, `Planning Time=26.250 ms`. Ondanks relatief kleine selectie kiest PostgreSQL `Seq Scan on evse` van **214.804 actieve EVSE's**, `Hash Join` naar **5.099 actieve EVSE's** in geselecteerde locaties en `HashAggregate` naar 2.101 `location_id`-samenvattingen. Shared buffers `hit=840/read=30.289/dirtied=2.175/written=4.321`. Het spatial-filter gebruikt `ix_charging_location_active_position`. Data wijzigen tijdens reeks (Oss 2.100 eerder, nu 2.101).
+
+**Volledige eenmalige JIT-uit productiemetingen (niet gecorrigeerd voor cache, NAS-belasting, datagroei):**
+- A1 direct join: Oss **78,890 ms**, zoom-8 uitgebreid gebied **844,151 ms**
+- A2 volledige EVSE-preaggregatie: Oss **369,545 ms**, groot **743,756 ms**
+- A3 LATERAL per geselecteerde locatie: Oss **104,811 ms**, groot **1100,014 ms**
+- A4 locaties + geselecteerde EVSE-join/group: Oss **229,671 ms**, groot **763,406 ms**.
+
+**Aanbevolen richting:** niet meer op ad-hoc varianten sturen. Vergelijk daarna een **adaptieve A1/A2-keuze op geschat/gemeten aantal locaties** en eventueel één A1-query met PostgreSQL's automatische joinplankeuze (A1 kiest immers zelf al nested-loop/index voor klein en merge/seq voor groot). A2 was in de grote regio slechts 100 ms sneller dan A1 in niet-gecontroleerde runs; omschakeling is daarom nog **geen bewezen behoefte**. Test meerdere herhalingen/warm-cache, representatieve geografische gebieden, filters, echte bronbetrouwbaarheidsregels, exacte griddekking/celdaantallen, concurrency en collectorimpact vóór keuze. **Geen code, schema, migratie, merge of deploy.**
+
+---
+
+## A4-productiemeting grote zoom-8-coverage — 3 november 2026
+
+**Werkelijk door gebruiker uitgevoerd, read-only, JIT uit:** A4: **70.700 geselecteerde actieve laadlocaties** (A3 eerder 70.664), 8 rastercellen; `Execution Time 763.406 ms`, `Planning Time 29.260 ms`, buffers `shared hit=1.499, read=52.528, dirtied=2.563, written=15.558`. `locations` gebruikt `ix_charging_location_active_position`; `evse_counts` gebruikt één `Seq Scan` van **214.692 actieve EVSE's** gevolgd door `Hash Join` op 70.700 geselecteerde `location_id` en `HashAggregate` van **180.094 gekoppelde EVSE-rijen** naar 70.700 `location_id`-samenvattingen. Einde: `Hash Left Join` en `HashAggregate` naar 8 cellen. Hash-aggregaties blijven in 1 batch en RAM, geen temp-I/O gerapporteerd. Deze ene uitvoering is **~19,7 ms trager dan A2 groot (743.756 ms)** en sneller dan A3 groot (1100.014 ms), maar datasets/cache/NAS-belasting verschillen; dus geen harde rangorde.
+
+**Volgende toets:** exact A4 met Oss zoom-11-grid (5.40,51.70–5.62,51.83). Beoordeel of planner `Index Scan` kiest bij kleine selecties en hoe dit vergelijkt met A1 78,890 ms en A3 104,811 ms. Als A4 ook volledig `Seq Scan evse` doet, mogelijk hybride strategie nodig. De huidige benchmarkclassificatie is vereenvoudigd en voldoet nog niet aan productiekwaliteit/filters. Geen schemawijziging, API-/Android-implementatie, merge of deploy.
+
+---
+
+## A4 read-only benchmark voorbereid — 3 november 2026
+
+Nieuwe proefdocumentatie: [MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md](MAP_GRID_A4_SELECTED_JOIN_AGG_BENCHMARK.md). Na de eerdere A3-productiemeting (grote zoom-8-regio 70.664 locaties/8 rastercellen, 1100,014 ms, 70.664 EVSE-indexscans) onderzoeken we nu A4: **eerst locaties geografisch selecteren**, dan via een **gewone JOIN met actieve EVSE's** per `location_id` aggregeren in `evse_counts AS MATERIALIZED`, vervolgens de gridgroepen tellen. Het is een andere SQL-vorm dan A3/LATERAL en A2/landelijk vooraggregeren, maar de planner kan dezelfde dure lookups kiezen. Eerste vergelijkingsrun grote regio; bij succes Oss. Read-only rol/transactie, JIT uit, timeouts. **A4 is nog niet uitgevoerd.** Geen schema-/API-/Android-wijziging, merge of deploy.
+
+---
+
+## A3-productiemeting grote zoom-8-coverage — 3 november 2026
+
+Gebruiker voerde A3 `LEFT JOIN LATERAL` met JIT uit op productie/read-only uit. Werkelijk resultaat: **70.664 actieve laadlocaties, 8 rastercellen** (7 meer dan voorgaande runs, onderliggende NDW-data kan zijn gewijzigd), `Execution Time 1100.014 ms`, `Planning Time 12.023 ms`. Spatial `Bitmap Index Scan` op `ix_charging_location_active_position`, daarna `Nested Loop Left Join` met `Aggregate` **70.664 keer** en `Index Scan using idx_evse_active_location` **70.664 keer** (gemiddeld 2,55 indexrijen/locatie). Buffers `shared hit=300.337, read=102.730, written=8.782`, `temp read=364, written=365`. Vergeleken met eerdere grotere-regiometingen: A1 parallel 844,151 ms; A2 met preaggregation 743,756 ms. A3 voorkomt brede EVSE-scan maar doet vele indexlookups; bij deze near-national coverage een slechter gemeten resultaat.
+
+Volledig A1/A2/A3-overzicht met JIT uit (verschillende runs/cache-/collectorbelasting): **Oss** A1 78,890; A2 369,545; A3 104,811 ms. **Grote regio** A1 844,151; A2 743,756; A3 1100,014 ms. A2 is bij klein bereik structureel ongunstig vanwege full EVSE-aggregatie, A3 bij groot bereik potentieel ongunstig door tientallen duizenden indexscans. **Vervolg:** A4 hybride plan onderzoeken (SQL met eerst geselecteerde locaties, dan join + per-locatie hash-aggregatie of omvanggestuurde querykeuze A1/A2). Alleen na read-only prototype en queryplan vergelijken; geen schema, code, merge of deployment. Alle eerdere metingen op grote regio zijn door full-cell grid expansion bijna nationaal en vormen nog geen p95.
+
+---
+
+## A3-productiemeting Oss — 3 november 2026
+
+**Door gebruiker uitgevoerd**, read-only en JIT uit: A3 `LEFT JOIN LATERAL` telt de actieve EVSE's alleen van de 2.100 actieve locaties in de volledige zoom-11-rastercellen rond Oss. `Execution Time=104.811 ms`, `Planning Time=26.392 ms`; eindresultaat **4 rastercellen**, `Index Scan idx_evse_active_location` **2.100 keer**, bij gemiddeld 2,42 actieve EVSE's per locatie (waarbij de plan-rijen geen definitieve totale EVSE-count zijn door LEFT JOIN). De locatieselectie gebruikt `ix_charging_location_active_position`. Shared buffers **hit=6.723, read=7.364, written=4.349**; geen temp-I/O in het plan. A1 Oss was 78,890 ms, A2 Oss 369,545 ms. A3 was in deze enkele meting **~71,6% sneller dan A2**, maar **~33% trager dan A1**; niet als vaststaand relatieve performance beschouwen wegens variabele cache-/NAS-activiteit.
+
+**Volgende benchmark:** exact A3 met groot zoom-8-grid (4.15,51.20–6.05,51.85), verder alle instellingen gelijk. De gemeten ~70.657 locaties kunnen leiden tot veel indexzoekacties; controleer maximumduur/DB-belasting. Vergelijk ook statussemantiek en filtering voordat ontwerp definitief wordt. Geen databasewijzigingen, implementatie, merge of deployment.
+
+---
+
+## A3 read-only EVSE-selectiebenchmark klaar — 3 november 2026
+
+De nieuwe [A3-proefquery](MAP_GRID_A3_SELECTED_EVSE_BENCHMARK.md) selecteert eerst actieve locaties in het geografische raster en telt daarna via `LEFT JOIN LATERAL` alleen hun actieve EVSE's. Doel: vermijden dat A2 bij een kleine viewport alle **214.400** EVSE's van de dataset vooraf aggregeert. Vergelijkingen: A1 Oss 78,890 ms / groot raster 844,151 ms; A2 Oss 369,545 ms / groot raster 743,756 ms. De nieuwe A3 is **nog niet uitgevoerd**. Begin met Oss zoom 11; pas na beoordeling het grote zoom-8-gebied; JIT uit, read-only rol en statement-/lock-timeout van respectievelijk 5/1 seconden. De voorlopige eenvoudige statusclassificatie en filterloze SQL zijn niet bedoeld als uiteindelijke API-implementatie.
+
+Geen productiegegevens gewijzigd, code-implementatie, merge of NAS-deployment.
+
+---
+
+## A2-productiebenchmark EVSE-preaggregatie — 3 november 2026
+
+**Werkelijk door gebruiker gedraaid** met `chargewatch_read`, JIT uit, zoom-8 grote-regiocellen. `Execution Time=743.756 ms`, `Planning=43.582 ms`. `locations` leverde **70.657 actieve laadlocaties**, eind-HashAggregate **8 gridcellen**. `evse_counts AS MATERIALIZED` gaf een `HashAggregate` met **83.530 afzonderlijke location_id-rijen** uit **214.400 actieve EVSE-rijen** via één Seq Scan; geheugen 6.681 kB, batches 1. Erna `Hash Left Join` op `location_id`; join-hash circa 5.593 kB. Buffers shared hit **11.109**, read **42.867**, temp written **346** (CTE Scan disk). Dit zijn 83.530 EVSE-locatie-ID's, niet hetzelfde als 83.530 actieve kaartlocaties; ook inactieve locaties kunnen gerelateerde actieve EVSE's bezitten.
+
+Vergeleken met A1 parallel **844.151 ms** is A2 **100.395 ms / 11,9% sneller in deze ene meting**. A1 serieel was 1131.140 ms. Door afwijkende I/O-/cachebelasting geen bewezen structurele verbetering. Potentiële A2-nadeel: alle EVSE's worden gegroepeerd, ook voor kleine mapviewports. Volgende kandidaat **A3 selecteer eerst actieve locaties, bereken per geselecteerde locatie EVSE-counts met LATERAL of pre-aggregate via join op geselecteerde IDs**. Benchmark op dezelfde grote cellen én klein Oss-gebied met JIT uit, zonder datawrites; bewaak dezelfde eenvoudige telregels. Geen implementatie-, merge- of deploymentakkoord.
+
+---
+
+## A2-productiebenchmark klaar voor uitvoering — 3 november 2026
+
+De nieuwe [A2 read-only benchmarkquery](MAP_GRID_A2_PREAGG_BENCHMARK.md) is toegevoegd aan ontwerpbranch #114. **Doel:** de bestaande grote regio/zoom-8-coverage met 70.657 actieve locaties en acht rastercellen opnieuw meten, nu met `evse_counts AS MATERIALIZED (SELECT location_id, count(*) FILTER (...) ... GROUP BY location_id)` vóór de join naar kaartlocaties. De geografische query en eenvoudige statusclassificatie blijven gelijk aan A1; JIT uit en standaard PostgreSQL-parallelisme toegestaan. Deze variant kan door volledige EVSE-preaggregatie bij kleine viewports slechter presteren; nog geen meetclaims.
+
+A1-meting parallel: 844,151 ms. A1 zonder parallel workers: 1.131,140 ms. Gebruiker heeft gecontroleerde read-only productiemetingen toegestaan. De A2-query is gereed om door gebruiker op NAS uit te voeren; vanuit deze tools geen NAS-shell beschikbaar. **Nog niet uitgevoerd**; geen databasewijziging, migratie, code, merge of deploy.
+
+---
+
+## A1-productiemeting parallelisatie uit — 3 november 2026
+
+Gebruiker voerde identieke read-only zoom-8 query uit met `jit=off`, `max_parallel_workers_per_gather=0`, zelfde circa-NL-gridcoverage: **70.657 locaties, 8 gridcellen**, `Execution Time 1131.140 ms`, `Planning Time 31.229 ms`; buffers `shared hit=20, read=52.535, written=1478`, temp `read=1882, written=1887`. Planner gebruikt actieve-locaties-GiST, `Merge Left Join` naar één `Seq Scan` van **214.400 actieve EVSE-rijen**, met externe sortering. De vorige parallelle run was **844.151 ms** met `hit=35.506/read=74.055`: deze twee runs verschillen sterk in cache-/I/O-toestand, dus het verschil van ~34% is geen zuiver causaal parallelisme-effect.
+
+**Vervolgarchitectuur:** in plaats van steeds settings wijzigen een proef met `evse` éénmalig per `location_id` aggregateren en daarna pas samenvoegen met gefilterde/ruimtelijk geselecteerde locatie-gridcellen. Vergelijk `EXPLAIN (ANALYZE, BUFFERS)` en correctheid in dezelfde read-only transactiestijl; geen wijziging van DB-schema, importer, API/Android. SQL-construct en queryplanner moeten op echte data worden beoordeeld; kosten van een totale EVSE-preaggregate kunnen ook nadelig zijn bij kleine viewports.
+
+---
+
+## A1-productiemeting breed zoom-8 raster — 3 november 2026
+
+**Gebruiker uitgevoerd, read-only, JIT uit:** oorspronkelijk Noord-Brabant-bbox, maar het **naar hele zoom-8-cellen uitgebreide gebied** bevat **70.657 laadlocaties van 81.004 actieve locaties** (~87,2% van Nederland) en groepeert die in **8 gridcellen**. Dit is door cell alignment dus bijna een *landelijke benchmark*, **niet** alleen een Noord-Brabant-meting. `Execution Time = 844.151 ms`, `Planning = 31.772 ms`, `shared hit=35.506, read=74.055`, temp read=3.619/written=3.629; queryplan: `Parallel Bitmap Heap Scan` op `charging_location` via `ix_charging_location_active_position`, gevolgd door een `Merge Left Join` met `Seq Scan` op actieve EVSE's (ca. 214.400 actieve EVSE's **per participant** in het plan, drie parallelle deelnemers) en externe sortering (~8.680 kB per participant); 179.864 joinrijen. Parallelle workers: 2 plus leader. Dit is veel dubbel EVSE-scan-/sorteerwerk, maar niet per se een probleem met een ontbrekende index: indexen zijn aanwezig, planner verkiest seq/merge bij groot bereik.
+
+**Vervolgcontrole:** isoleer queryplankeuze met `SET LOCAL max_parallel_workers_per_gather=0` bij JIT uit, uitsluitend na read-only timeout; controleer of EVSE nog maar één keer wordt gescand, de tijd/IO/disk spill en bewaar dezelfde bbox/grid en statussemantiek. Test vervolgens een A1-variant die EVSE's per locatie éénmaal aggregeert vóór de gridgroep. Niet aannemen dat 844 ms een definitieve landelijke p95 is: 1 sample, collector concurrentie, cachevariatie. Geen productiemutaties, code, merge of deploy.
+
+---
+
+## Tweede A1-benchmark Oss — JIT uit (3 november 2026)
+
+Gebruiker voerde dezelfde read-only `EXPLAIN (ANALYZE, BUFFERS)` uit op de productiedatabase met aanvullend `SET LOCAL jit=off`. Resultaat: **2.100 locaties in 4 rastercellen**, `Execution Time 78.890 ms`, `Planning Time 27.224 ms`, buffers `shared hit=7621 read=6440`, 2.100 `idx_evse_active_location` indexscans en een `Bitmap Index Scan` op `ix_charging_location_active_position`. Queryplan is structureel gelijk aan eerste uitvoering. Eerste uitvoering JIT aan: `Execution Time 145.899 ms`, `Planning Time 35.105 ms`, `JIT Total 32.374 ms`, `shared hit=7919 read=6140`. Gemeten uitvoeringsverschil **67.009 ms / 45,9%** ten gunste van JIT uit; dit is **geen bewezen causaal JIT-effect** door cache-/NAS-belastingvariatie tussen opeenvolgende runs.
+
+**Interpretatie:** `SET LOCAL jit=off` in kaartquery-/benchmarktransactie onderzoeken, niet globaal uitschakelen. Eerst herhalen (meerdere runs, omgekeerde volgorde) en regionaal testen voordat nationale schaal wordt voorspeld. Werkelijk uitgevoerde `SELECT` blijft read-only; geen productiegegevens gemuteerd, code gewijzigd, gemerged of gedeployed.
+
+---
+
+## Eerste A1-productiemeting Oss — 3 november 2026
+
+**Uitgevoerd door gebruiker met `chargewatch_read` in `REPEATABLE READ READ ONLY`**. `EXPLAIN (ANALYZE, BUFFERS)` voor zoomraster 11, bbox Oss (5.40,51.70)–(5.62,51.83), geen filters: `Execution Time=145.899 ms`, `Planning Time=35.105 ms`, `JIT Total=32.374 ms`. `GroupAggregate` leverde **4 gridgroepen** uit **2.100 locaties**; `Gather Merge` verwerkte **5.075 LEFT JOIN-resultaatrijen** (niet noodzakelijk allemaal EVSE-records, want LEFT JOIN kan een null-e-regel toevoegen).
+
+**Werkelijk plan:** `Bitmap Index Scan on ix_charging_location_active_position` (2.298 indexkandidaten), `Parallel Bitmap Heap Scan` na ST_Intersects (2.100 locaties), gevolgd door **2.100 Index Scans op `idx_evse_active_location`**. Buffers `shared hit=7919 read=6140 dirtied=209 written=5078` (read-only SELECT kan al gewijzigde shared buffers lezen/flushen; dit zijn geen applicatiedata-mutaties door de query). De eerste meting is mogelijk beïnvloed door koude cache en JIT. De 4 celgroepen op raster 11 zijn een artefact van resolutie: **geen bewijs voor juiste visuele clusterdichtheid**.
+
+**Vervolg:** eerst dezelfde read-only query herhalen met `SET LOCAL jit=off` (zelfde regio en query) en timings/BUFFERS vergelijken; daarna een begrensd regionaal en landelijk scenario met passend grover grid, zonder huidige A1-statusclassifier of filtersemantiek als productiecorrect te bestempelen. Nog geen backend-/Android-implementatie, merge of deployment.
+
+---
+
+## Productie-preflight kaart v2 #113 — 3 november 2026
+
+**Werkelijk door gebruiker op NAS uitgevoerd:** `current_user=chargewatch_read`, `current_database=chargewatch`, `transaction_read_only=on`; `active_locations=81.004`. Indexen op productie: `ix_charging_location_active_position` (partiële GiST op actieve posities), `ix_location_position` (GiST), `idx_evse_active_location` (partiële B-tree actieve EVSE per location), `idx_connector_active_evse` (partiële B-tree actieve connector per EVSE), plus PK/unique. De uitvoer bevat nog **geen waarde** voor `active_evses`; niet raden. **Dit bewijst indexaanwezigheid, niet de daadwerkelijke indexkeuze of queryprestatie.** Volgende stap is een begrensde, read-only test op klein Oss-gebied met EXPLAIN ANALYZE en daarna exacte locatie-/ringcontroles.
+
+Geen databasewijzigingen, code/merge/deploy; PR #114 blijft draft.
+
+---
+
+## A1b SQL-review — centrale filters en rastergrenzen (#113; 2 november 2026)
+
+**Aangepast ontwerp:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) gebruikt geen handmatig gedupliceerde filterlogica meer. De SQL-template vereist de bestaande `MapFilter.LocationPredicate(6)` + `AddParameters` voor `connectorType`, `mode`, alle vermogensbanden, `minFree` en operator. Bbox wordt naar volledige Mercator-rastercellen afgerond en elke locatie bezit precies één `cell_x/cell_y` met expliciete ownershipfilter. Er is een fixturematrix F0–F9 toegevoegd voor status, volledige dekking, filtercombinaties en grenzen.
+
+**Nog open:** C#-binding en SQL-parser-/planverificatie, exacte bronstatuskwaliteit en daadwerkelijke vergelijking met bestaande kaartresultaten. De template is niet direct in psql uitvoerbaar en **niet tegen PostgreSQL uitgevoerd**. Geen API-/Android-code, migratie, NAS-run, merge of deploy. Draft PR #114 blijft open.
+
+---
+
+## A1b — volledige rastercellen en filterpariteit (2 november 2026)
+
+**SQL-ontwerp aangevuld:** [MAP_GRID_A1B_FILTER_GRID_REVIEW.md](MAP_GRID_A1B_FILTER_GRID_REVIEW.md) onderzoekt het uitlijnen van de zichtbare bbox naar volledige Web Mercator-gridcellen en de combinatie van technische, operator- en `minFree`-filters. De review toont het risico van **gedupliceerde filterpredicaten**: een handmatige SQL-kopie wijkt nog af bij enkele vermogensbanden en `minFree` met technische filters. **De schets is daarom nadrukkelijk geen goedgekeurde of uitvoeringsklare benchmarkquery**. De definitieve query moet `MapFilter.LocationPredicate` hergebruiken of een centraal geteste helper gebruiken, met expliciet semi-open celgrensbeleid en source-quality-regressietests.
+
+**Geen SQL uitgevoerd op NAS; geen API-/Android-code, schemawijziging, merge of deployment.** De eerstvolgende taak is de query/pariteit en gridranden corrigeren voordat we een meetakkoord vragen.
+
+---
+
+## A1 SQL-review — twee correcties (2 november 2026)
+
+De niet-uitgevoerde `docs/MAP_GRID_A1_SQL_PROBE.md` is inhoudelijk herzien. (1) De proef selecteert enkel punten binnen de bbox en kan daardoor **geen volledige rastercellen aan de bboxrand garanderen**; productiekaart v2 moet bbox-grenzen eerst naar hele gridcellen afronden. (2) Niet-herkende operationele EVSE-statussen werden als `0 vrij / >0 totaal` impliciet rood; proef classificeert zulke locaties voorlopig conservatief als **unknown**. De definitieve NDW-/bronkwaliteitssemantiek en huidige `MapFilter`-pariteit blijven open voor tests. Geen SQL-uitvoering of NAS-metingen, geen code, merge of deployment.
+
+---
+
+## A1 SQL-proefquery voor review — #113 (2 november 2026)
+
+**Nieuw:** [MAP_GRID_A1_SQL_PROBE.md](MAP_GRID_A1_SQL_PROBE.md) bevat de eerste expliciet **niet uitgevoerde**, ongefilterde PostGIS-`SELECT` voor een klein Oss-proefgebied. Pipeline: geografische selectie via bestaande `charging_location.position` → actieve EVSE's per locatie tellen → vaste Web Mercator-gridcellen → `locationCount/free/noFree/unknown` en singleton-ID. Korte `REPEATABLE READ READ ONLY`-transactie, conservatieve SQL-timeouts en `ROLLBACK` staan in het reviewvoorbeeld.
+
+**Grenzen:** geen technische `MapFilter`-equivalentie in deze eerste proef, nog geen volledig gevulde tile-/celcoverage voor verschuivende viewport en bronbetrouwbaarheid nog te verfijnen. Geen PostgreSQL-parser-/benchmarkuitvoering, geen NAS-toegang, geen schema-/codewijzigingen, geen merge of deployment. Eerst SQL en kwaliteitsinvarianten reviewen, daarna afzonderlijk akkoord voor een gecontroleerde test.
+
+---
+
+## Read-only benchmarkprotocol — kaart v2 / #113 (2 november 2026)
+
+**Vastgelegd, nog niet uitgevoerd:** [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) bevat nu een gecontroleerd benchmarkprotocol voor huidige kaartquery (A0), live PostGIS-gridaggregatie (A1), eventuele per-locatie-availabilitysummary in een **geïsoleerde proefdatabase** (B) en optionele tilecache (C). Scenario's: straat Oss, Oss/Elst, druk stadscentrum, Noord-Brabant, volledig Nederland, technische en statusfilters, lege/ambigue resultaten, gridranden.
+
+**Meetmethode:** daadwerkelijke DB/indexen en alleen-lezen rol vaststellen; eerst `EXPLAIN` zonder uitvoering, daarna onder grenzen `EXPLAIN (ANALYZE, BUFFERS)` uitsluitend op SELECT met `REPEATABLE READ READ ONLY`, korte transacties en conservatieve `statement_timeout`/lock-timeout. Op productie **geen** nieuwe samenvattingstabellen, writes, onbeperkte landelijke runs of ongeremde concurrency. Metingen moeten de tijd/IO/responsebytes/objecten, filters, kwaliteit en volledige dekkingsinvarianten aantonen, niet alleen snelheidswinst.
+
+**Status:** alleen documentatie; **nul benchmarks daadwerkelijk uitgevoerd**, geen code, merge of NAS-deploy. Ontwerp-PR #114 blijft draft; eerst afzonderlijk akkoord op meetuitvoering, vervolgens pas technische keuze en implementatie.
+
+---
+
+## Clusterberekening: live SQL versus locatiesamenvatting (#113; 2 november 2026)
+
+**Codecontrole:** `BulkImporter` verwerkt de NDW-locaties, EVSE's en checkpoint-/statistiekupdates in één PostgreSQL-transactie; init-schema bevat een GiST-positionindex en unieke `evse(location_id,source_uid)`. Dat biedt aanknopingspunten voor zowel live aggregatie als eventueel een transactioneel bijgewerkte per-locatie-`availability_summary`, **maar die extra samenvatting bestaat nog niet**. Bijkomend aandachtspunt: meerdere SELECT-statements bij standaard `READ COMMITTED` kunnen tussentijds verschillende gecommitte importerstatussen zien; een consistent snapshot voor een complete kaartresponse moet worden gegarandeerd.
+
+**Afweging in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** A — live filter-/EVSE-aggregatie vanuit PostGIS en actieve EVSE's (geen migratie, eerst benchmarken); B — compacte status per locatie atomair onderhouden tijdens de importertransactie (snellere hergebruikte read, wel backfill/migratie en extra schrijfwerk); C — vooraf berekende clusters/tiles (alleen na aantoonbare schaalbehoefte). Ook bij B blijven technische connector-/vermogensfilters hun bestaande EVSE-`EXISTS`-semantiek vereisen. NDW-polltijd is geen individuele statusverificatie. **Nog geen SQL-benchmark of implementatie-/merge-/deployakkoord.**
+
+---
+
+## API-contractvoorstel kaart v2 — #113 (2 november 2026)
+
+**Ontwerpfase:** eerste concreet, nog niet definitief goedgekeurd contract in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). Schematische `GET /api/v1/map/overview?bbox=...&zoom=...&<filters>` met getypeerde `cluster`- en `location`-items. Eén neutraal clustercentrum toont `locationCount`, de ring wordt bepaald door exacte `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown`. Een individueel locatieobject krijgt ID, coördinaten, betrouwbare `vrij/totaal` en bronmetadata. Filterpariteit met huidige `MapFilter` blijft verplicht.
+
+**Volledigheid:** `coverage.complete`, cell IDs, daadwerkelijk `gridLevel`, genormaliseerde filterset, aantoonbaar consistente publicatieversie en `coverage.locationCount` geven de client expliciete dekking. Geldige invariant: som van clusterlocaties plus losse items = totaal, elke onderliggende locatie exact eenmaal; geen stille truncatie, geen verschillende statusversies als één actueel geheel. Fictieve voorbeeldresponse en testmatrix opgenomen. Een NDW-pollcheckpoint is **niet automatisch** een consistente catalogusversie.
+
+**Nog open:** route/veldnaam en minimale eerste-frame sheetvelden, tegel-/gridschema, foutcontract en cacheversie, landelijke performance, bron-fallback, afgewogen responsive zoomresolutie. **Geen backend- of Android-code, geen NAS-deploy of merge; draft-PR #114.**
+
+---
+
+## Kaartnavigatie en tile-cache — onderzoek #113 (2 november 2026)
+
+**Ontwerpuitwerking in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md):** tijdens slepen/zoomen bestaande geldige markers laten staan, alleen bij camera-idle of cachemiss complete geografische raster-/tilecellen ophalen, en bij korte pans aangrenzende cellen cachen/prefetchen. Een **begrensde in-memory tile-LRU** is de eerste benchmarkkandidaat; een ring aangrenzende cellen is slechts een te meten uitgangsscenario. Geen vastgelegde TTL, kaartobjectlimiet of nieuwe debounce zonder NAS-/Samsung-metingen.
+
+**Correctheid:** cache key omvat grid-/tile-ID, contractversie, filterhash en gepubliceerde datasnapshot; ruwe geografische plaatsing en sneller veranderende bezettingsstatus vereisen verschillende geldigheidsafwegingen. Stale-while-revalidate toont oudere gegevens alleen als `Laatst bekend`, nooit als verse metingen; wissel complete coverage-sets gecontroleerd zonder dubbele clusters en kinderen, en laat trage oude responses geen nieuwe camera-/filtertoestand overschrijven. API-/NDW-fallback en lege/ontbrekende tilegebieden moeten zichtbaar en eerlijk worden afgehandeld. Android `MapScreen` gebruikt nu nog `map.clear()` en de huidige viewportcoördinator debounce van 500 ms; dat zijn reviewpunten, geen nieuwe implementatie.
+
+**Status:** ontwerp-PR #114 draft, issue #113 open; geen code, merge of deployment. De gebruiker beslist over ontwerp en uitvoeringsvolgorde voordat we API-/Android-werk starten.
+
+---
+
+## PostGIS-raster en caching — ontwerpuitwerking #113 (2 november 2026)
+
+**Onderzochte bestaande databasebasis:** `db/init/001_schema.sql` bevat de PostGIS `geography(Point,4326)`-kolom `charging_location.position` en een GiST-index `ix_location_position`, naast de unieke OCPI-identiteit. `ApiDatabase.GetMapViewport` selecteert de volledige individuele records binnen bbox/filters, beperkt op 1000 en bouwt daarna connector-json en beschikbare EVSE-sommen. Er is **nog geen werkelijke NAS-queryplanmeting** uitgevoerd; de aanwezigheid/benutting van de index op productie moet worden geverifieerd.
+
+**Vervolgontwerp:** `bbox` → complete, wereldvast uitgelijnde Web Mercator-gridcellen op zoomniveau → bestaande filters per individuele locatie → per-locatie EVSE-beschikbaarheid → per-cel `locationCount`, `locationsWithFree`, `locationsWithNoFree`, `locationsUnknown` → lichte `location|cluster`-response zonder volledig EVSE/connector-json. **Niet** 999 ruwe locaties selecteren en de rest laten vallen. Performancebudget via gekozen gridresolutie, geen stilzwijgende truncatie. Vergelijk live SQL, compacte per-locatie-samenvatting en tile-/cachelagen bij verschillende schaalniveaus en filters. Cachevalidatie wordt gekoppeld aan correcte bron-/publicatiestatus. **Nog geen SQL, API of Android geïmplementeerd; eerst metingen en goedkeuring.** Zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) en draft-PR #114.
+
+---
+
+## Kaart-clusterontwerp — eerste voorstel voor bespreking (2 november 2026)
+
+Na bevestiging van landelijke dekking is het eerste **concrete zoom-/cluster-/tap- en bronkwaliteitsontwerp** toegevoegd aan [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), onderdeel *Eerste interactie-/clusterregels*. Dit is **nog geen expliciet goedgekeurd definitief gedrag**, behalve het eerder vastgelegde doel: landelijke zoomdekking, filtercorrectheid en geen stille truncatie.
+
+**Onderzoeksvoorstel:** vaste, zoomafhankelijke wereldraster-/tilecellen in Web Mercator, consistente clusteridentiteit binnen cel/zoom/filterversie, individuele markers als er slechts één locatie in de cel zit, stabiele clusters voor meerdere locaties. Onderzoek een clustermarker met **aantal laadlocaties in het midden** en statusverdeling van locaties in een groen/rode/onbekende ring. Een losse locatie blijft `vrij/totaal` tonen. Clustertap zoomt op celbounds; bij maximaal bruikbare zoom en samenvallende locaties volgt een begrensde locatieselectie. Bekende lokale favorieten blijven apparaatprivé en krijgen geen misleidende ster als filterlidmaatschap onbekend is.
+
+**Betrouwbaarheidsgrondslag uit bestaande code:** `ClusterAvailability.summarizeCluster` geeft een geaggregeerde `vrij/totaal`-ratio alleen als **alle** leden betrouwbare aantallen hebben; anders `?`. Een toekomstig ringdiagram mag onbekende locaties niet als bezet of beschikbaar meetellen; filter eerst, tel per operationele EVSE maximaal één keer en laat aantallen locaties niet doorgaan voor aantal EVSE's. Voor volledige landelijke cellen vs. pan-buffer moeten totalen zonder dubbeltellingen te valideren zijn.
+
+**Open UX-keuze voor de gebruiker:** clusters altijd een `locationCount`-middenlabel + statusring (aanbevolen) versus op kleine clusters de huidige geaggregeerde EVSE-ratio blijven tonen. Geen API-/Android-implementatie, geen NAS-deploy of merge; draft-PR #114.
+
+---
+
+## Vastgesteld kaartdoel #113 — heel Nederland op elk zoomniveau (2 november 2026)
+
+**Expliciet productakkoord van gebruiker:** de kaart moet **heel Nederland kunnen weergeven**, ook wanneer sterk uitgezoomd. Op lage zoom levert de API vooral grotere clusters; op middelmatige zoom een **mix van clusters en losse locaties**; bij inzoomen vallen clusters uiteen tot individuele laadlocaties. Bestaande **kaartfilters blijven volledig correct werken vóór aggregatie** en er mogen geen onderliggende locaties stilzwijgend worden weggelaten wegens de huidige 999-grens. Dit is een **vastgesteld product- en UX-doel**, geen keuze voor een specifiek raster, vector tiles, routecontract of implementatie.
+
+**Gecontroleerd huidig gedrag:** `GetMapViewport` selecteert maximaal 1000 individuele locaties en retourneert bij `>=1000` HTTP 413; het gebied is daarnaast begrensd op 1.0 graad². Android groepeert deze individuele resultaten pas na downloaden met herhaalde clusterberekeningen en `map.clear()`. De API retourneert tevens connectorcategorieën die voor louter een kaartmarker mogelijk overbodig zijn. Daarom is **server-side zoomafhankelijke clustering + minimale kaartpayload** de leidende *onderzoekshypothese* voor #113, te benchmarken tegenover geaggregeerde vector tiles en caching/vooraggregatie. Clusterkleuren moeten betrouwbaar blijven; `locationCount` mag nooit met aantal EVSE's worden verward. Lokale favorieten blijven privé. Het bestaande endpoint en zijn volledigheidsgarantie blijven intact tot een nieuw contract daadwerkelijk is goedgekeurd.
+
+**Uitwerking:** zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md), sectie *Kaart eerst*. Eerst de concrete UX- en datacontracten, aggregatie-/querykosten en meetcriteria; daarna eventueel een aparte API-/Android-PR na expliciet implementatieakkoord. Ontwerp-PR [#114](https://github.com/VanHinthem/ChargeWatch/pull/114) blijft draft; widget-PR #112 blijft onaangeroerd. **Geen codewijziging, NAS-deploy of merge.**
+
+---
+
+## Actieve architectuurverkenning — gerichte locatiegegevens #113 (2 november 2026)
+
+**Nieuw productbesluit:** [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) is een **zelfstandige feature** om de volledige laadlocatie-datastroom slimmer en sneller te maken: kaart, compacte/uitgebreide detailsheet, favorieten en native widget. De gebruiker heeft expliciet gekozen om **eerst architectuur, betrouwbare data en performance samen uit te werken**, vóór een nieuwe API-/Android-implementatie. Inventarisatie en alternatieven staan in [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md). De voorgestelde bulk-ID-API, gedeelde samenvatting en lazy statistieken zijn **nog geen goedgekeurde technische keuzes**.
+
+**Codeonderzoek:** kaart via `GET /api/v1/map/viewport` (API-first, toegestane NDW-fallback); markerselectie gebruikt bestaande `MapLocation` voor beide sheetgroottes zonder aparte statusrefresh. Bij openen van **één** locatie start `LocationEnrichmentClient` nu direct een **volledige detailcall gevolgd door statistiekencall** op `/api/v1/locations/by-ndw-id/{featureId}`, ook wanneer de sheet compact blijft. Favorieten/widget kennen het lokaal opgeslagen `featureId`, maar doen in draft-widgetfeature nog kaart-`bbox`-verzoeken om beschikbaarheid op te halen. Bestaande detail-API kan één featureId naar de interne DB-sleutel vertalen. Te onderzoeken: direct-/bulk-ID-varianten, query- en payloadkosten, timing/lazy loading, identiteits-/kwaliteitscontract en NDW-fallback.
+
+**Werkgrens:** deze inventarisatie staat op zelfstandige documentatiebranch `docs/location-dataflow-113-design` vanaf `main`, in [draft-PR #114](https://github.com/VanHinthem/ChargeWatch/pull/114). **Geen API-/Android-code, databasewijziging of NAS-deployment.** Widget-[issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101) en [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) blijven gescheiden en open; niet mergen/deployen zonder expliciete toestemming. De widget-PR kan zijn bestaande viewport-aanpak behouden tot een nieuw ontwerp daadwerkelijk besloten is.
+
+**Verificatie:** actuele GitHub-implementatie van `MapViewModel`, `MapScreen`, `LocationEnrichmentClient`, `FavoritesRepository`, `FavoritesAvailabilityClient`, `ApiDatabase` en API-routes gelezen. Dit werkblok bevat **uitsluitend documentatie**, dus geen build, tests, querybenchmarks of fysieke toesteltest uitgevoerd.
+
+**Volgende stap:** met gebruiker de `oppervlak × gegevens × endpoint`-matrix en timing van detail-/statistiekrequests bespreken; daarna concrete contractalternatieven en prestatiemetingen ontwerpen. **Implementatie, merge en deployment hebben afzonderlijke goedkeuring nodig.**
+
+---
+
+## Android — GPS/huidige locatie en nabije alternatieven (#99; 2 november 2026)
+
+**Productbesluiten:** GPS-optie A (tik `Mijn locatie` → één verse foreground-fix → maximaal vijf nearest in 25 km; resultatenlade standaard ingeklapt). Alternatieven-optie A (alleen bestaande actieve kaartfilters, géén automatisch overgenomen connector-/vermogenseisen). Ook goedgekeurd: sectie *Locatie* in Instellingen met lokale schakelaar standaard aan en afzonderlijk Android-permissiebeheer. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md) en [issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99).
+
+**Android-implementatie en PR:** de samenhangende feature is gebouwd in [PR #109](https://github.com/VanHinthem/ChargeWatch/pull/109). Eenmalige locatiebepaling via Android `LocationManager` met fine/coarse-permissie, GPS-/netwerkfallback, 120-seconden-fixleeftijdscontrole en foutacties naar Android-instellingen; GPS-marker en bestaande camerafit; één Address/Gps/Alternatives-resultatenlade; actie vanuit kaartdetails én favorieten; terugnavigatie zonder onnodige nearest-queries; maximaal twee minuten caching van resultaten; bron-/feedstaleness in het bestaande nearest-model; persistent lokaal *Mijn locatie gebruiken* zonder GPS-dataopslag. De bestaande PDOK-pin, kaartfilters en read-only API blijven behouden.
+
+**Technische controles (definitieve kleurcorrectie):** [Android CI #41447765796](https://github.com/VanHinthem/ChargeWatch/actions/runs/41447765796) is groen op codecommit `7ad792ab` (unit-tests, debug-APK-build en artifact); [Read-only API CI #41447765746](https://github.com/VanHinthem/ChargeWatch/actions/runs/41447765746) is eveneens groen. Dit bevestigt de technische build, niet alle fysieke permissie-/foutscenario's.
+
+**Samsung-bevinding en correctie (2 november 2026):** de eerste alternatievenlijst toonde onterecht `?` naast kaartmarkers met numerieke aantallen. Oorzaak: Android behandelde `isStale` (leeftijd van het bronrecord) als onbekende beschikbaarheid. Correctie in PR #109: geldige `vrij/totaal`-waarden blijven zichtbaar en hebben **altijd groen bij minstens één vrije EVSE, rood bij nul vrije EVSE's** (ook als `isStale=true`); werkelijk onvolledige of onbetrouwbare aantallen/feed geven `?`. Gerichte regressietests voor de kleuren en parser toegevoegd. **Gebruiker bevestigde op 2 november: "Ja prima zo" na deze kleurcorrectie.** De kleurlogica is daarmee als gewenst bevestigd; dit is geen afzonderlijk merge-/deploymentakkoord en niet automatisch volledige acceptatie van alle GPS-permissie- en offline-scenario's.
+
+**Acceptatiepad:** test op Samsung Galaxy S23 Ultra (precieze/geschatte/geweigerde locatietoestemming, GPS uit of geen fix, instelling uit/aan, 0/1/5 nearest, PDOK ↔ GPS ↔ alternatieven, fav-route, kaartfilters, cameraterugactie, onbekende/stale beschikbaarheid, licht/donker en offline). Corrigeer eventuele bevindingen in dezelfde PR. **Geen merge of NAS-deployment zonder expliciet afzonderlijk akkoord.**
+
+**Vervolgprioriteiten na goedgekeurde #99:** #101 Android-widget op lokale favorieten, daarna #103 statistieken/uptime en #104 kwaliteitsronde/release. Issue #79 monitoring blijft uitgesteld.
+
+---
+
+## Android — kaartfilters en PDOK-bestemming (issue #95, fase B; 30 oktober 2026)
+
+**Afgerond en op Samsung goedgekeurd:** Android-implementatie van kaartfilters, operatorselectie, compacte snelfilters en de geïntegreerde zoek-/resultaten-/filterpanelen in [PR #97](https://github.com/VanHinthem/ChargeWatch/pull/97). De backendcontracten voor correcte EVSE-/connectorfilters en operatoren staan al op `main` sinds [PR #98](https://github.com/VanHinthem/ChargeWatch/pull/98), squash-commit `473e64c5`. De gebruiker bevestigde op 30 oktober dat die backend op de NAS is uitgerold en dat de filtering in de Android-app werkt. De laatste Android-UX is vervolgens op de fysieke Samsung expliciet goed bevonden en er is akkoord gegeven om PR #97 na controles te squash-mergen.
+
+**Functioneel ontwerp:** de kaart behoudt de bestaande pin-, cluster- en beschikbaarheidskleuren; filteren bepaalt welke bestaande laadlocaties zichtbaar zijn. Vijf onafhankelijke filtergroepen: aansluitingstype (Type 2, CCS2, CHAdeMO, Overige), AC/DC, vermogensband (<50/≥50/≥150/≥300 kW), minimaal aantal vrije EVSE's (alle/≥1/≥2) en operators met lokale naamzoekfunctie. Combinaties worden door de bestaande API op connector-/EVSE-niveau toegepast; expliciet en berekend vermogen telt hetzelfde. Bij actieve filters vereist Android de bevestigde API-filterversie en toont niet ongemerkt ongefilterde NDW-fallback. Bij het geselecteerde PDOK-zoekadres worden maximaal vijf passende dichtstbijzijnde locaties binnen 25 km getoond.
+
+**Goedgekeurde Android-bediening:** drie compacte, gecentreerde snelfilters **Vrij, <50 kW, ≥150 kW** (36 dp zichtbaar, 48 dp tikvlak); alle overige keuzen staan in het volledige filterpaneel. De blauwe PDOK-bestemmingspin en het bestaande dynamische kaartoverzicht op de pin plus maximaal vijf nabijgelegen laadlocaties blijven behouden. Direct onder de zoekbalk is de resultatenlade normaal **ingeklapt**, met compacte teller; tik/veeg omlaag opent de scrollbare lijst over de snelfilters. Lijstselectie centreert de kaart zonder de detailsheet te openen. Het groene **Terug naar zoekadres**-icoon verschijnt alleen na betekenisvolle kaartverplaatsing of selectie buiten het oorspronkelijke overzicht. Op kaart tikken herstelt de zoekbalkfocus en sluit tijdelijke panelen.
+
+**Visuele eindstand:** zoekbalk met standaard 16 dp-afronding aan alle kanten; de gekoppelde resultaten- en filterladen zijn **16 dp per zijde smaller**, beginnen zonder tussenruimte waar de onderste zoekbalkradius eindigt, hebben een subtiele scheidingslijn, rechte bovenrand en dezelfde 16 dp-onderhoekradius. Zowel zoekbalk als laden gebruiken dezelfde Material3-`surface` met 5 dp tonal elevation. De filterlade schuift vanuit de zoekbalk uit met animatie, maximaal 70% schermhoogte, met scrollbare secties en operators; deze lade en de nearby-lade zijn nooit tegelijk zichtbaar. **Iedere filterkeuze wordt onmiddellijk toegepast**, de oude onderbalk met Toepassen/Alles wissen is weg, en reset staat als icoon rechts naast de titel. De filterwaarden en operatorcatalogus blijven alleen in de Android-sessie, niet persistent na app-herstart.
+
+**Verificatie:** de gebruiker heeft de definitieve resultaten-/zoekbalkvorm en vervolgens het uitschuifbare filterpaneel en directe filtergedrag op Samsung getest en goedgekeurd (30 oktober 2026). De zelfstandige [Android CI #41090548363](https://github.com/VanHinthem/ChargeWatch/actions/runs/41090548363) was groen (unit-tests, APK-build/artifact) op implementatiecommit `f719dd14`; ook de [Read-only API CI #41090548345](https://github.com/VanHinthem/ChargeWatch/actions/runs/41090548345) was groen. Bij wijzigingen aan deze status vóór de squash-merge wordt CI van de uiteindelijke PR-head opnieuw gecontroleerd; de exacte uiteindelijke merge-SHA wordt via GitHub vastgesteld, niet vooraf geclaimd.
+
+**Scope en vervolg:** Android PR #97 bevat uitsluitend Kotlin/Compose, gerichte Android-unit-tests en Android/PDOK-documentatie; **geen nieuwe NAS-uitrol, backendcode, databasewijzigingen of migraties**. Na deze feature vormt de volgende prioriteit een afzonderlijk, nog te kiezen Android-/datakwaliteitswerkblok; de werkende filtering vereist geen extra NAS-deployment. Issue #95 kan na de gecontroleerde squash-merge als afgerond worden gesloten.
+
+---
+
+## Kaartfilters — backend/API afgerond (issue #95, PR #98; 30 oktober 2026)
+
+**Resultaat:** De read-only ChargeWatch API ondersteunt in de broncode van [PR #98](https://github.com/VanHinthem/ChargeWatch/pull/98) optionele filters op `/api/v1/map/viewport` en `/api/v1/locations` voor connectorsoort, AC/DC, vermogensband, beschikbaarheid en bronoperator. De match gebeurt op dezelfde actieve connector en telt operationele EVSE's zonder dubbeltellingen. Alle bekende positieve vermogenswaarden tellen gelijk, expliciet of berekend. Kaartselectie vindt plaats vóór de viewportlimiet van 1.000 en nabijheidsselectie vóór de vijf dichtstbijzijnde locaties. Een read-only `/api/v1/operators` levert de bestaande operatornamen. Ongefilterde responsevelden, markers en kaartsemantiek zijn ongewijzigd; actieve filters worden bevestigd met `X-ChargeWatch-Filter-Version: 1`. Geen nieuwe migratie, collectorwijziging of extra container.
+
+**Verificatie:** .NET Release-build, API-selftests, PostgreSQL read-only rollen, geïsoleerde PostGIS/HTTP-fixtures voor EVSE-deduplicatie, connectormatching, operator, vermogensgrenzen, nearest en de viewportlimiet zijn groen in de zelfstandige [Read-only API CI #41055785895](https://github.com/VanHinthem/ChargeWatch/actions/runs/41055785895). Tariff snapshot presence en NAS Images CI van dezelfde backend-head waren eveneens groen. Werkelijke operatornaamverdeling en production-grade querylatencies zijn nog niet op de NAS gemeten.
+
+**Volgende actie:** de backend-API op de NAS uitrollen **uitsluitend na apart expliciet deploymentakkoord**; een merge naar `main` voert geen NAS-deployment uit. De Android-implementatie en fysieke Samsung-review volgen in aparte [PR #97](https://github.com/VanHinthem/ChargeWatch/pull/97); de Android-branch moet na de backend-squash-merge met actuele `main` worden gesynchroniseerd. Issue #95 blijft open tot de Android-fase gereed is. Niet claimen dat de API op productie al werkt zonder live verificatie.
+
+---
+
+## Android — PDOK-bestemmingzoeker en nabijgelegen laadlocaties (issue #95, fase A; 29 oktober 2026)
+
+**Fase A is functioneel afgerond en door de gebruiker op de Samsung beoordeeld en goedgekeurd voor merge (PR [#96](https://github.com/VanHinthem/ChargeWatch/pull/96)).** De Nederlandse zoekbalk gebruikt gratis **PDOK Locatieserver 3.1 rechtstreeks vanuit Android** voor adressen, postcodes, straten en plaatsen (suggest/lookup; vanaf twee tekens; 250 ms debounce; maximaal acht suggesties; annuleerbare verzoeken en lokale RAM-cache). De gekozen bestemming krijgt een aparte blauwe pin die niet meetelt als laadlocatie of cluster; kaartdata blijft via de bestaande ChargeWatch-API met NDW-fallback lopen. De vijf dichtstbijzijnde laadlocaties worden via de **bestaande** read-only PostGIS-`/api/v1/locations`-query binnen 25 km opgehaald; status is alleen zichtbaar wanneer betrouwbaar, anders `?`. Geen nieuwe API-, database-, collector-, proxy- of NAS-service.
+
+**Definitieve UX:** de kaart past na nearest-resultaten één keer het adres en maximaal vijf laadlocaties in beeld met een dynamische zoom (begrensd tot 11–16,5) en ruimte voor het geopende zoekpaneel; bij geen passende resultaten is zoom 14 de fallback. De resultaten staan in een geanimeerd, in-/uitschuifbaar paneel onder de zoekbalk. De kop toont bijvoorbeeld **`5 dichtstbijzijnde locaties`** (correct enkelvoud bij één). Een lokaal opgeslagen favoriet heeft in de rij dezelfde goudgele ster als elders; geen ster bij niet-favorieten. Een tik op een nabije laadlocatie centreert/zoomt **alleen de kaart** en klapt de lijst in; pas handmatig tikken op de laadmarker opent de bestaande location sheet. Bij het slepen, zoomen of via een lijstitem navigeren verschijnt zo nodig **Terug naar zoekadres**, waarmee het eerder berekende dynamische overzicht wordt hersteld. De blauwe bestemmingspin blijft bestaan tijdens kaartbeweging, bewerken van niet-lege zoektekst en tabwissels; wissen van de opdracht verwijdert hem. Open-/dichtklappen, terugnavigatie en kaartbeweging doen geen nieuwe PDOK- of nearest-query.
+
+**Verificatie:** op de definitieve code plus documentatie zijn Android-unit-tests, debug-APK-build en artifact-upload groen in [Android CI](https://github.com/VanHinthem/ChargeWatch/actions/runs/40926736547) en de [Read-only API CI](https://github.com/VanHinthem/ChargeWatch/actions/runs/40926736672), commit `1db6d4b5ab916683d1f7777f5e5aa0afc2c90940`. De nieuwe UX inclusief dynamische zoom, terugknop, bijgewerkte teller en favorietster is op 29 oktober door de gebruiker visueel beoordeeld en goedgekeurd. De bron-, privacy- en acceptatiekeuzes staan in [PDOK_DESTINATION_SEARCH.md](PDOK_DESTINATION_SEARCH.md); de ontwerpbesluiten in [ANDROID_DESIGN.md](ANDROID_DESIGN.md).
+
+**Vervolg:** de kaartfilters voor aansluitingstype, AC/DC, minimumvermogen en beschikbaarheid blijven **fase B van [issue #95](https://github.com/VanHinthem/ChargeWatch/issues/95)** en vragen een aparte implementatie/PR. Monitoringdashboard #79 blijft uitgesteld. Deze Android-PR wijzigt geen NAS-componenten en verleent **geen** NAS-deploymentakkoord; eventuele releasehandelingen worden afzonderlijk besloten.
+
+
+## Android UX — PR #61 herbouwd op definitief tariefcontract (29 oktober 2026)
+
+PR [#61](https://github.com/VanHinthem/ChargeWatch/pull/61) is opnieuw opgebouwd vanaf actuele `main`; de oude pre-#66 Android-branch is niet gerebased omdat die nog het vervallen `tariffs[].presentation`-contract gebruikte.
+
+De Android-enrichmentparser leest nu per connector `tariffStatus` en `tariffOptions[]`. Bruikbare componenten blijven zichtbaar, maar `SOURCE_MISSING`, `MULTIPLE_OPTIONS`, `CONDITIONAL`, `UNAVAILABLE` en `MALFORMED` blijven expliciet. Btw wordt alleen bij een expliciete `vatPercent` omgerekend; zonder bronpercentage toont de UI `btw onbekend` en wordt geen Nederlands percentage aangenomen.
+
+De compacte locatie-sheet toont maximaal twee ENERGY-prijzen, waarschuwt alleen bij echte extra componenten/voorwaarden, gebruikt compactere horizontale connectorcards en een adaptieve 2/3-kolomsindeling. De tijdelijke NDW/ChargeWatch-benchmarkbalk is verwijderd; ChargeWatch-default en NDW-fallback blijven in de ViewModel ongewijzigd. De eerder op Samsung beoordeelde donkere OpenFreeMap-`fiord`-stijl is hersteld, met kleine polish aan zoekbalk, titel, beschikbaarheidsregel en clusterring. De sheet gebruikt nu Material 3 `BottomSheetScaffold` in plaats van `ModalBottomSheet`: de compacte `sheetPeekHeight` wordt uit de werkelijk gemeten compacte inhoud afgeleid, terwijl de scaffold pas onder de gemeten zoekheader begint. Daardoor kan compact inhoudsafhankelijk blijven zonder lege halve-schermruimte en kan expanded via de native sheet-anchor onder de zoekbalk stoppen. Swipe/nested-scroll worden volledig door de standaard sheet-state afgehandeld. De kaartmarkers zijn daarna visueel gemoderniseerd zonder semantiek te wijzigen: individuele locaties gebruiken een compactere statuskern met zachte elevatie/keyline, clusters dezelfde statuskleur met een subtiele extra halo, en favorieten een kleine ronde gouden sterbadge rechtsboven in plaats van de oude grote tekstster. De gedeelde locatie-sheet gebruikt nu dezelfde favorietsemantiek als kaart en favorietenlijst: geselecteerde favorieten tonen overal de gouden ster `#F3AF25`, zowel compact als expanded.
+
+Het favorietenscherm is in dezelfde visuele taal gebracht: scrollbare statuskaarten met `x/y`-badge en dezelfde groen/rood/grijs-statussemantiek als de kaart, naam/operator/adres, bronversheid en duidelijke favorietster. De oude vaste edit-/omhoog-/omlaag-/deleteknoppen zijn vervangen door gesture-first beheer: een korte horizontale swipe naar links verschuift de kaart slechts beperkt en onthult rechts een verticale actiekolom met Bewerken en een rode Verwijderen-knop; de favoriet blijft dus grotendeels zichtbaar. Reorder gebeurt nu direct door het zichtbare drag-handle verticaal te slepen, zonder onbetrouwbare long-press-detectie op de hele kaart, en schrijft pas bij loslaten de definitieve index naar lokale DataStore. Verwijderen sluit de actiereveal vóór het item verdwijnt en biedt via Snackbar `Ongedaan maken`, zodat een herstelde favoriet altijd als normale kaart terugkomt. Een gewone tap op een favoriet hergebruikt exact dezelfde `LocationSelectionSheet` als de kaart en opent die direct expanded, inclusief aansluitingen, tarieven en statistieken; voor deze favorietenroute is compact expliciet uitgeschakeld, dus systeem-terug sluit de sheet direct en toont nooit de compacte variant. De in de mockup genoemde mini-historiekgrafiek ín de favorietenkaart zelf is bewust nog niet toegevoegd; daarvoor is eerst een efficiënte statistics-flow per favoriet nodig zodat de lijst geen onnodige detailrequests doet. De refresh-flow is tegelijk gelijkgetrokken met de kaart: ChargeWatch API is nu primair, directe NDW GeoJSON alleen fallback. Nabijgelegen favorieten delen één viewport-call; geografisch verspreide favorieten worden in kleine viewports parallel opgehaald in plaats van serieel. De bestaande twee-minuten fetch-age voorkomt onnodige refreshes bij tabwissels. De status-freshness op favorieten gebruikt niet langer OCPI `last_updated` als leeftijd: `/api/v1/map/viewport` exposeert nu de bestaande backendmetadata `feedLastObservedAt` en `feedIsStale`. Android toont daardoor de laatste echte Locations-feedcontrole (`Zojuist gecontroleerd`, `n min geleden gecontroleerd`) en waarschuwt expliciet bij een stale backendfeed. Directe NDW-fallback gebruikt het tijdstip van de succesvolle fallback-fetch. De favorietenheader gebruikt daarnaast status-bar inset, expliciete `onBackground`-titelkleur en een ronde refreshactie met themacontrast voor correcte light/dark-weergave.
+
+Er is daarnaast een derde hoofdtab **Instellingen** toegevoegd. De thema-keuze is uit de kaartzoekbalk gehaald en staat nu centraal onder Weergave als `Systeem / Licht / Donker`. Het scherm leest het bestaande `/api/v1/data-status`-contract en toont aantallen locaties, EVSE's/laadpunten, connectoren en tarieven plus Locations- en Tariffs-feedfreshness. Onder Over de app staan versie/versionCode, de ingebedde Git-SHA en de actieve API-host. De Android-workflow zet `CW_APP_GIT_SHA` expliciet op `github.event.pull_request.head.sha` voor PR-builds (fallback `github.sha` voor push/manual), zodat de getoonde build-SHA de APK-broncommit identificeert en niet GitHubs tijdelijke PR-mergecommit.
+
+De kaartzoekbalk is nu functioneel via de bestaande read-only `/api/v1/locations?q=...` route. Android start zoeken vanaf twee tekens met 350 ms debounce en toont maximaal acht laadlocaties met adres, plaats/operator en alleen een `x/y`-ratio wanneer de API geen onbekende EVSE-status meldt. Selecteren centreert en zoomt de kaart op de gevonden coördinaten; de app wacht vervolgens tot de normale viewport dezelfde OCPI `featureId` heeft geladen en opent dan de bestaande locatie-sheet. Zoeken introduceert daarmee geen tweede detailcontract of per-resultaatverrijking. Filtering blijft expliciet de volgende aparte UX-stap. Dit zoeken blijft bewust de scope van PR #61. De Google-Maps-achtige **bestemmingzoeker** (adres/plaats/POI → bestemmingspin → dichtstbijzijnde laadlocaties) én de kaartfilters zijn vastgelegd in vervolgissue [#95](https://github.com/VanHinthem/ChargeWatch/issues/95). #95 start met provider-/privacy-/cache-/rate-limitonderzoek en implementeert pas daarna bestemming zoeken en filters in een aparte PR.
+
+Gerichte Android-tests dekken applicable, conditional, source-missing, multiple-options, ontbrekende btw, Settings-data-status, zoekresultaatparsing en feedfreshness. De Android-UX is tijdens de sessie fysiek op Samsung gevalideerd voor light/dark, compacte/uitgebreide sheet, markers/clusters, favorieten, gestures/back, Settings en de gekozen scope van zoeken. PR #61 bevat één kleine additieve read-only API-contractuitbreiding op `/api/v1/map/viewport` voor `feedLastObservedAt` en `feedIsStale`; er zijn **geen database-, collector- of migratiewijzigingen**. Deployment van die API-metadata blijft een apart expliciet releasebesluit.
+
+**Productiegrens:** PR #93 is nog niet als NAS-release bevestigd; dat staat los van deze Android-PR. De gebruiker heeft op 29 oktober expliciet merge-akkoord voor #61 gegeven nadat docs/issues zijn bijgewerkt. Dit akkoord is **geen** NAS-deploymentakkoord.
+
+## Tariff API — source tariff type voor Android-diagnostiek (29 oktober 2026)
+
+Android PR #61 liet bij een Vattenfall-locatie zien dat `TARIFF_TYPE_SELECTION_REQUIRED` wel als limitation beschikbaar was, maar het onderliggende OCPI `Tariff.type` niet in het API-contract stond. Daardoor kon de client niet uitleggen welk bronprofiel de conditional status veroorzaakte.
+
+Deze companion-wijziging exposeert daarom `sourceTariffType` per `tariffOptions[]`. Dit is uitsluitend bron-/diagnostiekcontext; de API kiest nog steeds geen profiel namens de gebruiker en verandert geen prijsselectie. `TARIFF_TYPE_SELECTION_REQUIRED` blijft gelden zolang geen expliciet profiel geselecteerd wordt.
+
+Geen database-, collector- of migratiewijziging. Voor merge zijn API self-test/CI en review vereist; deployment blijft apart.
+
+## Data-audit — implementatie afgerond, productievalidatie connectorfix nog apart (29 oktober 2026)
+
+**Vast databeleid:** NDW/OCPI is de primaire bron van waarheid. ChargeWatch behoudt brondata, identiteiten en relaties zo veel mogelijk en toont alle betrouwbare informatie die beschikbaar is. Lokale bronfouten worden op het kleinst veilige entiteitsniveau geïsoleerd; één foutief record mag geldige landelijke updates niet blokkeren. Onbekende, afwezige of bewaarde data wordt niet als nul, vrij of gegarandeerd actueel voorgesteld. Dit beleid staat in [PRODUCT](PRODUCT.md) en [ARCHITECTURE](ARCHITECTURE.md).
+
+De afsluitende audit van de data- en importketen is op implementatieniveau afgerond. De review van PR #83–#90 vond twee concrete restbevindingen; beide zijn inmiddels gericht opgelost:
+- **F1 — tariefaanwezigheid:** PR [#92](https://github.com/VanHinthem/ChargeWatch/pull/92), squash-merge `feb1a3c6534e64a1530844cef34d7f34ec6a631a`. Historische tariefpayloads blijven bewaard, maar actuele aanwezigheid wordt alleen uit geaccepteerde volledige Tariffs HTTP 200-snapshots afgeleid. Verdwenen tarieven worden niet meer als actuele toepasbare prijs gepresenteerd. #92 is door de gebruiker op de NAS uitgerold; migratie `025_tariff_snapshot_presence` is toegepast na back-up `chargewatch-20261029T085441Z.dump`. De eerste presence-baseline wacht terecht op een natuurlijke gewijzigde Tariffs HTTP 200; een 304 leidt geen afwezigheid af.
+- **F2 — onvolledige connectorcollecties:** PR [#93](https://github.com/VanHinthem/ChargeWatch/pull/93), squash-merge `c7dfe04436feb9e8481f8485565c212605eed047`. Ontbrekende, `null`, verkeerd getypeerde of lege `connectors`-collecties worden per EVSE geïsoleerd. Alleen die EVSE levert in die snapshot geen connector-presence-evidence; laatst geldige connectoren en missing-tellers blijven behouden terwijl de rest van de landelijke snapshot normaal wordt verwerkt.
+
+Voor #93 zijn alle zeven relevante workflows op de laatste PR-head groen: connector-collection contract, compacte watch-integratie, compacte database, landelijke benchmark, tarief-presence, read-only API en NAS Images. De regressie gebruikt vier afzonderlijke onvolledige Locations HTTP 200-snapshots en bewijst zowel EVSE-isolatie als normale presence-opbouw voor een andere EVSE in dezelfde snapshot. De bestaande migratie-022-smoketest blijft individuele verdwijning, hysterese, historiebehoud en terugkeer afdekken.
+
+**Productiestatus:** #92 is uitgerold en gezond bevestigd. #93 is gemerged maar een NAS-image-uitrol van deze commit is nog niet door de gebruiker bevestigd; daarom claimt deze status geen productievalidatie van migratie `026_connector_collection_completeness`. Deployment blijft een afzonderlijk expliciet beslismoment. Uurfinalisatie op de NAS blijft bewust uitgesteld.
+
+De uitgebreide review en bewijsgrenzen staan in [DATA_AUDIT_CLOSEOUT_PR83_93.md](DATA_AUDIT_CLOSEOUT_PR83_93.md). De eerstvolgende functionele productstap is daarna weer Android: open PR #61 opnieuw toetsen aan het inmiddels definitieve backend-tariefcontract en de actuele data-/freshnesssemantiek. PR #54 blijft een afzonderlijke documentatienotitie; issue #79 blijft uitgesteld. Oude issues #72 en #11 beschrijven inmiddels retired legacy-statistiekketens en moeten administratief worden herijkt/afgesloten zonder die ketens opnieuw te introduceren.
+
+Onderstaande oudere passages zijn historisch en kunnen eerdere review-/deploymentstatussen bevatten.
+
+---
+
+## Legacy duration-statistieken — cleanup in review (migratie 024)
+
+De oudere bron-timestampgebaseerde duur/statistiekketen wordt niet gebruikt door de actuele compacte snapshot-API. De afzonderlijke collectoraanroepen `ObservationCheckpoints.Capture`, `EvseHourFinalizer.Run` en `LocationHourFinalizer.Run` zijn op de cleanup-branch verwijderd, inclusief zes implementatieklassen. Migratie `024_retire_legacy_duration_statistics` verwijdert negen oude tabellen (ongeveer 130 MB op productie op 28 oktober); de compacte weekprofielen, eigen actieve uuraccumulatoren, `snapshot_poll_checkpoint` en `ndw_snapshot_checkpoint` blijven bestaan. Oude 003–005-migraties blijven als geschiedenis intact.
+
+**Destructieve wijziging:** niet naar NAS uitrollen vóór aparte goedkeuring en verplichte pre-migration-back-up. CI moet zowel migratie-smoke als HTTP 200→304→200, replay/rollback en actuele statistieken valideren. Geen claim dat oude tijdgewogen duurinformatie later nog reconstrueerbaar is. Geen deployment of merge op basis van alleen dit ontwerp.
+
+## Legacy EVSE poll coverage — cleanup voorbereid (review, niet uitgerold)
+
+De experimentele intervalgebaseerde `evse_poll_hour_coverage` en het bijbehorende `evse_poll_checkpoint` worden niet gelezen door de huidige compacte statistiek-API. De verwerkingsaanroep `SnapshotPollCoverage.Capture` is verwijderd in een afzonderlijke cleanup-branch; migratie `023_retire_legacy_poll_coverage` verwijdert beide tabellen inclusief historie en indexen. **De migratie is destructief**, dus productie vereist expliciete releasegoedkeuring, verplichte pre-migration backup en een aparte geïsoleerde restoreverificatie. Geen NAS-wijzigingen uitgevoerd. De actuele compacte snapshotprofielen, `snapshot_poll_checkpoint`, actieve uuraccumulatoren en huidige API blijven behouden. De PR moet nog CI en review doorlopen voordat merge of deployment kan plaatsvinden.
+
+## Issue #73 — connector-aanwezigheid (migratie 022; PR in review)
+
+De productieaudit na migratie 021 telde 203.342 actieve EVSE's en 204.050 bijbehorende connectorrecords tegenover 204.044 connectoren in de NDW-import. De zes records zijn **nog niet per connector-ID bronvergeleken**. Bij 24.316 actuele connectorrecords ontbreekt een tariefreferentie en bij 179.734 is precies één referentie aanwezig. Migratie 022 introduceert een transactionele connector-presence-registratie en active-only API-filter, met behoud van historische connectoren en tariefkoppelingen. Reconciliatie vindt uitsluitend plaats na een gevalideerde volledige HTTP 200-snapshot (3 onafhankelijke snapshots, minimaal 10 minuten); HTTP 304 en mislukte transacties wijzigen de status niet. Geen NAS-deployment of merge toegestaan zonder aparte goedkeuring. Zie [ontwerp](CONNECTOR_SNAPSHOT_PRESENCE_DESIGN.md).
+
+## Issue #73 — EVSE-aanwezigheid: productiegevalideerd (28 oktober 2026)
+
+PR [#84](https://github.com/VanHinthem/ChargeWatch/pull/84) is als squash-merge naar `main` gegaan (`2dfabdafa4ec59e101ad233d3b349f4cd4ae130d`). Migratie `021_evse_snapshot_presence` is op de NAS succesvol toegepast; de volledige NDW-import bevatte 80.837 locaties, 203.342 EVSE's en 204.044 connectoren (importtijd circa 73,8 s). Drie succesvolle snapshots gedurende 10 minuten hebben 62 ontbrekende EVSE's bij actieve locaties correct op `is_active=false` gezet. Read-only SQL op productie: 203.342 actieve EVSE's, 62 historische EVSE's bij actieve locaties, 9.380 EVSE's bij inactieve locaties en 212.784 bewaarde EVSE's in totaal. Dit valideert collector → reconciliatie → database; de productie-API is nog niet afzonderlijk via HTTP gecontroleerd. Connector-aanwezigheid binnen actieve EVSE's is het resterende onderdeel van de audit, zie PR [#85](https://github.com/VanHinthem/ChargeWatch/pull/85).
+
+# ChargeWatch — actuele status (26 oktober 2026)
+
+## Issue #56 — vrije-EVSE-gemiddelden: productie gevalideerd
+
+PR [#57](https://github.com/VanHinthem/ChargeWatch/pull/57) is op `main` gemerged (commit `57d5a3775b17df770f0a93c6885dbbc6f99e9443`). Op 26 oktober zijn PostgreSQL-migratie `014_location_free_evse_ewma`, de collector en de read-only API op HINNAS met deze imageversie geïnstalleerd. Vóór migratie is een custom-format back-up van circa 80 MB gemaakt (`chargewatch-20261026T144101Z.dump`); de archieflijst is gecontroleerd, maar een nieuwe geïsoleerde restore van juist dit archief is niet aangetoond. Bewaar deze back-up; de ruime NAS-bestands-ACL's vragen afzonderlijke hardening.
+
+Productiecontrole: de collector heeft een transactionele NDW-import gecommit (80.867 locaties, 203.404 EVSE's, 204.107 connectoren, 101.529 tarieven), een volgende poll vijf minuten later geregistreerd, en de nieuwe actieve-uurtellers gevuld. Bij uurafsluiting om `2026-10-26T15:00:00Z` waren er 78.173 locatieprofielen met ten minste één geldig aantalsgemiddelde. De API antwoordde HTTP 200 op `192.168.2.48:5088` en retourneerde voor locatie `79311`, ISO-weekdag 1, uur 15: `averageAvailableEvses=2`, `averageActiveEvses=2`, `availableEvseSampleCount=3` en `excludedEvseSampleCount=0`. Daarmee is het NDW → collector → database → uur-EWMA → API-pad end-to-end bevestigd. De nieuwe aantalsgeschiedenis begint pas na migratie; geen terugvulling. Het bestaande percentageprofiel wordt ongewijzigd voortgezet. De nieuwe metriek is met slechts enkele samples nog geen betrouwbare langetermijninschatting.
+
+**Besluit: Android later.** De nieuwe vrije-EVSE-gemiddelden worden voorlopig **niet** in de Android-bottom-sheet of grafiek geïntegreerd. Dit is een expliciet uitgestelde vervolgstap, niet onderdeel van het afgeronde backendissue. Bij een latere aparte feature/PR het UX-ontwerp bespreken: percentage `availableProbability` (kansindicator op minstens één vrije EVSE) versus `averageAvailableEvses` (gemiddeld aantal) duidelijk onderscheiden; `averageActiveEvses` en `availableEvseSampleCount` meenemen voor context/kwaliteit, `null` niet als nul tonen; beperkte datadekking en mogelijke capaciteitsveranderingen zichtbaar houden. Pas na expliciet akkoord implementeren.
+
+## Databasemigraties — huidig deploymentverschil
+
+PR #57 heeft een transactionele migrator in de algemene `docker-compose.yml` toegevoegd, met een herhaalbare/idempotente PostgreSQL 18-CI-test. **De daadwerkelijke NAS-installatie gebruikt een andere Compose-stack** (`/volume2/docker/chargewatch/docker-compose.yaml`, repositorybron `deploy/nas/compose.yaml`) en de bestaande maintenance-runner `/scripts/migrate.sh`. Die voerde migratie 014 succesvol uit; eerdere versies 003–013 werden overgeslagen. De nieuwe generieke migrator is nog **niet** gekoppeld aan de NAS-releasevolgorde. Als opvolgwerk de NAS-maintenance/migrator integreren vóór collector-/API-start; geen dubbele runner of onbedoeld DB-herstartpad toevoegen. Productiedeployment is al uitgevoerd, geen nieuwe deployment hiervoor impliceren.
+
+## Android locatie-details — PR #55
+
+De Android locatie-detail-UI is heringericht, met een compacte inhoudsafhankelijke bottom sheet en een uitgebreide, scrollbare detailweergave. De compacte stand toont locatie, beschikbaarheid, maximaal drie connectorcategorieën per rij (26dp-icoon, vermogen, type), eenduidige energieprijs met relevante tariefvoorwaarden, favoriet en navigatie/Street View. De uitgebreide stand toont de aansluitingen met aantallen, afzonderlijke prijscomponenten in Nederlandse notatie en historische beschikbaarheid, zonder dubbele compacte tegels.
+
+Historische grafiek: maandag t/m zondag direct selecteerbaar, huidige Nederlandse weekdag als standaard; 24 uren met groene balken voor geldige waarnemingen, grijze balken voor ontbrekende waarden, 0/50/100%-schaal en aanraakbare uurwaarden. Huidige metriek betreft een historische EWMA-indicatie van ten minste één vrije EVSE, niet het gemiddeld aantal vrije EVSE's of een gevalideerde voorspelling.
+
+Techniek: alleen Android UI/parser en unit-tests aangepast; geen backend- of databasecontract gewijzigd. De parser behoudt geldige componenten van gedeeltelijk onbegrepen OCPI-tarieven en behoudt de waarschuwing. Bestaande ChargeWatch/NDW-bronkeuze en fallback blijven behouden.
+
+**Verificatie:** Android workflow #40333331763 en Read-only API workflow #40333331803 geslaagd voor commit `bde68b0999fe1d4b98b290e7af217d4ccbe6426e`. Eerdere Samsung-screenshots hebben kaart, tarieven, connectorindeling en bestaande sheetstanden gevalideerd. **Nog niet op Samsung bevestigd:** de allerlaatste inhoudsafhankelijke sheet/gesture-verandering (op-/neerwaarts vegen, sluiten/back), variërende schermformaten, grote tekst en rotatie. Dit blijft regressie-/acceptatiewerk, ondanks groene CI. Geen automatische deployment.
+
+**Volgende prioriteiten:** Android praktijkhertest van de laatste sheet-interactie; daarna [issue #56](https://github.com/VanHinthem/ChargeWatch/issues/56): naast de bestaande historische percentages zo snel mogelijk compacte historische gemiddelden van vrije EVSE-aantallen verzamelen per weekdag/uur, zonder ruwe historie. Latere Android-keuze van metriek apart bepalen. PR #54 over NDW-dekking is een afzonderlijke documentatie-PR.
+
+## Praktijkvalidatie kaartbronnen — 26 oktober 2026
+
+**Gemeten op Samsung, hetzelfde kaartgebied:** NDW 298 locaties in 8327 ms; ChargeWatch API 298 in 306 ms bij eerste meting. De gebruiker ziet vooral koude-startverschil; bij herhaling worden beide bronnen sneller en ChargeWatch blijft iets sneller. Niet extrapoleren naar alle toestellen of netwerkcondities. Gelijke aantallen bewijzen nog geen volledige locatiepariteit.
+
+**Fastned Ganzenven (NL-FAS-50689):** eerst NDW 4/8 versus ChargeWatch-kaart 5/8; latere API-detailmeting bevat vier AVAILABLE en vier CHARGING, kaartviewport gaf ook 4/8, lastUpdated=2026-10-26T10:38:42Z. Er is op dat moment dus geen reproduceerbaar verschil tussen de twee eigen endpoints. Een tijdelijke statuswijziging of verschil in NDW-categorieprojectie blijft mogelijk. Andere Fastned-locatie nog apart controleren.
+
+**Besluit voor PR #53:** ChargeWatch API wordt de standaardkaartbron bij appstart. Bij onbereikbare API, HTTP-fouten of rate-limit wordt NDW direct geprobeerd; een overschreden API-viewportlimiet (HTTP 413) blijft expliciet zichtbaar en wordt niet verborgen met een fallback. Handmatige NDW-keuze blijft mogelijk voor diagnostiek. Bij werkende fallback meldt de app duidelijk dat NDW tijdelijk gebruikt wordt. NAS/API zelf hoeft hiervoor niet opnieuw geïnstalleerd te worden, alleen de Android-app.
+
+**Correctie voor bronschakeling:** verworpen oude kaartaanvragen mogen een later bron- of viewportresultaat niet overschrijven. ChargeWatch wordt de standaard met NDW-fallback als voorlopig besluit; extra koud/warmmetingen, ID/status/connectorpariteit en NAS-belastingscontrole blijven open. HTTP 413 bij >999 locaties behoeft een nette UX-afhandeling; geen verborgen truncatie. Volledige UI/UX-fase volgt hierna.
+
+## Android kaartbronvergelijking — geïmplementeerd, praktijkvalidatie open (26 oktober 2026)
+
+**Doel:** op Samsung NDW-direct versus eigen ChargeWatch API testen voor hetzelfde kaartgebied; standaardbron blijft NDW. Tijdelijke schakelaar boven de kaart toont gebruikte bron, aantal locaties en totale netwerk-/parse-tijd in ms. Favorietensleutels blijven de samengestelde OCPI/NDW `NL-party-sourceId` identiteit; details blijven on-demand via ChargeWatch API.
+
+**Backend:** nieuw read-only `GET /api/v1/map/viewport?bbox=minLon,minLat,maxLon,maxLat`; maximaal 999 locaties per kaartgebied, HTTP 413 bij volledige grens zodat niet ongemerkt een onvolledige kaart wordt weergegeven; invalide bbox 400. Per locatie worden statuscounters en connectorcategorieën uit de database opgebouwd. Geen wijzigingen aan collector, databaseschema of historische statistieken. Deze route wordt pas bereikbaar na afzonderlijk akkoord op image-deployment.
+
+**Beperkingen/testplan:** connectorcategorieën zijn afgeleid van Postgres EVSE/connector-data en hoeven niet altijd exact gelijk te zijn aan de NDW-categorieclassificatie (zie FAS en overlappende connectorcategorieën); vergelijk aantallen, labels, vermogen, details en favorieten expliciet. Een te grote viewport vraagt inzoomen en schakelt niet ongemerkt terug naar NDW. Meet respons-/parse-tijden naast kaartvolledigheid; 120 requests/min per waargenomen proxy-IP blijft van kracht, vertrouwensinstellingen voor proxy X-Forwarded-For vereisen afzonderlijke verificatie. API-only mag pas standaard worden als parity, volumes en latency zijn gevalideerd.
+
+**Validatie:** op implementatiecommit `e096e2dc` zijn Android-, Read-only API- en NAS Images-checks geslaagd; controleer CI opnieuw op deze statuscommit voor merge. Open na merge: afzonderlijk goedgekeurde NAS API-image-update, endpointrespons met productiegegevens, vergelijking van NDW en ChargeWatch op Samsung (latency, kaartdekking, beschikbaarheid, connectoren, favorieten), controle van proxy/rate-limit; grafiek/UI-aanpassingen blijven een aparte vervolgfase.
+
+## Tarieven inclusief btw en API-only kaartbenchmark — in ontwikkeling (26 oktober 2026)
+
+**Gebruikersfeedback Samsung:** de eerste tarieven worden als exclusief btw getoond, terwijl de overeengekomen presentatie inclusief btw moet zijn. De detailweergave toont bovendien technische connector-/tarief-ID's dubbel. Als onafhankelijke prestatieproef wil gebruiker de Android-kaart tijdelijk uitsluitend via de eigen ChargeWatch API laden en vergelijken met NDW-direct.
+
+**PR scope — btw:** OCPI 2.2.1 `price` is exclusief btw, `vat` staat optioneel op iedere prijscomponent. Server geeft dit percentage expliciet door in `presentation.elements.components[].vat`; Android toont berekende consumentenprijs incl. btw afgerond op twee decimalen zodra `vat` opgegeven is, groepeert gelijke prijscomponenten en verwijdert technische ID's uit consumentenweergave. Als de bron geen btw-percentage opgeeft, wordt het ontbreken gemeld; niet stilzwijgend een tariefpercentage verzinnen. Dit behoeft verificatie met echte tariefpayloads; in Nederland kan toepasselijke btw meestal 21% zijn, maar de bronspecificatie bepaalt of dit geldt. Alle componenten blijven voorlopige deelprijzen, geen garantie op uiteindelijke pas-/providerprijs.
+
+**API-only kaartbenchmark — vereist extra contract:** huidige API `GET /api/v1/locations?bbox=...` heeft max. 200 locaties en levert geen gegarandeerde NDW-feature-ID of NDW-connectorcategorieën in het kaartcontract. Alleen van URL wisselen breekt dekking, bottom sheet en favorieten. Maak voor de snelheidsvergelijking een testschakelaar NDW/ChargeWatch met gepagineerde viewport-data, getrouwe status-/connectorsemantiek en stabiele sleutel voor detail/favoriet; toon bron en laadtijd. Niet standaard API-only activeren voordat functionele parity en NAS-verzoekvolume gevalideerd zijn. Dit is een vervolgtaak, niet klaar in deze tarief-PR.
+
+**Open:** unit/API/Android CI, btw-percentage van live Bernhardlaan-tarief controleren, Samsung dark/light, proxy X-Forwarded-For en per-client throttling.
+
+## Productie HTTPS API-hostname en extern bereik — afgerond in code (26 oktober 2026)
+
+**Definitieve hostname:** `https://chargewatch-api.vanhinthem.nl`. De gebruiker heeft vanaf Samsung via mobiel internet bevestigd dat Nginx Proxy Manager de bestaande read-only API via geldig HTTPS-certificaat en upstream `192.168.2.48:5088` bereikt. Ook is op NAS de Docker-binding beperkt tot `192.168.2.48:5088->8080`, zonder IPv6/all-interface-binding; rechtstreekse externe toegang tot 5088 is volgens gebruiker niet mogelijk. NPM Force SSL en Block Common Exploits zijn bevestigd. De bestaande collector en PostgreSQL zijn niet gewijzigd.
+
+**Android:** de vaste HTTPS-origin is de standaard Gradlewaarde, zonder een API-secret in de APK. Bij geopende locatiedetails haalt Android tarieven en experimentele statistieken on demand op, dankzij samenvoeging met de statistiekimplementatie van PR #48. `availableProbability` blijft nadrukkelijk een niet-gekalibreerde NDW-EWMA-indicatie en geen gevalideerde voorspelling. De NDW-kaartfallback via onze API is nog niet geïmplementeerd.
+
+**Documentatie:** `deploy/nas/API_PUBLICATION.md` bevat de HTTPS/DNS/proxy-runbook, veiligheidscontrole en rollback. Nog open: effectieve X-Forwarded-For/trusted-proxyconfig en rate limiting onder een extern adres aantonen; beschermende limieten en Play Integrity vóór brede publieke distributie; de gepubliceerde actuele **main**-API-image op NAS updaten na afzonderlijk deploymentakkoord en daarna echte tarieven en historie op Samsung valideren. GitHub-merge voert geen NAS-deployment uit.
+
+## Experimentele historische beschikbaarheid — geïmplementeerd (26 oktober 2026)
+
+**Besluit gebruiker:** toon een eerste versie van `availableProbability` op basis van de reeds opgebouwde compacte statistieken, zodat de grafiek in Android beoordeeld kan worden. Dit is een bewuste **experimentele preview**, geen validatie of definitieve publicatie van voorspellende kansen.
+
+**API:** lees de eerste `category_ewma`-categorie (voor locaties: ten minste één EVSE AVAILABLE, EVSE: AVAILABLE) per Europe/Amsterdam-weekdag/uurslot. Geef uitsluitend een ratio van 0..1 terug bij een bestaand geldig slot met positieve sample-count en ten minste één veranderde feed-waarneming. Andere slots blijven null. API voegt `isExperimental=true` en `probabilityInterpretation=UNVALIDATED_SNAPSHOT_EWMA` toe; `sampleCount`, `changedFeedCount`, `unchangedFeedCount` en `lastSampleAt` blijven beschikbaar voor review. Dit is een EWMA van feedwaarnemingen, geen tijdgewogen kans of gegarandeerde voorspelling. Historische referentiedata kunnen onvoldoende representatief zijn; synthetische benchmarkgegevens mogen niet als werkelijkheid worden geïnterpreteerd. Het bestaande publicatiebeleid blijft gelden voor definitieve/productieclaims.
+
+**Android:** pas na openen van een individuele locatiedetail de bestaande statistiekroute opvragen; toon een compacte 24-uurs staafgrafiek als *Experimentele historische beschikbaarheid* en bij onvoldoende data een neutrale melding. Uurwaarden zijn een eenvoudig gemiddelde van beschikbare weekdag-EWMA-slots, **niet** een gekalibreerd dagprofiel. Tarieven blijven beschikbaar bij statistiekfouten. Zonder geconfigureerde backend-HTTPS-origin blijven tarieven en statistieken niet beschikbaar. Definitieve hostname: `chargewatch-api.vanhinthem.nl`; het extern ontsluiten van de echte API (reverse proxy, rate limits, beveiligingsgate, geen DB-poort publiek) is nog **niet** uitgevoerd.
+
+**Verificatie:** Android CI, Read-only API CI en NAS Images CI geslaagd op implementatiecommit `ae8c6bc`. Na deze documentatiecommit opnieuw CI controleren. De historische indicatie blijft experimenteel; Samsung-test met echte profieldata en afzonderlijke API-image-deployment blijven open. Geen automatische deployment. Na samenvoegen van de API-origin-wijzigingen uit PR #49 de gecombineerde main controleren.
+
+## Android on-demand locatieverrijking — implementatie (26 oktober 2026)
+
+**Branch:** `feature/android-on-demand-location-enrichment` op basis van gemergede PR #46. De geselecteerde unieke NDW-feature-ID start uitsluitend bij openen van de locatie-bottom-sheet een gerichte read-only ChargeWatch-locatiedetailaanvraag; kaartmarkers, clusters, viewportverzoeken en favorieten blijven NDW-first zonder nieuwe ChargeWatch-aanroepen. Bij sluiten of locatieselectiewissel annuleert Compose de laadtaken. De uitklapbare sheet toont afzonderlijke OCPI-tariefcomponenten met behoud van connector- en tariefidentiteit (ook bij identieke componentprijzen) alleen als de backend de `presentation` veilig heeft geïnterpreteerd; ontbrekende/complexe gegevens, HTTP-fouten en 404 krijgen neutrale teksten. Er worden geen totaalprijzen, btw-garanties of statistische kansgrafieken gefingeerd.
+
+**Beveiligingsgrens:** `chargewatchApiBaseUrl` is een optionele Gradle-property voor uitsluitend interne HTTPS-testbuilds; standaard leeg, dus CI/test-APK's versturen geen ChargeWatch-request. Er wordt geen API-secret, statische sleutel of token meegeleverd. Publieke reverse proxy, Play Integrity en beveiligde releasegates zijn nog niet actief en moeten vóór publieke beschikbaarstelling afzonderlijk worden uitgewerkt en gevalideerd. Geen API-deployment of blootstelling op internet in deze feature.
+
+**Gerichte verificatie:** Android unit tests voor OCPI multi-elementprijzen/restricties, onbekende/ongeldige data en ontbrekend contract. Android workflow run [`40290232717`](https://github.com/VanHinthem/ChargeWatch/actions/runs/40290232717) is geslaagd op code en eerdere status: `testDebugUnitTest`, `assembleDebug` en debug APK-upload. De opvolgende uitsluitend documenterende statuscommit triggert nieuwe CI. **Samsung-review vereist** voor light/dark, sheet-scrollen, loading en de neutrale melding zonder geconfigureerde backend. Echte tarief-fetch kan pas in een aparte, expliciet beveiligde interne HTTPS-testomgeving getest worden. Statistiekpublicatie blijft `availableProbability=null` tot aantoonbaar gekalibreerde kwaliteitsdrempels.
+
+**Volgende stap:** beoordeel CI en Samsung-layout, controleer beveiligde interne backendroute voordat een origin voor toestelvalidatie wordt geconfigureerd; daarna eventueel verdere statistiekcontractpublicatie. Nooit mergen/deployen zonder expliciet akkoord.
+
+**Acceptatie 26 oktober 2026:** gebruiker heeft screenshots van de uitgeklapte locatie-bottom-sheet in licht en donker op Samsung aangeleverd en beide visuele weergaven goedgekeurd; gebruiker bevestigde vervolgens dat uit-/inklappen en scrollen goed werken, en gaf expliciet akkoord om PR #47 af te ronden. Android CI [40291179634](https://github.com/VanHinthem/ChargeWatch/actions/runs/40291179634) en Read-only API CI [40291179695](https://github.com/VanHinthem/ChargeWatch/actions/runs/40291179695) zijn geslaagd op implementatie-head `519491f`. De wijzigingen aan deze status vormen een nieuwe commit; controleer daarvoor opnieuw alle vereiste checks alvorens te mergen. Geen deployment. **Logische volgende stap:** veilige API-bereikbaarheid ontwerpen/implementeren: vertrouwde HTTPS reverse proxy, server-side Play Integrity validatie en request binding, correcte proxy-IP en quotas, intern bereikbaarheidstestpad en expliciete publicatiegate. Niet de databasepoort of onbeschermde read-only API direct publiek openzetten.
+
+## Locatieverrijking — typed OCPI-tariefcontract (25 oktober 2026)
+
+**Bereikt in deze feature:** de bestaande read-only locatie-detailroute retourneert naast de oorspronkelijke OCPI-tarief-JSON nu een aanvullend, getypeerd `presentation`-object met afzonderlijke tariefelementen, componenttypen ENERGY/TIME/PARKING_TIME/FLAT, niet-negatieve bedragen, optionele stapgroottes, valuta en ongewijzigde elementrestricties. Onbekende/ongeldige componenten leiden tot `hasUnsupportedData=true`; er wordt nooit een totaalbedrag, inclusief-btw claim of enkele universele kWh-prijs geconstrueerd. Bestaande responsevelden, ID-mapping, database, importer en beveiligingsinrichting blijven ongewijzigd.
+
+**Verificatie:** API-selftest aangevuld met multi-component/restrictie-, onbekend-type- en negatieve-prijsgevallen. Read-only API workflow run [`40207657366`](https://github.com/VanHinthem/ChargeWatch/actions/runs/40207657366) is geslaagd: .NET 10 Release-build, gerichte API-selftest en PostgreSQL read-only-role-smoke. Dit resultaat geldt voor de implementatie vóór deze uitsluitend documenterende statuscommit; de workflow wordt door de PR opnieuw getriggerd. Er is geen lokale .NET SDK beschikbaar in de agentomgeving. Geen NAS-deployment, publieke release of wijziging van Play Integrity.
+
+**Bewuste grens:** de huidige statistiekroute geeft `availableProbability=null` terug, conform `docs/SPRINT3_PUBLICATION_POLICY.md`: numerieke publicatiedrempels ontbreken nog, dus geen historische percentages/grafieken publiceren. De Android-netwerkkoppeling en UI blijven buiten deze eerste, contractgerichte wijziging. Volgende stap: kwaliteitsgate voor statistieken met echte waarnemingen uitwerken en Android locatieverrijking via expliciet goedgekeurde, beveiligde API-origin aansluiten; daarna Samsung-review van de bestaande uitklapbare bottom sheet. Favorieten en instellingen blijven lokaal. Geen merge of deploy zonder afzonderlijk gebruikersakkoord.
+
+## Android locatiedetails — afgerond en goedgekeurd (25 oktober 2026)
+
+**PR #45:** de gebruiker heeft op Samsung expliciet alle onderdelen goedgekeurd en op 25 oktober 2026 merge-toestemming gegeven, onder voorwaarde dat documentatie en validatie bijgewerkt zijn.
+
+**Opgeleverd:** één gedeeltelijk en volledig uitklapbare Material3-bottom-sheet bij kaartmarkerselectie; directe icoonacties voor Navigeren, Street View en lokale Favoriet; NDW-beschikbaarheid, correct W→kW vermogen en afzonderlijke Type 2/CCS/CHAdeMO-aansluitingen zonder overlappende Fastned-categorieën als extra EVSE's te tellen. Geen fictieve tarieven of statistieken: koppeling met gevalideerde read-only API is de volgende fase. Locatiedetails zijn scrollbaar, hoofdtabbar niet als tweede detailpagina gebruikt.
+
+**Thema en vormgeving:** Systeem/Licht/Donker via kaartbalk, keuze lokaal bewaard; MapLibre-wissel werkt direct zonder tabwissel en zoekbalk blijft onder Android-statusbalk. Beide thema's en de schermindeling zijn door gebruiker op Samsung positief beoordeeld. Definitief goedgekeurd raster-appicoon (plus monochrome adaptive-icon variant) is gekoppeld aan Android-resources, nadat eerdere handgetekende varianten afgekeurd waren.
+
+**Installatie/CI:** een vaste *uitsluitend ontwikkel*-debugondertekening en oplopende CI-versiecode zorgen dat Android-test-APK's over elkaar heen geïnstalleerd kunnen worden. De gebruiker heeft bevestigd dat de APK uit run `40204987737` zonder deïnstallatie als update geïnstalleerd is. Android CI run `40204987737` slaagde (unit tests, debug APK-build, upload); latere codewijzigingen betreffen uitsluitend statusdocumentatie. Geen productieondertekening of deployment. PR #45 uitsluitend mergen na laatste actuele controle van GitHub CI/mergeability.
+
+**Vervolg:** echte tarieven en geaggregeerde historische statistieken koppelen aan locatiedetails via bestaande read-only API, na validatie van endpointcontracten, locatie-identiteiten, tariefkwaliteit, dataversheid en historie. Volg `docs/ANDROID_DESIGN.md`, `docs/ROADMAP.md`, `docs/WORKFLOW.md`, `AGENTS.md`. Geen fictieve grafieken of prijsclaims.
+
+## Android favorietenbeschikbaarheid — implementatie (25 oktober 2026)
+
+**Requestoptimalisatie (25 oktober 2026):** bij de eerste overgang naar Favorieten wordt een recent al door de app opgehaalde NDW-observatie hergebruikt (maximaal 2 minuten sinds **onze request**, onafhankelijk van NDW `last_updated`). Alleen ontbrekende of langer geleden opgehaalde favoriete locaties vragen we via compacte bbox-verzoeken op; meerdere nabije locaties blijven gegroepeerd. Bij handmatig **Beschikbaarheid verversen** wordt dit overslaan bewust uitgeschakeld. Geen server-side persoonlijke opslag. Er zijn gerichte policytests voor recente kaartdata met oudere NDW-brontijd, ontbrekende en verlopen observaties. De kaart-ViewModel legt daarvoor nu de tijd van een succesvolle NDW-load vast. Android workflow `40191508462` is geslaagd op codecommit `16c916c`: unit tests, debug APK-build en artifact-upload. Toestelreview afgerond: gebruiker bevestigde op 25 oktober 2026 dat de selectieve NDW-opvraag en de directe weergave van favorieten goed werken en gaf expliciet toestemming voor merge van PR #44. Geen deployment uitgevoerd.
+
+**Prestatieverbetering eerste openen (25 oktober 2026):** gebruiker meldde dat de eerste NDW-statusopvraag bij één favoriet te lang duurt. De kaart-ViewModel blijft nu op app-niveau actief en de al op de kaart ontvangen NDW-locatiestatus is direct beschikbaar in Favorieten; een aparte NDW-refresh blijft op de achtergrond lopen. Als de favoriet niet in het geladen kaartgebied voorkomt, kan deze eerste netwerkrespons nog vertragen; er wordt geen schijnbaar live status uit niet-gecontroleerde lokale gegevens getoond. Android run `40190580431` is geslaagd voor unit tests, debug APK-build en artifact-upload op codecommit `3c16084`. De eerste-laadoptimalisatie is vervolgens verfijnd met selectieve requests; gebruiker heeft deze werking op toestel goedgekeurd.
+
+**Branch:** `feature/android-favorites-availability` vanaf gemergede PR #43. De favorietenlijst haalt op het moment van openen en bij handmatig verversen actuele locatiegegevens bij NDW op. Nabije favorieten delen één viewport-request; bij uiteenliggende gebieden worden lokale viewports opgevraagd. De NDW-feature-ID is leidend en favorieten/aliassen blijven uitsluitend lokaal in DataStore opgeslagen. Een NDW-verzoek haalt geen persoonlijke favorieten op bij de ChargeWatch API en kent geen schrijfacties.
+
+De lijst toont de laatst bekende EVSE-ratio `vrij/totaal` bij een betrouwbare telling, ook wanneer de NDW-bronupdate ouder dan 15 minuten is: een stabiele laadstatus hoeft niet voortdurend een nieuw tijdstempel te krijgen. De leeftijd van de bronwaarneming staat er expliciet bij; dit is géén live-garantie. Alleen bij ontbrekende data of onbekende/onbetrouwbare telling verschijnt `?`. Bij ontbrekende/ongeldige brontijd wordt de telling als laatst bekend met waarschuwing getoond. Mislukte NDW-aanroepen en rate limits leiden tot een waarschuwing, niet tot verzonnen live-statussen. Historische grafieken en widgetverversing blijven aparte features.
+
+**Verificatie:** unit-tests voor verse data, verouderde data, onbetrouwbare status en ontbrekende/onjuiste timestamp geslaagd. Android workflow run `40189211352` op codecommit `6ea9d92` is groen: `testDebugUnitTest`, `assembleDebug` en APK-upload. Een al geopend favorietenscherm herbeoordeelt de leeftijd iedere minuut zonder extra NDW-verzoeken. Gebruiker heeft de eerste APK op toestel beoordeeld: de verversknop werkt, maar `?` bij 33 minuten oud was onterecht. De leeftijdssemantiek is daarop gecorrigeerd en tests aangepast; de gecorrigeerde Android workflow run `40189992750` is daarna volledig geslaagd (unit tests, debug APK en upload); toestelreview van de gecorrigeerde weergave is nog nodig. **Review:** controleer `1/2` of andere bekende ratio met bronleeftijd van bijvoorbeeld 33 minuten, `?` uitsluitend bij onbekende/onbetrouwbare status, en behoud van eigen namen/volgorde. Geen merge of deployment zonder expliciet akkoord.
+
+## Android lokale favorieten — PR #43 (25 oktober 2026)
+
+De lokale favorietenfeature is geïmplementeerd op branch `feature/android-local-favorites` vanaf de gemergede PR #42. Android DataStore Preferences bewaart per NDW-feature-ID uitsluitend op het toestel de locatie-identiteit, coördinaten, optionele eigen naam en volgorde. De kaart-bottom-sheet biedt toevoegen/verwijderen; individuele favorietmarkers krijgen een duidelijk vergroot goudkleurig sterretje met donkere contour; clusters behouden de goedgekeurde ring en tonen sinds de toestelreview één gouden ster wanneer een of meer onderliggende locaties favoriet zijn (expliciete ontwerpbijstelling van 25 oktober 2026). De app biedt een Kaart/Favorieten-navigatie met lijst, hernoemen, omhoog/omlaag verplaatsen en verwijderen. De lijst noemt opgeslagen gegevens nadrukkelijk niet live gecontroleerd: er wordt geen onbetrouwbare realtimebeschikbaarheid gefingeerd. Er zijn geen accounts, serverwrites of ChargeWatch-requests per kaartmarker toegevoegd.
+
+**Verificatie:** gerichte tests voor lokale favorietidentiteit/JSON-serialisatie en aliasfallback zijn toegevoegd. GitHub Android workflow run `40186333184` is geslaagd op commit `4957d8d`: `testDebugUnitTest`, `assembleDebug` en debug-APK-upload. **Toestelreview:** gebruiker bevestigde op 25 oktober dat de lokale favorietenfunctie werkt. Feedback: individuele ster te klein en onvoldoende opvallend; gebruiker stemde in met ster op clusters met een of meer favorieten. De ster is vergroot en van donkere contour voorzien op beide markertypes. **Verificatie nieuwe markerstijl:** Android workflow run `40187372189` op code en documentatie is geslaagd: unit tests, APK-build en artifact-upload. **Toestelreview afgerond:** gebruiker bevestigde op 25 oktober 2026 dat de vergrote ster en favorietindicatie op clusters beter zijn en gaf vervolgens expliciet toestemming om PR #43 te mergen zodra `docs/STATUS.md` is bijgewerkt. De Android CI is geslaagd; publicatie/deployment is niet goedgekeurd. De volwaardige favorietenstatusrefresh, lokale offlinecache/versheid, widget en statistiekgrafieken horen bij volgende features; geen publieke deployment of merge zonder expliciet akkoord.
+
+## Android kaartinteracties — implementatie en toestelreview akkoord (25 oktober 2026)
+
+De kaartinteracties uit het goedgekeurde Android-ontwerp zijn geïmplementeerd op basis van de naar `main` gemergede PR #41. Individuele MapLibre-markers openen een compacte Material 3 bottom sheet met NDW-locatie-identiteit, exploitant, `vrij/totaal` of `?` en de acties **Details**, **Navigeren** en **Street View**. Navigeren gebruikt een extern `geo:`-intent; Street View opent Google Maps wanneer beschikbaar en valt anders terug op de externe Google Maps-webweergave. **Details** opent binnen ChargeWatch een eenvoudige NDW-only locatieweergave; er worden geen ChargeWatch-verrijkingsrequests voor kaartmarkers gedaan.
+
+Clusters behouden exact de bestaande markerstijl met extra ring. Een tik zoomt twee niveaus verder in tot zoom 18; als een cluster daar nog bestaat (bijvoorbeeld door overlappende of vrijwel identieke locaties), verschijnt een selectielijst met de onderliggende locaties zodat geen locatie onbereikbaar blijft. De klikpolicy is afzonderlijk unit-getest voor individuele marker, cluster-zoom en max-zoom-selectie. De NDW-parser bewaart nu adres en exploitant afzonderlijk zonder de bestaande adrestitel-sematiek te wijzigen.
+
+**Verificatie:** Android GitHub Actions run `40185142861` is geslaagd op codecommit `1e0e994`: `testDebugUnitTest`, `assembleDebug` en debug-APK-upload zijn groen. Een eerdere run vond twee compileproblemen (onjuiste Compose `weight`-import en verkeerde MapLibre listenernaam); beide zijn gecorrigeerd vóór deze groene run. **Toestelreview:** gebruiker heeft op 25 oktober 2026 bevestigd dat de kaartinteracties er goed uitzien en heeft daarna expliciet akkoord gegeven voor merge van PR #42. Dit is een algemene positieve toestelbeoordeling, geen afzonderlijk testbewijs voor elke externe app of maximale-zoom-randconditie. **Volgende feature:** verdere detailverrijking/favorieten of filters volgens ontwerp; publieke API/deployment blijft buiten deze PR en vereist apart akkoord.
+
+**PR #41 afgerond voor merge (25 oktober 2026):** Android CI en Read-only API CI zijn beide geslaagd op commit `80a076f`. Gebruiker bevestigde op toestel dat de clustertellingen en kleuren correct zijn en na designcorrectie dat de extra ring zonder badge er beter uitziet; op 25 oktober volgde expliciet **akkoord** voor afronding. De oplossing volgt `docs/ANDROID_DESIGN.md`: centrale EVSE-ratio, extra ring, geen tweede getal; bij onbetrouwbare data neutraal `?`. **Merge is expliciet goedgekeurd**; deployment niet aangevraagd. Clusterinteractie/zoomen en filters blijven afzonderlijke vervolgstappen.
+
+**Designcontrole PR #41 (25 oktober 2026):** na vergelijking met `docs/ANDROID_DESIGN.md` bleek de extra badge met aantal locaties rechtsboven op de clustermarker **niet conform het goedgekeurde ontwerp** (alleen extra ring, dezelfde EVSE-ratio, géén tweede getal). Gecorrigeerd: cluster gebruikt statuskleur en **één centrale EVSE-ratio** plus extra ring, **geen badge**. Bij onbekende/onvolledige informatie wordt grijs `?` getoond in plaats van een aantal laadlocaties. Onderliggende clusterberekening en fail-closed logica blijven intact. Tests aangepast. Nieuwe CI en toestelreview voor het gecorrigeerde uiterlijk volgen, vóór expliciet merge-akkoord.
+
+**Toestelreview PR #41 (25 oktober 2026):** gebruiker bevestigt dat cluster-tellingen en groen/rood/grijs-status correct werken, maar dat clusters onvoldoende visueel te onderscheiden zijn van afzonderlijke laadlocaties. Daarom hebben clusters nu een **grotere dubbele ring** met een klein **badge rechtsboven met het aantal samengevoegde locaties**; de centrale tekst blijft EVSE `x/y`, of neutraal locatieaantal bij onbekende brongegevens. Individuele markers ongewijzigd. Nieuwe Android CI en hernieuwde toestelcheck van de clusterstijl nog nodig. Niet mergen zonder expliciet akkoord.
+
+## Android clusterbeschikbaarheid — featurebranch (25 oktober 2026)
+
+**Branch:** `feature/android-cluster-availability` vanaf de naar `main` gemergede PR #40 (mergecommit `ac4d21cbd2edfdcb12fa74441b0dadcd910b8947`). PR #40 was door gebruiker op toestel goedgekeurd; de oudere vermeldingen hieronder dat PR #40 *nog niet gemerged* zou zijn beschrijven de historische PR-fase, niet de huidige status.
+
+**Implementatie:** visuele MapLibre-clusters voegen beschikbare/alle EVSE-aantallen van hun locaties op indien **alle** locatieaantallen valide zijn. Dan toont de cluster-marker bijvoorbeeld `3/6` (groen bij vrij > 0, rood bij 0 vrij). Indien één locatie onbekend/onbetrouwbaar is, of een telling ongeldig/overgelopen is, tonen we **het aantal locaties als neutraal grijs cijfer** (bijv. `4`), nooit de gedeeltelijke EVSE-som. Eén-locatie-markers blijven ongewijzigd; geen connector- als EVSE-dubbeltelling toevoegen. Tests dekken som, nul vrij, onbekend en overflow.
+
+**Nog nodig:** nieuwe CI/test/build, daarna fysieke APK-toesteltest voor groepsmarkers op verschillende zoomniveaus. Het zijn visuele clusters op basis van schermafstand; geen duurzame locaties of statusvoorspellingen. Update de status vóór review op basis van daadwerkelijk behaalde checks. Niet mergen of deployen zonder expliciet gebruikersakkoord.
+
+**Reviewgate PR #40 afgerond (25 oktober 2026):** actuele Android CI én Read-only API CI op commit `35c60b3` zijn **geslaagd**. Gebruiker heeft de opnieuw gebouwde app op toestel beoordeeld en bevestigd: **'ja ziet er goed uit'** na het verwijderen van de zichtbare `~` voor de EVSE-telling. Daarmee is de UI-smoketest op dit onderdeel akkoord. Beperking blijft: neutrale `…`-clusters, indicatieve providerbewuste bronberekening en geen garantie buiten de getoetste snapshot. **PR #40 gereed voor expliciet merge-akkoord; nog niet gemerged of gedeployed.**
+
+**UX-besluit PR #40 (25 oktober 2026):** gebruiker heeft op toestel FAS/Fastned `~0/8` gezien en met Allego (0/10 connectoren bij De Gagel; 3/10 bij Ganzenven) vergeleken. ChargeWatch blijft unieke EVSE-/gelijktijdige laadposities tonen in plaats van connectortotalen; meer connectoren dan EVSE's betekent niet automatisch meer gelijktijdig ladende auto's. Op expliciet gebruikersverzoek **vervalt de zichtbare `~`**: individuele marker toont eenvoudig `x/y`, terwijl `CountReliability.Estimated` intern behouden blijft en onbetrouwbare records `?` blijven. Clusterweergave blijft `…`. Tests zijn aangepast; nieuwe Android CI/build en hernieuwde APK-smoketest zijn inmiddels bevestigd in de meest recente reviewgate bovenaan.
+
+**CI-verificatie PR #40 (25 oktober 2026):** Android workflow run [#40181598427](https://github.com/VanHinthem/ChargeWatch/actions/runs/40181598427) geslaagd: `testDebugUnitTest`, `assembleDebug` en upload debug-APK geslaagd. Read-only API-workflow voor dezelfde PR-head geslaagd. Dit betreft de **eerste** CI-build; de latere APK-smoketest en CI zijn bevestigd in de reviewgate bovenaan. Geen merge/deploy vóór expliciete goedkeuring.
+
+## Android — providerbewuste NDW-countindicatie (25 oktober 2026)
+
+Featurebranch `feature/android-ndw-evse-count-indication` vanaf `main` na de merge van PR #39. De vorige Android-parser markeerde elke locatie met meerdere connectorcategorieën onbekend, omdat een categorie niet altijd uniek een EVSE beschrijft. Op basis van de met OCPI vergeleken NDW-snapshot (76.892/76.897 capaciteitsmatches onder de onderzochte hybride telregel) is een **conservatieve indicatie** toegevoegd:
+
+- Eén geldige categorie toont bestaande `x/y`.
+- Meerdere volledig geldige categorieën: `FAS` (Fastned) gebruikt het `(available,total)`-paar van de categorie met hoogste **totaal**; overige CPO's tellen categorieën op. Deze aannames zijn uitsluitend empirisch voor één NDW-snapshot, geen broncontract; op de kaart staat voor zulke schattingen `x/y`.
+- Ongeldige/missing categorieën, ontbrekende of strijdige party-identiteit en overflow blijven **grijs `?`**; geen gedeeltelijke of gefingeerde telling.
+- Statuskleur gebruikt de geldige indicatie; **visuele clusters blijven grijs met `…`**, zonder een onbetrouwbare groepssom.
+- Gerichte Android unit tests bijgewerkt voor FAS, overige parties, schattingslabel en fail-closed.
+
+**Afgerond volgens actuele reviewgate bovenaan:** Android CI/tests/build en toestelcontrole van de gewijzigde markerweergave. App gebruikt bij kaartmarkers nog steeds alleen live NDW GeoJSON, niet live OCPI-uid-tellingen. Locatiedetails, interactie, navigatie en fallback horen niet in deze PR. Vóór merge `docs/STATUS.md` definitief bijwerken met daadwerkelijke CI-/toestelresultaten. **Niet mergen of deployen zonder expliciet akkoord.**
+
+## Issue #38 — hybride telhypothese daadwerkelijk gevalideerd (25 oktober 2026)
+
+Gebruiker draaide `scripts/validate_ndw_evse.py` op het lokaal gedownloade NDW GeoJSON/OCPI-paar, met als uitkomst:
+- `hybrid_total_matches=76892`, `hybrid_total_differs=5`: **76.892 / 76.897 = 99,9935%** van de vergelijkbare locaties heeft een overeenkomend EVSE-totaal bij **FAS: maximum** en **overige parties: som**.
+- `hybrid_pair_matches=76876`, `hybrid_pair_differs=21`: **76.876 / 76.897 = 99,9727%** heeft ook hetzelfde vrij/totaal-paar.
+- `hybrid_available_only_differs=16`: bij 16 locaties is het totaal gelijk, maar de vrije EVSE-telling verschillend.
+- **Let op**: deze 76.897 zijn alleen gematchte locaties met geldige categorieën, geïdentificeerde EVSE's en zonder onbekende OCPI-status; eerder vielen 3.844 matched locaties af vanwege onbekende status en 122 waren unmatched. Snapshotgelijktijdigheid en representativiteit over toekomstige updates zijn niet bevestigd. De vijf capaciteitsverschillen blijven. De hybride regel is empirisch sterk maar **nog geen broncontract/garantie**, en stelt niet vast dat een EVSE gelijkstaat aan één gelijktijdig ladende auto bij bijzondere hardwareconfiguraties.
+
+**Advies voor afronding #38:** leg de onderzochte telhypothese en beperkingen vast, stop de onderzoeks-PR met testscript/fixtures en wees expliciet dat de Android-gebruikersinterface voorlopig conservatief blijft. Een afzonderlijke Android-feature kan een providerbewuste indicatie introduceren, na passende tests en UX-besluit, zonder live OCPI als bewezen referentie te suggereren. Draft PR #39 blijft open, **geen merge/deployment zonder expliciet gebruikersakkoord**.
+
+## Issue #38 / draft PR #39 — landelijke aanbiedervergelijking bevestigd (25 oktober 2026)
+
+Gebruiker heeft volledige landelijke `evse-validation.json` uit één paar NDW-downloads aangeleverd. **76.897 vergelijkbare locaties** van 80.741 matches. Capaciteitsafwijkingen bij categorielijksommen: **172**, alle **overtellingen** (103× +2, 32× +1, 22× +3, 7× +5, 5× +4, 3× +6). Verdeling parties: **FAS 167, BLK 2, ENE 1, WAT 1, LNT 1**. Per-party-analyse FAS: **181 vergelijkbaar**, **167 met meerdere categorieën**, **maximumcapaciteit 181/181 correct**, **somcapaciteit 14/181 correct**; volledige vrij/totaal-combinatie bij maximum **180/181** correct. Andere partijen tellen meestal correct met som, onder meer EFL 7.418/7.418, NUO 21.289/21.289 en ALL 8.591/8.591 capaciteit correct.
+
+**Onderzoekshypothese (niet Android-contract):** FAS maximum per categorie, elders de som. Op de geleverde snapshot zou dat **76.892/76.897 correcte capaciteiten** opleveren; vijf andere parties hebben nog afwijkingen, 3.844 locaties hadden een onbekende status en vielen buiten de comparator; ook statusversheid en de 122 unmatched gevallen vragen nuance. Comparator uitgebreid met `hybrid_total_matches/differs`, `hybrid_pair_matches/differs` en `hybrid_available_only_differs` + tests. Deze nieuwe variant moet nog op de lokale bronbestanden gedraaid worden; niet claimen dat deze uitkomsten reeds gemeten zijn. **Niet publiceren als universele EVSE-telregel** en nog geen marker-/clusterratio in Android aanpassen. PR draft, geen merge/deploy zonder expliciet akkoord.
+
+## Issue #38 / draft PR #39 — sample-afwijkingen wijzen op aanbiederafhankelijk overlap (25 oktober 2026)
+
+Gebruiker leverde `capacity_mismatches_sample` met 30 getoonde afwijkende locaties. Analyse: **28/30 zijn FAS**, daarnaast ENE (1) en BLK (1); bij alle 30 is de somcapaciteit groter dan unieke OCPI-EVSE-capaciteit. **Maximumcapaciteit klopt bij 28/30**; dit is een geselecteerde afwijkingensteekproef en dus nadrukkelijk **geen landelijke zekerheid** dat voor FAS altijd maximum juist is. Bij meerdere andere aanbieders klopt juist de som, blijkens eerdere nationale analyse.
+
+Comparator uitgebreid met `comparison_by_party`: per OCPI-party aantal vergelijkbare locaties, som-/maximum-overeenkomsten voor volledige (beschikbaar+totaal) EVSE-waarden, en separate totaal-overeenkomsten bij locaties met meerdere connectorcategorieën. Gerichte regressietest toegevoegd. Eerst op gehele lokale snapshot per-party-dekking en afwijkingen verifiëren; **geen aanbiederafhankelijke Android-heuristiek implementeren voor deze uitkomsten bekend zijn**. PR blijft draft, geen merge/deploy.
+
+## Issue #38 — gerichte diagnose capaciteitsoverlap (25 oktober 2026)
+
+Op basis van de landelijke validatie (76.725 juiste somtotalen, 172 afwijkende totalen waarvan 169 op meer-categorielocaties) is de comparator uitgebreid met `capacity_difference_by_delta` (positief = GeoJSON-som telt meer dan unieke OCPI-EVSE's; negatief = minder), `capacity_difference_by_party` en `capacity_mismatches_sample` (maximaal 30). Er is een gerichte synthetische test voor overcount toegevoegd. De resultaten op de werkelijke NDW-snapshots moeten nog lokaal worden gedraaid; er is dus **nog geen vastgestelde verdeling naar boven-/ondertelling of aanbieder**. Draft PR #39 blijft open, Android-weergave onveranderd, geen merge/deploy.
+
+## NDW EVSE vergelijking — capaciteitsafwijkingen uitgesplitst (25 oktober 2026)
+
+Nieuwe landelijke run uit gebruikersbestand: 80.741 gematchte locaties. Binnen 76.897 vergelijkbare locaties is de **som van GeoJSON-categorieën voor de totale capaciteit correct bij 76.725**, en wijkt zij af bij **172** (0,224%). Bij **15** locaties klopt de capaciteit maar niet de actuele beschikbaarheid. Van 885 locaties met meerdere categorieën hebben **716 een correcte somcapaciteit en 169 een afwijkende somcapaciteit**; alle 169 meercategorie-afwijkingen betreffen dus werkelijk de *noemer*, niet alleen een momentopname van beschikbaarheid. Dit maakt de algemene regel 'tel alle connectorcategorieën altijd op' ongeschikt als bewezen EVSE-aantal. De comparatormeting laat nog niet zien of die 169 locaties te hoog of te laag tellen. Eerst verschilrichting en de daadwerkelijke EVSE/connectorstructuur van representatieve afwijkingen analyseren. PR #39 blijft draft, geen wijzigingen aan Android-telregels en geen merge/deploy.
+
+## Issue #38 — som versus maximum met echte NDW-snapshot (25 oktober 2026)
+
+Gebruiker heeft landelijke validatie uitgevoerd met de uitgebreide comparator op dezelfde lokaal gedownloade GeoJSON/OCPI-bestanden. **80.741 gematcht**, **122 niet gekoppeld**. Van **76.897 volledig vergelijkbare locaties** kwam som van de GeoJSON-categorietellers bij **76.710 (99,76%)** overeen met de unieke OCPI-EVSE-tellers; bij **187 (0,24%)** niet. Binnen **885 locaties met meerdere categorieën**: som **716 overeen / 169 afwijkend** (80,9%), maximum **166 overeen / 719 afwijkend** (18,8%). **3.844** locaties met onbekende OCPI-status vallen buiten deze vergelijking. De som is dus verreweg de betere kandidaat maar met **169 structureel te onderzoeken meercategoriemismatches** nog geen bewezen universele telregel.
+
+De comparator onderscheidt nu expliciet afwijkingen in de **totale EVSE-capaciteit** (mogelijk overlap/bronstructuur) van afwijkingen **uitsluitend in actuele beschikbaarheid** (mogelijk verschillen tussen feed-publicatietijdstippen). Gerichte test toegevoegd. Eerst herhalen met dit extra onderscheid voordat de Android-app ratio's of clustertotalen verandert. PR #39 blijft draft, issue #38 open, geen merge/deployment.
+
+## Issue #38 — eerste echte landelijke NDW/OCPI-matching geslaagd (25 oktober 2026)
+
+Gebruiker heeft twee lokale NDW-snapshots vergeleken: **80.741 van 80.863 GeoJSON-locaties gekoppeld (99,85%)**. De initiële comparator vond 75.994 consistente categorieparen tegenover unieke EVSE-aantallen, 3.844 locaties met onbekende OCPI-status, 653 met verschillende categorieparen en 250 met een afwijkend categoriepaar; 122 waren niet gekoppeld. Deze categorieën zijn de exclusieve padverdeling van de **oude comparator**, geen bewijs voor een algoritme. Voorbeelden tonen dat het **optellen** van meerdere connectorcategorieën soms exact bij het unieke EVSE-aantal uitkomt (bijv. twee rijen 1/1 tegenover twee beschikbare EVSE's), terwijl één categoriegetal of max dan tekortschiet. Er is tevens minstens één inconsistente statusvergelijking die mogelijk door verschillende feedtijdstippen komt.
+
+Daarom is de comparator in draft PR #39 uitgebreid met afzonderlijke aggregaatresultaten voor **som** versus **maximum** van categorieparen, met aparte tellers voor locaties met meerdere categorieën, en een unit test. **Nog géén conclusie** dat sommen altijd veilig is; eerst echte totale afwijkingspercentages en datatijdstippen verifiëren. Android-weergave ongewijzigd. Geen merge/deploy.
+
+## Issue #38 — nul matches door ISO-3 landcodefilter (25 oktober 2026)
+
+Gebruiker bevestigde lokaal dat de nieuwste branch en parser actief zijn. GeoJSON-feature-ID `NL-EFL-672e052a98865f14efaf9429`, `cpo_id=EFL`, maar `country=NLD`; OCPI gebruikt `country_code=NL` en `party_id`. De matcher wees daardoor alle records voortijdig af door de foutieve directe vergelijking `NLD != NL`. Dit is gecorrigeerd met expliciete ISO-2/ISO-3-aliases en een unit test. Of de samengestelde feature-ID overeenkomt met de OCPI-ID is **nog niet vastgesteld**; opnieuw draaien en matchstatistieken inspecteren. PR #39 blijft draft, geen merge/deploy.
+
+## Issue #38 / PR #39 — bronvelden van echte NDW-bestanden onderzocht (25 oktober 2026)
+
+Gebruiker heeft beide NDW-gzipbestanden lokaal gedownload en de eerste vergelijking uitgevoerd: **80.863 GeoJSON-records en 80.863 OCPI-records; 0 matches met de oude matcher**. Oorzaak: GeoJSON properties zijn `open,cpo_id,address,country,owner_name,last_updated,operator_name,availabilities,suboperator_name`; bevatten geen `party_id` of `source_id`. Voorbeeld feature-ID is `NL-EFL-672e052a98865f14efaf9429`. OCPI bevat afzonderlijke `country_code`, `party_id` en `id`. De comparator is daarom aangepast om de GeoJSON-feature-ID als vermoedelijke `country-party-locationID` te splitsen op de eerste twee koppeltekens. Dit **moet nog bevestigd worden door de nieuwe run**: matching is een toetsbare hypothese, niet bewezen door alleen gelijke recordaantallen. Bij mismatch geen fuzzy matching en geen EVSE-claims. Test voor ID met extra koppeltekens toegevoegd. Branch `feature/38-ndw-evse-validation`, draft PR #39, geen merge/deploy.
+
+## Issue #38 / draft PR #39 — validatiescript en uitvoerpad geverifieerd (24 oktober 2026)
+
+**CI groen:** de workflow `NDW EVSE validation tests` en de bestaande `Read-only API` workflow zijn geslaagd op eerdere branchcommit. Daarnaast staat er nu `docs/NDW_EVSE_VALIDATION.md` met concrete Windows PowerShell-commando's om de twee NDW GZIP-snapshots op te halen en de vergelijking lokaal uit te voeren; `.local/ndw/` is genegeerd door Git. Vanaf deze uitvoeromgeving is directe bron-download opnieuw geprobeerd en op DNS-resolutie geblokkeerd. Een kleine bbox via de publieke NDW API kon via de beschikbare webgateway niet worden gelezen. **Geen live EVSE/GeoJSON-vergelijking is daadwerkelijk gedraaid**, dus PR #39 blijft draft en issue #38 open. Eerst op een omgeving met externe toegang een representatieve gepaarde dataset en echte identiteitsmapping vaststellen, daarna fixturevalidatie en interpretatie van telregels afronden.
+
+**Reviewoverdracht:** de verificatiehulpmiddelen staan nu in **draft PR #39** (`feature/38-ndw-evse-validation`), gekoppeld aan issue #38. Het is nadrukkelijk geen voltooide live bronvalidatie: de twee NDW-snapshots moeten nog werkelijk worden vergeleken en de veldmapping moet aan een echte GeoJSON-response worden getoetst. De extra workflow `NDW EVSE validation tests` test alleen synthetische semantiek, geen live feed. PR blijft draft; geen merge of deployment.
+
+## Issue #38 — unieke EVSE-tellingen bronvalidatie gestart (24 oktober 2026)
+
+**Featurebranch:** `feature/38-ndw-evse-validation`. NDW publiceert GeoJSON en OCPI gzip-bestanden in het Open Data Portaal; hun portal-index toont overeenkomstige publicatiemomenten (te vergelijken snapshots). De uitvoeromgeving kan de bronbestanden echter niet rechtstreeks ophalen (DNS-blokkade). Daarom is **nog geen live inhoudelijke bronvergelijking uitgevoerd** en wordt geen betrouwbaarheidspercentage verzonnen.
+
+**Opgeleverd voor reproduceerbare analyse:** `scripts/validate_ndw_evse.py` vergelijkt expliciet gekoppelde locatie-identiteiten en telt unieke OCPI EVSE-`uid`s/statussen, nooit de verschillende connectoren als aparte laadpunten. Het rapporteert overeenkomende/afwijkende GeoJSON-categorieparen en houdt onbekende EVSE-statussen apart. `scripts/tests/test_validate_ndw_evse.py` bevat gerichte synthetische controles voor meerdere connectoren per EVSE, herhaalde UIDs en schijnbaar identieke categorieparen. **Identiteitsmapping is bewust strikt** en kan nul matches opleveren wanneer de NDW GeoJSON-props andere sleutelnamen hebben; eerst daadwerkelijke recordstructuur controleren voordat een conclusie wordt getrokken.
+
+**Vervolg:** met beide live bestanden van hetzelfde publicatiemoment de analyse draaien, de concrete NDW identity properties inspecteren en matcher daarop aanpassen, resultaten/fixtures vastleggen, pas daarna bepalen of unieke EVSE-tellingen afleidbaar zijn en Android-marker-/clusterratio's wijzigen. Geen wijzigingen aan gepubliceerde Android-weergave of API en geen merge/deployment zonder gebruikersakkoord.
+
+## Android PR #37 — definitieve debug-APK op toestel bevestigd (24 oktober 2026)
+
+Gebruiker heeft de opgeschoonde Android-APK van CI-build #39 op een fysiek Samsung-toestel getest: **kaart en markers werken nog na verwijderen van technische testinterface**. Zoals verwacht verschijnen iets meer grijze individuele markers door de aangescherpte conservatieve regels voor meerdere connectorcategorieën. Dit is een succesvolle functionele rooktest, geen inhoudelijke bevestiging van unieke EVSE-aantallen. Die bronsemantiek en betrouwbare cluster-ratio's volgen in issue #38. PR #37 staat klaar voor finale beoordeling; **geen merge zonder expliciet merge-akkoord** en geen deployment.
+
+## Android PR #37 — afronding afbakening (24 oktober 2026)
+
+**Android CI #39 geslaagd** (`testDebugUnitTest`, `assembleDebug`, APK-artifact `chargewatch-debug-apk`). Toesteltest vóór de laatste conservatieve parserverandering bevestigt werkende NDW-kaart, native markers en zoomafhankelijke clustering. Diagnostische UI is verwijderd; **de definitieve opgeschoonde APK is nog niet door gebruiker op toestel beoordeeld**. Inhoudelijke EVSE-telling en cluster-ratio zijn als afzonderlijk vervolgissue **#38** uitgewerkt, inclusief reproduceerbare NDW GeoJSON/OCPI-snapshotvergelijking en acceptatiecriteria. PR #37 houdt neutrale clusters en voorzichtigere individuele cijfers; geen onbewezen EVSE-totalen. Nog te beoordelen vóór merge: uiteindelijke APK, eventuele regressies en expliciet merge-akkoord. Geen deployment.
+
+**Extra veiligheidsaanpassing:** Android markeert vanaf deze commit ook meerdere *identieke* connectorcategorie-rijen als onbekend (`?`) wanneer geen unieke EVSE-identiteit beschikbaar is. Eerder werden identieke paren onterecht als bewezen EVSE-telling behandeld. Een enkele geldige NDW-categorierij blijft zichtbaar als `x/y` (connectortype-bronindicatie, niet algemeen bewezen EVSE-aantal). Bijbehorende unittests zijn aangescherpt. Meer grijze individuele markers is dus een bewuste beperking ter voorkoming van schijnzekerheid; cluster-`…` is iets anders. Android CI #39 draait voor deze wijziging.
+
+## Android PR #37 — actuele voortgang na EVSE-broncontrole (24 oktober 2026)
+
+NDW-documentatie gecontroleerd: GeoJSON `availabilities[]` is per connectortype en bevat geen EVSE-unieke rij-ID. Een identiek `x/y`-paar bij meerdere connectortypen is op zichzelf **geen bewijs** dat dit de unieke EVSE-telling is. Openstaande stap expliciet vastgelegd in `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`: gelijktijdige GeoJSON/OCPI-snapshot vergelijken en unieke EVSE's per locatie tellen, met fixtures/tests voor CCS+CHAdeMO en gemengde statussen. Live snapshotvergelijking vanuit deze uitvoeromgeving was niet mogelijk: daarom géén ongefundeerde aggregatielogica ingevoerd. Individuele markers behouden de huidige conservatieve bronindicatie; clusters blijven neutraal (`…`). Tijdelijke knop/statusbalk en technische exception-details zijn verwijderd. Android workflow #35 was groen vóór deze documentatiestap; een nieuwe build van de opgeschoonde branch is nog op toestel te beoordelen. PR #37 niet gemerged of gedeployed.
+
+## Android PR #37 — toestelvalidatie, opschoning en tel-eenheid (24 oktober 2026)
+
+**Bevestigd op Samsung:** NDW-request en -parser leveren live locaties; native MapLibre-markers renderen, statuskleuren worden weergegeven, en de verbeterde scherm-afstandsclustering voorkomt de grote overlap. Twee toestel-screenshots tonen 425 locaties uitgezoomd en 65 ingezoomd. De diagnoseknop `Test NDW Oss` en permanente technische NDW-statusbalk zijn daarom uit de UI en ViewModel verwijderd. Tijdelijke exception-details zijn vervangen door publieksveilige foutmeldingen. Nieuwe debug-APK via Android CI opnieuw op toestel te controleren vóór merge.
+
+**Semantiek blijft een acceptatiegate:** NDW GeoJSON rapporteert beschikbaarheid per connectorcategorie en bevat géén expliciet uniek EVSE-ID per rij. Dat de gegevens actueel zijn, bewijst niet dat `available/total` precies het aantal gelijktijdig te laden auto's is. De huidige individuele ratio wordt alleen getoond bij volledig consistente bronrijen; een onafhankelijke vergelijking met de NDW OCPI EVSE-statussen (bij meerdere connectorsoorten per EVSE) is vereist voordat we dit als gevalideerde EVSE-telling of basis voor geaggregeerde cluster-ratio's gebruiken. Clusters blijven voorlopig neutraal met `…`: geen onbetrouwbare optellingen. De Open Data OCPI-feed biedt EVSE-identiteit en status voor zo'n vergelijking, maar niet voor elke viewport-pan rechtstreeks vanuit de app downloaden. Gebruik daarvoor gerichte bronvalidatie/tests. Geen merge/deploy zonder expliciete goedkeuring.
+
+## Android toesteltest — clustering visueel verbeterd (24 oktober 2026)
+
+Gebruiker heeft twee screenshots van build #30 aangeleverd: uitgezoomd rond Macharen/Teeffelen en ingezoomd in Oss. De eerdere zware overlap is aanzienlijk afgenomen. Bij uitzoomen verschijnen neutrale grijze clusters met `…`; bij inzoomen splitsen die zichtbaar in afzonderlijke groene/rode markers en enkele clusters. De test bevestigt visuele werking van de native markers en zoomafhankelijke clustering, **maar is geen inhoudelijke validatie van NDW-beschikbaarheidstellingen of definitieve UX-acceptatie**. Conform `docs/ANDROID_DESIGN.md` geen onbewezen optelling of locatie-aantal als clusterbeschikbaarheid claimen; neutrale cluster blijft zolang bronsemantiek niet vaststaat. Testdiagnostiek onderaan en knop `Test NDW Oss` nog verwijderen voor definitieve Android-MVP-acceptatie. PR #37 blijft open en ongemerged.
+
+## Android toesteltest — native markers zichtbaar, clustering verbeteren (24 oktober 2026)
+
+Gebruiker bevestigt met screenshot dat NDW-statusmarkers (groen/rood) en neutrale grijze clusters worden getekend, maar veel markers overlappen. Grijze markers met `…` zijn **clusters**, geen bewijs van onbekende beschikbaarheid (`?` is onbekend voor één locatie). Oorzaak: oorspronkelijke clustering indeelde locaties in vakken van 64 schermpixels bij markerafbeeldingen van 112 pixels. In PR #37 is dit vervangen door clustering op onderlinge schermpixelafstand (144 px), inclusief een vervolgstap om nabije clustercentra samen te voegen. Nogmaals fysieke toesteltest uitvoeren op schaal en vloeiendheid. Beschikbaarheidstellingen blijven conservatief en bronsemantiek van connectorcategorieën moet voor definitieve labels worden getoetst; CI alleen volstaat niet voor visuele goedkeuring. **Niet mergen of deployen zonder akkoord.**
+
+## Android APK — native statusmarkers + visuele clustering (24 oktober 2026)
+
+Derde toesteltest: de toegevoegde ongefilterde GeoJSON-basiscirkels blijven **onzichtbaar**, terwijl native MapLibre-testpinnen wel werken. Daarom is de niet-functionerende custom GeoJSON-rendering uit de kaartuitvoering verwijderd en zijn native MapLibre-icons ingevoerd (groen/rood/grijs met statuslabel); bij nabijgelegen punten op het scherm vormt een neutraal grijze cluster met ellipsis. Clusterlabels claimen geen geaggregeerde EVSE-/connectoraantallen. De tijdelijke `Test NDW Oss`-functie blijft tot de nieuwe toesteltest slaagt. Dit is een pragmatische weergave voor de MVP; clustering is momenteel screen-grid grouping na camera-idle en geen echte spatial query. **Nog niet op toestel gevalideerd; PR #37 blijft ongemerged.**
+
+## Android APK — GeoJSON rendering geïsoleerd met visuele fallback (24 oktober 2026)
+
+Toesteltest bevestigt: NDW levert 127 locaties in Oss en standaard MapLibre-pinnen renderen correct. De statusgekleurde GeoJSON-lagen renderen niet zichtbaar. PR #37 bevat nu een tijdelijke **ongefilterde grijze GeoJSON-cirkellaag** onder de status- en clusterlagen en een schakelbare knop **Toon/Verberg testpinnen** (standaard verborgen). Hiermee onderscheiden we: (1) bron/style rendering defect als grijze cirkels ontbreken, (2) filter/statuslaag defect als grijze cirkels wel zichtbaar zijn maar groene/rode niet. De bronsemantiek van EVSE-tellingen blijft conservatief; geen dubbeltelling. Test op toestel noodzakelijk voor acceptatie; diagnostiek verwijderen na daadwerkelijke correctie. Niet mergen/deployen zonder afzonderlijk akkoord.
+
+## Android APK — NDW-data bevestigd, MapLibre markers ontbreken (24 oktober 2026)
+
+Fysieke Android-test met knop **Test NDW Oss** meldt een positief aantal ontvangen locaties, maar er verschijnen geen markers. Daarmee zijn de NDW-request en het parsen van ten minste een aantal features bevestigd; fout ligt vermoedelijk in GeoJSON-kaartlagen, camerabereik of de coördinaten/rendering. Voor de volgende debug-APK is een **tijdelijke native MapLibre-markerdiagnose** toegevoegd (maximaal eerste 100 punten, naast bestaande GeoJSON/clusterlaag) plus de coördinaten van het eerste punt. De native annotations isoleren een probleem met GeoJSON-style layers van een camera-/coördinatenprobleem. Niet bedoeld als definitieve, schaalbare oplossing; na toesteltest gericht herstellen en debug markers weer verwijderen. PR #37 blijft geblokkeerd voor merge.
+
+## Android APK — permanente zichtbare diagnostiek voor testversie (24 oktober 2026)
+
+Tweede debug-APK liet op telefoon nog steeds geen markers én geen foutmelding zien. Daarom heeft PR #37 nu een **zichtbare statusregel** (nog geen verzoek / aanvraag gestart / NDW OK met aantal locaties / HTTP-parserfout) plus de knop **Test NDW Oss**, die rechtstreeks een vaste kleine bbox bevraagt onafhankelijk van MapLibre camera-events. Dit maakt onderscheid mogelijk tussen request-trigger, netwerk, parsing en rendering. Deze diagnostische knop is uitsluitend voor de testfase en moet vóór productie worden verwijderd. De werkelijke oorzaak is nog niet vastgesteld; **geen merge** zonder geslaagde toesteltest.
+
+## Android APK — tweede toesteltest faalt; NDW-diagnostiek toegevoegd (24 oktober 2026)
+
+Op een fysiek toestel opent correctie #1 de kaart in Oss, maar ook na zoom/pan ontbreken NDW-markers. **Oorzaak niet bewezen**: mogelijke HTTP-, parser-, of maplaagfout. PR #37 blijft geblokkeerd voor merge. Correctie #2 maakt de concrete NDW-exceptie (klasse + ingekorte oorzaak) zichtbaar in de test-APK in plaats van de generieke parser-/netwerkfout. Dit is tijdelijke ontwikkelaarsdiagnostiek, **niet voor publieke release**, en wordt verwijderd of vervangen door neutrale foutmeldingen voor productie. De openbare NDW-documentatie bevestigt bbox `minLon,minLat,maxLon,maxLat`, limiet 1 graad²/1000 features/10 requests/s. Nieuwe APK op fysiek toestel testen en de exacte foutmelding terugkoppelen alvorens bronparsing of kaartlaag gericht te herstellen. Geen merge/deploy.
+
+## Android APK — toesteltest en correctie eerste NDW-load (24 oktober 2026)
+
+**Testbevinding:** de debug-APK van PR #37 toonde op een fysiek Android-toestel alleen de basiskaart; ook na zoomen en verschuiven verschenen geen laadlocaties. Daarom is PR #37 **niet acceptabel voor merge** op basis van CI alleen. De oorspronkelijke implementatie luisterde uitsluitend naar camera-idle en riep NDW niet expliciet aan wanneer de mapstijl klaar was. De standaardcamera startte bovendien op zoom 7.2, terwijl de NDW-veiligheidsgrens bij grote viewports verzoeken weigert. De branch start nu voor de eerste toesteltest op Oss (zoom 12) en triggert ook bij het laden van de kaartstijl een NDW-verzoek voor de initiële viewport. Deze aanpassing is een hypothese over de oorzaak, **nog niet bewezen op een toestel**. Nieuwe APK installeren en verifiëren dat er daadwerkelijk NDW-markers verschijnen; anders netwerkresponse/parsing met gerichte diagnostiek verder onderzoeken. APK wordt in GitHub Actions als artifact `chargewatch-debug-apk` geüpload. Geen merge of deployment zonder akkoord.
+
+## Android MVP — projectfundament en NDW-first kaart gereed voor review (24 oktober 2026)
+
+**Feature/PR:** issue #36, branch `feature/android-ndw-map-foundation`, PR #37. Eerste Kotlin/Jetpack Compose-appfundament staat er met MapLibre-kaart, light/dark basis volgens het goedgekeurde ontwerp en directe NDW GeoJSON-datatoegang per zichtbaar kaartgebied. De kaartlaag gebruikt OpenFreeMap alleen als basemap; laadstatus komt rechtstreeks van NDW. Zoek-/filterchrome is in deze eerste feature visueel aanwezig maar nog niet functioneel. Favorieten, details/statistiekverrijking, Room/DataStore en widgets volgen in aparte features.
+
+**NDW-first gedrag:** kaartrequests worden pas na camera-idle verstuurd, 500 ms gedebounced, pending requests worden vervangen en kaartgebieden groter dan 1 vierkante graad vragen eerst verder inzoomen. Een response met 1000 features wordt als mogelijk afgekapt afgewezen. Normale pan/zoom bevat geen ChargeWatch-API-call. 429, timeout/IO en 5xx leveren een begrensde fouttoestand; de daadwerkelijke ChargeWatch kaartfallback is bewust nog niet geïmplementeerd en blijft vervolgwerk.
+
+**Veilige beschikbaarheid:** NDW `availabilities` zijn connectorcategorieën zonder bewezen unieke EVSE-ID. Categorie-totalen worden daarom nooit bij elkaar opgeteld. Een individuele marker toont alleen `x/y` wanneer alle geldige categorie-rijen exact hetzelfde paar rapporteren; bij afwijkende categorieën wordt de marker grijs met `?`. Clusters tonen in deze feature bewust een neutrale grijze ring met ellipsis in plaats van een mogelijk misleidend EVSE-/connectoraantal. Dit blijft zo totdat een veilige unieke aggregatiemethode aantoonbaar is.
+
+**Verificatie:** nieuwe GitHub Actions-workflow `Android` draait op JDK 17 / Android API 36. Gerichte unit tests voor NDW parsing, de anti-dubbeltelregel, 1000-feature gate, bbox-begrenzing en debounce/cancel zijn groen; `assembleDebug` is eveneens groen op PR #37. Toolchain is pragmatisch gepind op Android 16/AGP 8.13.2 en Compose BOM 2026.06.01 (Compose 1.11-lijn), zodat het MVP-fundament niet afhankelijk is van de Android 17 preview-SDK.
+
+**Volgende stap na expliciet merge-akkoord:** werkende kaart handmatig op emulator/toestel valideren tegen het goedgekeurde ontwerp en echte NDW-data; daarna de eerstvolgende kaartfeature kiezen (functionele filters/veilige markersemantiek en/of ChargeWatch fallback). Externe NDW-ID-routes uit PR #33 zijn nog niet apart op NAS gedeployed. Geen deployment uitgevoerd. PR #37 wordt niet gemerged zonder expliciet gebruikersakkoord.
+
+## Android app + widget — ontwerp afgerond en goedgekeurd (24 oktober 2026)
+
+**Definitieve designbeslissing:** gebruiker heeft het totale ChargeWatch Android-app-/widgetontwerp én de concept-2-appicoonuitwerking (**Stekker + statusring**) expliciet goedgekeurd. De designset staat in `docs/ANDROID_DESIGN.md` met drie UX-PNG's, icon-PNG en aanvullende SVG-schets onder `docs/design/`. De schriftelijke contractregels hebben voorrang op foutieve of fictieve details in de conceptafbeeldingen.
+
+**Volgende fase:** Android MVP via Kotlin/Jetpack Compose en daarna Glance op nieuwe featurebranches; begin met projectfundament, NDW-first kaart, statusmarkers/filters/fallback en lokale favorieten. **Technische gate:** voorkom dubbeltelling bij EVSE/connectoraggregatie in gefilterde `x/y`-markers/clusters. API-verrijking pas bij details, met onbekende kansen verborgen. Externe NDW-ID-lookup uit PR #33 is nog niet op NAS gedeployed; apart uitrollen/valideren vereist expliciete toestemming. Play Integrity, proxy-/quota-/licentiechecks blijven vóór publieke uitrol verplicht. Geen Android UI-code of NAS-deployment in de design-PR.
+
+## Appicoonontwerp expliciet goedgekeurd (24 oktober 2026)
+
+De gebruiker heeft de concept-2-uitwerking **Stekker + statusring** expliciet goedgekeurd. `docs/design/ChargeWatch App Icon Guideline Board.png` is de definitieve visuele referentie voor het appicoon; echte adaptive- en monochrome Android-assets volgen bij implementatie. De reeds gegeven goedkeuring voor het totale app- en widget-UX/UI-ontwerp blijft geldig. **PR #35 is gemerged naar `main` via mergecommit `7925c6db1fc91405ff71c68c5d1ffd389dcdf459`.** Geen UI-code of deployment.
+
+## ChargeWatch appicoon PNG gekoppeld (24 oktober 2026)
+
+De afzonderlijke concept-2-uitwerking is toegevoegd als `docs/design/ChargeWatch App Icon Guideline Board.png` en vanuit `docs/ANDROID_DESIGN.md` gekoppeld als primaire iconreferentie. De praktische Android adaptive/monochrome assets volgen bij implementatie. De icoonuitwerking is inmiddels expliciet goedgekeurd. PR #35 is gemerged naar `main`; geen deployment.
+
+## Appicoon — concept B geselecteerd (24 oktober 2026)
+
+Van drie ChargeWatch-iconrichtingen is **Stekker + statusring** gekozen: donkerblauwe achtergrond, witte stekker, groen accent en decoratieve statusring. Uitwerking tot adaptive/monochrome icon en archivering van de concept-PNG is afgerond in PR #35. Geen implementatiecode, merge of deployment.
+
+## Android UX — finale contract- en randgevallenreview afgerond (24 oktober 2026)
+
+Ontwerpcontract voor markers/clusters, filters, onbekende/stale data, offline/fallback, lege favorieten, widgetformaten en statistiekpublicatie is beschreven in `docs/ANDROID_DESIGN.md`. **Belangrijkste implementatiegate:** de NDW GeoJSON-aggregaten bevatten geen unieke EVSE-ID per connectorcategorie; voorkom dubbeltelling bij gefilterde `x/y` en clusters voordat UI-aantallen worden gepubliceerd. Drie PNG's en het designsysteem zijn geborgd in PR #35. Volgende stap is expliciete gezamenlijke goedkeuring van het **totale** Android app- en widgetdesign; daarna apart merge-akkoord. Geen UI-code of deployment.
+
+## Android designsysteem — stijlrichting gekozen (24 oktober 2026)
+
+Kleurrollen en initiële tokens, Roboto/Material 3, afgeronde componenten, consistente iconen, light/dark volgens systeeminstelling met optionele override, en toegankelijkheidsregels zijn vastgelegd in `docs/ANDROID_DESIGN.md`. Groene statusmarkers, rood voor nul vrij, grijs voor onbekend; blauw/turquoise uitsluitend voor historische bezetting, amber voor favorietster. Hex-codes blijven voorwaardelijk aan contrastvalidatie. **Volgende stap:** finale review van UX-flows, tel-eenheden, onbekende/stale data, statistiekbeschikbaarheid, scherm- en widgettoestanden. Geen definitief ontwerp- of merge-akkoord en geen UI-code/deployment.
+
+## Widgetconfiguratie PNG gekoppeld (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget UX Board.png` staat op de designbranch en wordt rechtstreeks weergegeven in `docs/ANDROID_DESIGN.md`. Het is een visuele richting: de vijfstappenwizard uit de afbeelding wordt vervangen door één scrollbaar configuratiescherm met live voorbeeld. Geen definitief totaalontwerpakkoord, merge of deployment.
+
+## Widgetconfiguratie — richting gekozen (24 oktober 2026)
+
+Eén scrollbaar configuratiescherm met live voorbeeld, selectie/volgorde van lokale favorieten en optionele grafieken, afstand en update-indicatie. Geen vijfstappenwizard. Instellingen per widgetinstantie achteraf bewerkbaar. Configuratie-PNG is als referentie toegevoegd aan PR #35; volgende ontwerptaak is kleuren/typografie/light-dark en resterende schermdetails. Geen definitief totaalakkkoord, Android-code, merge of deployment.
+
+## Widgetmock-up vastgelegd — PR #35 (24 oktober 2026)
+
+`docs/design/ChargeWatch Android Widget Showcase.png` is toegevoegd aan de designbranch en in `docs/ANDROID_DESIGN.md` opgenomen als visuele widgetreferentie. Compact (2×2), overzicht (4×2) en uitgebreid (4×3), grafieken configureerbaar en locatieactie Details/Navigeren blijven de ontwerprichting. Nog geen definitief ontwerpakkoord; geen UI-code, merge of deployment.
+
+## Android widget — configuratie en locatieactie (24 oktober 2026)
+
+Widgetconcepten 2×2, 4×2 en 4×3 besproken. Grafieken per widgetinstantie aan/uit configureerbaar; de actuele beschikbaarheid krijgt prioriteit. Tik op een widgetlocatie opent een ChargeWatch-actiemenu met **Details** en **Navigeren**. Widgetmock-up moet nog als asset in PR #35 worden opgenomen, en het totaalontwerp is nog niet goedgekeurd. Geen UI-code, merge of deployment.
+
+## Android UX — primaire PNG-mock-up geborgd (24 oktober 2026)
+
+De originele vier-schermen afbeelding `docs/design/EV Charging Station App Mockup.png` staat op de designbranch en is als **primaire visuele referentie** opgenomen in `docs/ANDROID_DESIGN.md`. De SVG is alleen een schematische aanvulling. Mock-up is een goedgekeurd uitgangspunt, nog **geen definitief totaalontwerpakkoord**. Vervolg: widgetvarianten en verdere UX-details binnen PR #35. Geen merge of deployment.
+
+## Android UX — visuele basis gekozen (24 oktober 2026)
+
+De gezamenlijke derde app-mock-up is als **voorlopig visueel uitgangspunt** gekozen voor kaart, bottom sheet, detailpagina en favorietenlijst. Mini-grafieken tonen historische bezettingspatronen; de detailpagina combineert bezetting met historische kans op minstens één vrije aansluiting, uitsluitend als databeschikbaarheid/kwaliteitsgate dit toestaat. Mock-upgetallen zijn fictief. Geen locatiebeelden; Navigeren en Street View blijven externe acties. Vervolg: design verfijnen en compacte/uitgebreide widget ontwerpen; geen definitief ontwerpakkoord of Android UI-code. Zie `docs/ANDROID_DESIGN.md`.
+
+## Android UX — externe locatieacties besloten (24 oktober 2026)
+
+Voor MVP geen locatieafbeeldingen of Google Places/Street View-fotoloads. Wel externe acties **Navigeren** en **Street View bekijken** vanaf locatieoverzicht/details; fallback bij ontbrekende Street View-dekking nog uitwerken. In ontwerpfase, geen UI-code of deployment. Zie `docs/ANDROID_DESIGN.md`.
+
+## Android app/widget UX-design — eerste besluiten gedocumenteerd (24 oktober 2026)
+
+**Ontwerpfase gestart.** Kaart is Home met geolocatie/fallback; markers en clusters tonen `beschikbaar/passend totaal` volgens filters, clusters herkenbaar door buitenring, individuele favorieten door ster rechtsboven. Filters op connector, vermogen, AC/DC en beschikbaarheid op hoofdlijnen bevestigd. Het telobject (EVSE versus connector), gedeeltelijk onbekende data en NDW-velddekking moeten nog worden uitgewerkt. Zoekbalk, bottom navigation, details en widgetvormen zijn **voorstellen, nog geen totaalontwerpakkoord**. Zie `docs/ANDROID_DESIGN.md`.
+
+**Volgende stap:** visuele kaartmock-up samen beoordelen; vervolgens details en widget ontwerpen. Geen Android UI-code, merge, NAS-deployment of publieke API-publicatie zonder afzonderlijk expliciet akkoord. NDW-externe-ID-routes zijn nog niet op NAS uitgerold.
+
+## Backend afgerond — NDW externe OCPI-lookup (24 oktober 2026)
+
+**PR #33 gemerged op main** (squashcommit `aa03a638c124726df256546a123d277b391af970`). Read-only `GET /api/v1/locations/by-ndw-id/{featureId}` en `.../{featureId}/statistics` koppelen de Nederlandse NDW GeoJSON-feature-ID aan de unieke OCPI-triple en hergebruiken bestaande detail-/statistiekresponsen. Formaatfout → 400; onbekende ID → 404; geen schema- of importerwijziging. GitHub CI **Read-only API** en **NAS Images** succesvol op de PR-head; de routes zijn **nog niet live op NAS gevalideerd en niet gedeployed**. Publicatie blijft afgeschermd totdat Play Integrity en releasegates gereed zijn.
+
+**Volgende fase is design/layout van Android-app én widget**, verplicht vóór de eerste Android UI-implementatie. Werk concrete flows en mock-ups gezamenlijk uit, leg besluiten vast in `docs/ANDROID_DESIGN.md` en vraag afzonderlijk gebruikersakkoord op het ontwerp. De PR-/CI-/statusregels blijven gelden; geen merge/deployment zonder expliciet akkoord.
+
+## Planning vastgelegd — verplichte Android app-/widget-designfase (24 oktober 2026)
+
+**Besloten volgorde:** (1) laatste read-only backendfeature: veilige NDW-ID-parser en lookup voor detailverrijking op externe OCPI-sleutel; (2) **aparte gezamenlijke design/layoutfase voor Android-app én widget, met expliciet gebruikersakkoord voordat UI-implementatie begint**; (3) Kotlin/Compose Android MVP; (4) Glance-widget op basis van hetzelfde ontwerp; (5) publiek uitrollen na Play Integrity, rate limits, proxy-/veiligheidscontroles. Designfase levert navigatieflows, schermindeling, kaart- en statuspresentatie, favorieten, widgetformaten, light/dark, toegankelijkheid en concrete mock-ups; definitieve visuele keuzes liggen nog open. Details en oplevercriteria in `docs/ANDROID_DESIGN.md`. Geen Android UI-code gestart; standaard featurebranch/PR/CI, statusupdate binnen de PR en expliciet merge-akkoord blijven gelden.
+
+**OCPI identity gate — NAS gevalideerd (24 oktober 2026):** de read-only Oss-SQL leverde 12 kandidaatrijen voor 10 unieke features. Alle 10 hebben precies één exacte `(NL,cpo_id,feature-id-rest)` match met dezelfde adressen en beschikbare/totale aantallen in de huidige catalogus (afstanden 0–0,2 m). Twee extra ruimtelijke nabijheidsmatches tussen Sportlaan 31 en Podium 1 (4,2–4,4 m) zijn terecht geen ID-matches. Merwedestraat 54: `0/1` NDW en status `INOPERATIVE` in ChargeWatch; niet-vrij mag nooit zonder meer CHARGING heten. Dit valideert de mapping **empirisch voor de tien samples**, niet als globaal gegarandeerd NDW-contract. Uitvoering door gebruiker op HINNAS; details in `docs/NDW_GEOJSON_OSS_RESEARCH.md`. Volgende stap: conservatieve ID-parser en extern-key API-contract in volgende feature, aanvullende gevallen; IP-rate limit blijft onbevestigde werkhypothese. Geen deployment.
+
+## NDW GeoJSON Oss: contractonderzoek en expliciete rate-limit-aanname (24 oktober 2026)
+
+**Onderzoeksresultaat:** `tools/ndw_geojson_oss.py` maakt een eenmalige, begrensde NDW GeoJSON-bbox-proef rondom Oss mogelijk en rapporteert geobserveerde propertynamen, maximaal tien feature-samples, ontbrekende/duplicaat-ID's en de max-1000 grens. Handleiding, open verificaties en beslissingen: `docs/NDW_GEOJSON_OSS_RESEARCH.md`. De **10 requests/s-limiet** is gedocumenteerd; **scope per publiek IP** is uitsluitend een voorlopig ontwerpuitgangspunt, geen geverifieerde NDW-garantie. Gedeelde NAT/CGNAT-IP's mogen niet worden genegeerd.
+
+**Gevalideerde Oss-steekproef:** de lokale eenmalige GeoJSON-proef (bbox `5.49,51.74,5.56,51.80`) leverde 252 features, nul ontbrekende/duplicaat-ID's en nul ongeldige features. De NAS-query vergeleek tien echte samples: tien unieke exacte externe OCPI-matches, gelijke adressen en momentopnametellingen; twee extra nabijheidskandidaten waren geen exacte matches. De interpretatie blijft beperkt tot deze steekproef: NDW geeft geen formele garantie voor het geobserveerde feature-ID-formaat. Timestampbetekenis, HTTP-headers, NDW-limietscope, breder ID-dekkingsonderzoek en externe-key-detailendpoint staan nog open. Zie `docs/NDW_GEOJSON_OSS_RESEARCH.md`.
+
+**Vervolg:** veilige NDW-ID-parser plus read-only externe sleutel-lookup en Android NDW-first kaart/fallback in volgende feature-PR('s). NDW per-publiek-IP-limiet is alleen een werkhypothese. Favorieten lokaal; Play Integrity vóór publieke API-uitrol. Geen NAS-deployment uitgevoerd tijdens dit onderzoek.
+
+## Overdracht — NDW-first Android + beveiligings-/testplan (24 oktober 2026)
+
+**Nieuwe documentatie-PR (niet gemerged):** `docs/ndw-first-security-test-plan`. Vastgelegd: Android vraagt kaartlocaties rechtstreeks op bij NDW; ChargeWatch slechts bij locatiedetail voor statistieken en bij NDW-storing als fallback. Favorieten blijven uitsluitend lokaal. Publieke API-beveiliging op basis van HTTPS, Play Integrity Standard requests met server-side Google-verificatie, IP-/capaciteitsrate limiting en read-only DB-rol. Bestaande code levert nog geen Play Integrity handhaving. **NDW-limiet per IP is niet bevestigd**, OCPI-GeoJSON identitymapping en detailvelden moeten eerst live onderzocht worden. Tests voor NDW-contract, kaart zonder serververrijking, details, fallback, lokale favorieten/widget, integriteitsverdicts, 429/proxy-IP/DB-belasting en releasegates zijn beschreven in `docs/ANDROID_NDW_SECURITY_TESTPLAN.md`. Geen code- of NAS-deployment in deze PR. Volgende taak: klein praktijkonderzoek NDW-GeoJSON rond Oss; daarna app-implementatie via PR/CI/gebruikersakkoord.
+
+## Actuele overdracht — API gevalideerd, Android volgende fase (24 oktober 2026)
+
+**GitHub:** PR #23–#28 zijn gemerged. Laatste API-hotfix PR #28: main mergecommit `3121baf7bf11ecfa548766a0190cedb777ae1be0`. De NAS Images push-run voor deze commit is geslaagd. **NAS:** gebruiker heeft de API-only image van deze merge uitgerold op HINNAS; geen collector-/databasewijzigingen. Live op 24 oktober 2026 om 12:02 UTC: `GET /api/v1/locations?q=Oss&limit=1` en `GET /api/v1/locations/67379` beide **HTTP 200**. JSON bevat `sourceUpdatedAt`, `isStale`, `feedLastObservedAt`, `feedIsStale`, EVSE-statussen, connectors en ongewijzigde OCPI-tariefdata. Hiermee is de Npgsql DateTime/DateTimeOffset HTTP 500 regressie uit PR #27 door PR #28 op de NAS verholpen.
+
+**Semantiek:** `isStale` betreft de leeftijd van de laatste bronwijziging; `feedIsStale` betreft de leeftijd van de laatste geaccepteerde landelijke poll. Een landelijke poll bewijst niet dat iedere afzonderlijke EVSE-status opnieuw bevestigd is. Onvoldoende gevalideerde historische `availableProbability` blijft `null`; de tellers zijn diagnostisch. Favorieten/eigen namen/volgorde blijven uitsluitend lokaal op Android. Geen publieke API-uitrol of authenticatiesleutels in een app.
+
+**Volgende stap:** Android-first MVP (projectfundament, kaart/zoeken, locatiedetails en lokaal opgeslagen favorieten, daarna widget) via featurebranch → PR → CI → expliciete mergegoedkeuring. Beveiliging publieke API later apart valideren vóór publieke ontsluiting. Open TODO: dagelijkse dual-volume NAS-backup, tariefpresentatie inclusief btw/contractnuance, kwaliteitsgate voor statistiekpublicatie. Geen verdere API deployment nodig voor afgeronde PR #28.
+
+## Overdracht — feed timestamp HTTP 500 hotfix (24 oktober 2026)
+
+**Live NAS-observatie na PR #27:** `GET /api/v1/locations?q=Oss&limit=1` retourneert HTTP 500. Npgsql `ExecuteScalarAsync()` geeft een `System.DateTime` terug voor `max(last_observed_at)`, terwijl `GetFeedLastObservedAt` dit direct naar `DateTimeOffset` cast (`InvalidCastException`). `fix/api-feed-observed-timestamp` zet expliciet UTC `DateTime` om naar `DateTimeOffset`. Geen database-/collectorwijzigingen. Na geslaagde CI en expliciete mergegoedkeuring: alleen nieuwe API-image op HINNAS uitrollen en zoek/detail/status testen. Workaround: oude, werkende API-image uit PR #26 (merge `dbcda4745be104b635735161a9700c8c24e30caa`) gebruiken. 
+
+## Overdracht — Android-contract dataversheid (24 oktober 2026)
+
+**Implementatie:** locatiezoekresultaten en locatiedetails bevatten naast het bestaande `sourceUpdatedAt` en `isStale` nu `feedLastObservedAt` en `feedIsStale`. De eerste twee beschrijven de leeftijd van het **bronwijzigingsmoment**; de laatste twee beschrijven de laatste landelijk geaccepteerde snapshotpoll en de algemene feed-versheid. Een landelijke poll is **geen bewijs dat iedere individuele EVSE-status opnieuw is bevestigd**. Android mag dus 'Feed gecontroleerd' tonen met de juiste nuance, niet 'Deze laadpaal is gecontroleerd'. Bij onbekende poll is de feed stale. Bestaande velden blijven voor compatibiliteit behouden.
+
+**Tests en werkwijze:** gerichte API-selftest controleert dat JSON de twee onafhankelijk invulbare indicatoren bevat. API build en PostgreSQL read-only contract moeten in PR-CI groen zijn. Volgende stap na expliciet merge-/deploymentakkoord: nieuwe API-only image uitrollen en op NAS beide endpoints inclusief velden controleren; bestaande collector, schema en lokale favorieten blijven onaangeroerd. Verdere Android-app/widget is vervolgwerk. Featurebranch `feature/android-freshness-contract`.
+
+## Overdracht — API-datakwaliteit (24 oktober 2026)
+
+**Werk:** `feature/api-data-quality`; API-kwaliteit na geslaagde interne live endpointtests. Exacte zoekplaats heeft nu voorrang boven substringmatches, `data-status` rapporteert naast `lastSuccessfulImportAt` een `lastObservedPollAt` op basis van `snapshot_poll_checkpoint` en gebruikt dit voor algemene ouderdom/stale-status. Bron-`sourceUpdatedAt` en locatie-`isStale` blijven bronleeftijd, geen oordeel over succesvolle polls. Beschikbaarheidskans is expliciet `null` zolang de landelijke statistiek volgens `docs/SPRINT3_PUBLICATION_POLICY.md` niet geschikt voor publicatie is. Samples blijven diagnostisch beschikbaar. Ruwe OCPI-tariefdetails blijven ongewijzigd; er wordt geen btw-/consumentenprijs geconstrueerd.
+
+**Verificatie:** CI API-build, selftest en role contract uitvoeren. Live API-test op NAS na geslaagde gepubliceerde nieuwe image, alleen na merge-/deploymentakkoord. Geen databank-/collectorwijzigingen en geen publieke toegang. Open latere uitbreiding: betrouwbare historische statistiekpublicatie op basis van vastgestelde criteria, eventueel afzonderlijke tariefnormalisatie en betere exacte-/postcodezoekfilters.
+
+## Overdracht — API-zoekendpoint 500 herstel (24 oktober 2026)
+
+**Geconstateerd op NAS:** `/api/v1/data-status` retourneert HTTP 200 met 82.130 locaties, 207.565 EVSE's; `/api/v1/locations?q=Oss&limit=2` retourneerde HTTP 500. API-log toont `System.IndexOutOfRangeException: Ordinal must be between 0 and 15` in `ApiDatabase.SearchLocations`. De SELECT projecteert 16 kolommen (index 0–15), maar de mapper leest de bron-timestamp op index 15 in plaats van 14, en afstand op 16 in plaats van 15. De timestamp werd fout geïnterpreteerd en afstand veroorzaakt de exception.
+
+**Herstel:** `source_updated_at` en `distance_meters` worden via Npgsql `GetOrdinal(kolomnaam)` gelezen. Geen databasewijziging. De read-only API en NAS collector blijven verder ongemoeid. CI-build en live API-test met echte data moeten de fix verifiëren. Na PR-akkoord/merge moet de nieuwe API-image gepubliceerd worden en **uitsluitend** de `api`-service worden bijgewerkt via afzonderlijke `CW_API_IMAGE_TAG`. Na uitrol: `/api/v1/locations?q=Oss&limit=2`, detail- en statistiekendpoint testen; `/api/v1/data-status` moet blijven werken. Geen publiek exposure.
+
+## Overdracht — interne NAS-API-testvoorbereiding (24 oktober 2026)
+
+**Volgende actie:** API-container als eigen GHCR-image met gescheiden CW_API_IMAGE_TAG en NAS-loopback 127.0.0.1:5088 klaarzetten, zonder bestaande collector/database te wijzigen. Featurebranch feature/api-nas-internal-deployment; geen publieke toegang. Na PR-goedkeuring/merge en aantoonbare publicatie van het API-image: NAS Compose handmatig bijwerken, API-only starten, echte locatie- en statistiekdata valideren. Geen directe SSH-toegang vanuit deze chat. Dagelijkse backup blijft apart TODO. Zie deploy/nas/README.md.
+
+## Overdracht — PR #23 read-only API (24 oktober 2026)
+
+**Read-only API afgerond:** issue #22, ontwikkeld op branch `feature/read-only-api` en aangeboden als PR #23. De interne .NET 10 GET-only API boven de bestaande PostgreSQL/PostGIS-catalogus is geïmplementeerd. Geen NAS-/publieke deployment uitgevoerd; daarvoor blijft afzonderlijk expliciet akkoord vereist.
+
+**Scope/API-contract:** `GET /api/v1/locations` voor tekst-, bbox- en nabijheidszoekopdrachten (max 200); `GET /api/v1/locations/{id}` voor locatie + EVSE + connector + actuele tarieven; `GET /api/v1/locations/{id}/statistics` voor compacte beschikbaarheidsprofielen met samplekwaliteit; `GET /api/v1/data-status` voor laatste succesvolle import, stale-indicatie en catalogusaantallen. Geen favorieten/accounts/alerts/write-endpoints; favorieten/eigen namen/sortering blijven uitsluitend lokaal op Android.
+
+**Beveiligingsgrens:** API gebruikt server-side `CW_API_CONNECTION` en eist bij startup letterlijk PostgreSQL-role `chargewatch_read`, SELECT op catalogus en géén INSERT/UPDATE/DELETE. `chargewatch_import` blijft schrijver. HTTPS-redirection, globale IP fixed-window rate limiting (120/minuut) en warning-level consolelogging zijn toegevoegd. Geen API-key, DB-password of bearer-token in Android. Google Play Integrity blijft latere pre-publicatieverdediging.
+
+**Implementatie:** nieuw project `src/ChargeWatch.Api` met bovenstaande routes, geparametriseerde Npgsql/PostGIS-queries, expliciete bronversheid, actuele tarief-JSON en compacte location/EVSE-profielen. Nieuwe workflow `Read-only API` buildt .NET 10, draait een gerichte API-selftest en bootstrapt PostgreSQL 18/PostGIS om de SELECT-only contracttabellen voor `chargewatch_read` te verifiëren. Er is geen database-/NAS-migratie nodig: de bestaande read-role en migraties 003–013 zijn voldoende.
+
+**Validatie:** PR #23 CI-run [40087351388](https://github.com/VanHinthem/ChargeWatch/actions/runs/40087351388) is **success**: .NET 10 API-build, API-selftest en PostgreSQL 18/PostGIS role-contractcheck. De laatste relevante main runtime-CI vóór deze feature was NAS Images run 40084113436 op merge-SHA `407455d912469767329fd8408325a050e28c6091`, succesvol. PR #20 en #21 waren documentatie-merges; API-feature is gebaseerd op main-SHA `7085bb13605935ce8271786487ef3d718f8af6b1`. Open operationeel TODO blijft dagelijkse automatische dubbele-volumebackup; dat valt buiten PR #22.
+
+**Operationele stand:** NAS collector draait nog op image `sha-407455d912469767329fd8408325a050e28c6091`, `CW_ENABLE_COMPACT_STATISTICS=1`, migraties 003–013. Laatst bevestigd: 82.130 locaties en 207.565 EVSE's met initiële statistiekdekking. API wordt niet op NAS uitgerold binnen deze PR zonder afzonderlijk akkoord.
+
+## Actuele overdracht — NAS compact statistics operationeel (24 oktober 2026, 10:06 UTC)
+
+**Leidend boven oudere statusregels hieronder.** PR #19 is na expliciet gebruikersakkoord met squash gemerged op main: `407455d912469767329fd8408325a050e28c6091`. De post-merge [NAS Images-run #40084113436](https://github.com/VanHinthem/ChargeWatch/actions/runs/40084113436) is groen en heeft de images gepubliceerd. Op NAS `/volume2/docker/chargewatch`, lokaal `docker-compose.yaml`, `.env` verwijst naar `CW_IMAGE_TAG=sha-407455d912469767329fd8408325a050e28c6091` en `CW_ENABLE_COMPACT_STATISTICS=1`; de collector is daadwerkelijk opgestart. DB-migraties 003 t/m 013 zijn aanwezig (008–013 op 24 oktober toegepast). De eerdere fout 23502 op `location_observation_checkpoint.continuity_valid` werd hersteld via `coalesce(...,false)` en met integratieregressie afgedekt.
+
+**Live verificatie**: na replay van bewaarde Locations-HTTP200-response met originele waarnemingstijd heeft de collector `Bulk committed: 81700 locations, 205730 EVSEs, 206436 connectors, 101478 tariffs in 00:00:48.7580088` gelogd. Een volgende PostgreSQL-controle om 10:06 UTC gaf **82.130** `charging_location`, **207.565** `evse`, **207.565** `evse_snapshot_active_hour`, **82.130** `location_snapshot_active_hour`, **0** `snapshot_unchanged_hour`: volledige initiële dekking. De 90-dagenstatistiek moet zich nog met nieuwe waarnemingen opbouwen. Er worden geen ruwe statusgeschiedenisregels opgeslagen. Een eerdere backup `backups/chargewatch-20261024T093224Z.dump` van 29 MB werd succesvol in aparte database `chargewatch_restore_test` hersteld en aantallen werden vergeleken; testdatabase kan later na bevestiging worden opgeruimd. Let op: permissies backupbestand eerder zeer ruim (`777+`), hardening als restpunt. Controleer collectorlogs en health bij vervolg.
+
+**Open**: dagelijkse automatische backup (TODO), later doorlopende operationele controles/stats/API/Android; oude statusregels hieronder over 'geen NAS-deployment' en 'PR #19 nog niet gemerged' zijn historisch en niet meer actueel.
+
+# ChargeWatch — actuele werkstand
+
+**Bijgewerkt:** 24 oktober 2026  
+**Status:** Sprints 0–4 gemerged op `main`; **eerste NAS-deployment draait op HINNAS** met drie gepubliceerde GHCR-images van squash-merge `9dc9964cc4339003bfd1f33bd39864c17615bc54` (PR #15). Database is gezond, vijf migraties toegepast en eerste volledige NDW-import gecommit. Post-import back-up en geïsoleerde SSD-hersteltest geslaagd; dagelijkse NAS-taak nog niet ingesteld of bevestigd. Geen nieuwe deployment zonder afzonderlijk akkoord.
+
+## PR #17 — compacte snapshotstatistieken (implementatie gestart)
+
+Het document `docs/COMPACT_SNAPSHOT_STATISTICS.md` beschrijft de ontwerpkeuze: ieder succesvol nieuw NDW-locatiespollmoment als waarneming, inclusief ongewijzigde feeds (ook 304), geen replay-dubbeltelling, observatiemoment leidend, afzonderlijke statuscategorieën en datakwaliteit, compacte EWMA met circa 90 dagen afnemend gewicht **zonder historische meetregels**. Eerste implementatielaag staat nu op de PR-branch: `CompactSnapshotStatistics` houdt AVAILABLE/CHARGING/BLOCKED/RESERVED/INOPERATIVE/OUTOFORDER/UNKNOWN/PLANNED/REMOVED afzonderlijk, classificeert locaties zonder UNKNOWN als bezet te misbruiken en gebruikt een per-weekslot EWMA-alpha die onder normale wekelijkse observatie een halfwaardetijd van 90 dagen geeft (~0,052484). Deze pure semantiek is toegevoegd aan `--statistics-selftest`. Opslag/poll-integratie wordt nu concreet gevalideerd. Kandidaat-migratie `008_compact_snapshot_profiles.sql` gebruikt maximaal zeven aggregaatrijen per EVSE/locatie (één per ISO-weekdag), met 24 uur in compacte arrays; dus geen poll-, uur- of 90-dagenhistorierijen. Smoke- en geïsoleerde storage/WAL-benchmark-SQL zijn toegevoegd. GitHub Actions `Compact Statistics Database` is toegevoegd en voert migratie 008, schema-smoke en opslag/WAL-meting uit op een aparte PostgreSQL 18-service met minimale geïsoleerde testtabellen; de uitkomst moet uit de betreffende run worden afgelezen. De bestaande NAS Images workflow blijft de .NET compile gate. Deze kandidaat wordt pas definitief na benchmarkreview; geen NAS-wijziging of deployment.
+
+**Geïsoleerde PostgreSQL 18 metingen, 24 oktober:** GitHub Actions `Compact Statistics Database` run 40074717451 (commit vóór de aansluitende STATUS-/testverfijning) voltooid met **success**: bootstrap, migratie 008, rollback-safe schema-smoke, benchmark. Bij 20.000 gevulde kandidaatrijen: EVSE 27.992.064 bytes (1.399,6 bytes/rij), locatie 18.890.752 bytes (944,5 bytes/rij). Extrapolatie naar 203.500 EVSE's × 7 weekdagen: **1,86 GiB**; 80.900 locaties × 7: **0,50 GiB**, samen 2,36 GiB exclusief aanvullende echte productie-overhead. Een update van 20.000 EVSE- plus 20.000 locatierijen produceerde **49 MB WAL**. Niet lineair extrapoleren als gemeten productie-WAL: benchmark heeft synthetische inhoud, geen NDW-poll en geen NASS-schijven. Wel **risicosignaal**: een volledige landelijke update elke 5 minuten zou aanzienlijk veel WAL produceren. **Gate:** geen collector-pollintegratie op dit brede updatepad vóór keuze voor betere write-amortisatie en validatie daarvan. PR #17 blijft draft; niet mergen/deployen.
+
+**PR #17 — volgende implementatielaag (24 oktober):** `SnapshotHourReducer` toegevoegd als zuivere, niet-gepersistenceerde uuraggregator. Accepteert afzonderlijke poll-ID's, houdt broncategorie en changed/unchanged-kwaliteit apart, levert pas na UTC-uurgrens één gewogen uursample en bepaalt het ISO-weekdag/uurslot in Europe/Amsterdam, inclusief beide herfst-DST-uren. Dubbeltelling in hetzelfde reducer-object wordt geweigerd; **crash-/procesoverstijgende idempotentie is nog NIET geïmplementeerd**. De nieuwe `snapshot-selftest` GitHub Actions-job compileert en voert de gerichte reken-/DST-tests uit; **PASS** op run 40074959972 (24 oktober 2026). De geïsoleerde PostgreSQL-schema/WAL-job is eveneens **PASS** op run 40074959972. De laatst gewijzigde STATUS-documentatie veroorzaakt geen runtimeverschil. Uurstate, poll-checkpoint en write-amortisatie ontbreken in de database; geen 200/304-collector-integratie of NAS-ingreep uitgevoerd. Volgende stap: DB-transacties en compacte duurzame uuraccumulatie met deduplicatie bij herstart ontwerpen en geïsoleerd testen. **Geen merge/deploy-akkoord gevraagd.**
+
+**Duurzame opslagkandidaat 009 (24 oktober):** Migratie `009_snapshot_active_hour.sql` voegt één monotone bronpoll-checkpointregel en maximaal één *actieve* uuraccumulator per EVSE/locatie toe. `009_snapshot_active_hour_smoke.sql` controleert atomair claimen van een poll, het uitsluiten van een dubbele poll-ID op hetzelfde tijdstip, en schema-invarianten met rollback. **Geïsoleerde CI groen:** run [40075317498](https://github.com/VanHinthem/ChargeWatch/actions/runs/40075317498), zowel .NET `snapshot-selftest` als PostgreSQL migratie 008/009, replay-/oudere-poll-regressies en benchmark `success`. **Nog niet aan WatchRunner/BulkImporter gekoppeld**, geen herstart-/crash-eindtot-eindvalidatie en geen landelijke writebenchmark van het nieuwe opslagpad. Architectuurgrens: dezelfde poll mag na herstart niet opnieuw tellen; statewijziging en pollcheckpoint moeten in één transactie plaatsvinden. Oude polltijden worden niet opnieuw geaccepteerd. **Geen NAS-migratie of deployment.**
+
+**Transactionele schrijflaag (24 oktober):** `SnapshotPollStore.cs` bevat nu `TryClaim` voor de monotone pollcheckpoint en `AccumulateEvse`/`AccumulateLocation` voor de huidige uurcategorieën. De aanroeper bezit één transactie; een uurwisseling zonder eerdere finalisatie resulteert in een fout en transactie-rollback, zodat geen afgerond uur wordt overschreven. Aan de SQL-smoke is een SAVEPOINT/ROLLBACK-controle toegevoegd om te bevestigen dat checkpoint en teller samen teruggedraaid worden. **Uitdrukkelijk nog géén WatchRunner-calls**: het pad zou op landelijke schaal per poll veel databasewrites opleveren; er is eerst een write-amortisatie/flushstrategie en eind-tot-eind collectorcheck nodig. CI-run [40075449338](https://github.com/VanHinthem/ChargeWatch/actions/runs/40075449338): **geslaagd**, zowel de .NET snapshot-selftest als PostgreSQL migraties/smoke met transactionele SAVEPOINT-rollback en benchmark. Geen NAS-/main-wijzigingen.
+
+**Uurfinalisatie / EWMA-migratie 010 (24 oktober):** `db/migrations/010_snapshot_hour_finalization.sql` voegt de transactionele functie `snapshot_finalize_hours` toe: verwerkt een afgerond UTC-uur naar één Nederlands ISO-weekdag/uurslot in de 008-weekprofielen, werkt per statuscategorie een 90-dagen-halvering EWMA bij en bewaart sample/changed/unchanged-aantallen. Verwerkt bronrijen worden binnen dezelfde transactie verwijderd; opnieuw finaliseren zonder actieve rij verhoogt niets. `db/tests/010_snapshot_hour_finalization_smoke.sql` controleert de eerste sample, kwaliteitscounters, dubbele finalisatie en de volgende wekelijkse update. **GitHub Actions run [40075697357](https://github.com/VanHinthem/ChargeWatch/actions/runs/40075697357): beide jobs geslaagd** (.NET en PostgreSQL migratie/test/benchmark). **Beperkingen:** oproeper moet juiste Amsterdam-weekdag en uur leveren; er is nog geen volledige collectoraanroep of landelijke schrijfbenchmark, geen crash-/DST-eind-tot-eindpad. PR #17 niet merge-ready; geen NAS-wijzigingen.
+
+**PR #17 — orchestration en tijdslotvalidatie (24 oktober):** `SnapshotHourFinalizer.CompleteBefore` leest per transactie de nog open UTC-uren vóór het volgende polluur, berekent de overeenkomstige Nederlandse ISO-weekdag/uur (inclusief DST), en roept de atomische SQL-finalisatie aan. `SnapshotPollStore.TryClaim` en finalisatie gebruiken nu dezelfde PostgreSQL transaction-scoped advisory lock om gelijktijdige pollclaims te serialiseren. Migratie 010 valideert ook server-side dat meegegeven Amsterdam-weekdag en uur overeenkomen met het werkelijke UTC-uur, zodat een verkeerd slot geen EWMA-corruptie veroorzaakt. SQL-test aangevuld met verkeerd-slot-weigering en beide wintertijd-02:00-uren. **Nog niet actief gekoppeld aan WatchRunner of BulkImporter**: schaalbelasting van per-poll updatepad en transactieorkestratie op cataloguswijzigingen moeten eerst gemeten/getest worden. Geen NAS/main-wijzigingen. CI-run [40075893640](https://github.com/VanHinthem/ChargeWatch/actions/runs/40075893640) **geslaagd**: .NET snapshot-selftest én geïsoleerde PostgreSQL-schema/finalisatie/DST-tests en benchmark.
+
+**Actieve-uur WAL-benchmark (24 oktober):** nieuwe `db/tests/011_active_hour_write_benchmark.sql` meet 20.000 synthetische EVSE- plus 8.000 locatie-counterupdates op geïsoleerde PostgreSQL 18. GitHub Actions [40076164854](https://github.com/VanHinthem/ChargeWatch/actions/runs/40076164854): .NET-selftest en geïsoleerde schema-/benchmarkstappen uitgevoerd. De CI-job logt **7.898 kB WAL voor 28.000 updates** (~288,8 B/update); extrapolatie naar 284.400 actieve assets = **78,3 MiB per vijfminutenpoll** en **0,92 GiB/uur voor 12 polls** (zonder catalogusimport, autovacuum, andere WAL). Test bevat geen NAS-data of werkelijke NDW-feed; cijfers zijn aannames/extrapolaties, geen productieobservatie. **Besluit:** het brede per-poll-`SnapshotPollStore.Accumulate*` schrijfpad niet activeren: bij ongewijzigde feed kan één volledige landelijke herhaling nog steeds veel WAL veroorzaken. Volgende stap: veranderingsgestuurde of sterk geamortiseerde duurzame counters ontwerpen zonder ontbrekende waarnemingen, historie of onveilige restart-state; pas daarna HTTP200/304-koppeling. PR blijft draft en NAS blijft ongemoeid.
+
+**Write-amortisatiebenchmark 012 (24 oktober):** `db/tests/012_hourly_batch_wal_benchmark.sql` toegevoegd aan geïsoleerde GitHub Actions. Run [40076366798](https://github.com/VanHinthem/ChargeWatch/actions/runs/40076366798) **beide jobs succesvol**. Op 20.000 synthetische EVSE-uurcounters gaven 12 afzonderlijke updates **64 MB WAL** tegenover één mathematisch equivalente update van **5.573 kB WAL**: **11,85× minder WAL**. De test controleert gelijke categorietellingen en changed/unchanged-kwaliteit na alle twaalf waarnemingen. **Cruciale beperking:** dit is een schrijfkostenvergelijking, geen crashveilige buffering of volledige NDW-poll. Alleen geheugenbuffering is geen acceptabele oplossing wegens verlies bij procesuitval; vóór activering is durable batch-checkpointing of een bewezen veilige eventvrije alternatieve opslag nodig, met retry-/power-lossvalidatie. Per-poll full-write pad blijft uit; PR #17 draft, NAS ongemoeid.
+
+**Crashveilige 304-compressie — kandidaat migratie 011 (24 oktober):** `snapshot_unchanged_hour` bewaart hooguit één open UTC-uurregel per bron met snapshot-SHA256, eerste/laatste observatiemoment en pollteller; geen individuele pollhistorie. `SnapshotUnchangedHourStore.Record` accepteert uitsluitend een nieuwe succesvolle pollclaim in dezelfde database-transactie en telt een 304 op bij gelijkblijvende SHA/uur. Een uurwisseling of gewijzigde SHA wordt bewust geweigerd totdat de vorige teller tegen de **juiste oude catalogussnapshot** is verwerkt: géén stilzwijgende overschrijving. SQL-regressie controleert telleropbouw, boundedness en rollback. **Nog incompleet:** duurzame verwerking/flush van dit gecomprimeerde aantal naar EVSE-/locatieprofielen vóór een HTTP200-cataloguswissel, 200/304 WatchRunner-integratie en hersteltests; dit is dus nog geen werkende productie-statistiekensync. Geïsoleerde GitHub Actions [run 40076843932](https://github.com/VanHinthem/ChargeWatch/actions/runs/40076843932): **beide jobs groen**; .NET-compilatie/zelftests en PostgreSQL migratie/smoke/benchmark, inclusief regressies voor uurwissel en hashwijziging. Nog géén end-to-end collector-/flushvalidatie. PR draft; NAS niet aangeraakt.
+
+**Transactionele setgerichte 304-flush (24 oktober):** migratie `012_snapshot_unchanged_flush.sql` en adapter `SnapshotUnchangedHourFlusher` toegevoegd. De functie verifieert dat de wachtende 304-buffer-SHA overeenkomt met de gecommitte NDW-catalogus én de door de aanroeper verwachte hash. Vervolgens verhoogt zij in bulk per EVSE en locatie de desbetreffende uurstatuscategorie met `poll_count` en verwijdert pas daarna de bronbuffer; rollback is atomair en herhaalde flush zonder buffer telt niet dubbel. Onjuist bron-SHA of niet-afgeronde oude uurcounters leiden tot een fout. Geïsoleerde [GitHub Actions-run 40077042446](https://github.com/VanHinthem/ChargeWatch/actions/runs/40077042446) is voor .NET en PostgreSQL-test **geslaagd**. **Belangrijk:** deze functie schrijft één keer per flush over alle catalogusassets, niet per 304-poll. `WatchRunner` en `BulkImporter` zijn nog NIET aangesloten: correcte transactiescope, echte 200/304-volgorde, crash-herstel en landelijke throughput moeten nog worden geïmplementeerd en getest. Nooit 200-catalogus overschrijven vóór flush van de vorige hash; niet activeren/deployen. PR draft.
+
+**PR #17 200-voorpublicatie-integratie (24 oktober):** SnapshotCatalogTransition.cs wordt optioneel aangeroepen in BulkImporter vóór catalogus-upserts, binnen dezelfde database-transactie, uitsluitend met geverifieerde Locations-fetchtijd en CW_ENABLE_COMPACT_STATISTICS=1. Standaard uit; geen NAS-wijziging. Openstaand: HTTP 304-only WatchRunner-flow, vastleggen van nieuwe 200-waarnemingen, realistische end-to-end rollback- en prestatietests. NIET merge-ready.
+
+**PR #17 HTTP 304 route (24 oktober):** Opt-in `SnapshotUnchangedPollRecorder` met transactionele bron-SHA controle, vorige-uur flush/finalisatie en `SnapshotUnchangedHourStore.Record`; `WatchRunner.Download` registreert nu ook voor een succesvolle HTTP 304 het echte observatiemoment, en `Refresh` roept deze recorder uitsluitend aan als `CW_ENABLE_COMPACT_STATISTICS=1`. Iedere nieuwe HTTP-respons krijgt een eigen poll-ID; bronhash is geen poll-ID. Het eerdere HTTP 200-prepublicationpad staat eveneens achter die flag. **Standaard UIT**, geen deploy of NAS-wijziging. Het 200-pad registreert nog geen eigen nieuwe statuswaarneming; CI compileert, maar volledige HTTP-mock+crash/retry+landelijke load moeten nog komen. CI-run [40077594310](https://github.com/VanHinthem/ChargeWatch/actions/runs/40077594310): **.NET-selftest en geïsoleerde PostgreSQL-check beide geslaagd**. Dit verifieert compileerbaarheid, maar nog niet het complete HTTP-collectorpad. PR blijft draft.
+
+**PR #17 HTTP200 statuswaarneming (24 oktober):** migratie `013_snapshot_changed_hour.sql` registreert per geverifieerde HTTP200 de statuscategorie van EVSE's en locaties setgericht na de catalogus-upserts, binnen de reeds bestaande importtransactie; de poll wordt daarbij met `SnapshotPollStore.TryClaim` geclaimd. `db/tests/013_snapshot_changed_hour_smoke.sql` controleert een AVAILABLE→CHARGING-wissel en twee afzonderlijke changed-feed-samples. Geïsoleerde CI [40077784012](https://github.com/VanHinthem/ChargeWatch/actions/runs/40077784012): **.NET en PostgreSQL groen**. Beide HTTP200/304-integraties blijven standaard uit via `CW_ENABLE_COMPACT_STATISTICS` en PR draft. Resterend: echte HTTP mock-integratie, volledig transactieherstel/crash/retry-scenario's, bronidentiteit over process-herstarts en schaal/prestatie bij 200-changes. Geen NAS-/main-wijzigingen.
+
+**PR #17 transitie-/rollbackregressie (24 oktober):** `db/tests/014_snapshot_transition_rollback_smoke.sql` test setgericht de keten 2× 304 (oude SHA) → flush → 200-statuswissel + nieuwe SHA → rollback naar savepoint → dezelfde overgang opnieuw. Verifieert dat oude buffer/catalogus na fout terugkomen en dat retry exact 2 oude AVAILABLE + 1 nieuwe CHARGING waarneming oplevert zonder dubbele telling. Geïsoleerde GitHub Actions [40077920874](https://github.com/VanHinthem/ChargeWatch/actions/runs/40077920874) beide jobs **groen**. Dit simuleert een afgebroken databasetransactie, **niet** proceskill, HTTP mock, reële crash tussen HTTP-response en transactionele verwerking, of langdurige landelijke import; die tests blijven open. Featureflag uit; draft, geen NAS-/main-wijziging.
+
+**PR #17 HTTP-mock en herstel over databaseverbindingen (24 oktober):** `WatchRunner.SelfTestHttp` test met een lokale `HttpMessageHandler` een echte 200-gzip-download, een daaropvolgende conditionele 304 met afzonderlijk `FetchedAtUtc`, cache-integriteit, en afwijzing van een ongeldige 200 zonder cachevervanging of achterblijvend pending-bestand. Deze selftest draait mee met `--statistics-selftest`. `db/tests/015_snapshot_restart_setup.sql` en `_verify.sql` worden in **aparte psql-processen/verbindingen** uitgevoerd: een gecommitte 304-buffer wordt in de volgende sessie geflusht, een nieuwe 200-status wordt geregistreerd, en committed EVSE-counters worden gevalideerd. CI [40078138163](https://github.com/VanHinthem/ChargeWatch/actions/runs/40078138163) beide jobs **geslaagd**. Dit is een HTTP-contracttest plus sessiegrens, **geen** complete collectorproceskill, geen HTTP-server met volledige echte schemaimport en geen gemeten NAS-throughput. Featureflag blijft standaard uit en PR draft; geen merge/deploy.
+
+**PR #17 stale-cache-herstelbescherming (24 oktober):** Bij de opt-in HTTP 304-route berekent `WatchRunner` nu SHA-256 van het daadwerkelijk gebruikte lokale Locations-cachebestand; `SnapshotUnchangedPollRecorder.Record` accepteert het bronpollmoment pas als die hash overeenkomt met de gecommitte `ndw_snapshot_checkpoint`-SHA in dezelfde transactie. Dit beschermt tegen de crash-window waarin een nieuwe HTTP200-catalogus al in PostgreSQL is gecommit maar de nieuwe cache nog niet is gepromoveerd. Bij een mismatch wordt de 304-registratie geweigerd (geen fictieve waarneming). De basis HTTP-selftest controleert nu ook de cachefingerprint. Na een aanvankelijke C#-plaatsingsfout is de vergelijking ná het uitlezen van de databasehash gezet. De geïsoleerde [CI-run 40078341622](https://github.com/VanHinthem/ChargeWatch/actions/runs/40078341622) is **groen** voor de .NET-selftests en de PostgreSQL-schema-/benchmarkjob. **Open:** expliciet herstel/refetch bij mismatch en end-to-end geautomatiseerde crash-window-test; een afwijzing alleen herstelt de cache nog niet. Featureflag standaard uit, geen merge/NAS-deploy.
+
+**PR #17 automatisch herstel bij stale HTTP304-cache (24 oktober):** Bij mismatch tussen SHA-256 van de lokale Locations-cache en de gecommitte PostgreSQL catalogus weigert de opt-in recorder de 304 en doet `WatchRunner.Refresh` nu onmiddellijk een **onvoorwaardelijke HTTP200-herdownload** (zonder If-None-Match/If-Modified-Since). Vervolgens loopt de gewone transactionele `BulkImporter.Run`; lokale cachepromotie gebeurt pas na succesvolle import. Een onverwachte 304 op de onvoorwaardelijke recovery wordt geweigerd. De HTTP-selftest controleert de ontbrekende validators en dat een recovery-download de cache niet vóór import vervangt. CI [40078574940](https://github.com/VanHinthem/ChargeWatch/actions/runs/40078574940): **.NET en PostgreSQL beide groen**. **Nog open:** echte proceskill-/restart-E2E met de volledige importdatabase, retry-identiteit en nationale performancemeting; standaard uit via featureflag, draft, geen merge/NAS-deployment.
+
+**PR #17 echte HTTP200-sampler loadbenchmark (24 oktober):** `db/tests/016_changed_feed_function_benchmark.sql` voert de daadwerkelijke functie `snapshot_record_changed_hour` uit binnen een teruggerolde transactie met 20.001 synthetische EVSE's en 8.001 locaties. CI [40078792662](https://github.com/VanHinthem/ChargeWatch/actions/runs/40078792662) **beide jobs groen**. PostgreSQL 18 GitHub-run rapporteert **413,9 ms** voor de SQL-aanroep en **9.040 kB WAL**; alle EVSE- en locatierijen hebben exact één teller. Dit is **geen** benchmark van de volledige BulkImporter of van werkelijk 203k/80k op de NAS. Op schaal wordt nog niets geactiveerd: `CW_ENABLE_COMPACT_STATISTICS` standaard uit. De SQL-seed vereiste `OVERRIDING SYSTEM VALUE` voor de geïsoleerde identity-tabellen (gecorrigeerd). Open voor merge: echte proceskill/herstart-run, volledige landelijke importbelasting, bestendig pollidentiteits-/responsecommitcontract. PR draft; geen NAS-wijziging.
+
+**PR #17 deterministische HTTP200-pollidentiteit (24 oktober):** `BulkImporter` gebruikt bij compact-statistics-claim niet langer een willekeurige GUID maar een ID samengesteld uit de geverifieerde Locations-SHA256 en oorspronkelijke UTC-observatietijd in ticks. Hierdoor blijft de claim stabiel bij een importer-retry met dezelfde response en oorspronkelijke timestamp; een nieuwe succesvolle download (ook met dezelfde bytes maar ander observatiemoment) blijft een afzonderlijke waarneming. `db/tests/017_poll_replay_guard.sql` controleert dat het herhalen van dezelfde checkpointclaim de teller niet verhoogt. CI [40078977998](https://github.com/VanHinthem/ChargeWatch/actions/runs/40078977998): beide jobs **groen**. Beperking: het originele 200-response-observatiemoment wordt nog niet duurzaam tussen proceskills bewaard; dus dit bewijst nog geen exactly-once across volledige nieuwe downloads/herstarts. Ook de 304-route gebruikt voor ieder werkelijk antwoord een verse GUID. Default featureflag uit, PR draft, geen NAS-/main-wijzigingen.
+
+**PR #17 durable HTTP200 response journal / process-restartpad (24 oktober):** `SnapshotPendingDownloadJournal` bewaart maximaal één geverifieerde Locations HTTP200-pending gzip met SHA-256, oorspronkelijke UTC-observatietijd, ETag en LastModified in een atomair gepromoveerd JSON-journalbestand naast de cache; géén pollhistorie. Bij start van de volgende `WatchRunner.Refresh` wordt dit bestand eerst hergebruikt, inclusief originele tijd voor de deterministische pollclaim. Bij mislukte import blijft pending gzip+journal bewaard; na geslaagde import volgt eerst cachepromotie, daarna journalverwijdering. Als een crash precies tussen promotie en journalverwijdering optreedt, herkent `Load` de gepromoveerde cache aan de bewaarde SHA en ruimt de journalreferentie op. Selftests controleren nieuw uitlezen, corruptieafwijzing, promotie-crashvenster en cleanup. [GitHub Actions 40079202109](https://github.com/VanHinthem/ChargeWatch/actions/runs/40079202109): **.NET en geïsoleerde PostgreSQL beide groen**. Dit is een persistente replayoplossing met in-process selftests, **niet** een daadwerkelijk gedode en opnieuw gestarte collector met echte grootschalige database. Opt-in `CW_ENABLE_COMPACT_STATISTICS=1` blijft standaard UIT, PR draft; geen merge/NAS-deployment. Open: afzonderlijke proceskill-E2E, bronserververanderingen tussen replay en volgende polling, landelijke full-importprestatie, nalezen journal na schijfcrash/FSYNC-semantiek.
+
+**PR #17 echte OS-proceskilltest (24 oktober):** CI voert nu in de `snapshot-selftest` job een afzonderlijk .NET-proces uit dat één pending HTTP200-journal met oorspronkelijke UTC-tijd aanmaakt en open blijft. GitHub Actions stuurt expliciet `SIGKILL` (`kill -9`) nadat het journal is aangemaakt; daarna leest een vers .NET-proces het journal/pending bestand en controleert exact de oorspronkelijke observatietijd en inhoud. [Run 40079348624](https://github.com/VanHinthem/ChargeWatch/actions/runs/40079348624): **beide jobs groen**, inclusief de daadwerkelijke proceskill/herstarttest. Deze validatie bestrijkt uitsluitend het *journal en de herstart van een nieuw .NET-proces*, niet een gekilde echte `--watch`-collector die een volledige catalogus tegen de database importeert. Die volledige import-E2E en power-loss/fsync blijven open. PR draft, flag uit, geen NAS-/main-wijzigingen.
+
+**PR #17 eerste volledig geïntegreerde `--watch-once` HTTP200/304 CI (24 oktober):** Nieuwe geïsoleerde `.github/workflows/compact-watch-integration.yml` met `postgis/postgis:17-3.5`, het echte `db/init/001_schema.sql` en alle migraties `003` t/m `013`; een lokale HTTP-server `db/tests/018_watch_http_fixture.py` serveert NDW-achtige gzipped Locations+Tariffs. Twee opeenvolgende **werkelijke** `dotnet run ... --watch-once`-processen tegen dezelfde persistente PostGIS-database bewijzen: 1e HTTP200 importeert catalogus en telt precies één changed-feed EVSE-waarneming, 2e HTTP304 telt één duurzame pending unchanged-poll zonder extra cataloguswijziging. [GitHub Actions-run 40079578686](https://github.com/VanHinthem/ChargeWatch/actions/runs/40079578686): `full-watch-flow` **groen**. CI heeft dus voor het eerst de gehele `WatchRunner`→`BulkImporter`→PostgreSQL-route uitgevoerd. **Niet** bewezen: echte `SIGKILL` midden in volledige import en hervatten, 200→304→gewijzigde 200 met cataloguswissel en uurslot, volledige nationale dataset/NAS-throughput en filesystem-stroomverlies. Default `CW_ENABLE_COMPACT_STATISTICS` blijft uit; PR #17 draft, geen merge/deployment.
+
+**PR #17 geïntegreerde 200→304→gewijzigde 200-verificatie (24 oktober):** `db/tests/018_watch_http_fixture.py` ondersteunt nu een omschakelbare source-versie v1 AVAILABLE → v2 CHARGING, met nieuwe ETag. De echte `--watch-once` collector is drie maal na elkaar tegen het volledige geïsoleerde PostGIS-schema uitgevoerd: 200 importeert AVAILABLE, 304 buffert één onveranderde observatie, gewijzigde 200 flusht de 304 vóór catalogus-publicatie en telt de CHARGING-status. De assertions eisen catalogusstatus CHARGING, lege pending buffer, EVSE-changed_count=2, unchanged_count=1, AVAILABLE categoriecount=2 en CHARGING=1. [GitHub Actions 40079710860](https://github.com/VanHinthem/ChargeWatch/actions/runs/40079710860): **full-watch-flow geslaagd**. Geen featureactivatie in productie; resterend: echte SIGKILL midden in BulkImporter en end-to-end recovery, volle nationale importbenchmark en stroomverlies-bestendige journaling. PR draft, geen merge of NAS-deployment.
+
+**PR #17 echte `SIGKILL` midden in `BulkImporter` en herstart (24 oktober):** test-only opt-in hook `CW_TEST_PAUSE_BEFORE_COMMIT_FILE` pauzeert na alle catalogus-/statistiekwrites maar vóór `tx.CommitAsync()`. Geïsoleerde volledige PostGIS `--watch-once`-workflow doorloopt eerst AVAILABLE-200, daarna een 304; bij gewijzigde CHARGING-200 wordt de **daadwerkelijke collector** (rechtstreekse `dotnet ...ChargeWatch.Importer.dll`, geen launcher) met SIGKILL beëindigd vóór commit. CI verifieert dat de oude AVAILABLE-catalogus, changed_count=1 en pending 304-buffer intact zijn door transactionele rollback, terwijl het geverifieerde HTTP200-gzip-journal aanwezig blijft; volgende collectorstart replayt dat journal en verifieert uiteindelijk CHARGING, categorie AVAILABLE=2 / CHARGING=1, changed=2 / unchanged=1 en een lege buffer. [GitHub Actions 40080079436](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080079436) **full-watch-flow groen**. Dit bewijst procescrash vóór commit, niet stroomverlies- of filesystem-fsync-garanties. Open voor review: landelijke *volledige* importbenchmark en journal power-loss-contract. Featureflag standaard UIT, PR draft, geen merge/NAS-deployment.
+
+**PR #17 nationale volledige-importbenchmark (24 oktober, validatie loopt):** `db/tests/019_national_fixture.py` genereert een synthetische gzip-feed van 80.777 locaties, 203.114 EVSE's en evenveel connectors zonder historie. `.github/workflows/compact-national-benchmark.yml` laadt het volledige PostGIS-schema/migraties in een geïsoleerde CI-database; meet een reguliere `--bulk` volledige import en daarna een geverifieerde HTTP200 via echte `--watch-once` met opt-in compact-statistics aan. De tweede stap controleert 203.114 EVSE- en 80.777 locatie-statistiekregels met exact één changed-poll. De directe --bulk-import telt bewust geen nieuwe statussamples omdat er geen geverifieerd HTTP-observatiemoment bestaat. [Volledige workflow 40080333728](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080333728) **draait nog; geen meetresultaat of groenclaim totdat CI klaar is**. Extrapoleer deze GitHub-hostprestaties niet rechtstreeks naar de NAS. PR blijft draft, feature standaard uit, geen deployment.
+
+**PR #17 nationale volledige-importbenchmarks afgerond (24 oktober):** De gesimuleerde 80.777 locaties / 203.114 EVSE / 203.114 connectors zijn daadwerkelijk geïmporteerd met compleet PostGIS-schema. [Isolated run 40080294208](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080294208) slaagde: 21 seconden wall-clock (`BulkImporter` 15,6s) voor eerste `--bulk`. [Volledige run 40080333728](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080333728) slaagde eveneens: eerste bulk 22 seconden; daarna **geverifieerde HTTP200-route plus compacte counters** 19 seconden wall-clock (`BulkImporter` 18,2s), met exact 203.114 EVSE- en 80.777 locatie-statistiekregels met changed_count=1. Twee fasen verschillen in database-warmte en taken (herimport versus eerste insert), dus 22 versus 19 seconden zijn **geen betrouwbare percentage-overheadvergelijking**. Alles in GitHub CI, niet NAS; echte livefeed/tarieven en stroomverlies/fsync blijven productiegates. Feature standaard uit en PR draft; geen merge/deploy.
+
+**PR #17 journal-schijfduurzaamheid aangescherpt (24 oktober):** vóór het publiceren van een pending HTTP200-journal wordt de volledige gzip-download nu met `FileStream.Flush(flushToDisk:true)` gesynchroniseerd; het tijdelijke JSON-journal wordt eveneens geflusht naar schijf voordat `File.Move` het atomair naast de cache publiceert. Selftest dekt ook een onafgemaakt `.tmp`-journal dat nooit als gepubliceerde response mag gelden. [CI 40080596753](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080596753) **.NET-selftests/SIGKILL-journal en PostgreSQL beide groen**. Dit verkleint crashrisico, maar garandeert niet de duurzaamheid van directory-entry rename of storage-writecache bij volledig stroomverlies; filesystem-/NAS-verificatie blijft een expliciete operationele gate. Standaardfeatureflag UIT; PR draft, geen merge/NAS-deployment.
+
+**PR #17 crash na DB-commit vóór cachepromotie getest (24 oktober):** naast de al geslaagde `SIGKILL` vóór commit heeft de volledige PostGIS+`--watch-once`-integratietest nu een opt-in testmarker `CW_TEST_PAUSE_AFTER_COMMIT_FILE` in `WatchRunner`, na `BulkImporter.Run` maar vóór `File.Move` van de geverifieerde gzip. De lokale HTTP-fixture kent een v3/INOPERATIVE-response. CI stopt de echte collector met `SIGKILL`, bevestigt dat catalogus INOPERATIVE en changed_count=3 **al gecommit** zijn, controleert dat het oorspronkelijke pending-journal blijft bestaan, herstart met dezelfde response en verifieert dat changed_count=3, unchanged_count=1 en buffer leeg blijven (geen dubbeltelling); journal wordt verwijderd. [Compact Statistics Watch Integration 40080765393](https://github.com/VanHinthem/ChargeWatch/actions/runs/40080765393): **groen**. Beide hoofdcrashvensters (vóór en na DB-commit) zijn nu end-to-end op geïsoleerde CI gecontroleerd. Nog niet bewezen: fysiek stroomverlies, directory-fsync/storagecontroller, prestaties op NAS/live NDW. Featureflag standaard uit, PR draft, geen merge/NAS-deployment.
+
+**PR #17 postpromotie-pre-state herstel gefixt (24 oktober):** Review vond een resterend crashvenster na succesvolle databasecommit én gzip-cachepromotie, maar vóór `refresh-state.json`: oude ETag/Last-Modified konden op volgende start nog gebruikt worden. `WatchRunner` verwijdert het pending-response journal daarom nu pas **ná** geslaagde `SaveState`; bij opstarten controleert `SnapshotPendingDownloadJournal.RecoverPromoted` de gepromoveerde gzip tegen journal-SHA, herstelt ETag/LastModified in refresh-state, schrijft deze en ruimt daarna journal op. Selftest controleert herstel van HTTP-validators; SIGKILL-journaltest en geïsoleerde PostgreSQL zijn groen in [40081029497](https://github.com/VanHinthem/ChargeWatch/actions/runs/40081029497); de volledige HTTP200→304→200 collector + beide proceskillwindows opnieuw groen [40081029547](https://github.com/VanHinthem/ChargeWatch/actions/runs/40081029547). Geen garantie voor fysieke power-loss/fsync van directory. Default opt-in uit, draft, niet mergen/deployen zonder gebruikersakkoord.
+
+**PR #17 eindreview / merge-gate (24 oktober 2026):** de volledige GitHub PR-diff omvat 40 gewijzigde bestanden, circa 2.693 toevoegingen en 6 verwijderingen. De geïsoleerde CI-tests voor compacte snapshotstatistieken (migraties, rollback, monotone poll-identiteit, 90-dagen profielen, 200/304), collector-PostGIS-integration met SIGKILL vóór/ná commit en nationale schaal (80.777 locaties/203.114 EVSE's) zijn uitgevoerd. Tijdens code-review is één functioneel risico gevonden en verholpen: na een **nieuwe HTTP200** met ontbrekende `ETag` of `Last-Modified` mogen verouderde validators niet uit de vorige state geërfd worden. Hetzelfde geldt voor de promotieherstelroute; ontbrekende nieuwe validators worden nu bewust `null`. [CI snapshot 40081319922](https://github.com/VanHinthem/ChargeWatch/actions/runs/40081319922) en [collector integration 40081319923](https://github.com/VanHinthem/ChargeWatch/actions/runs/40081319923) **groen**; nationale rerun [40081319917](https://github.com/VanHinthem/ChargeWatch/actions/runs/40081319917) nog in uitvoering bij deze statusupdate. **Mergeadvies:** functioneel geschikt voor review door gebruiker onder standaard-UIT featureflag, maar PR blijft **draft / geen onvoorwaardelijk productie-GO** zolang NAS filesystem/power-loss gedrag niet beoordeeld en rollout/rollbackafspraken niet geaccepteerd zijn. Geen ruwe pollhistorie, geen NAS-deployment, geen merge zonder expliciet akkoord. Test-only pauze-hooks staan in productiebinaries maar werken alleen als zowel de featureflag als de expliciete `CW_TEST_PAUSE_...` omgevingsvariabelen zijn ingesteld; voor productie moeten deze variabelen afwezig blijven. Rest: expliciete deployment-/rollbackchecklist, eventueel NAS acceptance in opt-in testomgeving na gebruikersakkoord, en specifieke regression voor afwezigheid van responsevalidators als extra kwaliteitscontrole.
+
+## Prioriteiten en open TODO's — na merge PR #16
+
+**Hoogste prioriteit:** PR #17 — compacte, snapshotgebaseerde EWMA-statistieken per statuscategorie (geen historische meetregels; afnemende invloed ongeveer drie maanden). Semantiek/EWMA-kern en kandidaat-opslagmigratie 008 zijn geïmplementeerd. Volgende stap: landelijke write-amortisatie ontwerpen/benchmarken (49 MB WAL per 40k brede rijupdates); daarna pas poll-integratie voor zowel HTTP 200 als 304 ontwerpen en bouwen. Houd EWMA-update op basis van uursamples of bewezen poll-normalisatie: alpha voor één wekelijkse sample mag niet bij elke 5-minutenpoll toegepast worden. Expliciet merge-/deploy-akkoord blijft vereist.
+
+**TODO (uitgesteld):** dagelijkse dual-volume NAS-back-up instellen via Taakplanner met het al handmatig geteste `backup-dual-volume.sh`. Eén dump naar SSD volume 2 en geverifieerde mirror naar HDD volume 1; test geplande taak onder het echte account en foutsignalering. Daarna pas retentie van 3 back-ups per volume inschakelen en controleren. **Taakplanner en retentie staan nog uit.** Dit is geen blokkade voor de merge; er is geen automatische planning of NAS-deployment in PR #16.
+
+**Afgerond:** collector/database draaien; vijf migraties; NDW-import; handmatige SSD/HDD-back-up en beide geïsoleerde hersteltests. Testdata is opgeruimd.
+
+## NAS-overdracht en backupbeheer (PR #16 — gemerged overzicht, 23 oktober)
+
+**Door gebruiker bevestigd:** `chargewatch-db-1` gezond en `chargewatch-collector-1` draaiend; migraties 003–007 geregistreerd; eerste import: **80.838 locaties, 203.366 EVSE's, 1 voltooide import**. Collector-staging rapporteert daarnaast 204.069 connectoren en 101.368 tarieven; databaseaantallen hiervoor nog niet bevestigd. Docker-volumes `chargewatch_pgdata` en `chargewatch_ndw-cache` bestaan. De eerste opzettelijk afgebroken import is transactioneel niet gecommit; daarna is een import geslaagd.
+
+**Back-upomvang:** pre-import 48 KB, na import 24 MB (operator met `du -h`); 3 dagelijkse archieven zijn bij huidige omvang circa 72 MB, maar groei door metingen verwacht. **Back-upstatus:** pre-import `chargewatch-20261023T153609Z.dump` aangemaakt en archive-index gevalideerd. Post-import back-up **aangemaakt en archive-index gevalideerd**: `chargewatch-20261023T154023Z.dump` (operatorlog 23 oktober 2026 15:40 UTC). Restore naar geïsoleerde database op NAS **geslaagd**: `pg_restore --exit-on-error` naar `chargewatch_restore_check` en gecontroleerd 80.838 locaties, 203.366 EVSE's, 1 afgeronde import en 5 migraties. Testdatabase en tijdelijke restorebestanden door gebruiker opgeruimd (23 oktober 2026). Dagelijkse NAS Task Scheduler-taak **nog niet ingesteld** en retention **niet ingeschakeld**. Gebruiker kiest **dubbele opslag**: één dagelijkse `pg_dump` op SSD `/volume2/docker/chargewatch/backups`, daarna checksum-gecontroleerde kopie naar HDD `/volume1/chargewatch/backups`, drie dagelijkse archieven per volume. HDD-map **aangemaakt** en post-import archive `chargewatch-20261023T154023Z.dump` van volume 2 naar volume 1 **gekopieerd en SHA-256-identiek gecontroleerd** (`f2f3de7988c96a1df5fa312d18bfe01154f6cf0a5ac8cf53ac5e21c82f0572ff`). HDD-hersteltest is inmiddels geslaagd (zie hieronder); Taakplanner en retentie zijn nog **niet ingeschakeld**. Script `deploy/nas/scripts/backup-dual-volume.sh` toegevoegd in PR #16: één dump, gecontroleerde HDD-kopie, lock, retentie standaard uit (`CW_ENABLE_RETENTION=1` pas na validatie). Eerste handmatige scriptuitvoering stopte vóór backup wegens onjuist veronderstelde Compose-locatie. Werkelijke bestanden: `/volume2/docker/chargewatch/docker-compose.yaml` en `/volume2/docker/chargewatch/.env`; script voor `docker-compose.yaml` aangepast en daarna handmatig op NAS succesvol getest. Runbook: `deploy/nas/README.md`. Bewaar secrets uitsluitend in lokale NAS-`.env`. Wijzigingen via PR met expliciet merge-akkoord; geen automatische NAS-deployment.
+
+
+**Handmatige NAS-test 23 oktober 2026:** dual-volume back-upscript geslaagd: chargewatch-20261023T160338Z.dump aangemaakt op SSD, gespiegeld naar HDD en identieke SHA-256 bevestigd (2f53b05a2b738cb5dfe6cff347e24fb0c6154fc72bdf9255fc117179b413065b). Retentie blijft uit. HDD-hersteltest vervolgens geslaagd; Taakplanner nog open.
+
+**HDD-hersteltest 23 oktober 2026:** de gespiegelde `chargewatch-20261023T160338Z.dump` vanaf volume 1 als tijdelijke kopie teruggezet naar geïsoleerde `chargewatch_hdd_restore_check`. `pg_restore --exit-on-error` gaf geen fouten; gecontroleerd: **80.839 locaties, 203.368 EVSE's, 6 voltooide imports en 5 migraties**. Deze latere counts zijn verenigbaar met doorlopende import. Testdatabase en tijdelijke kopie zijn volgens gebruiker opgeruimd; dagelijkse NAS-planning en retentie nog niet actief.
+
+
+**Statistiekdiagnostiek NAS 23 oktober:** `evse_poll_hour_coverage`: 268.646 uurregels, 134.841 unieke EVSE's, 236.451.460 kandidaatdekkingsseconden over UTC-uren 15:00 en 16:00. `location_hour_accumulator`: slechts 13 regels, 8 unieke locaties en 6.087 dekkingsseconden tussen UTC-uren 14:00–16:00. Dit verschil vereist inspectie van locatie-aggregatielogica en filters; beide tabellen zijn niet zonder meer gelijkwaardig. Geen claims over betrouwbare publieke statistieken; collector laten draaien, diagnose read-only.
+
+
+**Locatie-diagnose:** 80.884 `location_observation_checkpoint` en 203.457 `evse_observation_checkpoint`, maar slechts 13 `location_hour_accumulator`. Volgens `docs/SPRINT3_STATISTICS.md` is locatie-uurdekking bewust streng: alle EVSE's binnen een locatie moeten synchroon consistente oude/nieuwe bronmomenten (<15 min), onveranderde statusklasse en geen UNKNOWN hebben. Daardoor is zeer lage locatie-uurdekking plausibel; nog geen bewijs van een bug, evenmin voldoende dekking om publieke locatiekansen te tonen. Geen productie-ingreep.
+
+## NAS-images / PR #15 — afgerond
+
+PR #15 is gemerged op `main` als `9dc9964cc4339003bfd1f33bd39864c17615bc54`. GHCR-images zijn aantoonbaar door de NAS gedownload en gestart (volgens operatorlogs). Eerdere PR-only buildvalidatie: GitHub Actions `NAS Images` run 39975985714, drie jobs succesvol; die PR-run publiceerde zelf geen images. Runbook vereist geen Git-checkout of imagebuild op NAS.
+
+## Actuele Sprint 4-overdracht
+
+**Opgeleverd:** gescheiden NAS Compose (PostGIS 18 + .NET 10 NDW watcher), persistente volumes voor database en NDW-cache, geïsoleerde maintenance-container voor migraties en back-ups, `.dockerignore`, Docker runtimefix en runbook in `deploy/nas/README.md`. De collector controleert Locations iedere 5 minuten en Tariffs ieder uur. `docs/SPRINT3_PUBLICATION_POLICY.md` blijft gelden: geen publieke historische percentages/voorspellingen.
+
+**Lokaal gevalideerd op `chargewatch-s4test`:** Compose-config en Docker-build PASS; schone databasebootstrap en migraties 003–007 PASS, herhaling SKIP; databasegebruikers en tabelrechten correct; custom-format backup en herstel op een aparte lege database (20 tabellen, 5 migraties); landelijke import van 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven; databasegegevens behouden na containerherstart; automatische watcher herhaaldelijk succesvol met HTTP304 skip én HTTP200 bulkcommit (laatste 31,7s). Geen NAS-test uitgevoerd.
+
+**Nog nodig voor NAS-deployment:** controle NAS CPU/architectuur/capaciteit, vaste volumes en backupmap/retentie, secrets, restore van echte landelijke data, herstart-/monitoringcontrole en expliciet akkoord voor installatie. De lokale testcollector kan nog draaien onder `chargewatch-s4test`; deze is geen NAS-productiecollector. Geen auto-deployment of merge van nieuwe werkzaamheden zonder akkoord.
+
+## Sprint 4 — historisch validatielog (archief, niet de actuele status)
+
+
+
+**Lokale acceptatietests afgerond (23 oktober):** doorlopende `collector` log toont 304/no-op (`NDW source unchanged (304); database import skipped`), gevolgd door nieuwe Locations 200 (18.503.434 bytes) en `Bulk committed` na 31,706 s. Hiermee zijn automatische vervolgcheck, skip bij ongewijzigde data, en succesvolle volgende landelijke import bevestigd. Samen met geïsoleerde clean bootstrap + migraties, herhaling/idempotentie, rechtenaudit, databasebackup/schema-restore, Docker-build, twee one-shot imports en DB-herstart/persistentie is lokaal functioneel gevalideerd. **NAS CPU/architectuur, volume-/backup-pad, feitelijke restore van landelijke data, retention en beschikbaarheid na NAS-herstart niet getest. Geen NAS-deployment; PR #14 niet gemerged.**
+
+
+**Continu collector-import bevestigd 23 oktober:** gebruiker stuurde vervolglog: `Staged: 80836 locations, 203362 EVSEs, 204065 connectors, 101368 tariffs` gevolgd door `Bulk committed ... in 00:00:39.8587096` in `chargewatch-s4test-collector-1`. Continue worker start/execute/commit gevalideerd; **een volgende 5-minuten-HTTP poll is nog niet zichtbaar/bevestigd**. NAS nog niet gedeployed.
+
+
+**Continue watcher smoke 23 oktober:** `docker compose -p chargewatch-s4test ... up -d collector` startte collector (`Up`) naast `db` (`healthy`). Log: Locations HTTP200 18.502.405 bytes, Tariffs HTTP304, `NDW source changed; running transactional bulk import`. **De commit van deze lopende import en tweede 5-minuten-poll nog niet bevestigd**; die moeten nog worden geverifieerd. Geen NAS-deployment.
+
+
+**DB-persistentie bevestigd 23 oktober:** geïsoleerde `chargewatch-s4test` PostgreSQL-container herstartte en werd weer `healthy`; tellingen bleven identiek vóór/na restart: 80.836 locaties, 203.362 EVSE's, 101.368 tarieven, 5 migraties. Nog open: doorlopende watcher-runtime kort observeren en NAS-deploymentafspraken/backup-retentie; geen NAS-installatie.
+
+
+**Tweede live smoke 23 oktober:** bijgewerkte Docker-image met `libgssapi-krb5-2` bouwde succesvol (8,8s); `collector --watch-once` gaf Locations 200 (18.497.996 bytes), Tariffs **304 cachehit**, en committe 80.836 locaties / 203.362 EVSE's / 204.065 connectoren / 101.368 tarieven in 31,43s. Eerdere GSSAPI-fout niet meer zichtbaar. Cachehergebruik en tweede import geslaagd; databasecontainer-herstart/persistentie en ononderbroken `--watch` loop **nog niet** getest. Geen NAS-deployment.
+
+
+**Live NDW Docker-smoke geslaagd 23 oktober:** geïsoleerd `chargewatch-s4test` `collector --watch-once` downloadde Locations (18.496.453 bytes) en Tariffs (4.151.815 bytes), bulktransaction `committed` na 38,2s: 80.836 locaties, 203.362 EVSE's, 204.065 connectoren, 101.368 tarieven. Tijdens import verscheen niet-fatale Linux GSSAPI-loadfout `libgssapi_krb5.so.2`; Dockerfile bijgewerkt om `libgssapi-krb5-2` te installeren, **nog niet opnieuw gebouwd/getest**. Hierna: image herbouw, HTTP304/herstart en persistentie controleren, runtime status op DB; géén NAS-deployment.
+
+
+**Restore bevestigd 23 oktober:** na maintenance entrypoint-fix gaf `pg_restore --exit-on-error --no-owner --no-acl` naar apart `chargewatch_restore_test` zonder fouten; controle telde **20 tabellen en 5 schema_migration-regels**. Databasebackup en schema-/migratierestore op lege testdatabase gevalideerd; nog GEEN herstel van echte landelijke datarijen en nog geen NAS-deployment. Volgende: collector-smoke en persistentie/herstart.
+
+
+**Restore-fix 23 oktober:** gebruiker maakte `chargewatch_restore_test` aan, maar `maintenance -c pg_restore ...` startte onbedoeld de standaard `postgres:18` server-entrypoint, met fout `Database is uninitialized and superuser password is not specified`. Er is geen restore uitgevoerd; fout `schema_migration does not exist` volgde logisch. `maintenance.entrypoint` nu expliciet `/bin/sh` en NAS-runbook-commando's aangepast. **Opnieuw restore testen na git pull; herstel nog NIET bevestigd.** Bestaande primaire test-DB niet gewijzigd.
+
+
+**Back-up gevalideerd 23 oktober:** `maintenance /bin/sh /scripts/backup.sh` op `chargewatch-s4test` leverde `/backups/chargewatch-20261023T142735Z.dump` op, `pg_restore --list` PASS. Werkelijke restore naar aparte database nog niet getest. Geen NAS-deployment.
+
+
+**Tabelrechten bevestigd 23 oktober:** gebruiker controleerde 20 `public` tabellen in `chargewatch-s4test`: importer INSERT op alle applicatietabellen, reader SELECT op applicatietabellen en géén INSERT voor reader. `schema_migration`: importer INSERT=false, reader SELECT=false (verwacht; importer heeft SELECT via migratie 003). `spatial_ref_sys` is PostGIS-extensietabel. Nog te verifiëren: afzonderlijke PostgreSQL backup + volledige restore naar geïsoleerde database, collector smoke, herstart/persistentie. Geen NAS-deployment.
+
+
+**Rollen gecontroleerd 23 oktober:** geïsoleerde `chargewatch-s4test` DB heeft `chargewatch_owner` (login, superuser, createdb), `chargewatch_import` en `chargewatch_read` (login, geen superuser/createdb). Tabelrechten nog niet getest. Volgende actie: SELECT-/INSERT-rechten functioneel toetsen, backup/restore op afzonderlijke DB. Geen NAS-deployment.
+
+
+**Idempotentie bevestigd 23 oktober:** gebruiker draaide `/bin/sh /scripts/migrate.sh` opnieuw op geïsoleerde `chargewatch-s4test` PostgreSQL 18; alle migraties 003–007 rapporteerden `SKIP (already applied)`, eindresultaat `Migration pass completed.` Geen NAS-actie. Vervolg: DB-rollen, backup en daadwerkelijke restore-test.
+
+
+**Gevalideerd op Windows Docker (23 oktober):** geïsoleerd Compose-project `chargewatch-s4test` heeft verse PostGIS 18 database als `healthy` gestart. Maintenance migration runner bootstrapte `003_statistics` inclusief `schema_migration`, sloeg 003 bij vervolgcontrole over en paste 004–007 foutloos toe; eindmelding `Migration pass completed.` Eerder `compose config --quiet` PASS en collector-image build PASS (6,1s). Open: herhaalde migratierun/idempotentie, DB-rollen, echte pg_dump/pg_restore naar aparte testdatabase en collector-smoke. **Geen NAS-deployment.**
+
+
+**Bootstrapreview 23 oktober:** `db/init/001_schema.sql` maakt basistabellen, `db/init/002_roles.sh` DB-rollen. `schema_migration` wordt pas gemaakt in `db/migrations/003_statistics.sql`; daarom NAS-migratierunner gecorrigeerd om op een verse database eerst 003 transactioneel te draaien. SQL-parameters voor versiechecks op veilige stdin-route gezet; shellscripts expliciet via `/bin/sh`. **Nog geen runtime-test op een verse geïsoleerde Docker-database.** Voor test eigen Compose-projectnaam gebruiken zodat bestaande Docker-/benchmarkvolumes onaangeraakt blijven.
+
+
+**Validatie 23 oktober:** gebruiker bevestigde `docker compose ... config --quiet` PASS. Eerste `build collector` faalde tijdens `dotnet publish --no-restore` door een Windows-only NuGet fallback package folder in meegkopieerde `obj/project.assets.json`. `.dockerignore` toegevoegd om `**/obj/` en `**/bin/` uit Linux-buildcontext te weren. **Herbouw na fix bevestigd: `build collector` PASS in 6,1 s (image `chargewatch-collector:latest`)**; geen database/collector gestart.
+
+
+**Branch:** `feature/sprint4-nas-data-collector`. **Nog geen merge of NAS-deployment.** Eerste werkblok: `deploy/nas/Dockerfile`, `deploy/nas/compose.yaml`, `.env.example` en `deploy/nas/README.md` toegevoegd. Daarnaast on-demand `maintenance` service en `deploy/nas/scripts/migrate.sh` (schema_migration-guard + versie-skip + transactie per migratie), `backup.sh` (pg_dump custom archive, TOC-validatie) toegevoegd. Aparte PostGIS 18 database en persistente `pgdata` / `ndw-cache` volumes, geen hostpoorten; bestaande .NET 10 `--watch`-importer met 5-minuten Locations en 60-minuten Tariffs. Dit is voorbereid in GitHub; imagebuild, Compose-configcheck, migraties/roles op een lege Postgres-volume, back-up en daadwerkelijk herstel en NAS-resources **nog niet getest**. Volgende actie: op Windows geïsoleerd Compose-config + imagebuild verifiëren, migratie-init en databaserechten inspecteren, back-up/restore proefdraaien en daarna pas expliciet NAS-deploymentakkoord vragen. PR #14 blijft draft. Bestaande Windows DEV blijft ongemoeid. Geen API, Android of publieke statistieken in deze sprint.
+
+## Actuele overdracht
+
+**Sprint 3 afgerond op 23 oktober 2026.** De statistiekfundering, migraties 003–007, watcher-provenance, kandidaat-snapshotdekking en kwaliteitsregels staan op `main`. De migraties zijn uitsluitend toegepast op de lokale geïsoleerde `chargewatch_statistics_test`; op NAS is nog geen database of importer ingericht. Zie `docs/SPRINT3_REVIEW.md` en `docs/SPRINT3_PUBLICATION_POLICY.md`.
+
+**Volgende prioriteit: Sprint 4 — NAS Data Collector.** Doel: zo snel mogelijk betrouwbare, continue NDW-data verzamelen op de NAS, onafhankelijk van Windows DEV. Bouw een persistente PostgreSQL/PostGIS Docker-database met bewaarbeleid/back-ups en de ChargeWatch .NET importer/watch-service die ca. elke 5 minuten Locations checkt en periodiek tarieven ververst. Voeg beperkte health-/stalenessbewaking toe, database-migraties zonder bestaande historie weg te gooien, en veilige herstart. Begin met architectuur/configuratie en minimale featurebranch + PR; test lokaal/ACC waar mogelijk. **Voor NAS-deployment eerst gebruiker expliciet laten akkoord geven**, inclusief volumes, credentials en impact. Geen API of Android nodig om dataverzameling te starten.
+
+**Datakwaliteit:** bron-`last_updated` kan lang oud zijn; kandidaat-snapshotdekking is geen gegarandeerde fysieke uptime. Historische vrij-kansen, 90-daagse uptime en vrijkomvoorspellingen niet publiek tonen totdat werkelijke data en kwaliteitscriteria voldoende zijn. Bestaande bron-EWMA en nieuwe pollkandidaatdata blijven gescheiden.
+
+**Bevestigde eindvalidaties Sprint 3:** .NET 10 build 1,2s; 3 watcher-scenario's PASS; 10 poll-integraties PASS; SQL-overflow-guard PASS + rollback; UTC-uurverdeling 120+180s PASS; nationale synthetische imports 31,8s/29,4s op 80.825 locaties/203.328 EVSE's in geïsoleerde testdatabase. Benchmarkdatabase bleef read-only. Geen productierun.
+
+## Sprint 3 — historisch voortgangslog (archief, niet de actuele status)
+
+**Sprint 3 gereed voor gebruikersreview (23 oktober; NIET gemerged):** gebruiker bevestigde de laatste `dotnet build src/ChargeWatch.Importer/ChargeWatch.Importer.csproj` op .NET 10 succesvol in **1,2 s**. De laatste 3 watcher-integraties en 10 poll-regressies slaagden; SQL overflow-guard gaf `PASS: overflow rejected with check_violation` met rollback; UTC-uursegmentatietest eerder geslaagd; landelijke synthetische imports 31,8 en 29,4 s. Publicatiebeleid `docs/SPRINT3_PUBLICATION_POLICY.md`: alleen intern statistiekfundament, **geen publieke historische percentages of vrij-komvoorspellingen**. PR #12 blijft draft tot expliciete gebruikersgoedkeuring, waarna pas merge overwogen wordt; deployment apart. Geen andere open geclaimde testacties.
+
+
+**Laatste code-reviewcorrecties 23 oktober (watcher/poll-regressies geslaagd; overflow-test geslaagd):** `SnapshotPollCoverage` slaat overlappende intervallen met >3600s nu niet langer stilzwijgend over: schema-CHECK veroorzaakt fout en transactionele rollback. `ObservationCheckpoints` valideert nu dat de SQL-splitmarker exact eenmaal voorkomt en de checkpoint-upsert uitsluitend in fase 2 ligt. `db/tests/007_poll_overflow_guard.sql` toegevoegd: rollback-only SQL-controle op `check_violation`. Gebruiker bevestigde `test_sprint3_watcher_provenance.py` (3/3 PASS) en `test_sprint3_poll_coverage.py` (10/10 PASS, +608 kandidaatseconden); de laatste build is vervolgens expliciet bevestigd als geslaagd (1,2 s). Gebruiker bevestigde daarna `007_poll_overflow_guard.sql`: BEGIN, DO, ROLLBACK en NOTICE `PASS: overflow rejected with check_violation`. Geen migratie, geen merge/deployment. Voordat PR #12 mergeklaar is: expliciete review van huidige historische methode als uitsluitend intern statistiekfundament, geen publieke voorspelling.
+
+
+**Publicatiebeleid vastgesteld 23 oktober:** `docs/SPRINT3_PUBLICATION_POLICY.md` bepaalt dat Sprint 3 alleen intern statistiekfundament oplevert. Geen historische vrij-kans, 90-daagse uptime, exacte duurhistogrammen of vrijkomen-voorspelling tonen totdat echte tijdgespreide NDW-dekking, methodeconsistentie en kwaliteitsdrempels zijn gekalibreerd. Actuele catalogus/status/bronversheid blijft de v1-basis. Geen willekeurige numerieke publicatiedrempels vastgezet. Open voor merge: gedocumenteerde behandeling van >3600s overlap (nu silently skipped), fasecontract-/code-review en regressie op laatste code; daarna expliciete gebruikersreview. Publicatiebesluit is documentair; **geen API/UI/schema aangepast en niets uitgerold**.
+
+
+**Reviewcorrectie 23 oktober (lokaal gevalideerd; tien PASS):** `SnapshotPollCoverage` vereist nu bij een nieuwe dataset-SHA ten minste één echte EVSE-bronstatus- of `last_updated`-wijziging (of nieuwe EVSE) op feedniveau; uitsluitend nieuwe gzip-header of locatiemetadata kan geen kandidaatdekking meer creëren. De integratietest is aangepast: tweede snapshot vernieuwt één EVSE-brontimestamp; extra metadata-only negatief scenario. Deze controle is **geen** onafhankelijk bronbewijs per onveranderde EVSE. Gebruiker bevestigde `python tools/test_sprint3_poll_coverage.py` met tien PASS, inclusief +610 kandidaat EVSE-seconden op tweede snapshot, metadata-only geen coverage, HTTP304 replay, >15min-gap, statuswissel, teruglopende source time, ontbrekende/terugkerende EVSE en stale unchanged status. De build is niet apart gerapporteerd in dit bericht. Testbenchmark met alleen andere gzip-header moet nu nul nieuwe kandidaatdekking opbouwen (na separate delta-meting). Draft PR #12; niet mergen of deployen.
+
+
+**Versheidsfilter kandidaatdekking toegevoegd en lokaal getest 23 oktober (9 checks PASS):** `SnapshotPollCoverage` vereist nu bij beide snapshot-eindpunten een NDW-brontimestamp maximaal 24 uur oud en niet meer dan 5 minuten in de toekomst, naast bestaande status-, timestamp-regressie- en gapvoorwaarden. De grens is een voorlopig expliciet kwaliteitsbeleid, niet een garantie op live EVSE-telemetrie; bestaande catalogus/EWMA blijven onaangetast. `tools/test_sprint3_poll_coverage.py` vernieuwt positieve fixture-timestamps dynamisch en test extra oude ongewijzigde statussen (geen coverage). **Gebruiker bevestigde `test_sprint3_poll_coverage.py`: alle negen PASS, inclusief `PASS stale unchanged source timestamps: no coverage`; build niet apart gerapporteerd in deze beurt.** De nationale benchmark met gewijzigde gzip-header blijft ongeschikt als bewijs van onafhankelijke EVSE-verversing. Geen merge/publicatie.
+
+
+**Read-only kandidaatdekkingsaudit uitgevoerd 23 oktober:** gebruiker rapporteerde `evse_poll_hour_coverage`: 187.901 EVSE-uurregels / EVSE's, 62.386.732 cumulatief gedekte seconden, 45.722.564 beschikbaarheidsseconden, **0 onmogelijke rijen**, **0 volledig gedekte uren**, alle rijen in UTC-uur 2026-10-23 12:00. 187.899 regels <15min, één 15–30min, één 30–45min. Poll-checkpoints 203.328; 15.427 onbekende status, 0 missende timestamps, 0 future, 64.486 brontimestamp ouder dan 24h, 24.154 ouder dan 7d, 13.091 ouder dan 30d. De gegevens weerspiegelen synthetische imports; dit is geen historisch uptimebewijs. Nog open: freshness policy en semantiek van dataset-snapshot versus individuele bronverversing. Geen merge/publicatie.
+
+
+**Review na nationale benchmark (23 oktober):** 31,8s en 29,4s doorvoer voor 80.825 locaties/203.328 EVSE's is bevestigd. Nieuw: read-only audit `db/tests/007_poll_coverage_quality_readonly.sql` (nog niet gedraaid), plus kwaliteitsbevindingen in `docs/SPRINT3_REVIEW.md`: verschillende gzip-SHA's bewijzen geen nieuwe bronobservatie (benchmark varieerde alleen header), oude NDW-brontimestamps kunnen nog kandidaatdekking genereren, cumulatieve uurdekking kan bij >3600s stilzwijgend een segment overslaan, en EWMA blijft op bestaande bronklok. **Sprint 3 nog niet mergeklaar: eerst audit uitvoeren en versheidsbeleid/coverage-correctheid vaststellen.**
+
+
+**Landelijke performanceharness uitgevoerd (23 oktober; geslaagd):** `tools/benchmark_sprint3_national_poll.py` serveert de bestaande landelijke `data/ndw-current/locations.json.gz` via lokale HTTP-server, voert twee afzonderlijke watcher-imports uit op uitsluitend `chargewatch_statistics_test`, meet beide wall-clocktijden en telt EVSE-pollcheckpoints en kandidaatdekkingsseconden. Tweede gzip krijgt alleen andere header-mtime/SHA, decompressie-identieke broninhoud: test throughput, niet nieuwe broninformatie of voorspelkwaliteit. Test wijzigt gesimuleerde 5-minuten-checkpointtijd in geïsoleerde database; vereist `--execute`. `chargewatch_benchmark` blijft ongemoeid/read-only. Gebruiker bevestigde fase 1: 31,8s (bulk 29,144s), fase 2: 29,4s (bulk 28,134s); beide 80.825 locaties, 203.328 EVSE's en 204.031 connectoren. Na afloop 203.328 EVSE-pollcheckpoints en **cumulatief** 62.386.732 kandidaat-covered seconds in hergebruikte testdatabase. De cumulatieve waarde is GEEN geïsoleerde benchmark-delta. Beide imports binnen 5-minuten-cadans qua verwerkingsduur, geen bewezen end-to-end live 5-minuten-scheduler of productie-SLA. Nog review van dekking, schema/performance en mogelijk publish-besluit. Geen merge/deployment.
+
+
+**Resterende gerichte tests uitgevoerd (23 oktober; geslaagd):** `tools/test_sprint3_poll_coverage.py` toetst nu ook verdwijnende EVSE (geen coverage) en terugkerende EVSE (geen overbrugging). `db/tests/007_poll_utc_hour_split.sql` toetst deterministisch UTC-uurgrens 10:58→11:03: precies 120 seconden in 10:00-uur en 180 in 11:00-uur. Dit laatste is een SQL-segmentatiecontracttest en **nog geen volledige end-to-end uurgrens-importtest**. Gebruiker bevestigde volledige `test_sprint3_poll_coverage.py`: 8 PASS-regels (inclusief ontbrekende/terugkerende EVSE) en `007_poll_utc_hour_split.sql`: BEGIN / DO / ROLLBACK zonder fouten, dus 120+180s segmentatiecontract geslaagd. Resterend: landelijke performance/review en expliciete beslissing over snapshotkandidaatdekking versus gepubliceerde EWMA. Geen migratie, merge of deployment.
+
+
+**Aanvullende poll-regressies uitgevoerd 23 oktober, alle zes geslaagd:** `tools/test_sprint3_poll_coverage.py` valideert nu ook een fetchgap van 20 minuten (geen coverage), wijzigingen van alle fixture-EVSE-statussen (geen coverage), en teruglopende bron-`last_updated` (geen coverage). Na elk scenario worden checkpointtijden uitsluitend in `chargewatch_statistics_test` aangepast voor snelle reproduceerbaarheid. Bestaande eerste snapshot/positieve dekking/304-replay blijven. **Gebruiker bevestigde uitvoer:** PASS eerste checkpoint, PASS tweede ongewijzigde snapshot (+608 kandidaat EVSE-seconden), PASS HTTP304 replay, PASS >15-minuten-gap, PASS statuswijziging, PASS teruglopende brontimestamps. Exacte UTC-uurgrenzen, verdwenen EVSE's, meerdere achtereenvolgende snapshots op landelijke schaal en publicatiecriteria blijven nog open.
+
+
+**Opeenvolgende Locations-snapshots test uitgevoerd 23 oktober; geslaagd:** `tools/test_sprint3_poll_coverage.py` simuleert lokale HTTP200 eerste en tweede Locations-download met verschillend gzip/SHA, controleert eerste EVSE-pollcheckpoint, simuleert vervolgens 5 minuten verloop door de timestamps **uitsluitend in chargewatch_statistics_test** vijf minuten terug te zetten, valideert positieve (max. 1800) kandidaat EVSE-seconden en geen herhaling na HTTP304. Script doet synthetische imports en verandert testcheckpoint-timestamps; nooit in benchmark/productie draaien. Gebruiker bevestigde: PASS eerste snapshot + EVSE-checkpoints; PASS tweede snapshot +608 kandidaat EVSE-seconden; PASS HTTP304 replay zonder extra seconden. +608 is testuitkomst en geen bewijs dat iedere EVSE precies 300 s heeft opgebouwd (echte runtiming van beide calls speelt mee). Nog open: statuswisselingen, >15min gap, ontbrekende EVSE, backward timestamps, nauwkeurige per-uur verificatie en echte nationale twee-poll performance. Geen EWMA omschakeling.
+
+
+**Poll-dekking kandidaatpad (23 oktober, regressie opgelost, drie watcher-scenario's geslaagd):** migratie `007_poll_hour_coverage.sql`, `SnapshotPollCoverage.Capture` en koppeling in BulkImporter toegevoegd. Alleen WatchRunner-provenance via HTTP200 Locations voert poll-capture uit; eerste snapshot vormt baseline, latere snapshots met nieuwe SHA, maximaal 15 minuten gap, dezelfde bekende EVSE-status en niet-teruglopende `last_updated` kunnen seconde-dekking opslaan in `evse_poll_hour_coverage`. 304, tariffs-only en handmatige --bulk geven geen dekking. **Geen EWMA/uptime-omschakeling**. Gebruiker meldde bij watcher-regressie `42601: cannot insert multiple commands into a prepared statement` na staging van 1 locatie/2 EVSE's; transactionele rollback geslaagd. Oorzaak: meerdere geparametriseerde SQL-statements in één NpgsqlCommand. Fix op branch: statements apart uitvoeren in dezelfde transactie (`SnapshotPollCoverage.cs`, commit 90117cd). **Fix door gebruiker opnieuw gevalideerd: watcher-test alle drie PASS (HTTP200 Locations, HTTP304 no-op, tariffs-only HTTP200 zonder Locations-provenance).** Eerst migratie 007 in `chargewatch_statistics_test`, SQL-smoke, .NET build en watcher regressie; positiever gedrag over meerdere Locations-snapshots is nog apart te testen. Bewijskracht blijft snapshot-sampling en geen gegarandeerde fysieke bezettingsduur.
+
+
+**Watcher HTTP-integratietest uitgevoerd (23 oktober; geslaagd):** `tools/test_sprint3_watcher_provenance.py` start een tijdelijke localhost HTTP-server met ETags, simuleert Locations+Tariffs HTTP200, beide 304, en Locations304/Tariffs200; voert voor elk `--watch-once` uit tegen uitsluitend `chargewatch_statistics_test`, controleert SHA/fetchmoment in `ndw_snapshot_checkpoint` en import_run-count. Script weigert andere `CW_IMPORT_CONNECTION`-databases en gebruikt een tijdelijke cache. Het schrijft via de importer echte synthetische fixture-imports in de geïsoleerde testdatabase; geen productiedatabase. Gebruiker bevestigde scriptuitvoer: baseline ndw-locations checkpoint afwezig en 70 completed import_runs; PASS HTTP200 Locations met nieuwe SHA/fetchmoment, PASS 304 zonder import/provenanceverandering, PASS tarieven-only 200 met één import en ongewijzigde Locations-provenance. Alle drie succesvol; cache tijdelijk. Nog geen poll-intervalaccumulatie aangesloten.
+
+
+**Snapshotobservaties — ontwerp gestart 23 oktober:** `docs/SPRINT3_OBSERVATION_DESIGN.md` toegevoegd met expliciet onderscheid NDW `last_updated`, bewezen fetchmoment en importcommit. Schema `db/migrations/006_snapshot_provenance.sql` toegevoegd als additieve voorbereiding voor bron-SHA/fetchcheckpoint en EVSE-pollcheckpoints. **Migratie 006 door gebruiker op 23 oktober succesvol uitgevoerd op uitsluitend `chargewatch_statistics_test` (CREATE TABLE x2, INDEX, GRANT x2, schema_migration insert). Rollback-only `006_snapshot_provenance_smoke.sql` succesvol (BEGIN/DO/INSERT/DO/ROLLBACK). .NET 10 importer build geslaagd in 4,3 s. WatchRunner→BulkImporter-provenance-write compileert; HTTP200/304/tariff-only integratie nog niet getest.** Uitsluitend succesvolle HTTP200 Locations download geeft `fetched_at` door; SHA en ophaaltijd worden transactioneel vastgelegd in ndw_snapshot_checkpoint. Handmatige --bulk / 304 / tariff-only geven geen meting. De statistiekberekening zelf blijft ongewijzigd. Let op: WatchRunner op featurebranch met gewijzigde Locations HTTP200 vereist migratie 006, anders importrollback. Eerst provenance-migratie en watcher/integratietest in geïsoleerde chargewatch_statistics_test, dan transactionele polling-dekking voor gevalideerde verse snapshots. Historische fixture-replays mogen nooit automatisch observation coverage creëren.
+
+
+**Korte NDW-intervalvergelijking uitgevoerd 23 oktober:** 203.328 EVSE's in beide snapshots; 199.753 ongewijzigd (98,24%), 904 timestamp-only (0,445%), 2.670 status+timestamp, één status-only; 2.410/80.825 locaties met enig EVSE-verschil. Niet bekend hoeveel van 904 geldige <=15-minutenintervallen zijn. Source-timestamp-only dekking is waarschijnlijk te schaars voor nationale historische profielen; ontwerpobservaties heroverwegen voordat PR #12 mergeklaar is. Zie `docs/SPRINT3_REVIEW.md`.
+
+
+**NDW twee-snapshotanalyse uitgevoerd (23 oktober):** 201.117 gedeelde EVSE's; 86.206 timestamp-only-wijzigingen, 52.932 status+timestamp, 61.458 ongewijzigd, 521 status-only; 1.997 verdwenen/2.211 nieuwe identiteiten. Brontimestamps kunnen bij onveranderde status vernieuwen, maar de snapshots zijn te ver uiteen om dekking binnen maximaal 15 minuten te bewijzen. Volgende validatie: twee bronsnapshots op 5–15 minuten afstand; locatie-timestamp-alignmenteis herzien. Zie `docs/SPRINT3_REVIEW.md`.
+
+
+**Twee-snapshot bronanalyse voorbereid (23 oktober; nog niet uitgevoerd):** `tools/ndw_observation_diff.py` vergelijkt twee echte Locations-gzipbestanden op samengestelde OCPI-EVSE-identiteit, statuswijziging, bron-timestampwijziging, verdwenen/toegevoegde EVSE's en statusovergangen; slaat alleen samenvatting+max vijf voorbeelden in `data/` op. Geen DB-mutatie. Echte snapshots moeten lokaal worden aangeleverd. Alleen wijzigingen tussen twee versies meetbaar, geen bewijs van volledige tussentijdse waarneming.
+
+
+**NDW read-only kwaliteitsrapport uitgevoerd 23 oktober:** `db/tests/sprint3_ndw_source_quality_readonly.sql` bevat uitsluitend SELECT-query's binnen `BEGIN TRANSACTION READ ONLY` en analyseert de landelijke benchmark-snapshot op statusclassificatie, versheid, ontbrekende timestamps, gelijke EVSE-bronmomenten per locatie, onbekende statussen en importversheid. **Uitgevoerd op chargewatch_benchmark:** 80.787 locaties / 203.138 EVSE's; alle EVSE's hebben timestamp, maar slechts 19.139 locaties (23,7%) alle EVSE-timestamps gelijk; 16.653 locaties (20,6%) ook uitsluitend bekende statussen. Bij 2-EVSE-locaties slechts 15,6% timestamps gelijk. 15.354 EVSE's onbekende statusklasse; 69.950 locaties aantoonbaar vrij, 7.864 aantoonbaar nul-vrij, 2.973 onbepaald. Mediane bron-timestamp-leeftijd 27,9 uur (dataset laatst geïmporteerd 22 okt 14:31 UTC). **Exacte timestamp-alignmenteis ongeschikt voor landelijke dekking; observatiestrategie herzien vóór publicatie.** Een momentopname kan geen polling-cadans of werkelijke nieuwe statuswaarnemingen bewijzen. Volgende stap: uitvoeren op `chargewatch_benchmark`, resultaten interpreteren en merge-gate beoordelen.
+
+
+**Eindreview 23 oktober:** de afzonderlijke EVSE-, locatie-, uur-, duur-, censored- en replaytests zijn geslaagd voor gerichte synthetische scenario's. NDW-brontimestamps, asynchrone EVSE-uren, ontbrekende EVSE's en nationale importperformance zijn nog niet voldoende gevalideerd. **Niet mergeklaar; nog geen productiegeschikte beschikbaarheidsstatistiek.** Lees `docs/SPRINT3_REVIEW.md` voor gespecificeerde risico's en volgende gate.
+
+
+**Locatie-nul-vrij-duur (23 oktober; nieuwe code nog NIET getest):** checkpoints bewaren bij aaneengesloten bekende 0-AVAILABLE toestanden een brongebonden startmoment; `location_zero_available_summary` telt herstelmomenten (0→>=1 vrij) en gecensureerde onderbrekingen apart. Duurbuckets blijven leeg omdat NDW exacte omslagmomenten niet garandeert. `tools/build_sprint3_zero_free_fixture.py` levert 6 synthetische snapshots: 0-vrij, aaneengesloten 0-vrij, herstel, opnieuw 0-vrij, aaneengesloten 0-vrij, gap. Verwacht: 1 recovery, 2 censored, alle histogramvakken 0. Eerste lokale test: zes imports succesvol, maar nul `location_zero_available_summary`-rijen (mislukt). Root cause: EVSE-checkpoints werden vóór locatie-duurevents overschreven, waardoor de vergelijking met oude brontimestamps geen fresh input zag. SQL-fase herordend: locatie-events na staging en vóór EVSE-checkpointupdate. Fixture gebruikt nu unieke `sprint3-zero-free-fixed` identiteit. Fix bevestigd op 23 oktober 2026: zes nieuwe `sprint3-zero-free-fixed` snapshots succesvol geïmporteerd naar geïsoleerde testdatabase; result: recovered_periods=1, censored_periods=2, zero_available_buckets={0,0,0,0,0,0}. Herordening succesvol. Replay bevestigd op 23 oktober 2026: `state-06` opnieuw succesvol geïmporteerd in 0,4822689 s; recovered_periods=1, censored_periods=2, zero_available_buckets={0,0,0,0,0,0} onveranderd. Eindbeoordeling en NDW-datakwaliteit blijven open. Geen migratie of verwijdering vereist.
+
+
+**Duurwaarnemingen (23 oktober; nog NIET lokaal getest):** `DurationObservations.Capture` registreert nieuwe statusklasse-overgangen en aantoonbaar onderbroken valide meetreeksen als `censored_periods` in `evse_duration_summary`; EVSE-checkpoint houdt `state_started_at` en `continuity_valid` bij. Geen fictieve duurhistogrambuckets: exact overgangsmoment onbekend. Synthetische transition+gap-fixture toegevoegd (`tools/build_sprint3_duration_fixture.py`), bestaande migratie 003 volstaat. Gebruiker bevestigde 23 oktober 2026 vijf succesvolle imports van status-01..05 in chargewatch_statistics_test: per synthetische EVSE transitions=1, censored_periods=2, available_buckets en occupied_buckets beide {0,0,0,0,0,0}. PostgreSQL-integratietest geslaagd; aparte replay na afloop en expliciete build-uitvoer nog niet geleverd. Locatie-zero-available duurstatistieken en definitieve histogrammen nog open.
+
+
+**Locatieprofielen (23 oktober, nog niet getest):** migratie 005 voor location_hour_accumulator toegevoegd; transactionele locatie-uuraccumulatie/finalisatie en synthetische available/unknown-fixtures toegevoegd. Conservatief: alle EVSE's moeten bronmomenten delen, geen statuswisseling/UNKNOWN, anders geen coverage. Rechtstreeks >=1 vrij, niet EVSE-kansen vermenigvuldigen; bij >=2700 s afsluiten naar location_occupancy_profile (α=0,20). Gebruiker bevestigde op 23 oktober 2026 28 succesvolle synthetische imports (14 available, 14 unknown) op chargewatch_statistics_test. Eindquery: available-locatie uur 08:00 UTC 3600 sec en finalized=true; 09:00 UTC 300 sec en finalized=false; location_occupancy_profile slot 35 sample_count=1, EWMA=1, covered_seconds=3600. Unknown-locatie had geen uuraccumulator- of profielrijen. Hiermee PostgreSQL-integratiegedrag voor deze scenario's bevestigd. Afzonderlijke expliciete build- en migratie-uitvoer voor 005 ontbreekt, hoewel succesvolle imports impliceren dat runtime en 005-schema werken. Eerst valideren op chargewatch_statistics_test.
+
+
+**Finalisatiecorrectie (23 oktober):** af te sluiten uur vereist nu een bronwaarneming die de uurgrens heeft bereikt, niet alleen huidige kloktijd. `tools/build_sprint3_finalize_fixture.py` toegevoegd: historische low (300 seconden dekking, géén EWMA) en full (3600 seconden, één EWMA-sample). Gebruiker bevestigde op 23 oktober 2026 beide historische fixtures op geïsoleerde testdatabase: 16 succesvolle bulkimports. LOW: 300 seconden voor uur 08:00 UTC per EVSE, finalized=true, geen profiel. FULL: 3600 seconden voor uur 08:00 UTC per EVSE, finalized=true, en precies één sample op PostgreSQL slot 35 met EWMA=1 en covered_seconds=3600. Uur 09:00 UTC bij beide scenario's nog open met 300 seconden. Positieve en negatieve EVSE-uurfinalisatie zijn hiermee getest. Replay na finalisatie, echte NDW-dekking en locatieprofielen nog niet getest. Eerst build + beide reeksen in geïsoleerde `chargewatch_statistics_test` uitvoeren.
+
+
+**EVSE-uurfinalisatie (23 oktober):** `EvseHourFinalizer.Run` toegevoegd aan dezelfde bulktransactie, sluit verstreken uren precies eenmaal, publiceert bij >=2700 sec dekking 1 sample naar EVSE 168-slot EWMA (α=0,20). Ook onvoldoende uren worden gemarkeerd als finalized. **Finalizer-integratie op 23 oktober lokaal met PostgreSQL bevestigd:** gebruiker voerde identieke locations-3 fixture uit; bulkcommit in 0,4616283 s, finalized_hours=0 en evse_occupancy_profile=0. Deze timestamps (10:55–11:10 UTC) lagen toen in de toekomst; hierdoor is alleen geen voortijdige finalisatie aangetoond. Een expliciete build-uitvoer en positieve test van afgesloten uur/EWMA ontbreken nog. Positieve synthetische 45-minutentest en locatieprofielen/duurprofielen blijven open.
+
+
+**Nieuwe gerichte integratietest:** `tools/build_sprint3_hour_fixture.py` toegevoegd met drie synthetische snapshots (10:55/11:05/11:10 UTC, twee AVAILABLE-EVSE's). Testpoging 23 oktober 2026 mislukte veilig wegens fout testcommando: `--bulk locations.json.gz 1` behandelde `1` als tariefbestand en gaf viermaal `Bulk rollback: Could not find file '...\\1'`; nul uurrecords. Herstel: tariefbestand expliciet als tweede argument meegeven en `1` als derde. Correcte synthetische statusreeks bevestigd op 23 oktober 2026: vier succesvolle imports (10:55Z, 11:05Z, replay 11:05Z, 11:10Z), ieder 1 locatie/2 EVSEs/2 connectors/1 tarief, in circa 0,46–0,53 s. Eindquery: per EVSE UTC 10:00 300/300 covered/available, UTC 11:00 600/600, totaal vier records en 1800 seconden. Eindstand correspondeert met geen dubbeltelling bij replay; geen aparte tussenmeting voor/na replay uitgevoerd. Nog geen EWMA-publicatie wegens <2700 seconden dekking per uur. Alleen `chargewatch_statistics_test` gebruiken; verwachte resultaten zijn gedocumenteerd in SPRINT3_STATISTICS.md.
+
+
+**Persistente uurdekking (23 oktober):** migratie `004_hour_accumulator.sql`, de transactionele EVSE-uuraccumulatie en `db/tests/004_hour_accumulator_smoke.sql` toegevoegd. Gebruiker bevestigde op 23 oktober 2026: migratie 004 geslaagd op geïsoleerde chargewatch_statistics_test (CREATE TABLE/INDEX, GRANT, INSERT 0 1), 004 SQL-smoketest geslaagd (BEGIN/DO/ROLLBACK), en .NET 10-build geslaagd in 1,8 seconden. Gebruiker bevestigde op 23 oktober 2026 de identieke herimport na migratie 004: succesvolle bulkcommit in 0,4594650 s; evse_hour_accumulator 0 records, 0 covered_seconds, 2 EVSE-checkpoints en 3 completed import_runs. Replay zonder fictieve uurdekking geslaagd. Test met nieuwe bronmomenten volgt. Migratie 003 is eerder wel uitgevoerd op `chargewatch_statistics_test`; eerst 004 op uitsluitend die geïsoleerde testdatabase uitvoeren vóór nieuwe bulkimports. Alleen EVSE-uurdekking, geen locatie-uurdekking, geen finalize-once en nog geen profielwrites.
+
+
+**Uuraccumulatie (23 oktober):** nieuwe pure `StatisticsHourAccumulator` met minstens 2700 seconden geldige dekking per UTC-uur, gewogen sample, alpha 0,20, overlapbescherming. Opgenomen in `--statistics-selftest`, gebruiker bevestigde op 23 oktober 2026 de volledige `--statistics-selftest`: PASS voor zowel de 168-slot splitter als hourly coverage gate, weighted sample en EWMA. Er zijn nog geen profielwrites: duurzame uuraccumulator/checkpoints en betrouwbare meetdekking tussen imports ontbreken. Zie `docs/SPRINT3_STATISTICS.md`.
+
+
+**168-vaks profielvoorbereiding (23 oktober):** zuivere `StatisticsHourSplitter` toegevoegd, CLI `--statistics-selftest` (middernacht/DST/gewone uren). Dit berekent echte seconden per lokaal uur, maar schrijft bewust nog géén EWMA-profiel omdat een volledige uuraccumulator en dekkingsdrempel ontbreken. Gebruiker bevestigde 23 oktober 2026 succesvolle uitvoering van `dotnet run --project .\\src\\ChargeWatch.Importer -- --statistics-selftest`: `PASS: 168-slot splitter midnight, summer DST, winter DST and normal hour.` Een afzonderlijke expliciete build-uitvoer voor deze laatste codeversie is niet verstrekt (dotnet run compileert zo nodig wel).
+
+
+**Lokale integratietest 23 oktober 2026:** gebruiker importeerde Schietspoel-fixture via `--bulk` in afzonderlijke `chargewatch_statistics_test`: 1 locatie, 2 EVSE's, 2 connectors, 1 tarief; transactie succesvol in 0,5285168 s. SQL-controle: 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days (correct voor initiële waarneming), 1 completed import. Tweede identieke import/replay is bevestigd op 23 oktober 2026: bulkcommit 0,5363241 s; 2 EVSE-checkpoints, 1 locatie-checkpoint, 0 reliability-days en 2 completed imports. Rollback bij onvolledige bron bevestigd op 23 oktober 2026: minimum 2 bij 1 bronlocatie, `Bulk rollback: Only 1 locations; expected >= 2`, exitcode 1, daarna ongewijzigd 1 locatie/2 EVSE-checkpoints/1 locatie-checkpoint/0 uptime-dagtotalen/2 completed runs. Fout binnen de statistiekverwerking zelf nog niet getest.
+
+
+- Issue [#11](https://github.com/VanHinthem/ChargeWatch/issues/11); branch `feature/sprint3-observation-foundation`.
+- Status: conservatieve EVSE-statusclassificatie en transactionele checkpoint-capture en conservatieve uptime-dagaccumulatie aan bulkimport toegevoegd, voorgestelde tabellen/observatiekwaliteit/transactieregels in [SPRINT3_STATISTICS.md](SPRINT3_STATISTICS.md).
+- **Nog niet gerealiseerd:** uitvoering/validatie van de nu aanwezige migratie; PostgreSQL-validatie van lokale-dag-intervalstatistiek, 168-slot EWMA, duurprofielen en PostgreSQL-tests. Uptime-dagtotalen splitsen nu korte, ongewijzigde-statusintervallen over Europe/Amsterdam-kalenderdagen, inclusief DST; niet getest en bronmomentdekking kan onvoldoende zijn. Checkpoints slaan inmiddels uitsluitend verse source-observaties op en blijven onberekend voor duren.
+- **Besluit:** gebruiker gaf op 22 oktober expliciet akkoord op een additieve, versioneerbare schema-uitbreiding. `db/migrations/003_statistics.sql` toegevoegd met zeven tabellen, index en rolrechten; bulkimport roept nu `ObservationCheckpoints.Capture` aan binnen dezelfde transactie en vereist daarom migratie 003; import op ongemigreerde testdatabases faalt expliciet. Niets toegepast op gebruikersdatabases.
+- Checks: gebruiker bevestigde op 23 oktober 2026 succesvolle initialisatie van aparte chargewatch_statistics_test database, rol-GRANTs, 003_statistics migratie (INSERT 0 1) en db/tests/003_statistics_smoke.sql (BEGIN, beide DO succesvol, ROLLBACK). Dit valideert schema/rolrechten/DST-smoketest, nog niet .NET-importintegratie. Gebruiker bevestigde bovendien 23 oktober 2026 succesvolle `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` (4,0 s, net10.0) en succesvolle `python .\\tools\\build_sprint1_fixture.py` (fixture gzip naar data/sprint1-fixture). GitHub-inhoud gecontroleerd. Lokale .NET-build niet uitgevoerd: .NET SDK ontbreekt in agentomgeving. Geen CI-workflow aanwezig. 90-daagse Nederlandse kalenderdagretentie toegevoegd; SQL-smoketest uitgebreid met daadwerkelijke daggrenssplitsing, wintertijdcontrole en rechtencontrole. Gemiste SELECT-grant op schema_migration gecorrigeerd in de migratie. SQL-smoketest toegevoegd in `db/tests/003_statistics_smoke.sql` (schema, DST-daglengte en rollback-fixture), nog niet uitgevoerd omdat de agentomgeving geen dotnet, psql of docker bevat.
+- Volgende stap: checkpoint-implementatie lokaal builden en op geïsoleerde gemigreerde testdatabase valideren; daarna tijdgewogen statistiekberekeningen toevoegen en gerichte tests draaien op een geïsoleerde database. Geen merge/deployment zonder apart akkoord.
+
+---
+
+# Historische overdracht — Sprint 0–2
+
+**Bijgewerkt:** 22 oktober 2026  
+**Status:** Sprint 0, 1 en 2 gemerged; geen deployment. Sprint 2 is op 22 oktober 2026 via squashmerge `6ed5800895dee5facad925e4c5d045f612fd62ae` afgerond.
+
+## Afgeronde sprints
+
+- Sprint 0: [PR #3](https://github.com/VanHinthem/ChargeWatch/pull/3), issue #2 gesloten. NDW OCPI-broncontract onderzocht; beide gzip-feeds met HTTP 304 bevestigd. Zie [brononderzoek](NDW_DATA_DISCOVERY.md), [snapshot](NDW_SNAPSHOT_2026-10-22.md) en [vergelijking](NDW_COMPARISON_2026-10-22.md).
+- Sprint 1: [PR #6](https://github.com/VanHinthem/ChargeWatch/pull/6), issue #5 gesloten; squashmerge `1c470982620c533ba3ca687df918fcda0345d469`. .NET 10 NDW-importer, PostgreSQL 18/PostGIS-schema, gescheiden import- en leesrol, transactionele COPY/staging-bulkimport, bescherming tegen ongewijzigde updates. Geen productie- of NAS-deployment.
+- Workflow/status-overdracht is vastgelegd via PR #7; mergeklare status hoort voortaan in dezelfde feature-PR.
+
+## Afgerond werk — Sprint 2
+
+- Issue: [#8](https://github.com/VanHinthem/ChargeWatch/issues/8) — automatische NDW-verversing en veilige scheduler.
+- Branch: `feature/sprint2-ndw-refresh`.
+- PR: [#9](https://github.com/VanHinthem/ChargeWatch/pull/9) — **gemerged op 22 oktober 2026**.
+- Geen GitHub Actions-workflow aanwezig; er zijn geen CI-runs/statuschecks voor deze PR.
+
+### Geïmplementeerd
+
+- Nieuwe importmodi `--watch` en `--watch-once`.
+- NDW Locations standaard elke 5 minuten; Tariffs elke 60 minuten.
+- Conditionele GET met bewaarde `ETag` en `Last-Modified`.
+- Vaste lokale cache plus `refresh-state.json`.
+- Nieuwe downloads blijven pending totdat de bestaande transactionele bulkimport succesvol commit; pas daarna worden ze de vaste cache.
+- Bij 304/304 wordt de database-import overgeslagen.
+- Bij wijziging van één feed wordt de laatst geldige cache van de andere feed gebruikt.
+- HTTP-/gzip-/JSON-/importfouten behouden de vorige broncache en gepubliceerde database.
+- Minimumaantal locaties standaard 50.000 als veiligheidsgrens.
+- Stale-waarschuwing volgt specifiek de laatste succesvolle Locations-controle; een tariefcheck maskeert geen falende statusfeed.
+- Continuous mode blijft na een mislukte cyclus draaien en ondersteunt gecontroleerd stoppen met Ctrl+C.
+- Configuratie en validatie staan in [SPRINT2_REFRESH.md](SPRINT2_REFRESH.md).
+- README is bijgewerkt naar de actuele backendstatus.
+
+### Validatie en resterende review
+
+De agent heeft de GitHub-diff en mergeability gecontroleerd. **Gebruiker bevestigde op 22 oktober 2026 een geslaagde lokale .NET 10-build**: `dotnet build .\\src\\ChargeWatch.Importer\\ChargeWatch.Importer.csproj` — restore 6,0 s, compilatie 2,7 s, totale build 9,3 s. De agentcontainer kon zelf geen checkout uitvoeren. **Eerste `--watch-once` bevestigd geslaagd op 22 oktober 2026:** Locations HTTP 200 (18.382.191 bytes), Tariffs HTTP 200 (4.143.448 bytes), 80.785 locaties, 203.130 EVSE's, 203.823 connectoren, 101.209 tarieven; transactionele bulkcommit in 26,218 s. Tweede `--watch-once` bevestigd: Locations HTTP 200 (18.382.637 bytes), Tariffs HTTP 304; bestaande Tariffs-cache hergebruikt, bulkcommit succesvol in 21,858 s, dezelfde catalogusaantallen. Dit bewijst het scenario met slechts één gewijzigde feed. Derde `--watch-once` bevestigd: Locations HTTP 200 (18.384.062 bytes), Tariffs HTTP 304, bulkcommit in 22,513 s, aantallen ongewijzigd. NDW Locations veranderde tijdens drie opeenvolgende runs; niet verder live herhalen voor 304/304. Gecontroleerde 304/304-test op 22 oktober geslaagd met lokale HTTP-server op 127.0.0.1:8765: beide feeds HTTP 304 en `NDW source unchanged (304); database import skipped.` De foutpadtest is ook geslaagd: Locations-URL op ongebruikte lokale poort 8766 veroorzaakte een geweigerde verbinding, melding `Refresh failed; previous cache/database retained` en exitcode `1`. Er startte geen bulkimport. Let op: database-run-aantallen en cachebestanden zijn nog niet afzonderlijk gecontroleerd. Gebruiker bevestigde dat continuous `--watch` actief blijft en op 22 oktober 2026 correct afsluit met Ctrl+C.
+
+Build en eerste landelijke import zijn geslaagd. Voer nu de tweede `--watch-once` uit vanaf de featurebranch:
+
+```powershell
+git switch feature/sprint2-ndw-refresh
+git pull
+dotnet build .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj
+
+$env:CW_IMPORT_CONNECTION = "Host=localhost;Port=5432;Database=chargewatch_benchmark;Username=chargewatch_import;Password=<password>"
+$env:CW_NDW_CACHE_DIR = "$PWD\.local\ndw-cache"
+dotnet run --project .\src\ChargeWatch.Importer\ChargeWatch.Importer.csproj -- --watch-once
+```
+
+De gecontroleerde 304/304-test en het HTTP-foutpad zijn bevestigd. Continuous `--watch` blijft actief en sluit gecontroleerd af met Ctrl+C, beide bevestigd. Optioneel blijft een afzonderlijke controle van `import_run`-aantallen en cachebestand-hashes mogelijk; dit is niet uitgevoerd. Gebruik een aparte test/benchmarkdatabase; bestaande lokale databases/volumes niet verwijderen.
+
+## Vastgestelde NDW-data
+
+Snapshot van 22 oktober 2026: **80.777 locaties, 203.114 EVSE's, 203.807 connectoren en 101.209 tarieven**. Locatie- en tariefkey = `country_code + party_id + id`; EVSE-key = locatie + `uid`, extern `evse_id` apart. Van 179.241 tariefverwijzingen werden 174.161 geresolveerd en 5.080 niet; 24.566 connectoren hebben geen tariefverwijzing. Onbekend tarief is niet €0.
+
+## Sprint 1 — werkelijk uitgevoerde controles
+
+Gebruiker bevestigde werkende .NET 10-build, PostgreSQL/PostGIS-initialisatie, Schietspoel-fixture, herhaalbaarheid, rollback bij onvolledige input en SELECT-only-rechten van `chargewatch_read`. De landelijke catalogusaantallen matchen de NDW-bron.
+
+Schone benchmarkdatabase `chargewatch_benchmark`, originele ontwikkelcatalogus intact:
+- Leeg vóór import: **16.430.783 bytes**.
+- Eerste landelijke bulkimport: **28,100 s**, daarna **224.024.255 bytes**.
+- Tweede identieke landelijke bulkimport: **27,167 s**, exitcode 0, daarna **224.147.135 bytes**.
+- Extra databaseopslag bij herimport: **122.880 bytes** (~0,055%). Beide runs succesvol; aantallen identiek en 2 `completed`-runs.
+- Oudere rij-voor-rij-import: **828,496 s** (andere uitgangssituatie).
+- Zie [Sprint-1-instructies](SPRINT1_IMPORT.md).
+
+## Richting na Sprint 2
+
+V1 blijft: landelijke actuele laadstatus/tarieven, kaart/zoeken, alternatieven, lokale Android-favorieten en widget, compacte beschikbaarheidsstatistieken. .NET 10 importer → PostgreSQL 18/PostGIS → read-only GET API → Kotlin/Compose/Glance. Geen accounts, push/notificaties of betalingen in v1.
+
+Na afgeronde Sprint 2 is de logische volgende feature het statistiekfundament vanaf opeenvolgende imports **of** de read-only locatie-API. Bepaal de volgorde in een nieuw issue; Sprint 2 is afgerond.
+
+Open punten: herpublicatielicentie/attributie NDW, langdurige bronidentiteit en datakwaliteit, volledige wijzigingsscenario's/ontbrekende records, CI, statistiekopslag en toekomstige API. Geen productie-/NAS-deployment uitgevoerd.
+
+## Overdracht / vaste werkwijze
+
+Lees `AGENTS.md`, `docs/WORKFLOW.md`, deze status, ROADMAP, PRODUCT en ARCHITECTURE. Controleer GitHub-issues, PR's, branches en CI opnieuw. PR #9 is na expliciete goedkeuring gemerged en de main-SHA geverifieerd. Er is geen deployment uitgevoerd. De volgende agent moet eerst nieuwe scope afbakenen in een issue en featurebranch; voor toekomstige PR's blijven expliciete merge- en deploymentgoedkeuring verplicht.
+
+**NAS-incident 24 oktober 2026 — PR #19 (fix gereed voor mergeakkoord):** na activeren van compacte statistieken faalde de eerste volledige NDW-import op `23502`, `location_observation_checkpoint.continuity_valid` was NULL bij ontbrekende eerdere checkpoint. Database transactie teruggedraaid; geen datareparatie of migratie nodig. Fix in `ObservationCheckpoints.cs`: `coalesce(s.any_available=false AND old.any_available=false AND s.valid_continuation,false)`. Nieuwe end-to-end regressie bevat een EVSE met `last_updated`, eist eerste locatiecheckpoint `continuity_valid=false`; daarna volgt bestaande 200→304→gewijzigde200 en SIGKILL-hersteltest. CI alle jobs groen: [integratie 40083892609](https://github.com/VanHinthem/ChargeWatch/actions/runs/40083892609), [database 40083892611](https://github.com/VanHinthem/ChargeWatch/actions/runs/40083892611), [nationale benchmark 40083892557](https://github.com/VanHinthem/ChargeWatch/actions/runs/40083892557), NAS Images PR-run groen (is **niet** bewijs van gepubliceerde main-image). Collector op NAS moet gestopt blijven tot nieuwe main-image na expliciet mergeakkoord succesvol is gepubliceerd; gebruik geen PR-image. Bestaande DB-backup `chargewatch-20261024T093224Z.dump` en geïsoleerde restoretest bevestigd, geen restore nodig.
+
+
+## Stand 28 oktober 2026 — Data First, issuebeheer
+
+- Productie/main: `0fe48938f9f27501785dcbf6ee25dd3439e38dec` (PR #70), in gebruik op NAS. Productiecontrole volgens gebruiker: 80.939 actieve locaties, 203.543 EVSE's, 204.246 connectoren, 105.345 tarieven, 1.941 inactieve locaties. Dit zijn gecontroleerde momentopname-aantallen, geen toekomstige garantie.
+- PR #67 (snapshotreconciliatie), #68 (OCPI source JSONB), #69 (elektrische connectorvelden) en #70 (SQL-overlapguard) gemerged. Issues #63/#65/#64 op 28 oktober administratief afgerond.
+- Issue #66 **open**; ontwerpcorrecties in draft PR #71. Conform OCPI VAT-semantiek, step_size, Tariff.type, restricties, tijdzone/DST, referentiële incompleetheid en tariefbronprovenance. Data behouden bij afwijkingen, slechts onderbouwde onderdelen als zeker presenteren.
+- Issue #72 **open**: 123.421 suppressed EVSE-hour coverage increments bij succesvolle NDW-import na PR #70. Guard beschermt historische gegevens maar is geen interval-union of bewezen idempotente oplossing.
+- Issue #73 **open**: integrale data-audit na #66/#72.
+- Issue #11 **open**: oudere overkoepelende Sprint 3-scope; niet automatisch als voltooid beschouwen zolang de betrouwbaarheid van uurdekking niet bewezen is.
+- PR #61 **open/on hold**: Android UX niet hervatten voordat backend tariefcontract definitief en getest is. PR #54 **open**: aparte documentaire Geffen-dekkingsnotitie, niet onderdeel van data-first implementatie; geen ongeautoriseerde merge of sluiting.
+- Werkafspraak: eerst ontwerpreview, daarna kleine backend-PR's, tests en expliciet mergeakkoord; geen code-/schema-/productiemutaties via deze ontwerp-PR.
