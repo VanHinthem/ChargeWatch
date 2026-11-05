@@ -150,6 +150,14 @@ fun widgetHeaderFreshness(rows: List<WidgetRow>, refreshing: Boolean): String = 
     else -> rows.first().freshness.removePrefix("Bron gecontroleerd · ")
 }
 
+/**
+ * Samsung One UI can report an actual 2x2 size smaller than 150x140dp.
+ * With Responsive mode its previous smallest registered size was 260x62dp,
+ * which incorrectly rendered the 4x1 layout in the small square tile.
+ */
+fun isTinySquareWidget(widthDp: Float, heightDp: Float): Boolean =
+    widthDp < 140f && heightDp < 100f
+
 // A 4x1 Android launcher row is substantially shorter than the regular widget.
 // This size class uses a dedicated horizontal composition, not a scaled-down 4x2.
 fun isSingleRowWidget(widthDp: Float, heightDp: Float): Boolean =
