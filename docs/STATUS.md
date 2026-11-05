@@ -1,6 +1,12 @@
-## API JSON-gzip: aparte performance-PR (5 november 2026)
+## Android gedeelde locatiecache — PR #123 (5 november 2026)
 
-De bestaande read-only API krijgt op een **aparte draft-PR** HTTP-gzip met `CompressionLevel.Fastest`, uitsluitend voor `application/json` en alleen bij `Accept-Encoding: gzip`. De batchlocatie-, lokale kaart-, landelijke overview- en cluster-cell-responses behouden dezelfde JSON-contracten. Geïsoleerde HTTP-integratietests bewaken gzip/identity, `Vary`, JSON-pariteit en `no-store`. De volledige scope, Python NAS-baseline en HTTPS-risicobeoordeling staan in [API Gzip Response Compression](API_GZIP_RESPONSE_COMPRESSION.md). Geen merge of NAS-update zonder akkoord; Android-cache en widgets blijven in aparte PR's.
+Na het akkoord op de NAS-benchmark is PR #123 uitgebreid met één gedeelde `LocationDetailsCache` voor kaart- en favorietensheets. Details, EVSEs en tarieven worden maximaal één keer per ID per **2 minuten** via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false` opgehaald. Historische statistieken zijn **on-demand** bij uitklappen en hebben een eigen cache van **15 minuten**; een fout haalt de compacte details niet onderuit. Batchomvang blijft maximaal twintig, met ondersteuning voor bestaande favorieten boven de limiet. Nieuw Android-build/smoketest en CI-acceptatie zijn nodig voordat deze PR gemerged mag worden. De verdwenen widgets blijven voor een aparte PR. Zie [Android sheet/cache ontwerp](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).
+
+---
+
+## API JSON-gzip — PR #125 gemerged en NAS gedeployed (5 november 2026)
+
+PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125) is met alle checks groen gesquasht naar main (`5a698266fe3a803327ec3d3c3d64b200a898443a`). De gebruiker meldt dat de NAS op die versie is gedeployed. De API ondersteunt onderhandelde gzip-compressie (`CompressionLevel.Fastest`) voor publieke `application/json` responses, waaronder de batch-, kaart-overview- en cluster-cell-endpoints. Geïsoleerde HTTP-tests controleren JSON-pariteit en gzip/identity. Publieke HTTPS-headerverificatie moet nog gebeuren. Zie [API gzip ontwerp/acceptatie](API_GZIP_RESPONSE_COMPRESSION.md).
 
 ---
 

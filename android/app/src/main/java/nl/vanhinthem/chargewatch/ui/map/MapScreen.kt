@@ -128,8 +128,11 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
-import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
+import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
+import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
@@ -167,6 +170,7 @@ import org.maplibre.android.maps.MapView
 
 @Composable
 fun MapScreen(
+    locationDetailsCache: LocationDetailsCache,
     favorites: List<FavoriteLocation> = emptyList(),
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
@@ -681,6 +685,7 @@ fun MapScreen(
     if (selectedLocations.isNotEmpty()) {
         LocationSelectionSheet(
             locations = selectedLocations,
+            locationDetailsCache = locationDetailsCache,
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
@@ -1565,6 +1570,7 @@ private fun createGpsMarkerBitmap(): Bitmap {
 @Composable
 fun LocationSelectionSheet(
     locations: List<MapLocation>,
+    locationDetailsCache: LocationDetailsCache,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
@@ -1572,15 +1578,27 @@ fun LocationSelectionSheet(
     expandedTopInset: Dp,
     initiallyExpanded: Boolean = false,
     compactAllowed: Boolean = true,
+    preloaded: FavoriteBatchLocation? = null,
     onShowAlternatives: (MapLocation) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val enrichmentClient = remember { LocationEnrichmentClient() }
     val selectedId = locations.singleOrNull()?.featureId
-    var enrichment by remember(selectedId) { mutableStateOf<EnrichmentResult?>(null) }
-    LaunchedEffect(selectedId) {
-        enrichment = null
-        if (selectedId != null) enrichment = enrichmentClient.load(selectedId,locations.single())
+    val cached = preloaded ?: selectedId?.let(locationDetailsCache::peekDetails)
+    var enrichment by remember(selectedId,preloaded) {
+        mutableStateOf<EnrichmentResult?>(cached?.let {
+            EnrichmentResult.Found(it.enrichment,it.mapLocation)
+        })
+    }
+    LaunchedEffect(selectedId,preloaded) {
+        enrichment = cached?.let { EnrichmentResult.Found(it.enrichment,it.mapLocation) }
+        if (selectedId != null && cached == null) {
+            enrichment = when (val result = locationDetailsCache.loadDetails(listOf(selectedId))) {
+                is FavoriteBatchResult.Unavailable -> EnrichmentResult.Unavailable
+                is FavoriteBatchResult.Success -> result.locations[selectedId]?.let {
+                    EnrichmentResult.Found(it.enrichment,it.mapLocation)
+                } ?: EnrichmentResult.NotFound
+            }
+        }
     }
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
@@ -1598,6 +1616,27 @@ fun LocationSelectionSheet(
     val dragHandleHeight = 32.dp
     val compactPeekHeight = compactContentHeight + dragHandleHeight
     val expanded = sheetState.currentValue == SheetValue.Expanded
+
+    // Both sheets reuse the same cache. No history request for compact map
+    // taps; expanded sheets reuse fresh history across subsequent openings.
+    var history by remember(selectedId,preloaded) {
+        mutableStateOf<List<HourlyAvailability>?>(
+            preloaded?.statistics ?: selectedId?.let(locationDetailsCache::peekHistory))
+    }
+    var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
+    var historyLoading by remember(selectedId) { mutableStateOf(false) }
+    LaunchedEffect(selectedId, expanded) {
+        if (!shouldFetchSheetStatistics(selectedId, expanded, history, historyUnavailable))
+            return@LaunchedEffect
+        val id = selectedId ?: return@LaunchedEffect
+        historyLoading = true
+        try {
+            val result = locationDetailsCache.loadHistory(id)
+            if (result == null) historyUnavailable = true else history = result
+        } finally {
+            historyLoading = false
+        }
+    }
 
     BackHandler {
         if (!compactAllowed) {
@@ -2065,6 +2104,15 @@ fun LocationSelectionSheet(
                     HorizontalDivider()
                     Text("Historisch minstens één laadpunt vrij",
                         style = MaterialTheme.typography.titleMedium)
+                    if (historyLoading) {
+                        Text("Historische statistieken ophalen…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (historyUnavailable) {
+                        Text("Historische statistieken zijn tijdelijk niet beschikbaar.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
                     var chosenWeekday by remember(selectedId) {
                         mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
@@ -2093,8 +2141,7 @@ fun LocationSelectionSheet(
                             }
                         }
                     }
-                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
-                        .filter { it.isoWeekday == chosenWeekday }
+                    val historical = history.orEmpty().filter { it.isoWeekday == chosenWeekday }
                     var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
