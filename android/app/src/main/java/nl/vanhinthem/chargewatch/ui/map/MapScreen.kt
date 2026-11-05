@@ -131,6 +131,7 @@ import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
 import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
@@ -1573,15 +1574,21 @@ fun LocationSelectionSheet(
     expandedTopInset: Dp,
     initiallyExpanded: Boolean = false,
     compactAllowed: Boolean = true,
+    preloaded: FavoriteBatchLocation? = null,
     onShowAlternatives: (MapLocation) -> Unit = {}
 ) {
     val context = LocalContext.current
     val enrichmentClient = remember { LocationEnrichmentClient() }
     val selectedId = locations.singleOrNull()?.featureId
-    var enrichment by remember(selectedId) { mutableStateOf<EnrichmentResult?>(null) }
-    LaunchedEffect(selectedId) {
-        enrichment = null
-        if (selectedId != null) enrichment = enrichmentClient.load(selectedId,locations.single())
+    var enrichment by remember(selectedId,preloaded) {
+        mutableStateOf<EnrichmentResult?>(preloaded?.let {
+            EnrichmentResult.Found(it.enrichment,it.mapLocation)
+        })
+    }
+    LaunchedEffect(selectedId,preloaded) {
+        enrichment = preloaded?.let { EnrichmentResult.Found(it.enrichment,it.mapLocation) }
+        if (selectedId != null && preloaded == null)
+            enrichment = enrichmentClient.load(selectedId,locations.single())
     }
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
@@ -1603,7 +1610,9 @@ fun LocationSelectionSheet(
     // Both entry points share this sheet. Favorites open expanded, so
     // history loads immediately there; map taps start compact and avoid
     // the statistics request until the user actually expands the sheet.
-    var history by remember(selectedId) { mutableStateOf<List<HourlyAvailability>?>(null) }
+    var history by remember(selectedId,preloaded) {
+        mutableStateOf<List<HourlyAvailability>?>(preloaded?.statistics)
+    }
     var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
     var historyLoading by remember(selectedId) { mutableStateOf(false) }
     LaunchedEffect(selectedId, expanded) {
