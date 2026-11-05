@@ -226,7 +226,10 @@ fun ChargeWatchApp() {
                     darkTheme = useDarkTheme,
                     onDetailVisibilityChanged = { detailOpen = it },
                     favorites = favorites,
-                    onToggleFavorite = { location -> scope.launch { repository.toggle(location) } }
+                    onToggleFavorite = { location -> scope.launch {
+                        if (!repository.toggle(location))
+                            snackbarHostState.showSnackbar("Je kunt maximaal 20 favorieten opslaan.")
+                    } }
                 )
             } else if (selectedTab == 1) {
                 FavoritesScreen(
@@ -308,7 +311,10 @@ fun ChargeWatchApp() {
                     onDismiss = { favoriteDetail = null },
                     onLocationSelected = { },
                     isFavorite = { item -> favorites.any { it.featureId == item.featureId } },
-                    onToggleFavorite = { item -> scope.launch { repository.toggle(item) } },
+                    onToggleFavorite = { item -> scope.launch {
+                        if (!repository.toggle(item))
+                            snackbarHostState.showSnackbar("Je kunt maximaal 20 favorieten opslaan.")
+                    } },
                     expandedTopInset = 16.dp,
                     initiallyExpanded = true,
                     compactAllowed = false,
