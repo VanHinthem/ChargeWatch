@@ -45,10 +45,10 @@ import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
+import nl.vanhinthem.chargewatch.data.favorites.favoriteIdsNeedingBatchFetch
 import nl.vanhinthem.chargewatch.data.favorites.favoriteAvailability
 import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
-import java.time.Duration
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.settings.ChargeWatchDataStatus
 import nl.vanhinthem.chargewatch.data.settings.SettingsDataClient
@@ -139,10 +139,9 @@ fun ChargeWatchApp() {
         val ids = favorites.map { it.featureId }.distinct()
         if (ids.isEmpty()) return
         val now = Instant.now()
-        val recent = favoriteFetchedAt?.let {
-            !it.isAfter(now) && Duration.between(it,now) <= Duration.ofMinutes(2)
-        } ?: false
-        val needed = if (force || !recent) ids else ids.filterNot(batchCoveredIds::contains)
+        val needed = favoriteIdsNeedingBatchFetch(
+            ids, batchCoveredIds, favoriteFetchedAt, now, force
+        )
         if (needed.isEmpty()) {
             refreshMessage = null
             return
@@ -173,8 +172,8 @@ fun ChargeWatchApp() {
             favoriteDetails = favoriteDetails.filterKeys { it !in missing } + found
             latestStatuses = latestStatuses.filterKeys { it !in missing } +
                 found.mapValues { it.value.mapLocation }
-            batchCoveredIds = if (recent && !force) batchCoveredIds + completed
-                else completed
+            batchCoveredIds = if (needed.size == ids.size) completed
+                else batchCoveredIds + completed
             favoriteFetchedAt = if (failure == null) Instant.now() else null
             refreshMessage = when {
                 failure != null -> failure
