@@ -3,6 +3,7 @@ package nl.vanhinthem.chargewatch.data.favorites
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import kotlinx.serialization.json.longOrNull
 import nl.vanhinthem.chargewatch.BuildConfig
 import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichment
@@ -96,11 +97,20 @@ internal fun parseFavoriteBatchResponse(raw: String, ids: List<String>): Favorit
         when (obj["status"]?.jsonPrimitive?.contentOrNull) {
             "NOT_FOUND" -> {
                 require(obj["detail"] == null || obj["detail"] is JsonNull)
+                require(obj["statistics"] == null || obj["statistics"] is JsonNull)
                 missing+=id
             }
             "FOUND" -> {
                 val detail=obj["detail"]?.jsonObject ?: error("Missing detail")
                 val stats=obj["statistics"]?.jsonObject ?: error("Missing full statistics")
+                val country=detail["countryCode"]?.jsonPrimitive?.contentOrNull
+                val party=detail["partyId"]?.jsonPrimitive?.contentOrNull
+                val source=detail["sourceId"]?.jsonPrimitive?.contentOrNull
+                require("${country}-${party}-${source}"==id) {
+                    "Wrong location detail identity"
+                }
+                require(stats["locationId"]?.jsonPrimitive?.longOrNull ==
+                    detail["id"]?.jsonPrimitive?.longOrNull) { "Wrong statistics identity" }
                 val longitude=detail["longitude"]?.jsonPrimitive?.doubleOrNull ?: error("Missing longitude")
                 val latitude=detail["latitude"]?.jsonPrimitive?.doubleOrNull ?: error("Missing latitude")
                 require(longitude in -180.0..180.0 && latitude in -90.0..90.0)
