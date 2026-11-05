@@ -153,3 +153,19 @@ Dit zijn **richtmaten**: daadwerkelijke `DpSize` na resizing, launcher-padding, 
 ## Afzonderlijke roadmapwens: Android Auto
 
 [Onderzoeksissue #110](https://github.com/VanHinthem/ChargeWatch/issues/110) is **niet onderdeel van #101**. Android for Cars POI-templates ondersteunen laadlocaties en navigatie naar een externe navigatie-app via `CarContext.ACTION_NAVIGATE`. Google kondigde in mei 2026 bovendien toekomstige ondersteuning voor mobiele widgets in Android Auto aan; daadwerkelijke uitrol, geschiktheid, acties en toestel-/auto-compatibiliteit eerst testen. Zie `docs/ROADMAP.md`.
+
+## Hervatting PR #112 — 5 november 2026: batch-API en gedeelde cache
+
+**Dit is de actuele implementatierichting; eerdere verwijzingen hierboven naar geografische viewportverversing, directe NDW-fallback en een losse detail-GET voor plaatsnaam zijn historisch en niet meer de actieve widgetdatastroom.**
+
+- Bestaand ontwerp, instellingen en resizable Glance-layouts (4×1, 2×2, 4×2, 4×3) blijven behouden.
+- PR #112 is op de huidige `main` gebracht, inclusief de inmiddels gemergede API PR #124, gzip PR #125 en Android-cache PR #123. Widgetreceiver en configuratieactiviteit worden weer in de APK/Manifest opgenomen.
+- **Nieuwe datastroom:** `WidgetRefreshCoordinator` kiest exact de bewaarde favoriete `featureId`-waarden en gebruikt `SharedLocationDetails.cache.loadDetails(ids, force)`. De `LocationDetailsCache` splitst groepen automatisch in maximaal twintig ID's en vraagt de bestaande `POST /api/v1/locations/by-ndw-id/batch` aan met `includeStatistics=false`.
+- De widget en de kaart/favorieten-sheets gebruiken dezelfde **in-process** details-cache met een 2-minuten-TTL. Na process death is deze cache leeg; dat is verwacht. `WidgetStore` blijft een afzonderlijke **persistente, kleine last-known cache** voor de zichtbare EVSE-ratio's en adres/plaats, zodat offline en procesherstart geen nep-0 of ontbrekende eerdere betrouwbare ratio veroorzaken.
+- De batchresponse bevat ook de canonieke `city`; de client projecteert deze naast de `MapLocation`. Één atomaire DataStore-commit verwerkt EVSE-counts én adres/plaats. Er is geen tweede GET per adres meer; de oude `WidgetAddressClient` is verwijderd.
+- Geen NDW/viewport-fallback voor de widget. Een mislukte batch bewaart de eerdere betrouwbare status en markeert deze als *Laatst bekend*. `NOT_FOUND` of een ambigue telling overschrijft nooit een eerder betrouwbare groen/rood-ratio.
+- Handmatig verversen omzeilt de detail-TTL; automatische WorkManager-verversing blijft Android best-effort en minimaal om de vijftien minuten. Veranderingen in lokale selectie en aliases komen via de bestaande reactieve DataStore/Glance-flow meteen in de widget.
+- Een widgettap opent met het exact geselecteerde `featureId` de bestaande uitgebreide sheet. Als de details nog in de gedeelde cache zitten, worden ze direct hergebruikt; anders volgt uitsluitend een by-ID batchrequest. Historische gegevens worden door dezelfde sheet op aanvraag opgehaald uit de afzonderlijke statistiekcache (15 minuten).
+- De API/database/NAS worden in deze PR **niet** gewijzigd. De NAS draait volgens de gebruiker de samengevoegde batch/gzip-API. Gzip over publiek HTTPS is op 5 november bevestigd (`HTTP/2 200`, `Content-Encoding: gzip`, `Vary: Accept-Encoding`).
+
+**Nog open voor acceptatie:** actuele Android CI + fysieke Samsung-test van widgetregistratie/toevoegen, formaat 4×1/2×2/4×2, selectie en alias, betrouwbare groen/rood-aantallen, handmatige snelle refresh, correct openen van details, en offline/last-known. PR #112 blijft draft en ongemerged tot expliciet akkoord.
