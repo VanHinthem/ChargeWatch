@@ -42,12 +42,13 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
-import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
-import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchClient
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
 import nl.vanhinthem.chargewatch.data.favorites.favoriteAvailability
 import androidx.compose.runtime.mutableStateOf
 import java.time.Instant
-import nl.vanhinthem.chargewatch.data.favorites.favoritesNeedingFetch
+import java.time.Duration
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import nl.vanhinthem.chargewatch.data.settings.ChargeWatchDataStatus
 import nl.vanhinthem.chargewatch.data.settings.SettingsDataClient
@@ -98,7 +99,7 @@ fun ChargeWatchApp() {
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var detailOpen by remember { mutableStateOf(false) }
-    var favoriteDetail by remember { mutableStateOf<MapLocation?>(null) }
+    var favoriteDetail by remember { mutableStateOf<FavoriteBatchLocation?>(null) }
     var pendingAlternative by remember { mutableStateOf<NearbyOrigin?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -107,8 +108,12 @@ fun ChargeWatchApp() {
     var settingsLoading by remember { mutableStateOf(false) }
     var settingsError by remember { mutableStateOf<String?>(null) }
 
-    val availabilityClient = remember { FavoritesAvailabilityClient() }
+    val favoriteBatchClient = remember { FavoriteBatchClient() }
     var latestStatuses by remember { mutableStateOf<Map<String, MapLocation>>(emptyMap()) }
+    var favoriteDetails by remember {
+        mutableStateOf<Map<String, FavoriteBatchLocation>>(emptyMap())
+    }
+    var batchCoveredIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var favoriteFetchedAt by remember { mutableStateOf<Instant?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
@@ -131,36 +136,51 @@ fun ChargeWatchApp() {
         favorite.featureId to favoriteAvailability(observed, statusCheckedAt)
     }
     suspend fun refresh(force: Boolean = false) {
-        val currentTime = Instant.now()
-        val needed = if (force) favorites else favoritesNeedingFetch(
-            favorites = favorites,
-            mapLocations = mapStatuses,
-            mapFetchedAt = mapState.fetchedAt,
-            favoriteLocations = latestStatuses,
-            favoriteFetchedAt = favoriteFetchedAt,
-            now = currentTime
-        )
+        val ids = favorites.map { it.featureId }.distinct()
+        if (ids.isEmpty()) return
+        val now = Instant.now()
+        val recent = favoriteFetchedAt?.let {
+            !it.isAfter(now) && Duration.between(it,now) <= Duration.ofMinutes(2)
+        } ?: false
+        val needed = if (force || !recent) ids else ids.filterNot(batchCoveredIds::contains)
         if (needed.isEmpty()) {
             refreshMessage = null
             return
         }
+
         refreshing = true
         refreshMessage = null
+        val found = mutableMapOf<String, FavoriteBatchLocation>()
+        val missing = mutableSetOf<String>()
+        val completed = mutableSetOf<String>()
+        var failure: String? = null
         try {
-            when (val result = availabilityClient.refresh(needed)) {
-                is FavoriteRefreshResult.Success -> {
-                    latestStatuses = latestStatuses + result.locations
-                    favoriteFetchedAt = Instant.now()
-                    refreshMessage = result.warning
-                }
-                is FavoriteRefreshResult.Partial -> {
-                    latestStatuses = latestStatuses + result.locations
-                    refreshMessage = result.warning
-                    // Partial responses are not considered fully checked, so retry is possible.
+            // 20 is the API request limit. Chunking also preserves existing
+            // installations which may already have more than 20 favorites.
+            for (chunk in needed.chunked(FavoriteBatchClient.MAX_BATCH)) {
+                when (val result = favoriteBatchClient.load(chunk)) {
+                    is FavoriteBatchResult.Success -> {
+                        found.putAll(result.locations)
+                        missing.addAll(result.missingIds)
+                        completed.addAll(chunk)
+                    }
+                    is FavoriteBatchResult.Unavailable -> {
+                        failure = result.message
+                        break
+                    }
                 }
             }
-        } catch (_: Exception) {
-            refreshMessage = "Beschikbaarheid kon niet worden opgehaald."
+            favoriteDetails = favoriteDetails.filterKeys { it !in missing } + found
+            latestStatuses = latestStatuses.filterKeys { it !in missing } +
+                found.mapValues { it.value.mapLocation }
+            batchCoveredIds = if (recent && !force) batchCoveredIds + completed
+                else completed
+            favoriteFetchedAt = if (failure == null) Instant.now() else null
+            refreshMessage = when {
+                failure != null -> failure
+                missing.isNotEmpty() -> "${missing.size} opgeslagen laadlocatie(s) niet gevonden."
+                else -> null
+            }
         } finally {
             statusCheckedAt = Instant.now()
             refreshing = false
@@ -238,21 +258,22 @@ fun ChargeWatchApp() {
                         }
                     },
                     onOpen = { favorite ->
-                        val cached = latestStatuses[favorite.featureId] ?: mapStatuses[favorite.featureId]
+                        val cached = favoriteDetails[favorite.featureId]
                         if (cached != null) {
                             favoriteDetail = cached
                         } else {
                             scope.launch {
-                                when (val result = availabilityClient.refresh(listOf(favorite))) {
-                                    is FavoriteRefreshResult.Success -> {
-                                        latestStatuses = latestStatuses + result.locations
-                                                            result.locations[favorite.featureId]?.let { favoriteDetail = it }
+                                when (val result = favoriteBatchClient.load(listOf(favorite.featureId))) {
+                                    is FavoriteBatchResult.Success -> {
+                                        favoriteDetails = favoriteDetails + result.locations
+                                        latestStatuses = latestStatuses + result.locations.mapValues {
+                                            it.value.mapLocation
+                                        }
+                                        favoriteDetail = result.locations[favorite.featureId]
+                                        if (favoriteDetail == null)
+                                            refreshMessage = "Deze laadlocatie is niet beschikbaar."
                                     }
-                                    is FavoriteRefreshResult.Partial -> {
-                                        latestStatuses = latestStatuses + result.locations
-                                                            result.locations[favorite.featureId]?.let { favoriteDetail = it }
-                                        refreshMessage = result.warning
-                                    }
+                                    is FavoriteBatchResult.Unavailable -> refreshMessage = result.message
                                 }
                             }
                         }
@@ -285,9 +306,10 @@ fun ChargeWatchApp() {
                 )
             }
 
-            favoriteDetail?.let { location ->
+            favoriteDetail?.let { detail ->
                 LocationSelectionSheet(
-                    locations = listOf(location),
+                    locations = listOf(detail.mapLocation),
+                    preloaded = detail,
                     onDismiss = { favoriteDetail = null },
                     onLocationSelected = { },
                     isFavorite = { item -> favorites.any { it.featureId == item.featureId } },
