@@ -28,7 +28,9 @@ class LocationDetailsCacheTest {
             "detail":$detail,"statistics":null}]}
     """.trimIndent()
     private val statistics = """
-        {"locationId":12,"slots":[{"isoWeekday":1,"hour":10,
+        {"locationId":12,"isExperimental":true,
+         "probabilityInterpretation":"UNVALIDATED_SNAPSHOT_EWMA",
+         "slots":[{"isoWeekday":1,"hour":10,
              "availableProbability":0.7,"sampleCount":9}],"evses":[]}
     """.trimIndent()
 
