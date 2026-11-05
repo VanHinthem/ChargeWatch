@@ -1,5 +1,12 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
+## Favorieten en widget — volledige batchdetails via API PR #124 (5 november 2026)
+
+De Android-branch bij [draft-PR #123](https://github.com/VanHinthem/ChargeWatch/pull/123) gebruikt nu `FavoriteBatchClient` voor volledige `by-ndw-id/batch`-details (inclusief historische statistieken en tarieven) in plaats van actieve geografische `FavoritesAvailabilityClient`-viewportaanvragen. Tab Favorieten ververst automatisch, met twee-minutencache en geforceerde refresh. De uitgebreide sheet gebruikt de reeds opgehaalde gegevens zonder extra detail-/statistiek-GET. De kaart blijft individuele details ophalen en statistieken pas bij uitklappen. Het batchcontract en de set-based API staan onafhankelijk in [draft-PR #124](https://github.com/VanHinthem/ChargeWatch/pull/124). **Uitrolvolgorde: API PR #124 → afzonderlijk NAS-deployment → Android PR #123 → Samsung-test.** Geen merges of deployments zonder afzonderlijk akkoord. [Gedetailleerde documentatie](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).
+
+---
+
+
 ## Android-sheetstatistieken on-demand (4 november 2026)
 
 De compacte kaart-sheet vraagt voortaan alleen locatiedetails en tarieven via `by-ndw-id/{featureId}` op. De aparte `/statistics`-aanroep wordt pas gestart wanneer de sheet daadwerkelijk wordt uitgebreid en wordt binnen dezelfde sheet per locatie onthouden. Het favorietenscherm opent de gedeelde sheet al direct volledig, zodat historie daar gewoon meteen wordt geladen. De favorietenlijst blijft beschikbaarheid verversen via de bestaande viewport-API met maximaal twee minuten fetchcache; aan die datastroom is niets gewijzigd. [Technisch verslag](SHEET_STATISTICS_ON_DEMAND_ANDROID.md). **Android-only, eerst draft-PR en CI; geen merge/deployment zonder afzonderlijk akkoord.**
