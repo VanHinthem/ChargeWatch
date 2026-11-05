@@ -72,8 +72,9 @@ class ChargeWatchWidget : GlanceAppWidget() {
         setOf(
             // One UI can give a 2x2 tile only ~100x62dp. Without this size
             // Glance falls back to the 260x62 4x1 layout and truncates names.
-            DpSize(100.dp, 62.dp),
-            DpSize(260.dp, 62.dp), // 4x1: one favorite without a separate header/footer
+            DpSize(100.dp, 62.dp), // narrow One UI tile: one favorite, stacked
+            DpSize(150.dp, 62.dp), // intermediate horizontal One UI tile
+            DpSize(260.dp, 62.dp), // wide 4x1: existing horizontal layout
             DpSize(150.dp, 140.dp), DpSize(285.dp, 140.dp),
             DpSize(285.dp, 215.dp), DpSize(285.dp, 270.dp), DpSize(285.dp, 320.dp)
         )
@@ -124,6 +125,8 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
         TinySquareWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
         return
     }
+    // The intermediate 150x62dp variant is a horizontal widget too; it must
+    // not fall back to the tiny stacked tile selected by 100x62dp.
     if (isSingleRowWidget(size.width.value, size.height.value)) {
         SingleRowWidgetContent(context, widgetId, rows, hasFavorites, dark, refreshing)
         return
