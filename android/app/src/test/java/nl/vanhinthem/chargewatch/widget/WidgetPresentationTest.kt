@@ -63,11 +63,22 @@ class WidgetPresentationTest {
     }
 
     @Test fun responsiveLayoutPrioritizesLargerTextWithoutClippingRows() {
-        assertEquals(2, visibleWidgetRows(150f, 140f))
+        assertEquals(1, visibleWidgetRows(150f, 140f))
         assertEquals(2, visibleWidgetRows(285f, 140f))
         assertEquals(3, visibleWidgetRows(285f, 215f))
         assertEquals(4, visibleWidgetRows(285f, 270f))
         assertEquals(5, visibleWidgetRows(285f, 320f))
+    }
+
+    @Test fun narrowTwoByTwoKeepsOneLegibleFavoriteEvenIfSeveralAreSelected() {
+        assertEquals(1, visibleWidgetRows(150f, 140f))
+        assertEquals(1, visibleWidgetRows(180f, 190f))
+        assertEquals(1, visibleWidgetRows(220f, 320f))
+        assertEquals(3, visibleWidgetRows(285f, 215f))
+        // In the square layout the remaining selected favorites are
+        // represented by +N meer instead of unreadably truncated names.
+        val selected = listOf("Thuis", "Werk", "Familie")
+        assertEquals(2, selected.size - visibleWidgetRows(150f, 140f))
     }
 
     @Test fun singleRowWidgetIsOnlyUsedForWideLowLauncherSizes() {
