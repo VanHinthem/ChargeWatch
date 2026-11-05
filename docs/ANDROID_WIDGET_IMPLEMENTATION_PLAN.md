@@ -1,5 +1,8 @@
 # Android-startschermwidget — UX-contract en technisch ontwerp (#101)
 
+> **Implementatie- en acceptatiestatus — 5 november 2026:** [widget PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is via squash commit `92d7e441e70a86e11bb5b99094e325c3b009f7e6` naar `main` gemerged, na groene CI en fysieke Samsung-acceptatie van de kleine, horizontale en grote formaten. [Issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101) is als completed afgesloten. De huidige widget gebruikt de gedeelde by-ID batch/cachelaag en persisteert betrouwbare laatst-bekende status. Eerdere secties over losse metadata-GET's, viewport-/NDW-fallback, open draft-review en nog te testen layouts zijn **historische ontwerpiteraties**. Een echte 1×1 is geen geïmplementeerde nieuwe launchergrootte. Zie [STATUS](STATUS.md) voor de actuele stand.
+
+
 **Status (2 november 2026):** minimalistische UX-richting A goedgekeurd en vervolgens expliciet akkoord gegeven voor Android-implementatie. Uitvoering op `feature/android-favorites-widget` in [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112). CI en Samsung-validatie nog te voltooien; **geen merge of deploy zonder afzonderlijk expliciet akkoord**. Canoniek issue: [#101](https://github.com/VanHinthem/ChargeWatch/issues/101). De oude documentatie-PR #108 (`docs/android-v1-next-steps`) heeft een conflicterende historische roadmap en is **niet** de implementatiebasis; de relevante punten zijn hier opnieuw tegen `main` beoordeeld.
 
 ## Doel en productgrenzen

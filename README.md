@@ -1,47 +1,39 @@
 # ChargeWatch
 
-**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland, met actuele laadpuntstatus, tarieven, lokale favorieten en een native widget; bezettingsstatistieken, betrouwbaarheidspercentages en historische beschikbaarheidskansen in versie 1; notificaties en accounts later.
+**Android-first laadpaalassistent** voor openbare laadlocaties in Nederland: actuele beschikbare laadpunten, huidige tarieven, landelijke kaart, bestemming-/GPS-zoeken, filters, nabije alternatieven en lokale favorieten met een native Android-widget.
 
-> **Status (29 oktober 2026):** het datafundament, de periodieke NDW/OCPI-import en de read-only API draaien; de Android-app is actief in ontwikkeling. Kaart, locatie-details, tarieven/statistieken, lokale favorieten, light/dark, Settings en een eerste laadlocatiezoekfunctie zijn geïmplementeerd in PR #61. De volgende kaart-UX-fase — bestemming zoeken plus filters — staat in issue #95. NAS/productiedeployments blijven afzonderlijke expliciete releasestappen.
+> **Actuele status — 5 november 2026:** Android-widget PR [#112](https://github.com/VanHinthem/ChargeWatch/pull/112) is gemerged na Samsung-acceptatie. De read-only API ondersteunt gerichte batchlocatiedetails en HTTP-gzip (publiek via HTTPS bevestigd). De Android-app heeft gedeelde detail-/statistiekcaches. **Nog open vóór v1:** betrouwbare publicatie van statistieken/90-daagse uptime ([#103](https://github.com/VanHinthem/ChargeWatch/issues/103)), de resterende productieactivatie/HTTP-validatie van de landelijke overview ([#113](https://github.com/VanHinthem/ChargeWatch/issues/113)) en de integrale Android releasekwaliteitsronde ([#104](https://github.com/VanHinthem/ChargeWatch/issues/104)). Een definitieve publieke v1-release is **niet** bevestigd.
 
 ## Waarom ChargeWatch?
 
-Toon in één oogopslag hoeveel aansluitingen bij favoriete laadpalen beschikbaar zijn. Zoek alternatieven in de buurt en ontdek met landelijke weekdag-/uurprofielen waar en wanneer je historisch de beste kans hebt om te laden.
-
-De oorspronkelijke aanleiding is een Android-widget. Het project groeit uit tot een volwaardige app, zonder zelf laadtransacties of betalingen te verwerken.
+Bekijk snel hoeveel aansluitingen bij een favoriete laadlocatie vrij zijn en ontdek geschikte alternatieven in de buurt. De widget toont betrouwbare `vrij/totaal`-tellingen, bronversheid en bij tijdelijk uitval de laatste bekende geldige status. Historische kans-/uptimegegevens worden alleen gepubliceerd wanneer de datakwaliteit aantoonbaar voldoende is; dit zijn geen voorspellingen van vertrektijden.
 
 ## Projectdocumentatie
 
-- [Productvisie en functionele eisen](docs/PRODUCT.md) — scope, zes gekozen productfuncties en MVP.
-- [Technisch ontwerp](docs/ARCHITECTURE.md) — .NET 10 backend, PostgreSQL/PostGIS, NDW-imports en Kotlin/Compose Android.
-- [Notificatieregels](docs/ALERTS.md) — CW-ALERT-001, Schietspoel 18: **eenmalige melding zodra, na 0 vrije aansluitingen, minimaal 1 aansluiting vrij wordt**.
-- [Roadmap en onderzoek](docs/ROADMAP.md) — fasen 0–5, validatiechecklist en vastgelegde bronobservaties.
+- [Actuele status](docs/STATUS.md) — wat is gemerged, wat is op de NAS bevestigd, en wat is nog open.
+- [Roadmap](docs/ROADMAP.md) — actuele Android-v1-prioriteiten #103/#104 en dataflow-/overview-productiegate #113.
+- [Productvisie en functionele eisen](docs/PRODUCT.md).
+- [Technisch ontwerp](docs/ARCHITECTURE.md).
+- [Locatie-dataflow en kaartontwerp](docs/LOCATION_DATAFLOW_ARCHITECTURE.md) — historisch ontwerp; de actuele implementatie- en rolloutstatus staat in STATUS.
+- [Native widgetontwerp](docs/ANDROID_WIDGET_IMPLEMENTATION_PLAN.md) — inclusief oude Samsung-iteraties en de uiteindelijk gemergede layouts.
+- [Historisch statuslog](docs/archive/STATUS_THROUGH_2026-11-05.md) en [oude roadmap](docs/archive/ROADMAP_THROUGH_2026-11-05.md) — bewaard ter reconstructie van tests/besluiten.
+- [Notificatieregels — toekomstig](docs/ALERTS.md) — niet opgenomen in v1.
 
-## Versie 1 — Read-only laadpuntcatalogus
+## Versie 1 — scope en voortgang
 
-Kaart en laadlocatiezoeken; laadlocatiedetails inclusief **huidige tarieven**; favorieten **uitsluitend op Android**; widget; nabije alternatieven en duidelijke dataversheid. Google-Maps-achtige bestemmingzoeking en kaartfilters volgen als aparte kaart-UX-fase in issue #95. **Geen notificaties of server-side gebruikersaccounts in v1.** Vanaf de eerste backendversie verzamelen we **compacte landelijke statistieken per EVSE én per locatie** (EWMA per weekdag/uur en 90-daagse uptime-dagtotalen), zonder omvangrijke permanente eventhistorie. **Versie 1 toont ook** de EVSE- en locatiebezettingsprofielen, 90-daagse uptime en de historische kans op minstens één vrije aansluiting per weekdag/uur. Deze indicatie vereist voldoende datadekking; het is geen voorspelling van een vertrekmoment binnen 15/30 minuten. Uitgebreide tariefvergelijking en kortetermijnvoorspellingen volgen eventueel later.
+**Gerealiseerd:** landelijke NDW/OCPI-catalogus en PostgreSQL/PostGIS-read-only API; kaart, zoeken, filters, GPS en vijf nabije laadlocaties; huidige tarieven; per toestel opgeslagen favorieten en native Glance-widget. Gerichte `POST /api/v1/locations/by-ndw-id/batch` (maximaal 20 per request), gzip voor JSON en twee onafhankelijke Android-caches (actuele details/tarieven: 2 minuten; historie: 15 minuten, pas bij uitklappen) beperken requests en dataverkeer.
 
-## Voorlopige architectuur
+**Nog te valideren vóór release:** historische bezettingskansen en 90-daagse EVSE-uptime op basis van meetdekking/statuskwaliteit; landelijke overview achter `CW_ENABLE_MAP_OVERVIEW` met gecontroleerde NAS-HTTP-meting en featureflagkeuze; release-signing, privacy/bronattributie, offline/fouten, toegankelijkheid en integrale Samsung-regressie. De nieuwe kaartmodus is momenteel optioneel en Android kiest standaard de bestaande kaart. Featureflag-activering op de NAS is niet bevestigd.
 
-- **Backend:** ASP.NET Core / .NET 10, als modulaire monoliet, op NAS via Docker Compose.
-- **Opslag:** PostgreSQL 18 + PostGIS. Importworker schrijft landelijke laadpuntgegevens en compacte statistieken; de app gebruikt uitsluitend een **read-only REST API** met een aparte databasegebruiker met leesrechten.
-- **Android:** Kotlin, Jetpack Compose, Jetpack Glance-widget en lokale opslag van favorieten via Room/DataStore. Push/FCM pas later.
-- **Data:** NDW/DOT-NL GeoJSON en landelijke OCPI Locations- en Tariffs-data. De individuele OCPI-dataset moet nog in Sprint 0 inhoudelijk gevalideerd worden.
+**Niet in v1:** accounts, serverfavorieten, notificaties/push, laadsessies starten, laadpassen of betalingen, kortetermijnvoorspellingen en Android Auto. Een echte 1×1-widget is slechts een toekomstig idee.
 
-**Opslagbeleid:** alleen actuele tarieven; actuele landelijke EVSE-status; 168 week-/uurvakken per EVSE en per locatie, inclusief direct gemeten kans op minimaal één vrije aansluiting op locatieniveau. Ruwe statusovergangen worden niet langdurig opgeslagen. De eerder genoemde 1–3,5 GB was een voorlopige schatting vóór EVSE-profielen; **een nieuwe raming en proefimport zijn nodig**.
+## Architectuur
 
-**Later:** notificaties, eventueel een **aparte database voor accounts, favorieten en abonnementen**, en een mogelijke betaalde gebruikerslaag; dit is nadrukkelijk niet nodig voor v1.
+- **API:** ASP.NET Core / .NET 10, alleen-lezen REST, Docker Compose op NAS.
+- **Data:** PostgreSQL 18 + PostGIS, gescheiden lees-/schrijfrechten; ingelezen NDW/OCPI Locations en Tariffs met actuele laadpunt-/EVSE-/connectorgegevens.
+- **Android:** Kotlin, Jetpack Compose/MapLibre, Glance-widget, lokale favorieten en instellingen; gedeelde process-cache en aparte persistente widgetcache voor offline laatst-bekend.
+- **Kaart:** bestaande viewportmodus plus feature-gated landelijke overview; clusters tonen aantallen laadlocaties en een betrouwbare groen/rood/onbekend-statusverdeling.
 
-## Eerstvolgende stap
+## Bijdragen en uitrol
 
-**Sprint 0 — Datafundament:** download en analyseer het landelijke NDW OCPI Locations-bestand, vergelijk de individuele status van Schietspoel 18 met de eerder waargenomen Athlon-gegevens en valideer de tarief- en ID-structuur. Daarna pas starten we de implementatie.
-
-Zie [ROADMAP.md](docs/ROADMAP.md) voor de complete onderzoekschecklist.
-
-## Scopegrens
-
-ChargeWatch wordt voorlopig een zoek-, informatie- en monitoringapp. Laadsessies starten, laadpassen beheren en betalingen vallen buiten scope.
-
-## Licenties en gebruiksvoorwaarden
-
-Voordat de app publiek verspreid wordt, moeten de NDW-hergebruikvoorwaarden, attributie en kaartproviderlicenties gecontroleerd en gedocumenteerd worden.
+Werk in beperkte, geteste PR's. CI en een geslaagde Samsung-debugtest zijn geen automatisch productie- of publieksreleaseakkoord. Merge, NAS-deployment, featureflag-activering en distributie vinden alleen plaats na afzonderlijk akkoord. Controleer vóór publieke uitrol NDW-hergebruikvoorwaarden, bronvermelding en kaartproviderlicenties.

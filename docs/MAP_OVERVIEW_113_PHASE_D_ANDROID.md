@@ -1,5 +1,8 @@
 # ChargeWatch #113 — fase D: Android-landkaart (draft PR #119)
 
+> **Actuele duiding — 5 november 2026:** de hier beschreven fase-D-implementatie uit draft PR #119 is inmiddels in `main` gemerged via [PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119); daarna volgden [PR #120](https://github.com/VanHinthem/ChargeWatch/pull/120), [#121](https://github.com/VanHinthem/ChargeWatch/pull/121) en [#122](https://github.com/VanHinthem/ChargeWatch/pull/122) voor natuurlijke, consistente clustering en favorietsterren. De onderstaande oorspronkelijke melding *niet gemerged* is historisch. **Nog niet bevestigd:** productieactivatie van `CW_ENABLE_MAP_OVERVIEW`, echte NAS HTTP-p50/p95/concurrency en een besluit om de overview standaard te maken. Zie [STATUS](STATUS.md) en [#113](https://github.com/VanHinthem/ChargeWatch/issues/113).
+
+
 **Datum:** 4 november 2026  
 **Status:** geïmplementeerd op `feat/map-overview-113-phase-d-android`, in [draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119). **Niet gemerged of gedeployed.** `CW_ENABLE_MAP_OVERVIEW` blijft op de NAS uit.
 
