@@ -87,17 +87,28 @@ class WidgetPresentationTest {
         assertTrue(isTinySquareWidget(100f, 62f))
         assertTrue(isTinySquareWidget(115f, 70f))
         assertFalse(isSingleRowWidget(100f, 62f))
+        assertFalse(isTinySquareWidget(150f, 62f))
+        assertTrue(isSingleRowWidget(150f, 62f))
         assertFalse(isTinySquareWidget(260f, 62f))
         assertTrue(isSingleRowWidget(260f, 62f))
         assertFalse(isTinySquareWidget(150f, 140f))
         assertFalse(isTinySquareWidget(285f, 140f))
     }
 
+    @Test fun intermediateHorizontalTileKeepsItsLayoutSeparateFromTinySquare() {
+        assertTrue(isTinySquareWidget(100f, 62f))
+        assertFalse(isSingleRowWidget(100f, 62f))
+        assertFalse(isTinySquareWidget(150f, 62f))
+        assertTrue(isSingleRowWidget(150f, 62f))
+        assertTrue(isSingleRowWidget(260f, 62f))
+        assertFalse(isSingleRowWidget(150f, 140f))
+    }
+
     @Test fun singleRowWidgetIsOnlyUsedForWideLowLauncherSizes() {
         assertTrue(isSingleRowWidget(260f, 62f))
         assertTrue(isSingleRowWidget(285f, 78f))
         assertFalse(isSingleRowWidget(285f, 140f))
-        assertFalse(isSingleRowWidget(150f, 62f))
+        assertTrue(isSingleRowWidget(150f, 62f))
         assertEquals(1, visibleWidgetRows(260f, 62f))
         assertEquals(2, visibleWidgetRows(285f, 140f))
     }
