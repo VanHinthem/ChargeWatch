@@ -20,11 +20,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Complete location detail and history can be shared by Favorites and the widget. */
+/** Shared location detail. Null history means not requested; empty means successfully fetched. */
 data class FavoriteBatchLocation(
     val mapLocation: MapLocation,
     val enrichment: LocationEnrichment,
-    val statistics: List<HourlyAvailability>
+    val statistics: List<HourlyAvailability>?
 )
 
 sealed interface FavoriteBatchResult {
@@ -45,13 +45,13 @@ class FavoriteBatchClient(
         .connectTimeout(8,TimeUnit.SECONDS)
         .callTimeout(20,TimeUnit.SECONDS).build()
 ) {
-    suspend fun load(ids: List<String>): FavoriteBatchResult = withContext(Dispatchers.IO) {
+    suspend fun load(ids: List<String>, includeStatistics: Boolean = false): FavoriteBatchResult = withContext(Dispatchers.IO) {
         require(ids.isNotEmpty() && ids.size <= MAX_BATCH && ids.distinct().size == ids.size)
         if (!baseUrl.startsWith("https://"))
             return@withContext FavoriteBatchResult.Unavailable("ChargeWatch API is niet geconfigureerd.")
         val json = buildJsonObject {
             put("featureIds",JsonArray(ids.map(::JsonPrimitive)))
-            put("includeStatistics",true)
+            put("includeStatistics",includeStatistics)
         }.toString()
         val request = Request.Builder()
             .url(baseUrl.trimEnd('/') + "/api/v1/locations/by-ndw-id/batch")
@@ -68,7 +68,7 @@ class FavoriteBatchClient(
                         "Favorieten ophalen mislukte (HTTP ${response.code}).")
                 val body=response.body?.string() ?: return@use FavoriteBatchResult.Unavailable(
                     "Lege ChargeWatch API-response.")
-                runCatching { parseFavoriteBatchResponse(body,ids) }
+                runCatching { parseFavoriteBatchResponse(body,ids,includeStatistics) }
                     .getOrElse { FavoriteBatchResult.Unavailable(
                         "Onvolledige of ongeldige favorietgegevens ontvangen.") }
             }
@@ -83,7 +83,9 @@ class FavoriteBatchClient(
 }
 
 /** Validate membership, completeness and requested order before publishing cache. */
-internal fun parseFavoriteBatchResponse(raw: String, ids: List<String>): FavoriteBatchResult.Success {
+internal fun parseFavoriteBatchResponse(
+    raw: String, ids: List<String>, includeStatistics: Boolean = false
+): FavoriteBatchResult.Success {
     require(ids.size in 1..FavoriteBatchClient.MAX_BATCH && ids.size==ids.distinct().size)
     val root=Json.parseToJsonElement(raw).jsonObject
     val entries=root["locations"]?.jsonArray ?: error("Missing locations")
@@ -102,14 +104,16 @@ internal fun parseFavoriteBatchResponse(raw: String, ids: List<String>): Favorit
             }
             "FOUND" -> {
                 val detail=obj["detail"]?.jsonObject ?: error("Missing detail")
-                val stats=obj["statistics"]?.jsonObject ?: error("Missing full statistics")
+                val stats=if (includeStatistics) obj["statistics"]?.jsonObject
+                    ?: error("Missing full statistics") else null
+                if (!includeStatistics) require(obj["statistics"] == null || obj["statistics"] is JsonNull)
                 val country=detail["countryCode"]?.jsonPrimitive?.contentOrNull
                 val party=detail["partyId"]?.jsonPrimitive?.contentOrNull
                 val source=detail["sourceId"]?.jsonPrimitive?.contentOrNull
                 require("${country}-${party}-${source}"==id) {
                     "Wrong location detail identity"
                 }
-                require(stats["locationId"]?.jsonPrimitive?.longOrNull ==
+                if (stats != null) require(stats["locationId"]?.jsonPrimitive?.longOrNull ==
                     detail["id"]?.jsonPrimitive?.longOrNull) { "Wrong statistics identity" }
                 val longitude=detail["longitude"]?.jsonPrimitive?.doubleOrNull ?: error("Missing longitude")
                 val latitude=detail["latitude"]?.jsonPrimitive?.doubleOrNull ?: error("Missing latitude")
@@ -124,9 +128,11 @@ internal fun parseFavoriteBatchResponse(raw: String, ids: List<String>): Favorit
                 )
                 val detailJson=detail.toString()
                 val projected=parseMapLocationDetail(detailJson,seed)
-                val hourly=parseHourlyAvailability(stats.toString())
-                val enrichment=parseEnrichment(detailJson).copy(
-                    statisticsAvailable=hourly.isNotEmpty(),hourlyAvailability=hourly)
+                val hourly=stats?.let { parseHourlyAvailability(it.toString()) }
+                val enrichment=parseEnrichment(detailJson).let { detail ->
+                    if (hourly == null) detail else detail.copy(
+                        statisticsAvailable=hourly.isNotEmpty(),hourlyAvailability=hourly)
+                }
                 found[id]=FavoriteBatchLocation(projected,enrichment,hourly)
             }
             else -> error("Invalid batch status")
