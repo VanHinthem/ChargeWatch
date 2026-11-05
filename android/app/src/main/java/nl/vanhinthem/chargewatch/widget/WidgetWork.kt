@@ -23,10 +23,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
-import nl.vanhinthem.chargewatch.data.favorites.FavoriteRefreshResult
-import nl.vanhinthem.chargewatch.data.favorites.FavoritesAvailabilityClient
 import nl.vanhinthem.chargewatch.data.favorites.FavoritesRepository
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
+import nl.vanhinthem.chargewatch.data.enrichment.SharedLocationDetails
 import java.util.concurrent.TimeUnit
 
 object WidgetWork {
@@ -90,88 +89,60 @@ object WidgetWork {
 }
 
 /**
- * All refresh paths share a single mutex, cache, and the existing API-first
- * FavoritesAvailabilityClient. Periodic work may be delayed by Android, but
- * an explicit user action is attempted immediately.
+ * Widget and app share the same in-process details cache. The widget persists
+ * a small last-known snapshot in DataStore, so a process restart or offline
+ * period never requires the full response to be kept in memory.
+ *
+ * One precise read-only batch request replaces geographic viewport grouping,
+ * NDW fallback, individual city GETs and incremental per-region updates.
  */
 internal object WidgetRefreshCoordinator {
-    private val availabilityMutex = Mutex()
-    private val addressMutex = Mutex()
+    private val refreshMutex = Mutex()
 
     suspend fun refresh(context: Context, force: Boolean = false) {
-        // Location metadata must never block a subsequent manual availability refresh.
-        val targets = availabilityMutex.withLock {
+        refreshMutex.withLock {
             val store = WidgetStore(context)
-            if (!WidgetWork.hasWidgets(context) && store.read().configurations.isEmpty()) {
-                return@withLock emptyList<FavoriteLocation>()
-            }
+            val existing = store.read()
+            if (!WidgetWork.hasWidgets(context) && existing.configurations.isEmpty())
+                return@withLock
+
             val favorites = FavoritesRepository(context).favorites.first()
             store.reconcile(favorites.map { it.featureId }.toSet())
-            val current = store.read()
-            val selected = current.configurations.values.flatten().toSet()
-            val targets = favorites.filter { it.featureId in selected }
-            if (targets.isEmpty()) {
+            val state = store.read()
+            val selected = state.configurations.values.flatten().toSet()
+            val ids = favorites.map { it.featureId }.filter { it in selected }.distinct()
+            if (ids.isEmpty()) {
                 ChargeWatchWidget().updateAll(context)
-                return@withLock emptyList<FavoriteLocation>()
+                return@withLock
             }
 
             val now = System.currentTimeMillis()
-            val needsInitialData = targets.any { current.snapshots[it.featureId] == null }
-            if (shouldFetchWidgetAvailability(
+            val needsInitialData = ids.any { state.snapshots[it] == null }
+            if (!shouldFetchWidgetAvailability(
                     nowMillis = now,
-                    previousAttemptMillis = current.lastAttemptMillis,
+                    previousAttemptMillis = state.lastAttemptMillis,
                     force = force,
                     needsInitialData = needsInitialData
-                )
-            ) {
-                store.markRefreshing(now)
+                )) {
                 ChargeWatchWidget().updateAll(context)
-                try {
-                    when (val result = FavoritesAvailabilityClient().refresh(targets,
-                        onPartialLocations = { partial ->
-                            store.recordIncremental(partial, System.currentTimeMillis())
-                            // A finished location is usable immediately, even while
-                            // another favorite awaits API/NDW fallback.
-                            ChargeWatchWidget().updateAll(context)
-                        })) {
-                        is FavoriteRefreshResult.Success ->
-                            store.recordRefresh(result.locations, System.currentTimeMillis(),
-                                result.locations.size < targets.size)
-                        is FavoriteRefreshResult.Partial ->
-                            store.recordRefresh(result.locations, System.currentTimeMillis(), true)
-                    }
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                    store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
-                }
+                return@withLock
             }
 
+            store.markRefreshing(now)
             ChargeWatchWidget().updateAll(context)
-            targets
-        }
-
-        if (targets.isEmpty()) return
-        // Address requests are independent and can take several seconds each,
-        // especially on fallback. Never hold the availability lock for them.
-        addressMutex.withLock {
-            val store = WidgetStore(context)
-            val addressClient = WidgetAddressClient()
-            var attempted = 0
-            for (favorite in targets) {
-                if (attempted >= 10) break
-                val state = store.read()
-                if (widgetFavoriteCity(favorite, state.addresses[favorite.featureId]) == null &&
-                    shouldFetchWidgetAddress(
-                        state.addresses[favorite.featureId],
-                        state.addressAttempts[favorite.featureId], System.currentTimeMillis()
-                    )
-                ) {
-                    attempted++
-                    val address = addressClient.load(favorite.featureId)
-                    store.recordAddressLookup(favorite.featureId, address, System.currentTimeMillis())
+            try {
+                when (val result = SharedLocationDetails.cache.loadDetails(ids, force)) {
+                    is FavoriteBatchResult.Success ->
+                        store.recordBatch(result, System.currentTimeMillis())
+                    is FavoriteBatchResult.Unavailable ->
+                        store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
                 }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                // Preserve the previous verified ratio and mark it "Laatst bekend".
+                store.recordRefresh(emptyMap(), System.currentTimeMillis(), true)
             }
-            if (attempted > 0) ChargeWatchWidget().updateAll(context)
+            ChargeWatchWidget().updateAll(context)
         }
     }
 }
