@@ -158,10 +158,11 @@ fun widgetHeaderFreshness(rows: List<WidgetRow>, refreshing: Boolean): String = 
 fun isTinySquareWidget(widthDp: Float, heightDp: Float): Boolean =
     widthDp < 140f && heightDp < 100f
 
-// A 4x1 Android launcher row is substantially shorter than the regular widget.
-// This size class uses a dedicated horizontal composition, not a scaled-down 4x2.
+// Both the intermediate One UI tile (150x62dp) and the wide 4x1
+// (260x62dp) use the existing horizontal composition. The 100x62dp
+// tiny tile retains its own stacked layout.
 fun isSingleRowWidget(widthDp: Float, heightDp: Float): Boolean =
-    widthDp >= 235f && heightDp < 100f
+    widthDp >= 145f && heightDp < 100f
 
 /** Compact, unambiguous source feedback under the 4x1 ratio. */
 fun compactWidgetFreshness(row: WidgetRow): String = when {
