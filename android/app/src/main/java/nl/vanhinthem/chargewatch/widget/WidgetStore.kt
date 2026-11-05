@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import nl.vanhinthem.chargewatch.data.ndw.MapLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
 
 private val Context.widgetDataStore by preferencesDataStore(name = "chargewatch_widgets")
 private val WIDGET_STATE = stringPreferencesKey("widgets_v1")
@@ -76,6 +77,36 @@ class WidgetStore(context: Context) {
     suspend fun markRefreshing(startedAtMillis: Long) = update { current ->
         current.copy(refreshingSinceMillis = startedAtMillis)
     }
+
+    /**
+     * Persist the verified availability and address/city metadata from one batch
+     * in one DataStore transaction. Never overwrite a previously reliable ratio
+     * with unknown counts or a failed/missing item.
+     */
+    suspend fun recordBatch(result: FavoriteBatchResult.Success, atMillis: Long) =
+        update { current ->
+            val needed = current.configurations.values.flatten().toSet()
+            val snapshots = current.snapshots.filterKeys { it in needed }.toMutableMap()
+            val addresses = current.addresses.filterKeys { it in needed }.toMutableMap()
+            var unreliable = false
+            result.locations.forEach { (id, location) ->
+                if (id !in needed) return@forEach
+                val proposed = location.mapLocation.toWidgetSnapshot(atMillis)
+                if (!proposed.hasReliableCounts()) unreliable = true
+                snapshots[id] = mergeWidgetSnapshot(snapshots[id], proposed)
+                widgetBatchAddress(location.mapLocation, location.city)?.let {
+                    addresses[id] = it
+                }
+            }
+            current.copy(
+                snapshots = snapshots,
+                addresses = addresses,
+                lastAttemptMillis = atMillis,
+                refreshingSinceMillis = null,
+                refreshFailed = unreliable || result.missingIds.isNotEmpty() ||
+                    needed.any { it !in result.locations }
+            )
+        }
 
     /** Save a completed small viewport immediately, without ending the whole refresh. */
     suspend fun recordIncremental(
@@ -147,6 +178,15 @@ fun WidgetSnapshot.hasReliableCounts(): Boolean =
     reliability in setOf("Safe", "Estimated") &&
     total != null && total > 0 &&
     free != null && free in 0..total
+
+/** Extract canonical city/address from the shared batch result, with no second GET. */
+internal fun widgetBatchAddress(location: MapLocation, city: String?): WidgetAddress? {
+    val address = location.address?.trim()?.takeIf { it.isNotBlank() && it.length <= 256 }
+        ?: return null
+    val name = city?.trim()?.takeIf { it.isNotBlank() && it.length <= 100 }
+        ?: return null
+    return WidgetAddress(address, name)
+}
 
 /** Limit metadata requests for failed lookups; cache valid city information indefinitely. */
 fun shouldFetchWidgetAddress(
