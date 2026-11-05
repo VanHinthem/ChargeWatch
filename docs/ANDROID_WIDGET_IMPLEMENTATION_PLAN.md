@@ -178,3 +178,16 @@ Dit zijn **richtmaten**: daadwerkelijke `DpSize` na resizing, launcher-padding, 
 - Het label is betekenisbewust: `Verversen…` tijdens ophalen; `Laatst bekend` bij oude of onzekere betrouwbaarheid van het bronmoment, `Deels onbekend` en `Onbekend` bij ontbrekende betrouwbare aantallen; `Bronmoment verschilt` wanneer favorieten verschillende brontijden hebben. Een enkele brontijd wordt dus nooit als representatief voor gemengde data getoond.
 - Als meer favoriete locaties zijn geselecteerd dan het formaat toestaat, blijft de `+N meer`-melding bestaan, direct onder de zichtbare rijen.
 - De aparte 2×2- en 4×1-layouts veranderen niet door deze verfijning. Android-CI en visuele Samsung-validatie blijven nodig vóór merge.
+
+
+## Samsung-review 5 november — definitieve 2×2-vereenvoudiging
+
+De fysieke screenshot van meerdere widgetformaten bevestigde dat de bredere 4×1/4×2/4×3-formaatweergaven goed zijn. Alleen de smalle 2×2 had een **afgekorte naam** (`...`) en een nauwelijks leesbare adresregel (`S...`). Op expliciet akkoord wordt **alleen** 2×2 gewijzigd:
+
+- Toon maximaal één geselecteerde favoriete locatie: de eerste in de bestaande per-widgetvolgorde.
+- Geef de naam de volledige breedte op een eigen regel (maximaal twee regels), zonder adres, plaatsnaam of tweede geselecteerde favoriete rij.
+- Zet de groen/rode bezettingsbadge `vrij/totaal` op een eigen regel onder de naam. De bekende betrouwbaarheid/status blijft leidend; bij geen betrouwbare telling is `?` toegestaan.
+- Behoud linksboven de ⚡-homeactie en rechtsboven de handmatige verversactie. Behoud een compacte versheidsstatus onderaan en toon `+N meer` wanneer meer favorieten zijn geconfigureerd; die overige favorieten blijven geselecteerd, alleen niet zichtbaar in het 2×2-formaat.
+- De bestaande bredere layoutcomposities en 4×1 blijven **ongewijzigd**.
+
+Na CI volgt een nieuwe Samsung-screenshot/test voor 2×2. PR #112 blijft draft en ongemerged totdat de gebruiker expliciet akkoord geeft.
