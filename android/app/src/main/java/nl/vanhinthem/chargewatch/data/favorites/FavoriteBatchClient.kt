@@ -24,7 +24,8 @@ import java.util.concurrent.TimeUnit
 data class FavoriteBatchLocation(
     val mapLocation: MapLocation,
     val enrichment: LocationEnrichment,
-    val statistics: List<HourlyAvailability>?
+    val statistics: List<HourlyAvailability>?,
+    val city: String? = null
 )
 
 sealed interface FavoriteBatchResult {
@@ -133,7 +134,9 @@ internal fun parseFavoriteBatchResponse(
                     if (hourly == null) detail else detail.copy(
                         statisticsAvailable=hourly.isNotEmpty(),hourlyAvailability=hourly)
                 }
-                found[id]=FavoriteBatchLocation(projected,enrichment,hourly)
+                val city=detail["city"]?.jsonPrimitive?.contentOrNull?.trim()
+                    ?.takeIf { it.isNotEmpty() && it.length <= 100 }
+                found[id]=FavoriteBatchLocation(projected,enrichment,hourly,city)
             }
             else -> error("Invalid batch status")
         }
