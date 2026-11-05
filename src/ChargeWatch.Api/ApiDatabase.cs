@@ -2,7 +2,7 @@ using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 
-internal sealed class ApiDatabase(ApiOptions options)
+internal sealed partial class ApiDatabase(ApiOptions options)
 {
     private readonly string _connectionString = options.ConnectionString;
     private readonly TimeSpan _staleAfter = options.StaleAfter;

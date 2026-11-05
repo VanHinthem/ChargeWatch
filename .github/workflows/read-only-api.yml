@@ -137,6 +137,39 @@ jobs:
           assert all(category['connectorType']!='CHADEMO' for category in maploc['connectorCategories']),maploc
           status=get('data-status')
           assert status['evseCount']==146 and status['connectorCount']==146,status
+          # Verify bulk by-NDW-ID API against the existing single-detail
+          # contract, including a missing favorite and optional statistics.
+          def batch(ids, include_statistics=True, expected_status=200):
+              body=json.dumps({'featureIds':ids,'includeStatistics':include_statistics}).encode()
+              req=urllib.request.Request(base+'locations/by-ndw-id/batch',data=body,
+                  method='POST',headers={'Content-Type':'application/json'})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      assert response.status==expected_status,response.status
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  assert exc.code==expected_status,(exc.code,expected_status)
+                  return json.load(exc)
+          original=get('locations/by-ndw-id/NL-TST-PRESENCE')
+          original_stats=get('locations/by-ndw-id/NL-TST-PRESENCE/statistics')
+          values=batch(['NL-TST-ABSENT','NL-TST-PRESENCE'])['locations']
+          assert [v['featureId'] for v in values]==['NL-TST-ABSENT','NL-TST-PRESENCE']
+          assert values[0]['status']=='NOT_FOUND' and values[0]['detail'] is None
+          assert values[0]['statistics'] is None
+          assert values[1]['status']=='FOUND'
+          assert values[1]['detail']['id']==original['id']
+          assert values[1]['detail']['evses']==original['evses']
+          assert values[1]['detail']['feedIsStale']==original['feedIsStale']
+          assert values[1]['statistics']==original_stats
+          assert batch(['NL-TST-PRESENCE'],False)['locations'][0]['statistics'] is None
+          assert batch(['NL-TST-PRESENCE']*2,expected_status=400)['error']
+          assert batch([],expected_status=400)['error']
+          assert batch(['NL-TST-ABSENT']*21,expected_status=400)['error']
+          assert batch(['NL-TST-PRESENCE','bad id'],expected_status=400)['error']
+          twenty=batch(['NL-TST-PRESENCE']+['NL-TST-MISSING-'+str(i)
+                                          for i in range(19)],False)['locations']
+          assert len(twenty)==20 and sum(v['status']=='FOUND' for v in twenty)==1
+          print('Batch by-NDW-ID full detail, optional history and 20-ID limits passed.')
           print('Active-only API location, detail, viewport and data-status contract passed.')
           PY
 
