@@ -134,6 +134,21 @@ fun widgetFooter(rows: List<WidgetRow>): String = when {
     else -> rows.first().freshness
 }
 
+/**
+ * Brief source freshness beside the title in wider widgets. Do not show a
+ * single age if sources differ, some values are unknown, or the last good
+ * EVSE counts are only historical.
+ */
+fun widgetHeaderFreshness(rows: List<WidgetRow>, refreshing: Boolean): String = when {
+    refreshing -> "Verversen…"
+    rows.isEmpty() -> ""
+    rows.all { it.status == AvailabilityStatus.Unknown } -> "Onbekend"
+    rows.any { it.status == AvailabilityStatus.Unknown } -> "Deels onbekend"
+    rows.any { it.isLastKnown } -> "Laatst bekend"
+    rows.map { it.freshness }.distinct().size > 1 -> "Bronmoment verschilt"
+    else -> rows.first().freshness.removePrefix("Bron gecontroleerd · ")
+}
+
 // A 4x1 Android launcher row is substantially shorter than the regular widget.
 // This size class uses a dedicated horizontal composition, not a scaled-down 4x2.
 fun isSingleRowWidget(widthDp: Float, heightDp: Float): Boolean =
