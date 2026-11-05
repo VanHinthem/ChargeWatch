@@ -191,3 +191,10 @@ De fysieke screenshot van meerdere widgetformaten bevestigde dat de bredere 4×1
 - De bestaande bredere layoutcomposities en 4×1 blijven **ongewijzigd**.
 
 Na CI volgt een nieuwe Samsung-screenshot/test voor 2×2. PR #112 blijft draft en ongemerged totdat de gebruiker expliciet akkoord geeft.
+
+
+### Samsung-test 5 november — 2×2 gebruikte onbedoeld de 4×1-renderer
+
+De fysieke hertest na de eerste 2×2-vereenvoudiging toonde nog steeds `...` en `S...` naast de badge, met de verversknop op één horizontale rij. Dit was niet de nieuw geschreven 2×2-compositie maar de bestaande 4×1-layout. **Oorzaak:** One UI biedt voor deze kleine tegel vermoedelijk een kleiner beschikbaar dp-formaat dan de eerder geregistreerde `150×140dp`; bij `SizeMode.Responsive` selecteert Glance, wanneer geen formaat past, de kleinste variant, tot nu toe `260×62dp` (4×1).
+
+**Gerichte correctie:** `DpSize(100.dp, 62.dp)` toevoegen aan de bestaande responsieve formaten en vóór de 4×1-check routeren naar een eigen `TinySquareWidgetContent`. Hier krijgt de geselecteerde favoriet een eigen naamregel (zonder straat- of plaatsregel), een eigen groen/rood/?-badge, klein versheidslabel, verversicoon en `+N` bij meerdere selecties. Bestaande 4×1-, normale 2×2- en brede layouts blijven code-technisch ongewijzigd. De nieuwe pure test valideert dat het kleine One UI-formaat niet als 4×1 wordt herkend. **Nogmaals een fysieke Samsung-test vereist**; Glance kan per launcher andere werkelijk beschikbare formaten rapporteren.
