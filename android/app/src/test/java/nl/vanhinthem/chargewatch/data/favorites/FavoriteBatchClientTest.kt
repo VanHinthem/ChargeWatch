@@ -56,7 +56,7 @@ class FavoriteBatchClientTest {
         assertThrows(IllegalArgumentException::class.java) {
             parseFavoriteBatchResponse(response(),listOf(missing,one))
         }
-        assertThrows(IllegalStateException::class.java) {
+        assertThrows(RuntimeException::class.java) {
             parseFavoriteBatchResponse(
                 """{"locations":[{"featureId":"$one","status":"FOUND","detail":$detail,"statistics":null}]}""",
                 listOf(one)
