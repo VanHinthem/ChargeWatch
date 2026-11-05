@@ -128,7 +128,8 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
-import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
+import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
 import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
@@ -169,6 +170,7 @@ import org.maplibre.android.maps.MapView
 
 @Composable
 fun MapScreen(
+    locationDetailsCache: LocationDetailsCache,
     favorites: List<FavoriteLocation> = emptyList(),
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
@@ -683,6 +685,7 @@ fun MapScreen(
     if (selectedLocations.isNotEmpty()) {
         LocationSelectionSheet(
             locations = selectedLocations,
+            locationDetailsCache = locationDetailsCache,
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
@@ -1567,6 +1570,7 @@ private fun createGpsMarkerBitmap(): Bitmap {
 @Composable
 fun LocationSelectionSheet(
     locations: List<MapLocation>,
+    locationDetailsCache: LocationDetailsCache,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
@@ -1578,17 +1582,23 @@ fun LocationSelectionSheet(
     onShowAlternatives: (MapLocation) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val enrichmentClient = remember { LocationEnrichmentClient() }
     val selectedId = locations.singleOrNull()?.featureId
+    val cached = preloaded ?: selectedId?.let(locationDetailsCache::peekDetails)
     var enrichment by remember(selectedId,preloaded) {
-        mutableStateOf<EnrichmentResult?>(preloaded?.let {
+        mutableStateOf<EnrichmentResult?>(cached?.let {
             EnrichmentResult.Found(it.enrichment,it.mapLocation)
         })
     }
     LaunchedEffect(selectedId,preloaded) {
-        enrichment = preloaded?.let { EnrichmentResult.Found(it.enrichment,it.mapLocation) }
-        if (selectedId != null && preloaded == null)
-            enrichment = enrichmentClient.load(selectedId,locations.single())
+        enrichment = cached?.let { EnrichmentResult.Found(it.enrichment,it.mapLocation) }
+        if (selectedId != null && cached == null) {
+            enrichment = when (val result = locationDetailsCache.loadDetails(listOf(selectedId))) {
+                is FavoriteBatchResult.Unavailable -> EnrichmentResult.Unavailable
+                is FavoriteBatchResult.Success -> result.locations[selectedId]?.let {
+                    EnrichmentResult.Found(it.enrichment,it.mapLocation)
+                } ?: EnrichmentResult.NotFound
+            }
+        }
     }
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
@@ -1607,11 +1617,11 @@ fun LocationSelectionSheet(
     val compactPeekHeight = compactContentHeight + dragHandleHeight
     val expanded = sheetState.currentValue == SheetValue.Expanded
 
-    // Both entry points share this sheet. Favorites open expanded, so
-    // history loads immediately there; map taps start compact and avoid
-    // the statistics request until the user actually expands the sheet.
+    // Both sheets reuse the same cache. No history request for compact map
+    // taps; expanded sheets reuse fresh history across subsequent openings.
     var history by remember(selectedId,preloaded) {
-        mutableStateOf<List<HourlyAvailability>?>(preloaded?.statistics)
+        mutableStateOf<List<HourlyAvailability>?>(
+            preloaded?.statistics ?: selectedId?.let(locationDetailsCache::peekHistory))
     }
     var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
     var historyLoading by remember(selectedId) { mutableStateOf(false) }
@@ -1621,7 +1631,7 @@ fun LocationSelectionSheet(
         val id = selectedId ?: return@LaunchedEffect
         historyLoading = true
         try {
-            val result = enrichmentClient.loadStatistics(id)
+            val result = locationDetailsCache.loadHistory(id)
             if (result == null) historyUnavailable = true else history = result
         } finally {
             historyLoading = false
