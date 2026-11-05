@@ -1,3 +1,9 @@
+## API JSON-gzip: aparte performance-PR (5 november 2026)
+
+De bestaande read-only API krijgt op een **aparte draft-PR** HTTP-gzip met `CompressionLevel.Fastest`, uitsluitend voor `application/json` en alleen bij `Accept-Encoding: gzip`. De batchlocatie-, lokale kaart-, landelijke overview- en cluster-cell-responses behouden dezelfde JSON-contracten. Geïsoleerde HTTP-integratietests bewaken gzip/identity, `Vary`, JSON-pariteit en `no-store`. De volledige scope, Python NAS-baseline en HTTPS-risicobeoordeling staan in [API Gzip Response Compression](API_GZIP_RESPONSE_COMPRESSION.md). Geen merge of NAS-update zonder akkoord; Android-cache en widgets blijven in aparte PR's.
+
+---
+
 ## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
 
 Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.
