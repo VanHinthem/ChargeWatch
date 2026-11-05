@@ -67,6 +67,26 @@ class FavoriteBatchClientTest {
         }
     }
 
+    @Test fun mismatchedNestedIdentityIsRejected() {
+        val wrongDetail=detail.replace("\"sourceId\":\"ONE\"",
+            "\"sourceId\":\"WRONG\"")
+        assertThrows(IllegalArgumentException::class.java) {
+            parseFavoriteBatchResponse(
+                """{"locations":[{"featureId":"$one","status":"FOUND",
+                   "detail":$wrongDetail,"statistics":$statistics}]}""",
+                listOf(one)
+            )
+        }
+        val wrongStatistics=statistics.replace("\"locationId\":12", "\"locationId\":77")
+        assertThrows(IllegalArgumentException::class.java) {
+            parseFavoriteBatchResponse(
+                """{"locations":[{"featureId":"$one","status":"FOUND",
+                   "detail":$detail,"statistics":$wrongStatistics}]}""",
+                listOf(one)
+            )
+        }
+    }
+
     @Test fun onlyIdsAreSentToBatchAndFullHistoryIsRequested() = runBlocking {
         val requests=mutableListOf<String>()
         val bodies=mutableListOf<String>()
