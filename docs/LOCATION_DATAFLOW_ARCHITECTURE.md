@@ -1,5 +1,8 @@
 # ChargeWatch — locatie-dataflow en gerichte opvraagstrategie (#113)
 
+> **Actuele duiding — 5 november 2026:** dit is het **historische onderzoeks- en ontwerpdocument** voor [issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113). De API-overview (PR #117–#122), batched details (#124), gzip (#125) en de Android-cache/widget (#123/#112) zijn inmiddels in `main` gemerged. Verwijzingen hieronder naar *nog geen implementatie*, *draft*, *PR #112 niet mergen*, de oude viewport-favorietendatastroom en open ontwerpkeuzes uit 2–3 november zijn **historische tussenstanden, niet de actuele status**. Voor de resterende NAS-productie-HTTP-/featureflag-/default-kaartmodus-gates: zie [STATUS](STATUS.md) en [ROADMAP](ROADMAP.md). Behoud de metingen en motivatie hieronder als technische geschiedenis.
+
+
 > **Vervolgstand 3 november 2026:** #113 is na succesvolle P2i–P2l-validaties doorgeschoven naar [het voorstel voor het landelijke map-overview API-/zoom-/coveragecontract](MAP_OVERVIEW_API_CONTRACT_113_DESIGN.md). Dat nieuwe document is de **actuele ontwerpuitwerking**. Historische open vragen en voorgestelde alternatieven hieronder (bijvoorbeeld de reeds gekozen clustercentrum-/ringsemantiek) blijven onderzoekscontext; behandel ze niet als opnieuw openstaande gebruikersbesluiten. Er is nog **geen akkoord op implementatie, merge of deployment**.
 
 
