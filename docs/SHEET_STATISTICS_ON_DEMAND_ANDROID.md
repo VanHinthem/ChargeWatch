@@ -28,7 +28,7 @@
 
 De eerder beschreven bestaande geografische `FavoritesAvailabilityClient` is vanaf deze Android-PR niet langer de actieve dataroute van het favorietenscherm; zie [API PR #124](https://github.com/VanHinthem/ChargeWatch/pull/124). De bestaande helper blijft voorlopig in de code beschikbaar, maar de app gebruikt een nieuwe `FavoriteBatchClient`.
 
-- Automatisch bij het openen van tabblad Favorieten: haal alle lokaal opgeslagen unieke favoriet-ID's via `POST /api/v1/locations/by-ndw-id/batch` op, in groepen van maximaal **20 per request**; bestaande gebruikers met >20 opgeslagen ID's verliezen geen favorieten.
+- Automatisch bij het openen van tabblad Favorieten: haal alle lokaal opgeslagen unieke favoriet-ID's via `POST /api/v1/locations/by-ndw-id/batch` op, in groepen van maximaal **20 per request**. Nieuwe favorieten worden atomair begrensd op 20 opgeslagen items; de gebruiker krijgt een melding bij de limiet. Bestaande gebruikers met >20 opgeslagen ID's verliezen geen favorieten en kunnen altijd items verwijderen.
 - Vraag de volledige detailstructuur, EVSEs, connectoren, tariefevaluatie en statistieken op met `includeStatistics=true`.
 - De 2-minuten succesvolle-fetch-cache blijft bestaan. Alleen als de cache verlopen is, er nieuwe ID's zijn, of de gebruiker handmatig op verversen tikt, zijn extra requests nodig. Een ontbrekend ID wordt tijdelijk als verwerkt gemarkeerd en als waarschuwing getoond, zonder de overige favorieten te blokkeren.
 - Wanneer de gebruiker een favoriet opent, krijgt de volledige `LocationSelectionSheet` de **al geladen** `FavoriteBatchLocation` als preloaded detail/tarieven/geschiedenis; er volgen geen redundante losse GET-verzoeken. Bij ontbrekende cache wordt uitsluitend dat ene ID via dezelfde batchendpoint opgehaald.
