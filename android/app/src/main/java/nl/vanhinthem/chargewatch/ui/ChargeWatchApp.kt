@@ -135,6 +135,11 @@ fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> U
         val ids = favorites.map { it.featureId }.distinct()
         if (ids.isEmpty()) return
         if (locationDetailsCache.needingDetails(ids, force).isEmpty()) {
+            // The widget may have populated this process-wide cache before
+            // Favorites opens. Publish those already-fresh counts in the UI.
+            latestStatuses = latestStatuses + ids.mapNotNull { id ->
+                locationDetailsCache.peekDetails(id)?.let { id to it.mapLocation }
+            }.toMap()
             refreshMessage = null
             return
         }
