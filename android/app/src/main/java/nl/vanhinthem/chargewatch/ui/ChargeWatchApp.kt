@@ -113,8 +113,7 @@ fun ChargeWatchApp() {
     var favoriteDetails by remember {
         mutableStateOf<Map<String, FavoriteBatchLocation>>(emptyMap())
     }
-    var batchCoveredIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var favoriteFetchedAt by remember { mutableStateOf<Instant?>(null) }
+    var batchFetchedAt by remember { mutableStateOf<Map<String, Instant>>(emptyMap()) }
     var refreshing by remember { mutableStateOf(false) }
     var refreshMessage by remember { mutableStateOf<String?>(null) }
     var statusCheckedAt by remember { mutableStateOf(Instant.now()) }
@@ -139,9 +138,7 @@ fun ChargeWatchApp() {
         val ids = favorites.map { it.featureId }.distinct()
         if (ids.isEmpty()) return
         val now = Instant.now()
-        val needed = favoriteIdsNeedingBatchFetch(
-            ids, batchCoveredIds, favoriteFetchedAt, now, force
-        )
+        val needed = favoriteIdsNeedingBatchFetch(ids,batchFetchedAt,now,force)
         if (needed.isEmpty()) {
             refreshMessage = null
             return
@@ -172,9 +169,8 @@ fun ChargeWatchApp() {
             favoriteDetails = favoriteDetails.filterKeys { it !in missing } + found
             latestStatuses = latestStatuses.filterKeys { it !in missing } +
                 found.mapValues { it.value.mapLocation }
-            batchCoveredIds = if (needed.size == ids.size) completed
-                else batchCoveredIds + completed
-            favoriteFetchedAt = if (failure == null) Instant.now() else null
+            val checkedAt=Instant.now()
+            batchFetchedAt = batchFetchedAt + completed.associateWith { checkedAt }
             refreshMessage = when {
                 failure != null -> failure
                 missing.isNotEmpty() -> "${missing.size} opgeslagen laadlocatie(s) niet gevonden."
