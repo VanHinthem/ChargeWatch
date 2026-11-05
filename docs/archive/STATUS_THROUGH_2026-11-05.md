@@ -435,7 +435,7 @@ Gebruiker voerde de read-only Q4c-07-proef op de NAS uit. Niet-bestaande operato
 ---
 ## Q4c-07 lege locatie-ID-settest voorbereid — 3 november 2026
 
-De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](../MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
+De [MapFilterQ4Probe](../../tools/MapFilterQ4Probe/Program.cs) heeft nu `--emit-q4c07` met een niet-bestaande, maar door `MapFilter.TryParse` toegelaten operatornaam. [MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md](../MAP_GRID_Q4C_07_EMPTY_FILTER_PROBE.md) bevat de read-only NAS-stappen en de verwachte 0/0 ID-sets. **Nog niet lokaal gebouwd of op NAS uitgevoerd**. Dit test uitsluitend queryselectie; het nog niet geïmplementeerde overview-responsecontract `coverage.complete` kan hiermee niet worden gevalideerd. Q4c-06 geslaagd (3/3). Q4c-04c synthetische EVSE-deduplicatie en Q4-08 locatiebrede ringstatus blijven open, daarna Q5 bronkwaliteit. Geen schemawijziging, API-/Android-implementatie, deployment of merge; PR #114 draft.
 
 ---
 
@@ -515,7 +515,7 @@ De gebruiker voerde alle vier door `MapFilter.LocationPredicate` gegenereerde po
 ---
 ## Q4c-02 vier vermogensbanden voorbereid — 3 november 2026
 
-De [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](../MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
+De [MapFilterQ4Probe](../../tools/MapFilterQ4Probe/Program.cs) heeft nu de exportoptie `--emit-q4c02` voor vier afzonderlijke read-only SQL-ID-setvergelijkingen: `lt50`, `gte50`, `gte150`, `gte300`. De generator hergebruikt rechtstreeks `MapFilter.LocationPredicate(5/6)` en daarmee de centrale `EffectiveWattsSql`, zonder tweede filterimplementatie. Uitvoering en acceptatie beschreven in [MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md](../MAP_GRID_Q4C_02_POWER_PARITY_PROBE.md). **Generatorwijziging is nog niet lokaal gebouwd of op NAS uitgevoerd.** Onafhankelijke grenswaardefixture en afgeleide vermogensvalidatie volgen na de ID-setproef. Q4c-01 was daadwerkelijk geslaagd (2/2 CCS2/DC ID's), Q4b 14/14. Geen productiewijzigingen, migratie, deployment of merge; PR #114 draft.
 
 ---
 
@@ -526,7 +526,7 @@ De gebruiker heeft de door de gedeelde productie-`MapFilter.cs` gegenereerde rea
 ---
 ## Q4c-01 gefilterde ID-setcontrole voorbereid — 3 november 2026
 
-[MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](../MAP_GRID_Q4C_01_FILTER_ID_PROBE.md) beschrijft een **nog niet uitgevoerde** test met `connectorType=ccs2&mode=dc` op de kleine 98-locaties Oss-bbox. De lokale [MapFilterQ4Probe](../tools/MapFilterQ4Probe/Program.cs) bevat nu `--emit-q4c01`: deze genereert twee PostgreSQL-selecties met de **daadwerkelijke** productie-`MapFilter.LocationPredicate(5/6)` en `AddParameters`. Voor handmatige NAS-uitvoering worden uitsluitend vooraf gevalideerde, vaste filterarrays als veilige SQL-constanten geëxporteerd; productieroutes blijven geparametriseerd. De NAS voert de vergelijking uit met de `chargewatch_read`-rol in één `REPEATABLE READ READ ONLY`-snapshot. **Generator nog niet lokaal gebouwd; SQL nog niet uitgevoerd**. Eerst lokale export, daarna NAS-uitvoer beoordelen. Geen productiecodewijziging, schemawijziging, deployment of merge.
+[MAP_GRID_Q4C_01_FILTER_ID_PROBE.md](../MAP_GRID_Q4C_01_FILTER_ID_PROBE.md) beschrijft een **nog niet uitgevoerde** test met `connectorType=ccs2&mode=dc` op de kleine 98-locaties Oss-bbox. De lokale [MapFilterQ4Probe](../../tools/MapFilterQ4Probe/Program.cs) bevat nu `--emit-q4c01`: deze genereert twee PostgreSQL-selecties met de **daadwerkelijke** productie-`MapFilter.LocationPredicate(5/6)` en `AddParameters`. Voor handmatige NAS-uitvoering worden uitsluitend vooraf gevalideerde, vaste filterarrays als veilige SQL-constanten geëxporteerd; productieroutes blijven geparametriseerd. De NAS voert de vergelijking uit met de `chargewatch_read`-rol in één `REPEATABLE READ READ ONLY`-snapshot. **Generator nog niet lokaal gebouwd; SQL nog niet uitgevoerd**. Eerst lokale export, daarna NAS-uitvoer beoordelen. Geen productiecodewijziging, schemawijziging, deployment of merge.
 
 ---
 
