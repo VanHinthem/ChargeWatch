@@ -97,6 +97,28 @@ class WidgetPresentationTest {
         assertEquals(null, compactWidgetSubtitle(missingCity))
     }
 
+    @Test fun wideHeaderShowsBriefAgeInsteadOfReservingFooterSpace() {
+        val recent = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now)
+        assertEquals("1 min geleden", widgetHeaderFreshness(listOf(recent), false))
+        assertEquals("Verversen…", widgetHeaderFreshness(listOf(recent), true))
+        assertEquals("", widgetHeaderFreshness(emptyList(), false))
+    }
+
+    @Test fun wideHeaderNeverMisrepresentsOldOrMixedAvailability() {
+        val recent = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now)
+        val old = widgetRow("b", "Werk",
+            snapshot(0, 2, fetched = now - 600_000), now, now)
+        val unknown = widgetRow("c", "Onbekend", null, now, now)
+        val anotherTime = widgetRow("d", "Andere bron",
+            snapshot(1, 2, observed = "2026-11-02T14:55:00Z"), now - 30_000, now)
+        assertEquals("Laatst bekend", widgetHeaderFreshness(listOf(old), false))
+        assertEquals("Laatst bekend", widgetHeaderFreshness(listOf(recent, old), false))
+        assertEquals("Deels onbekend", widgetHeaderFreshness(listOf(recent, unknown), false))
+        assertEquals("Onbekend", widgetHeaderFreshness(listOf(unknown), false))
+        assertEquals("Bronmoment verschilt",
+            widgetHeaderFreshness(listOf(recent, anotherTime), false))
+    }
+
     @Test fun narrowWidgetFooterDoesNotHideUnavailableOrStaleData() {
         val recent = widgetRow("a", "Thuis", snapshot(2, 2), now - 30_000, now)
         val unknown = widgetRow("b", "Werk", null, now, now)
