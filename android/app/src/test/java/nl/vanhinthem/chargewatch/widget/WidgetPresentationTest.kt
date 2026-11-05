@@ -237,10 +237,18 @@ class WidgetPresentationTest {
         assertFalse(shouldFetchWidgetAddress(WidgetAddress("Koetseland 4", "Oss"), null, now))
     }
 
-    @Test fun parsedExistingLocationDetailsProvideSeparateAddressAndCity() {
-        assertEquals(WidgetAddress("Koetseland 4", "Oss"),
-            parseWidgetAddress("""{"address":"Koetseland 4","city":"Oss","id":99}"""))
-        assertEquals(null, parseWidgetAddress("""{"address":"Koetseland 4"}"""))
+    @Test fun batchDetailsProvideCanonicalAddressAndCityWithoutSecondaryApiCall() {
+        val location = nl.vanhinthem.chargewatch.data.ndw.MapLocation(
+            featureId = "NL-TST-ONE", longitude = 5.53, latitude = 51.76,
+            title = "Koetseland 4", lastUpdated = null,
+            availability = nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary(
+                2, 2, nl.vanhinthem.chargewatch.data.ndw.CountReliability.Safe),
+            address = "Koetseland 4"
+        )
+        assertEquals(WidgetAddress("Koetseland 4", "Oss"), widgetBatchAddress(location, "Oss"))
+        assertEquals(null, widgetBatchAddress(location, null))
+        assertEquals(null, widgetBatchAddress(location, ""))
+        assertEquals(null, widgetBatchAddress(location.copy(address = null), "Oss"))
     }
 
     private fun favorite(alias: String?, address: String) = FavoriteLocation(
