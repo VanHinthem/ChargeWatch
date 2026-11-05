@@ -1,3 +1,9 @@
+## PR #112 — smalle 2×2-widget toont één leesbare favoriet (5 november 2026)
+
+De gebruiker heeft de nieuwe brede en horizontale widgetlayout op Samsung goedgekeurd, maar 2×2 toonde afgekorte locatienaam en plaats. In de bestaande draft [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) is **alleen de smalle 2×2-weergave** aangepast: één favoriet met volledige breedte voor naam (maximaal twee regels), groen/rode EVSE-badge op een aparte regel, geen adres, versheidsstatus onderaan en `+N meer` bij andere geselecteerde favorieten. De brede en 4×1-layout blijven identiek. Unit-test voor 1 zichtbare favoriet bij smalle breedtes; nieuwe Android-CI en Samsung-review vereist. Nog niet mergen.
+
+---
+
 ## Widgetlay-out: favorieten bovenaan, versheid naast titel (5 november 2026)
 
 Op basis van de nieuwste Samsung-screenshot van de brede widget in PR #112 worden geselecteerde favorieten direct onder de header weergegeven in plaats van verticaal gecentreerd. De brede widget toont kleine bronversheid rechts van `⚡ ChargeWatch` (bijv. `1 min geleden`, `Laatst bekend`, `Deels onbekend`, `Bronmoment verschilt` of `Verversen…`). De footer is verwijderd uit dit formaat; eventuele verborgen extra favorieten worden na de zichtbare rijen aangegeven. De afzonderlijke 2×2- en 4×1-layouts zijn bewust niet veranderd. Pure regressietests voor bronstatus blijven verplicht, nieuwe Android-CI en Samsung-review nodig. **PR #112 blijft draft; geen merge zonder akkoord.**
