@@ -30,9 +30,9 @@ class FavoriteBatchClientTest {
          "evses":[]}
     """.trimIndent()
 
-    private fun response(id: String = one) = """
+    private fun response(id: String = one, history: String = statistics) = """
         {"locations":[
-          {"featureId":"$id","status":"FOUND","detail":$detail,"statistics":$statistics},
+          {"featureId":"$id","status":"FOUND","detail":$detail,"statistics":$history},
           {"featureId":"$missing","status":"NOT_FOUND","detail":null,"statistics":null}
         ]}
     """.trimIndent()
@@ -48,7 +48,7 @@ class FavoriteBatchClientTest {
         assertEquals(false,location.mapLocation.feedIsStale)
         assertEquals(1,location.mapLocation.connectorCategories.size)
         assertEquals(1,location.statistics!!.size)
-        assertEquals(0.8,location.statistics!!.single().share,0.0001)
+        assertEquals(0.8,location.statistics.single().share,0.0001)
         assertTrue(location.enrichment.statisticsAvailable)
     }
 
@@ -98,7 +98,7 @@ class FavoriteBatchClientTest {
             bodies+=buffer.readUtf8()
             Response.Builder().request(req).protocol(Protocol.HTTP_1_1)
                 .code(200).message("OK")
-                .body(response().replace("\"statistics\":$statistics", "\"statistics\":null").toResponseBody()).build()
+                .body(response(history="null").toResponseBody()).build()
         }).build()
         val result=FavoriteBatchClient("https://chargewatch.test",http).load(listOf(one,missing))
         assertTrue(result is FavoriteBatchResult.Success)
@@ -111,7 +111,7 @@ class FavoriteBatchClientTest {
 
     @Test fun defaultBatchAcceptsNullHistoryAndDoesNotSetHistoryAvailable() {
         val parsed=parseFavoriteBatchResponse(
-            response().replace("\"statistics\":$statistics", "\"statistics\":null"),
+            response(history="null"),
             listOf(one,missing)
         )
         val value=parsed.locations.getValue(one)
