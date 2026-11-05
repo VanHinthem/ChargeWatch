@@ -1,21 +1,70 @@
 # ChargeWatch — Roadmap en onderzoeksagenda
 
-**Status (2 november 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
+## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
+
+Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.
+
+---
+
+
+## #113 — Favorietster op clusters (4 november 2026)
+
+De Samsung-acceptatie na PR #121 liet zien dat de clusterpresentatie nu consistent is, maar dat de gele favorietster op clusters ontbreekt. Fix op `fix/map-cluster-favorite-badge-113`: lokale groepen krijgen de ster via exacte `featureId`-membership, landelijke groepen via opgeslagen lokale coördinaten en canonieke celmembership (zonder actieve filters), met één identieke sterbadge en correct cachegedrag. Bij gefilterde serveraggregaten wordt geen onbewezen ster getoond. [Ontwerp, privacygrens en testmatrix](MAP_CLUSTER_FAVORITES_113.md). Geen API/NAS-wijziging; PR blijft eerst draft, geen merge/deploy zonder akkoord.
+
+---
+
+
+## #113 Android-acceptatie: clustersemantiek over beide kaartmodi gelijkgetrokken (4 november 2026)
+
+Na PR #120 is de rasterindeling visueel verdwenen, maar op de Samsung verschilt clustersemantiek nog: een regionale kaart toont locatieaantallen met statusring (bijv. `419`), terwijl de lokale kaart `vrij/totaal`-somlabels in een monochrome groene/rode cluster toont (bijv. `31/46`). De correctie op `fix/map-cluster-consistent-presentation-113` voert één pixel-gebaseerde clusterengine en één groen/rood/onbekend-ring voor **alle** clusters in, met centraal het **aantal laadlocaties**; uitsluitend losse locaties tonen `vrij/totaal`. Beide clustertappaden delen dezelfde zoom-/selectielogica. [Technisch en UX-contract](MAP_CLUSTER_CONSISTENCY_113.md). Nieuw werk blijft ter review; **geen merge/deployment zonder afzonderlijk akkoord**.
+
+---
+
+
+## #113 Samsung-acceptatie: rastervormige clustering afgewezen (4 november 2026)
+
+De landelijke overview in `main` na PR #119 bleek bij Oss zichtbare, regelmatig verdeelde vierkante rasteraggregaten te tonen (bijv. na aantikken van 19 locaties opnieuw 4/6/3/6/2/4). Dit is nadrukkelijk **niet** de gewenste kaartinteractie. Correctie op `fix/map-overview-113-street-level-clustering`: overview gebruikt het daadwerkelijke locatiegewogen centroid en beeldscherm-gebaseerde visuele clustering, terwijl de volledige bestaande viewport met individuele `vrij/totaal`-markers gebruikt wordt in kleine gebieden. Alleen bij de 999-locatiegrens blijft het volledige overview-aggregaat nodig. [Ontwerp/testplan](MAP_OVERVIEW_113_NATURAL_CLUSTERING_FIX.md). Niet gemerged/gedeployed; bestaande NAS draait nog fase D.
+
+---
+
+
+## #113 fase D — Android-integratie in draft PR #119 (4 november 2026)
+
+Na de merge van PR #118 (`6d5c320`) wordt de bestaande MapLibre-kaart op een afzonderlijke featurebranch uitgebreid met een optionele landelijke overviewmodus, serverclusters met groen/rood/onbekend-ring, een paginated read-only rastercelroute voor locatiekeuze en een tijdelijke kaartmoduskeuze in Instellingen. **De standaard blijft de bestaande kaart** totdat de nieuwe API afzonderlijk mag worden gedeployed en geactiveerd. [Fase-D-ontwerp en implementatie](MAP_OVERVIEW_113_PHASE_D_ANDROID.md) · [Draft PR #119](https://github.com/VanHinthem/ChargeWatch/pull/119). Nog vereist: groene CI, fysieke Android-acceptatie, geautoriseerde NAS-HTTP/meting, expliciete merge- en deploymentbesluiten.
+
+
+**Status (30 oktober 2026):** De landelijke databasis, read-only API en de belangrijkste Android-kaart-/zoek-/filterfuncties zijn al geïmplementeerd. De onderstaande oorspronkelijke fasechecklists bevatten historische, niet volledig bijgewerkte `[ ]`-markeringen en gelden niet als live implementatiestatus. De actuele afgeronde werkzaamheden staan in [STATUS.md](STATUS.md); de vastgestelde **resterende Android-v1-volgorde** staat hieronder.
+
+## #113 fase C — adaptief landelijke overview in draft PR #117 (4 november 2026)
+
+De backend-overview kiest één conservatief canoniek Web Mercator-gridlevel per request met maximaal 500 markerobjecten en volledige celdekking, zonder locatie-LIMIT; filter- en beschikbaarheidsregels blijven gelijk. **Fase C is naar `main` gemerged via PR #117** (4 november 2026). Geautomatiseerde echte HTTP/Npgsql/PostGIS-tests zijn groen, maar **er is geen NAS-deployment en de productiefeatureflag blijft uit**. **NAS-read-only SQL-validatie PASS op 4 november 2026:** 83.408 locaties in 13 markers (1.464,780 ms), CCS2/DC 1.612 in 84 markers (164,856 ms), Oss 489 in 116 markers (13,035 ms); alle status-/budgetbewaking PASS. Dit zijn losse SQL-tijden, geen productie-HTTP-p95. [Meetrapport](MAP_OVERVIEW_113_NAS_READONLY_BATCH.md). Nu: gecontroleerde HTTP-/featureflag-gate en daarna Android-integratie, zonder historisch onderzoek te herhalen. [Detailstatus](MAP_OVERVIEW_113_PHASE_C_IMPLEMENTED.md).
+
+## Besluit kaartarchitectuur — landelijke dekking op ieder zoomniveau (2 november 2026)
+
+Binnen [#113](https://github.com/VanHinthem/ChargeWatch/issues/113) krijgt de **kaartlaag als eerste prioriteit**. De gebruiker heeft expliciet gekozen dat ChargeWatch **heel Nederland** moet kunnen tonen, ook volledig uitgezoomd: grote clusters bij lage zoom, clusters en losse laadlocaties gemengd bij tussenzoom en individuele locaties bij voldoende hoge zoom. Daarbij blijft filtering vóór aggregatie betrouwbaar en worden nooit locaties stilzwijgend weggelaten om onder een markerlimiet te blijven. De huidige 999-locatieblokkade is niet het gewenste gedrag van het nieuwe overzichtscontract.
+
+**Nog uit te werken, niet besloten:** minimale kaartpayload versus direct te vullen compacte sheet, server-side rasteraggregatie versus vector tiles, databetrouwbaarheid/EVSE-counting per cluster, clustertik, zichtbare lokale favorieten, georuimtelijke indexen, caching en performancebudget. Geen harde zoomgrenzen of aantallen te tekenen markers kiezen zonder benchmark. Zie [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) op draft-PR #114. Geen implementatie-/merge-/NAS-deployakkoord.
+
+---
+
+## Nieuwe architectuurprioriteit — 2 november 2026: locatie-dataflow #113
+
+De gebruiker heeft na het onderzoeken van de huidige **kaart → sheet → favorieten/widget**-aanroepen gevraagd hiervoor een **aparte feature** te maken en de volledige data-ophaalstrategie eerst zorgvuldig uit te werken en te optimaliseren. [Issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113) en [LOCATION_DATAFLOW_ARCHITECTURE.md](LOCATION_DATAFLOW_ARCHITECTURE.md) vormen de ontwerp-/meetagenda.
+
+**Planning:** onderzoek en ontwerp van #113 krijgen nu de aandacht **vóór verdere architectuurveranderingen aan de widget**, zonder #101/#112 samen te voegen of de al gebouwde widget als afgerond te verklaren. Eerst gegevens-/ID-contract, API-last, lazy sheetverrijking, bulkalternatieven en performance-baselines bespreken; **pas na een afzonderlijk ontwerp-/implementatieakkoord code schrijven**. De onderstaande P1–P4-volgorde was het eerdere v1-plan van 30 oktober en blijft historisch; dit nieuwe besluit voegt een gerichte architectuurverbetering toe, geen onbeperkte nieuwe roadmapfase.
+
+**Niet besloten:** een bulkavailability-endpoint of nieuwe DB-index is nog geen vaststaand contract. Inzicht in bestaand direct-ID-detail, bronversheid, operationele EVSE-counting en NDW-fallback gaat vóór keuze. Geen backenduitrol/NAS-deploy of merge zonder expliciet akkoord.
+
+---
 
 ## Vastgestelde volgorde Android-vervolgwerk — 30 oktober 2026
 
 De gebruiker heeft na afronding en Samsung-acceptatie van [issue #95](https://github.com/VanHinthem/ChargeWatch/issues/95) de volgende **strikte prioriteitsvolgorde** gekozen. Werk de stappen in deze volgorde af; vervolgissues kunnen vóór de uitvoering worden verfijnd, maar een wijziging van prioriteit vereist een nieuw productbesluit.
 
-1. **[P1 — GPS / huidige locatie en nabije alternatieven (#99)](https://github.com/VanHinthem/ChargeWatch/issues/99).** Toestelpositie met expliciete permissie en bruikbare fallback; vanaf een laadlocatie geschikte alternatieven in de buurt vinden. Bestaande PDOK-pin, vijf-nearest en filtering behouden. **Afgerond op 2 november 2026: PR #109 gesquash-merget naar main (3cb82ae6), issue #99 gesloten. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md).**
-2. **[P2 — Native Android-widget met lokale favorieten (#101)](https://github.com/VanHinthem/ChargeWatch/issues/101).** **UX-richting A (minimalistisch) goedgekeurd 2 november 2026**: responsive 2×2/4×2/4×3, maximaal vijf lokale favorieten per instantie, `vrij/totaal`, bronversheid en batterijvriendelijke refresh. Technisch ontwerp in [ANDROID_WIDGET_IMPLEMENTATION_PLAN.md](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md); gebruiker gaf op 2 november implementatieakkoord. Android-only code in ontwikkeling op featurebranch `feature/android-favorites-widget` via [draft-PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112); CI/Samsung-test en mergeakkoord volgen afzonderlijk.
+1. **[P1 — GPS / huidige locatie en nabije alternatieven (#99)](https://github.com/VanHinthem/ChargeWatch/issues/99).** Toestelpositie met expliciete permissie en bruikbare fallback; vanaf een laadlocatie geschikte alternatieven in de buurt vinden. Bestaande PDOK-pin, vijf-nearest en filtering behouden. **UX vastgesteld op 2 november 2026; Android-uitwerking in PR #109. Zie [GPS_NEARBY_ALTERNATIVES.md](GPS_NEARBY_ALTERNATIVES.md).**
+2. **[P2 — Native Android-widget met lokale favorieten (#101)](https://github.com/VanHinthem/ChargeWatch/issues/101).** Compacte en uitgebreidere widgets, configuratie met favoriete locaties, betrouwbare beschikbaarheid, bronversheid en Android-conforme refresh.
 3. **[P3 — Statistieken, 90-daagse uptime en publicatiekwaliteit (#103)](https://github.com/VanHinthem/ChargeWatch/issues/103).** Eerst datakwaliteits-/API-publicatiecriteria valideren; daarna historische weekdag-/uurweergave en EVSE-betrouwbaarheid afronden. Geen percentages op basis van experimentele of ongeldige data.
 4. **[P4 — Android-kwaliteitsronde en releasevoorbereiding (#104)](https://github.com/VanHinthem/ChargeWatch/issues/104).** Integrale Samsung-/offline-/toegankelijkheid-/performance-/release- en securitycheck. Geen release of NAS-deploy zonder afzonderlijk akkoord.
-
-## Future / onderzoeksagenda — Android Auto-favorieten (#110; 2 november 2026)
-
-**Verkenning, na de vaststaande P1–P4-volgorde; geen autorisatie voor implementatie:** [issue #110](https://github.com/VanHinthem/ChargeWatch/issues/110). Een **Android for Cars POI-app** kan dezelfde lokale favorieten, betrouwbare laadstatus en bestaande GET-only API benutten in een rijveilig lijst-/detailscherm. Bij selectie van een favoriet kan de app via `CarContext.ACTION_NAVIGATE` een compatibele auto-navigatie-app laten navigeren; ChargeWatch hoeft geen eigen routering te bouwen. Er is in principe één bestaande Android-app/APK met een extra CarAppService mogelijk, maar Android Auto heeft specifieke compatibiliteits- en Play-reviewregels.
-
-**Parallel onderzoeksalternatief:** Google kondigde in mei 2026 aan dat bestaande mobiele widgets naar de nieuwe Android Auto-interface komen. Mogelijk wordt de Glance-widget daardoor herbruikbaar, maar uitrol, beschikbare interacties en voertuigcompatibiliteit zijn niet bevestigd; nooit de v1-implementatie daarop baseren. Onderzoek eerst de actuele productstatus en rijveiligheidsregels, Desktop Head Unit en fysiek voertuig. Bronnen: [Android for Cars POI](https://developer.android.com/training/cars/apps/library/set-up-project), [NAVIGATE-actie](https://developer.android.com/codelabs/car-app-library-fundamentals) en [Google's widgetaankondiging mei 2026](https://android-developers.googleblog.com/2026/05/android-for-cars-unifying-platforms-premium-experiences.html).
 
 **Buiten deze vier stappen:** [#79](https://github.com/VanHinthem/ChargeWatch/issues/79) is een **uitgestelde** roadmaptaak voor een uitgebreider datakwaliteitsdashboard, geen voorwaarde om P1 te starten. De vroegere Android-kaartfilters en PDOK-bestemmingzoekfunctie (#95, PR #97) zijn afgerond. Deze volgordewijziging is een **planningbesluit**, geen implementatie- of deploymentautorisatie.
 

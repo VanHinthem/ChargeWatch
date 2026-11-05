@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
@@ -7,6 +9,10 @@ if (args.Length == 1 && args[0] == "--self-test")
     ApiOptions.SelfTest();
     OcpiTariffEvaluatorTests.Run();
     MapFilter.SelfTest();
+    MapOverviewPhaseASelfTest.Run();
+    MapOverviewPhaseBCompatibilitySelfTest.Run();
+    MapOverviewPhaseCSelfTest.Run();
+    LocationBatchContracts.SelfTest();
     return;
 }
 
@@ -29,6 +35,16 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.AddSingleton(apiOptions);
 builder.Services.AddSingleton<ApiDatabase>();
+// Public read-only JSON data only. Clients must explicitly accept gzip;
+// plain JSON remains unchanged for clients without compression support.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ["application/json"];
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -53,6 +69,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseRateLimiter();
 
 app.MapGet("/api/v1/locations", async (
@@ -88,6 +105,72 @@ app.MapGet("/api/v1/locations", async (
 });
 
 
+// Phase B opt-in preview: no client is switched over automatically.
+// Enabling requires explicit deployment/rollout approval after NAS tests.
+if (string.Equals(Environment.GetEnvironmentVariable("CW_ENABLE_MAP_OVERVIEW"),
+    "true",StringComparison.OrdinalIgnoreCase))
+{
+    app.MapGet("/api/v1/map/overview/cell", async (
+        int? gridLevel, long? gridX, long? gridY, int? offset, int? limit,
+        HttpContext context, ApiDatabase database) =>
+    {
+        if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
+            return Results.BadRequest(new { error=filterError });
+        if (gridLevel is null || gridLevel < MapGrid.MinLevel || gridLevel > MapGrid.MaxLevel ||
+            gridX is null || gridY is null || gridX < 0 || gridY < 0 ||
+            gridX >= (1L << gridLevel.Value) || gridY >= (1L << gridLevel.Value) ||
+            offset is < 0 or > 100000 || limit is < 1 or > 100)
+            return Results.BadRequest(new { error="Invalid gridLevel, gridX, gridY, offset or limit." });
+        try
+        {
+            var result = await database.GetMapOverviewCell(gridLevel.Value,gridX.Value,gridY.Value,
+                offset ?? 0,limit ?? 50,filters,context.RequestAborted);
+            context.Response.Headers["X-ChargeWatch-Filter-Version"]="1";
+            context.Response.Headers.CacheControl="no-store";
+            return Results.Ok(result);
+        }
+        catch (Npgsql.PostgresException e) when (e.SqlState=="57014")
+        {
+            return Results.Json(new { error="Map cell query timeout.",
+                code="OVERVIEW_CELL_TIMEOUT",retryable=true },statusCode:503);
+        }
+    });
+
+    app.MapGet("/api/v1/map/overview", async (
+        string? bbox, double? zoom, HttpContext context, ApiDatabase database) =>
+    {
+        if (!MapFilter.TryParse(context.Request.Query,out var filters,out var filterError))
+            return Results.BadRequest(new { error=filterError });
+        if (!ApiOptions.TryParseBbox(bbox,out var bounds) ||
+            !double.IsFinite(bounds.MinLon) || !double.IsFinite(bounds.MinLat) ||
+            !double.IsFinite(bounds.MaxLon) || !double.IsFinite(bounds.MaxLat) ||
+            bounds.MinLat < -MapGrid.MaxMercatorLatitude ||
+            bounds.MaxLat > MapGrid.MaxMercatorLatitude)
+            return Results.BadRequest(new { error="Valid Web Mercator bbox is required." });
+        if (zoom is null || !double.IsFinite(zoom.Value) || zoom < 0 || zoom > 22)
+            return Results.BadRequest(new { error="Finite zoom between 0 and 22 is required." });
+        try
+        {
+            var result = await database.GetMapOverview(bounds,zoom.Value,filters,
+                context.RequestAborted);
+            context.Response.Headers["X-ChargeWatch-Filter-Version"]="1";
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(result);
+        }
+        catch (MapOverviewBudgetException)
+        {
+            return Results.Json(new { error="Map overview marker budget exceeded.",
+                code="OVERVIEW_BUDGET_EXCEEDED",retryable=false },
+                statusCode:503);
+        }
+        catch (Npgsql.PostgresException e) when (e.SqlState=="57014")
+        {
+            return Results.Json(new { error="Map overview database query timeout.",
+                code="OVERVIEW_TIMEOUT",retryable=true },statusCode:503);
+        }
+    });
+}
+
 // Full-map coverage is required for an honest benchmark. On overflow ask the
 // Android client to zoom in; do not return a partial map as if complete.
 app.MapGet("/api/v1/map/viewport", async (string? bbox, HttpContext context, ApiDatabase database) =>
@@ -117,6 +200,19 @@ app.MapGet("/api/v1/locations/{id:long}/statistics", async (long id,ApiDatabase 
 {
     var result = await database.GetStatistics(id);
     return result is null ? Results.NotFound() : Results.Ok(result);
+});
+
+// The read-only batch endpoint serves Favorites and future Android widgets.
+// IDs are external NDW keys; no per-user favorite list is persisted or logged.
+// Always validate the entire request before any DB access.
+app.MapPost("/api/v1/locations/by-ndw-id/batch", async (
+    LocationBatchRequest request, ApiDatabase database) =>
+{
+    if (!LocationBatchContracts.TryValidate(request, out var keys, out var error))
+        return Results.BadRequest(new { error });
+
+    var result = await database.GetLocationBatch(keys, request.IncludeStatistics);
+    return Results.Ok(result);
 });
 
 // External NDW GeoJSON lookup. Does not expose internal IDs as an identity requirement.

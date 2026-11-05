@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import nl.vanhinthem.chargewatch.BuildConfig
+import nl.vanhinthem.chargewatch.data.ndw.MapLocation
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -47,7 +48,7 @@ data class LocationEnrichment(
 )
 
 sealed interface EnrichmentResult {
-    data class Found(val value: LocationEnrichment) : EnrichmentResult
+    data class Found(val value: LocationEnrichment, val mapLocation: MapLocation? = null) : EnrichmentResult
     data object Unconfigured : EnrichmentResult
     data object NotFound : EnrichmentResult
     data object Unavailable : EnrichmentResult
@@ -60,7 +61,7 @@ class LocationEnrichmentClient(
         .callTimeout(10, TimeUnit.SECONDS)
         .build()
 ) {
-    suspend fun load(featureId: String): EnrichmentResult = withContext(Dispatchers.IO) {
+    suspend fun load(featureId: String, mapLocation: MapLocation? = null): EnrichmentResult = withContext(Dispatchers.IO) {
         val base = baseUrl.trimEnd('/')
         if (base.isBlank() || !base.startsWith("https://")) return@withContext EnrichmentResult.Unconfigured
         if (!NDW_ID.matches(featureId)) return@withContext EnrichmentResult.NotFound
@@ -75,19 +76,12 @@ class LocationEnrichmentClient(
                     else -> {
                         val body = response.body?.string() ?: return@use EnrichmentResult.Unavailable
                         runCatching {
-                            val detail = parseEnrichment(body)
-                            val statisticsRequest = Request.Builder()
-                                .url(base + path + "/statistics")
-                                .header("Accept", "application/json").build()
-                            val stats = runCatching {
-                                httpClient.newCall(statisticsRequest).execute().use { statsResponse ->
-                                    if (!statsResponse.isSuccessful) emptyList()
-                                    else parseHourlyAvailability(statsResponse.body?.string().orEmpty())
-                                }
-                            }.getOrDefault(emptyList())
-                            EnrichmentResult.Found(detail.copy(
-                                statisticsAvailable = stats.isNotEmpty(),
-                                hourlyAvailability = stats))
+                            // Details and tariffs are required for both compact and
+                            // expanded sheets. History is a separate, optional call.
+                            EnrichmentResult.Found(
+                                parseEnrichment(body),
+                                mapLocation?.let { parseMapLocationDetail(body,it) }
+                            )
                         }.getOrDefault(EnrichmentResult.Unavailable)
                     }
                 }
@@ -98,6 +92,36 @@ class LocationEnrichmentClient(
             EnrichmentResult.Unavailable
         }
     }
+
+    /**
+     * The experimental hourly chart is needed only by an expanded sheet.
+     * null means unavailable/invalid response; an empty list is a valid
+     * response with no statistically supported slots.
+     *
+     * Callers own sheet-level caching so collapsing/expanding does not
+     * trigger a second HTTP request.
+     */
+    suspend fun loadStatistics(featureId: String): List<HourlyAvailability>? =
+        withContext(Dispatchers.IO) {
+            val base = baseUrl.trimEnd('/')
+            if (base.isBlank() || !base.startsWith("https://") ||
+                !NDW_ID.matches(featureId)) return@withContext null
+            val request = Request.Builder()
+                .url("${base}/api/v1/locations/by-ndw-id/${featureId}/statistics")
+                .header("Accept", "application/json")
+                .build()
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use null
+                    val body = response.body?.string() ?: return@use null
+                    runCatching { parseHourlyAvailability(body) }.getOrNull()
+                }
+            } catch (_: IOException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
 
     companion object {
         private val NDW_ID = Regex("""[A-Za-z0-9_-]{3,128}""")

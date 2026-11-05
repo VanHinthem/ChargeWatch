@@ -21,6 +21,11 @@ class ChargeWatchMapClient(
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
 ) {
+    companion object {
+        /** HTTP 413: the untruncated viewport would exceed the legacy 999-site limit. */
+        const val TOO_MANY_LOCATIONS_MESSAGE = "Meer dan 999 locaties in dit kaartgebied. Zoom verder in."
+    }
+
     suspend fun load(viewport: NdwViewport, filters: ChargingFilters = ChargingFilters()): NdwResult = withContext(Dispatchers.IO) {
         if (!baseUrl.startsWith("https://"))
             return@withContext NdwResult.Unavailable("ChargeWatch API is niet geconfigureerd.")
@@ -33,7 +38,7 @@ class ChargeWatchMapClient(
                     if (response.code == 429)
                         return@use NdwResult.RateLimited(response.header("Retry-After")?.toLongOrNull())
                     if (response.code == 413)
-                        return@use NdwResult.Unavailable("Meer dan 999 locaties in dit kaartgebied. Zoom verder in.")
+                        return@use NdwResult.Unavailable(TOO_MANY_LOCATIONS_MESSAGE)
                     if (!response.isSuccessful)
                         return@use NdwResult.Unavailable("ChargeWatch API gaf HTTP ${response.code}.")
                     if (!supportsFiltering(filters.active, response.header("X-ChargeWatch-Filter-Version")))

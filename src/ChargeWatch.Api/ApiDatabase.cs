@@ -2,7 +2,7 @@ using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 
-internal sealed class ApiDatabase(ApiOptions options)
+internal sealed partial class ApiDatabase(ApiOptions options)
 {
     private readonly string _connectionString = options.ConnectionString;
     private readonly TimeSpan _staleAfter = options.StaleAfter;
@@ -114,6 +114,26 @@ internal sealed class ApiDatabase(ApiOptions options)
         return result;
     }
 
+
+    // Phase B: separate, opt-in read-only overview. Old viewport unchanged.
+    public async Task<MapOverviewResponse> GetMapOverview(
+        Bbox bbox, double zoom, MapFilter filters, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await MapOverviewDatabase.ReadAsync(connection,bbox,zoom,filters,
+            _staleAfter,cancellationToken);
+    }
+
+    public async Task<MapOverviewCellPage> GetMapOverviewCell(
+        int level, long x, long y, int offset, int limit, MapFilter filters,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await MapOverviewCellDatabase.ReadAsync(connection,level,x,y,offset,limit,
+            filters,cancellationToken);
+    }
 
     // A dedicated map path: a bounded, read-only viewport query. Never return
     // a deceptively complete partial result when the viewport exceeds the cap.

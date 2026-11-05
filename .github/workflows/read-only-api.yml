@@ -4,6 +4,10 @@ on:
     paths:
       - 'src/ChargeWatch.Api/**'
       - 'db/tests/018_readonly_api_role_smoke.sql'
+      - 'db/tests/026_map_overview_phase_c_fixture.sql'
+      - 'tools/test_map_overview_phase_c_http.py'
+      - 'tools/test_api_gzip_http.py'
+      - 'tools/MapFilterQ4Probe/**'
       - 'db/migrations/022_connector_snapshot_presence.sql'
       - 'db/tests/022_connector_snapshot_presence_smoke.sql'
       - '.github/workflows/read-only-api.yml'
@@ -134,8 +138,42 @@ jobs:
           assert all(category['connectorType']!='CHADEMO' for category in maploc['connectorCategories']),maploc
           status=get('data-status')
           assert status['evseCount']==146 and status['connectorCount']==146,status
+          # Verify bulk by-NDW-ID API against the existing single-detail
+          # contract, including a missing favorite and optional statistics.
+          def batch(ids, include_statistics=True, expected_status=200):
+              body=json.dumps({'featureIds':ids,'includeStatistics':include_statistics}).encode()
+              req=urllib.request.Request(base+'locations/by-ndw-id/batch',data=body,
+                  method='POST',headers={'Content-Type':'application/json'})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      assert response.status==expected_status,response.status
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  assert exc.code==expected_status,(exc.code,expected_status)
+                  return json.load(exc)
+          original=get('locations/by-ndw-id/NL-TST-PRESENCE')
+          original_stats=get('locations/by-ndw-id/NL-TST-PRESENCE/statistics')
+          values=batch(['NL-TST-ABSENT','NL-TST-PRESENCE'])['locations']
+          assert [v['featureId'] for v in values]==['NL-TST-ABSENT','NL-TST-PRESENCE']
+          assert values[0]['status']=='NOT_FOUND' and values[0]['detail'] is None
+          assert values[0]['statistics'] is None
+          assert values[1]['status']=='FOUND'
+          assert values[1]['detail']['id']==original['id']
+          assert values[1]['detail']['evses']==original['evses']
+          assert values[1]['detail']['feedIsStale']==original['feedIsStale']
+          assert values[1]['statistics']==original_stats
+          assert batch(['NL-TST-PRESENCE'],False)['locations'][0]['statistics'] is None
+          assert batch(['NL-TST-PRESENCE']*2,expected_status=400)['error']
+          assert batch([],expected_status=400)['error']
+          assert batch(['NL-TST-ABSENT']*21,expected_status=400)['error']
+          assert batch(['NL-TST-PRESENCE','bad id'],expected_status=400)['error']
+          twenty=batch(['NL-TST-PRESENCE']+['NL-TST-MISSING-'+str(i)
+                                          for i in range(19)],False)['locations']
+          assert len(twenty)==20 and sum(v['status']=='FOUND' for v in twenty)==1
+          print('Batch by-NDW-ID full detail, optional history and 20-ID limits passed.')
           print('Active-only API location, detail, viewport and data-status contract passed.')
           PY
+          python3 tools/test_api_gzip_http.py --base-url http://127.0.0.1:5089 --feature-id NL-TST-PRESENCE
 
       - name: Verify map filters and nearest selection against isolated HTTP API
         shell: bash
@@ -201,4 +239,102 @@ jobs:
           except urllib.error.HTTPError as exc: assert exc.code==400
           else: raise AssertionError('Invalid filter did not return 400')
           print('EVSE-accurate filtered viewport, nearest, power, operators and compatibility passed')
+          PY
+
+  map-overview-http-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: chargewatch_owner
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: chargewatch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chargewatch_owner -d chargewatch"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: chargewatch_owner
+      PGPASSWORD: test-only
+      PGDATABASE: chargewatch
+      POSTGRES_USER: chargewatch_owner
+      POSTGRES_DB: chargewatch
+      CW_IMPORT_PASSWORD: import-test-only
+      CW_READ_PASSWORD: read-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install PostgreSQL client and initialize isolated database
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f db/init/001_schema.sql
+          sh db/init/002_roles.sh
+          for migration in db/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -1 -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f db/tests/026_map_overview_phase_c_fixture.sql
+      - name: Build API and run pure selftests
+        run: |
+          dotnet build src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release
+          dotnet run --project src/ChargeWatch.Api/ChargeWatch.Api.csproj --configuration Release --no-build -- --self-test
+      - name: Verify production-derived phase C NAS SQL benchmark export
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj --configuration Release
+          dotnet run --project tools/MapFilterQ4Probe/MapFilterQ4Probe.csproj --configuration Release --no-build -- --emit-overview-phasec-nas-batch > /tmp/cw-phasec-nas-batch.sql
+          test "$(grep -c '^PREPARE cw_p2n_' /tmp/cw-phasec-nas-batch.sql)" -eq 3
+          test "$(grep -c '^EXECUTE cw_p2n_' /tmp/cw-phasec-nas-batch.sql)" -eq 3
+          grep -q 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY' /tmp/cw-phasec-nas-batch.sql
+          grep -q 'SET ROLE chargewatch_read;' /tmp/cw-phasec-nas-batch.sql
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/cw-phasec-nas-batch.sql | tee /tmp/cw-phasec-batch-results.txt
+          test "$(grep -Ec '[|][[:space:]]*t[[:space:]]*[|][[:space:]]*t[[:space:]]*$' /tmp/cw-phasec-batch-results.txt)" -eq 3
+
+      - name: Verify complete HTTP overview using read-only Npgsql API
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CW_API_CONNECTION="Host=localhost;Port=5432;Username=chargewatch_read;Password=read-test-only;Database=chargewatch"
+          export CW_ENABLE_MAP_OVERVIEW=true
+          export ASPNETCORE_URLS=http://127.0.0.1:5091
+          dotnet run --project src/ChargeWatch.Api --configuration Release --no-build --no-launch-profile > /tmp/cw-overview-phasec.log 2>&1 &
+          service=$!
+          trap 'kill "$service" 2>/dev/null || true; cat /tmp/cw-overview-phasec.log' EXIT
+          for retry in $(seq 1 70); do
+            if curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null; then break; fi
+            if ! kill -0 "$service" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null
+          python3 tools/test_map_overview_phase_c_http.py
+          python3 tools/test_api_gzip_http.py --base-url http://127.0.0.1:5091 --overview
+          kill "$service" 2>/dev/null || true
+          wait "$service" || true
+          unset CW_ENABLE_MAP_OVERVIEW
+          dotnet run --project src/ChargeWatch.Api --configuration Release --no-build --no-launch-profile > /tmp/cw-overview-disabled.log 2>&1 &
+          disabled=$!
+          trap 'kill "$disabled" 2>/dev/null || true; cat /tmp/cw-overview-phasec.log /tmp/cw-overview-disabled.log' EXIT
+          for retry in $(seq 1 70); do
+            if curl -fsS 'http://127.0.0.1:5091/api/v1/data-status' >/dev/null; then break; fi
+            if ! kill -0 "$disabled" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import urllib.error,urllib.request
+          try:
+              urllib.request.urlopen('http://127.0.0.1:5091/api/v1/map/overview?bbox=5,51,6,52&zoom=12',timeout=10)
+          except urllib.error.HTTPError as failure:
+              assert failure.code==404,failure.code
+          else:
+              raise AssertionError("Featureflag-off overview route unexpectedly exists")
+          print("Phase C flag-off HTTP 404 PASS")
           PY

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.RectF
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
@@ -127,8 +128,11 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
-import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichmentClient
+import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
+import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
+import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
 import nl.vanhinthem.chargewatch.data.filters.OperatorOptionsClient
 import nl.vanhinthem.chargewatch.data.search.LocationSearchClient
@@ -149,7 +153,11 @@ import nl.vanhinthem.chargewatch.data.ndw.availabilityDescription
 import nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName
 import nl.vanhinthem.chargewatch.data.ndw.connectorSymbol
 import nl.vanhinthem.chargewatch.data.ndw.NdwViewport
-import nl.vanhinthem.chargewatch.data.ndw.summarizeCluster
+import nl.vanhinthem.chargewatch.data.ndw.MapOverviewClient
+import nl.vanhinthem.chargewatch.data.ndw.OverviewDataset
+import nl.vanhinthem.chargewatch.data.ndw.OverviewMarker
+import nl.vanhinthem.chargewatch.data.ndw.OverviewCellPage
+import nl.vanhinthem.chargewatch.data.ndw.OverviewCellResult
 import org.maplibre.android.annotations.Icon
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.MarkerOptions
@@ -162,6 +170,7 @@ import org.maplibre.android.maps.MapView
 
 @Composable
 fun MapScreen(
+    locationDetailsCache: LocationDetailsCache,
     favorites: List<FavoriteLocation> = emptyList(),
     onToggleFavorite: (MapLocation) -> Unit = {},
     onDetailVisibilityChanged: (Boolean) -> Unit = {},
@@ -256,6 +265,31 @@ fun MapScreen(
         }
     }
     var selectedLocations by remember { mutableStateOf<List<MapLocation>>(emptyList()) }
+    var selectedCluster by remember { mutableStateOf<OverviewVisualGroup?>(null) }
+    var clusterOffset by remember { mutableStateOf(0) }
+    var clusterPage by remember { mutableStateOf<OverviewCellPage?>(null) }
+    var clusterLoading by remember { mutableStateOf(false) }
+    var clusterError by remember { mutableStateOf<String?>(null) }
+    val clusterClient = remember { MapOverviewClient() }
+    LaunchedEffect(selectedCluster,clusterOffset,filters) {
+        val cluster = selectedCluster ?: return@LaunchedEffect
+        clusterLoading = true
+        clusterPage = null
+        clusterError = null
+        when (val result = clusterClient.loadGroup(
+            cluster.members,clusterOffset,30,filters,
+            state.overview?.feedLastObservedAt,state.overview?.feedIsStale
+        )) {
+            is OverviewCellResult.Success -> clusterPage = result.page
+            is OverviewCellResult.Unavailable -> clusterError = result.message
+        }
+        clusterLoading = false
+    }
+    LaunchedEffect(state.overview) {
+        selectedCluster = null
+        clusterPage = null
+        clusterOffset = 0
+    }
     var searchHeaderBottom by remember { mutableStateOf(0.dp) }
     var searchPanelBottomPx by remember { mutableStateOf(0) }
     var searchQuery by viewModel.searchQuery
@@ -430,9 +464,18 @@ fun MapScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         ChargeMap(
             locations = state.locations,
+            overview = state.overview,
             darkTheme = darkTheme,
             onViewportChanged = viewModel::onViewportChanged,
+            onClusterSelected = { cluster ->
+                selectedLocations = emptyList()
+                selectedCluster = cluster
+                clusterOffset = 0
+                nearbyExpanded = false
+                filterSheetOpen = false
+            },
             onLocationsSelected = { tapped ->
+                selectedCluster = null
                 selectedLocations = tapped
                 if (tapped.isNotEmpty()) {
                     nearbyExpanded = false
@@ -440,6 +483,7 @@ fun MapScreen(
                 }
             },
             onMapTapped = {
+                selectedCluster = null
                 // Tapping the map dismisses search focus and any expanded list.
                 mapFocusManager.clearFocus(force = true)
                 keyboardController?.hide()
@@ -447,6 +491,8 @@ fun MapScreen(
                 filterSheetOpen = false
             },
             favoriteIds = favoriteIds,
+            favorites = favorites,
+            filtersActive = filters.active,
             cameraTarget = cameraTarget,
             destination = destination,
             gpsPosition = if (locationEnabled) gpsPosition else null,
@@ -559,6 +605,54 @@ fun MapScreen(
                 }
             }
         }
+        selectedCluster?.let { cluster ->
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),tonalElevation = 6.dp,shadowElevation = 3.dp
+            ) {
+                Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Text("${cluster.locationCount} laadlocaties",style=MaterialTheme.typography.titleMedium,
+                            modifier=Modifier.weight(1f))
+                        IconButton(onClick={ selectedCluster=null }) {
+                            Icon(Icons.Default.Close,contentDescription="Sluiten")
+                        }
+                    }
+                    if (clusterLoading) CircularProgressIndicator(Modifier.size(22.dp))
+                    clusterError?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+                    clusterPage?.let { page ->
+                        Text("Locaties ${page.offset+1}–${page.offset+page.locations.size} van ${page.totalCount}",
+                            style=MaterialTheme.typography.bodySmall)
+                        Column(Modifier.heightIn(max=300.dp).verticalScroll(rememberScrollState())) {
+                            page.locations.forEach { location ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        selectedLocations=listOf(location)
+                                        selectedCluster=null
+                                    }.padding(vertical=9.dp),
+                                    verticalAlignment=Alignment.CenterVertically
+                                ) {
+                                    Text(location.title,modifier=Modifier.weight(1f),
+                                        maxLines=2,style=MaterialTheme.typography.bodyMedium)
+                                    Text(location.availability.label,style=MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            TextButton(enabled=page.offset>0,onClick={
+                                clusterOffset=(page.offset-30).coerceAtLeast(0)
+                            }) { Text("Vorige") }
+                            TextButton(enabled=page.hasMore,onClick={
+                                clusterOffset=page.offset+page.locations.size
+                            }) { Text("Volgende") }
+                        }
+                    }
+                }
+            }
+        }
+
         if (state.loading) {
             CircularProgressIndicator(
                 modifier = Modifier
@@ -591,6 +685,7 @@ fun MapScreen(
     if (selectedLocations.isNotEmpty()) {
         LocationSelectionSheet(
             locations = selectedLocations,
+            locationDetailsCache = locationDetailsCache,
             onDismiss = { selectedLocations = emptyList() },
             onLocationSelected = { selectedLocations = listOf(it) },
             isFavorite = { location -> favorites.any { it.featureId == location.featureId } },
@@ -1016,7 +1111,10 @@ private data class CameraTarget(
 /** Not Compose state: avoid marker re-clustering for each autocomplete keystroke. */
 private class MapRenderSnapshot {
     var locations: List<MapLocation>? = null
+    var overview: OverviewDataset? = null
     var favoriteIds: Set<String>? = null
+    var favorites: List<FavoriteLocation>? = null
+    var filtersActive: Boolean? = null
     var destination: Destination? = null
     var gpsPosition: DevicePosition? = null
 }
@@ -1024,11 +1122,15 @@ private class MapRenderSnapshot {
 @Composable
 private fun ChargeMap(
     locations: List<MapLocation>,
+    overview: OverviewDataset?,
     darkTheme: Boolean,
-    onViewportChanged: (NdwViewport) -> Unit,
+    onViewportChanged: (NdwViewport, Double) -> Unit,
+    onClusterSelected: (OverviewVisualGroup) -> Unit,
     onLocationsSelected: (List<MapLocation>) -> Unit,
     onMapTapped: () -> Unit,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     cameraTarget: CameraTarget?,
     destination: Destination?,
     gpsPosition: DevicePosition?,
@@ -1042,7 +1144,11 @@ private fun ChargeMap(
     val lifecycleOwner = LocalLifecycleOwner.current
     val styleUri = if (darkTheme) DARK_STYLE else LIGHT_STYLE
     val currentLocations = rememberUpdatedState(locations)
+    val currentOverview = rememberUpdatedState(overview)
+    val currentClusterHandler = rememberUpdatedState(onClusterSelected)
     val currentFavoriteIds = rememberUpdatedState(favoriteIds)
+    val currentFavorites = rememberUpdatedState(favorites)
+    val currentFiltersActive = rememberUpdatedState(filtersActive)
     val currentSelectionHandler = rememberUpdatedState(onLocationsSelected)
     val currentMapTapHandler = rememberUpdatedState(onMapTapped)
     val currentDestination = rememberUpdatedState(destination)
@@ -1051,6 +1157,7 @@ private fun ChargeMap(
     val currentOverviewHandler = rememberUpdatedState(onOverviewCalculated)
     val iconCache = remember { mutableMapOf<String, Icon>() }
     val markerGroups = remember { mutableMapOf<Long, List<MapLocation>>() }
+    val markerClusters = remember { mutableMapOf<Long, OverviewVisualGroup>() }
 
     val mapView = remember(context) {
         MapView(context).apply { onCreate(Bundle()) }
@@ -1085,6 +1192,28 @@ private fun ChargeMap(
                         .build()
 
                     map.setOnMarkerClickListener { marker ->
+                        val visualCluster = markerClusters[marker.id]
+                        if (visualCluster != null) {
+                            when (markerTapAction(
+                                visualCluster.locationCount, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM
+                            )) {
+                                MarkerTapAction.ZoomCluster -> {
+                                    val targetZoom = (map.cameraPosition.zoom + CLUSTER_ZOOM_STEP)
+                                        .coerceAtMost(MAX_CLUSTER_ZOOM)
+                                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(visualCluster.latitude, visualCluster.longitude),
+                                        targetZoom
+                                    ))
+                                }
+                                MarkerTapAction.SelectClusterLocations ->
+                                    currentClusterHandler.value(visualCluster)
+                                // A server group with a single location is
+                                // rendered through markerGroups instead.
+                                MarkerTapAction.SelectLocation ->
+                                    currentClusterHandler.value(visualCluster)
+                            }
+                            return@setOnMarkerClickListener true
+                        }
                         val group = markerGroups[marker.id] ?: return@setOnMarkerClickListener false
                         if (group.isEmpty()) return@setOnMarkerClickListener true
                         when (markerTapAction(group.size, map.cameraPosition.zoom, MAX_CLUSTER_ZOOM)) {
@@ -1116,11 +1245,15 @@ private fun ChargeMap(
                         map = map,
                         styleUri = styleUri,
                         locations = currentLocations.value,
+                        overview = currentOverview.value,
                         onViewportChanged = onViewportChanged,
                         context = context,
                         iconCache = iconCache,
                         markerGroups = markerGroups,
+                        markerClusters = markerClusters,
                         favoriteIds = currentFavoriteIds.value,
+                        favorites = currentFavorites.value,
+                        filtersActive = currentFiltersActive.value,
                         destination = currentDestination.value,
                         gpsPosition = currentGpsPosition.value
                     )
@@ -1128,10 +1261,14 @@ private fun ChargeMap(
                         renderNativeMarkers(
                             map,
                             currentLocations.value,
+                            currentOverview.value,
                             iconCache,
                             context,
                             markerGroups,
+                            markerClusters,
                             currentFavoriteIds.value,
+                            currentFavorites.value,
+                            currentFiltersActive.value,
                             currentDestination.value,
                             currentGpsPosition.value
                         )
@@ -1140,10 +1277,14 @@ private fun ChargeMap(
                         renderNativeMarkers(
                             map,
                             currentLocations.value,
+                            currentOverview.value,
                             iconCache,
                             context,
                             markerGroups,
+                            markerClusters,
                             currentFavoriteIds.value,
+                            currentFavorites.value,
+                            currentFiltersActive.value,
                             currentDestination.value,
                             currentGpsPosition.value
                         )
@@ -1179,22 +1320,28 @@ private fun ChargeMap(
                 }
                 val styleChanged = currentStyleUri != styleUri
                 val markersChanged = renderSnapshot.locations !== locations ||
+                    renderSnapshot.overview !== overview ||
                     renderSnapshot.favoriteIds != favoriteIds ||
+                    renderSnapshot.favorites != favorites ||
+                    renderSnapshot.filtersActive != filtersActive ||
                     renderSnapshot.destination != destination ||
                     renderSnapshot.gpsPosition != gpsPosition
                 if (styleChanged) {
                     currentStyleUri = styleUri
                     map.setStyle(styleUri) {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
                     }
                 } else if (markersChanged) {
                     map.getStyle {
-                        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+                        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
                     }
                 }
                 if (styleChanged || markersChanged) {
                     renderSnapshot.locations = locations
+                    renderSnapshot.overview = overview
                     renderSnapshot.favoriteIds = favoriteIds
+                    renderSnapshot.favorites = favorites
+                    renderSnapshot.filtersActive = filtersActive
                     renderSnapshot.destination = destination
                     renderSnapshot.gpsPosition = gpsPosition
                 }
@@ -1245,21 +1392,25 @@ private fun configureStyle(
     map: MapLibreMap,
     styleUri: String,
     locations: List<MapLocation>,
-    onViewportChanged: (NdwViewport) -> Unit,
+    overview: OverviewDataset?,
+    onViewportChanged: (NdwViewport, Double) -> Unit,
     context: Context,
     iconCache: MutableMap<String, Icon>,
     markerGroups: MutableMap<Long, List<MapLocation>>,
+    markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
     map.setStyle(styleUri) {
-        renderNativeMarkers(map, locations, iconCache, context, markerGroups, favoriteIds, destination, gpsPosition)
+        renderNativeMarkers(map, locations, overview, iconCache, context, markerGroups, markerClusters, favoriteIds, favorites, filtersActive, destination, gpsPosition)
         requestViewport(map, onViewportChanged)
     }
 }
 
-private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -> Unit) {
+private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport, Double) -> Unit) {
     val bounds = map.projection.visibleRegion.latLngBounds
     if (bounds.longitudeWest < bounds.longitudeEast &&
         bounds.latitudeSouth < bounds.latitudeNorth
@@ -1270,7 +1421,7 @@ private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -
                 minLatitude = bounds.latitudeSouth,
                 maxLongitude = bounds.longitudeEast,
                 maxLatitude = bounds.latitudeNorth
-            )
+            ),map.cameraPosition.zoom
         )
     }
 }
@@ -1278,92 +1429,114 @@ private fun requestViewport(map: MapLibreMap, onViewportChanged: (NdwViewport) -
 private fun renderNativeMarkers(
     map: MapLibreMap,
     locations: List<MapLocation>,
+    overview: OverviewDataset?,
     icons: MutableMap<String, Icon>,
     context: Context,
     markerGroups: MutableMap<Long, List<MapLocation>>,
+    markerClusters: MutableMap<Long, OverviewVisualGroup>,
     favoriteIds: Set<String>,
+    favorites: List<FavoriteLocation>,
+    filtersActive: Boolean,
     destination: Destination?,
     gpsPosition: DevicePosition?
 ) {
     map.clear()
     markerGroups.clear()
-    val clusters = mutableListOf<MutableList<MapLocation>>()
-    val positions = locations.associateWith { location ->
-        map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
-    }
-    locations.forEach { location ->
-        val point = positions.getValue(location)
-        val nearest = clusters.minByOrNull { group ->
-            val x = group.map { positions.getValue(it).x.toDouble() }.average()
-            val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x.toDouble()
-            val dy = y - point.y.toDouble()
-            dx * dx + dy * dy
+    markerClusters.clear()
+    if (icons.size > 1200) icons.clear()
+    val iconFactory = IconFactory.getInstance(context)
+    if (overview != null) {
+        // Grid cell ownership is backend-only. Render organic, population-
+        // weighted screen-space groups so users never see a grid lattice.
+        val projected = overview.markers.map { item ->
+            val point = map.projection.toScreenLocation(LatLng(item.latitude,item.longitude))
+            ProjectedOverviewMarker(item,point.x.toDouble(),point.y.toDouble())
         }
-        val distanceSquared = nearest?.let { group ->
-            val x = group.map { positions.getValue(it).x.toDouble() }.average()
-            val y = group.map { positions.getValue(it).y.toDouble() }.average()
-            val dx = x - point.x.toDouble()
-            val dy = y - point.y.toDouble()
-            dx * dx + dy * dy
-        } ?: Double.POSITIVE_INFINITY
-        if (nearest != null && distanceSquared < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
-            nearest.add(location)
-        } else {
-            clusters.add(mutableListOf(location))
-        }
-    }
-
-    var merged: Boolean
-    do {
-        merged = false
-        outer@ for (i in clusters.indices) {
-            for (j in i + 1 until clusters.size) {
-                val a = clusters[i]
-                val b = clusters[j]
-                val dx = a.map { positions.getValue(it).x.toDouble() }.average() -
-                    b.map { positions.getValue(it).x.toDouble() }.average()
-                val dy = a.map { positions.getValue(it).y.toDouble() }.average() -
-                    b.map { positions.getValue(it).y.toDouble() }.average()
-                if (dx * dx + dy * dy < CLUSTER_DISTANCE_PX * CLUSTER_DISTANCE_PX) {
-                    a.addAll(b)
-                    clusters.removeAt(j)
-                    merged = true
-                    break@outer
+        val groups = clusterOverviewVisually(projected,CLUSTER_DISTANCE_PX)
+        groups.forEach { group ->
+            val isSingle = group.isIndividualLocation
+            val key: String
+            val icon: Icon
+            if (isSingle) {
+                val item=group.members.single() as OverviewMarker.Location
+                val status=when {
+                    item.availableCount > 0 -> AVAILABLE_COLOR
+                    item.totalCount > 0 -> NONE_AVAILABLE_COLOR
+                    else -> UNKNOWN_COLOR
+                }
+                val favorite=item.featureId in favoriteIds
+                key="single:$status:${item.availableCount}/${item.totalCount}:$favorite"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createMarkerBitmap(
+                        status,"${item.availableCount}/${item.totalCount}",favorite
+                    ))
+                }
+            } else {
+                val hasFavorite=overviewGroupHasFavorite(group,favorites,filtersActive)
+                key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}:$hasFavorite"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createAvailabilityClusterBitmap(
+                        group.locationCount,group.locationsWithFree,
+                        group.locationsWithNoFree,group.locationsUnknown,
+                        hasFavorite
+                    ))
                 }
             }
+            val marker=map.addMarker(MarkerOptions()
+                .position(LatLng(group.latitude,group.longitude)).icon(icon)
+                .title(if (isSingle) "Laadlocatie" else "${group.locationCount} laadlocaties"))
+            if (isSingle) {
+                val single=group.members.single() as OverviewMarker.Location
+                markerGroups[marker.id]=listOf(single.asMapLocation(
+                    overview.feedLastObservedAt,overview.feedIsStale))
+            } else {
+                markerClusters[marker.id]=group
+            }
         }
-    } while (merged)
-
-    val iconFactory = IconFactory.getInstance(context)
-    clusters.forEach { group ->
-        val isCluster = group.size > 1
-        val location = group.first()
-        val aggregate = if (isCluster) summarizeCluster(group) else null
-        val label = aggregate?.label ?: location.availability.label
-        val displayStatus = aggregate?.status ?: location.availability.status
-        val color = when (displayStatus) {
-            AvailabilityStatus.Available -> AVAILABLE_COLOR
-            AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
-            AvailabilityStatus.Unknown -> UNKNOWN_COLOR
+    } else {
+        // The same screen-distance engine and same visual ring are used for
+        // complete local viewports and nationwide overview summaries.
+        val projected=locations.map { location ->
+            val point=map.projection.toScreenLocation(LatLng(location.latitude,location.longitude))
+            ProjectedLocationMarker(location,point.x.toDouble(),point.y.toDouble())
         }
-        val isFavorite = group.any { it.featureId in favoriteIds }
-        val key = isCluster.toString() + ":" + color + ":" + label + ":" + isFavorite
-        val icon = icons.getOrPut(key) {
-            iconFactory.fromBitmap(
-                if (isCluster) createClusterBitmap(color, label, isFavorite)
-                else createMarkerBitmap(color, label, isFavorite)
-            )
+        val clusters=clusterLocationsVisually(projected,CLUSTER_DISTANCE_PX)
+        clusters.forEach { group ->
+            val isCluster=group.locationCount > 1
+            val icon: Icon
+            if (isCluster) {
+                val hasFavorite=localGroupHasFavorite(group,favoriteIds)
+                val key="cluster:${group.locationCount}:${group.locationsWithFree}:"+
+                    "${group.locationsWithNoFree}:${group.locationsUnknown}:$hasFavorite"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createAvailabilityClusterBitmap(
+                        group.locationCount,group.locationsWithFree,
+                        group.locationsWithNoFree,group.locationsUnknown,
+                        hasFavorite
+                    ))
+                }
+            } else {
+                val location=group.members.single()
+                val color=when (location.availability.status) {
+                    AvailabilityStatus.Available -> AVAILABLE_COLOR
+                    AvailabilityStatus.NoneAvailable -> NONE_AVAILABLE_COLOR
+                    AvailabilityStatus.Unknown -> UNKNOWN_COLOR
+                }
+                val favorite=location.featureId in favoriteIds
+                val key="single:${color}:${location.availability.label}:${favorite}"
+                icon=icons.getOrPut(key) {
+                    iconFactory.fromBitmap(createMarkerBitmap(
+                        color,location.availability.label,favorite
+                    ))
+                }
+            }
+            val marker=map.addMarker(MarkerOptions()
+                .position(LatLng(group.latitude,group.longitude)).icon(icon)
+                .title(if (isCluster) "${group.locationCount} laadlocaties"
+                    else group.members.single().title))
+            markerGroups[marker.id]=group.members
         }
-        val latitude = group.map { it.latitude }.average()
-        val longitude = group.map { it.longitude }.average()
-        val marker = map.addMarker(
-            MarkerOptions()
-                .position(LatLng(latitude, longitude))
-                .icon(icon)
-                .title(if (isCluster) group.size.toString() + " laadlocaties" else location.title)
-        )
-        markerGroups[marker.id] = group.toList()
     }
     destination?.let { chosen ->
         val icon = icons.getOrPut("destination-pin") { iconFactory.fromBitmap(createDestinationMarkerBitmap()) }
@@ -1397,6 +1570,7 @@ private fun createGpsMarkerBitmap(): Bitmap {
 @Composable
 fun LocationSelectionSheet(
     locations: List<MapLocation>,
+    locationDetailsCache: LocationDetailsCache,
     onDismiss: () -> Unit,
     onLocationSelected: (MapLocation) -> Unit,
     isFavorite: (MapLocation) -> Boolean,
@@ -1404,15 +1578,27 @@ fun LocationSelectionSheet(
     expandedTopInset: Dp,
     initiallyExpanded: Boolean = false,
     compactAllowed: Boolean = true,
+    preloaded: FavoriteBatchLocation? = null,
     onShowAlternatives: (MapLocation) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val enrichmentClient = remember { LocationEnrichmentClient() }
     val selectedId = locations.singleOrNull()?.featureId
-    var enrichment by remember(selectedId) { mutableStateOf<EnrichmentResult?>(null) }
-    LaunchedEffect(selectedId) {
-        enrichment = null
-        if (selectedId != null) enrichment = enrichmentClient.load(selectedId)
+    val cached = preloaded ?: selectedId?.let(locationDetailsCache::peekDetails)
+    var enrichment by remember(selectedId,preloaded) {
+        mutableStateOf<EnrichmentResult?>(cached?.let {
+            EnrichmentResult.Found(it.enrichment,it.mapLocation)
+        })
+    }
+    LaunchedEffect(selectedId,preloaded) {
+        enrichment = cached?.let { EnrichmentResult.Found(it.enrichment,it.mapLocation) }
+        if (selectedId != null && cached == null) {
+            enrichment = when (val result = locationDetailsCache.loadDetails(listOf(selectedId))) {
+                is FavoriteBatchResult.Unavailable -> EnrichmentResult.Unavailable
+                is FavoriteBatchResult.Success -> result.locations[selectedId]?.let {
+                    EnrichmentResult.Found(it.enrichment,it.mapLocation)
+                } ?: EnrichmentResult.NotFound
+            }
+        }
     }
     // A standard bottom sheet supports an explicit peek height. That is what the
     // map UX needs: compact = exactly the summary content, expanded = all detail.
@@ -1430,6 +1616,27 @@ fun LocationSelectionSheet(
     val dragHandleHeight = 32.dp
     val compactPeekHeight = compactContentHeight + dragHandleHeight
     val expanded = sheetState.currentValue == SheetValue.Expanded
+
+    // Both sheets reuse the same cache. No history request for compact map
+    // taps; expanded sheets reuse fresh history across subsequent openings.
+    var history by remember(selectedId,preloaded) {
+        mutableStateOf<List<HourlyAvailability>?>(
+            preloaded?.statistics ?: selectedId?.let(locationDetailsCache::peekHistory))
+    }
+    var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
+    var historyLoading by remember(selectedId) { mutableStateOf(false) }
+    LaunchedEffect(selectedId, expanded) {
+        if (!shouldFetchSheetStatistics(selectedId, expanded, history, historyUnavailable))
+            return@LaunchedEffect
+        val id = selectedId ?: return@LaunchedEffect
+        historyLoading = true
+        try {
+            val result = locationDetailsCache.loadHistory(id)
+            if (result == null) historyUnavailable = true else history = result
+        } finally {
+            historyLoading = false
+        }
+    }
 
     BackHandler {
         if (!compactAllowed) {
@@ -1520,7 +1727,7 @@ fun LocationSelectionSheet(
                 Spacer(Modifier.height(20.dp))
             }
         } else {
-            val location = locations.single()
+            val location = (enrichment as? EnrichmentResult.Found)?.mapLocation ?: locations.single()
             val statusColor = when (location.availability.status) {
                 AvailabilityStatus.Available -> ComposeColor(0xFF2FA76B)
                 AvailabilityStatus.NoneAvailable -> ComposeColor(0xFFE35D5B)
@@ -1897,6 +2104,15 @@ fun LocationSelectionSheet(
                     HorizontalDivider()
                     Text("Historisch minstens één laadpunt vrij",
                         style = MaterialTheme.typography.titleMedium)
+                    if (historyLoading) {
+                        Text("Historische statistieken ophalen…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (historyUnavailable) {
+                        Text("Historische statistieken zijn tijdelijk niet beschikbaar.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
                     var chosenWeekday by remember(selectedId) {
                         mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
@@ -1925,8 +2141,7 @@ fun LocationSelectionSheet(
                             }
                         }
                     }
-                    val historical = (enrichment as? EnrichmentResult.Found)?.value?.hourlyAvailability.orEmpty()
-                        .filter { it.isoWeekday == chosenWeekday }
+                    val historical = history.orEmpty().filter { it.isoWeekday == chosenWeekday }
                     var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
@@ -2104,46 +2319,49 @@ private fun createMarkerBitmap(colorHex: String, label: String, isFavorite: Bool
     return bitmap
 }
 
-private fun createClusterBitmap(colorHex: String, label: String, isFavorite: Boolean): Bitmap {
-    val bitmap = Bitmap.createBitmap(150, 150, Bitmap.Config.ARGB_8888)
+private fun createAvailabilityClusterBitmap(
+    locationCount: Int,
+    locationsWithFree: Int,
+    locationsWithNoFree: Int,
+    locationsUnknown: Int,
+    isFavorite: Boolean
+): Bitmap {
+    val bitmap = Bitmap.createBitmap(160,160,Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    val statusColor = Color.parseColor(colorHex)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    paint.color = Color.argb(48, 0, 0, 0)
-    canvas.drawCircle(75f, 82f, 61f, paint)
-
-    // Cluster halo stays subtle even though the marker itself is slightly larger.
-    paint.color = Color.argb(
-        70,
-        Color.red(statusColor),
-        Color.green(statusColor),
-        Color.blue(statusColor)
-    )
-    canvas.drawCircle(75f, 76f, 60f, paint)
-
-    paint.color = Color.parseColor("#F5F7F8")
-    canvas.drawCircle(75f, 76f, 53f, paint)
-
-    paint.color = statusColor
-    canvas.drawCircle(75f, 76f, 48f, paint)
-
-    paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1.5f
-    paint.color = Color.argb(84, 255, 255, 255)
-    canvas.drawCircle(75f, 76f, 46.5f, paint)
-
-    paint.style = Paint.Style.FILL
-    paint.color = Color.WHITE
-    paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.create(
-        "sans-serif-medium",
-        android.graphics.Typeface.BOLD
-    )
-    paint.textSize = if (label.length > 4) 31f else 37f
-    canvas.drawText(label, 75f, 89f, paint)
-
-    if (isFavorite) drawFavoriteBadgeOnMarker(canvas, 75f, 76f, 48f)
+    paint.color=Color.argb(42,0,0,0)
+    canvas.drawCircle(80f,84f,72f,paint)
+    paint.color=Color.parseColor("#E5E9EC")
+    canvas.drawCircle(80f,80f,70f,paint)
+    val arc = RectF(15f,15f,145f,145f)
+    paint.style=Paint.Style.STROKE
+    paint.strokeWidth=14f
+    paint.strokeCap=Paint.Cap.BUTT
+    var angle=-90f
+    for ((count,color) in listOf(
+        locationsWithFree to AVAILABLE_COLOR,
+        locationsWithNoFree to NONE_AVAILABLE_COLOR,
+        locationsUnknown to UNKNOWN_COLOR
+    )) {
+        if (count == 0) continue
+        val sweep=360f*count.toFloat()/locationCount
+        paint.color=Color.parseColor(color)
+        canvas.drawArc(arc,angle,sweep,false,paint)
+        angle+=sweep
+    }
+    paint.style=Paint.Style.FILL
+    paint.color=Color.parseColor("#68727A")
+    canvas.drawCircle(80f,80f,54f,paint)
+    paint.color=Color.WHITE
+    paint.textAlign=Paint.Align.CENTER
+    paint.typeface=android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD)
+    paint.textSize=when {
+        locationCount >= 10000 -> 27f
+        locationCount >= 1000 -> 32f
+        else -> 39f
+    }
+    canvas.drawText(locationCount.toString(),80f,92f,paint)
+    if (isFavorite) drawFavoriteBadgeOnMarker(canvas,80f,80f,54f)
     return bitmap
 }
 
