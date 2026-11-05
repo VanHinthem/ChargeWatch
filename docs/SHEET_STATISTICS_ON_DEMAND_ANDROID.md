@@ -37,3 +37,18 @@ De eerder beschreven bestaande geografische `FavoritesAvailabilityClient` is van
 - Falen van de batch-API wordt als fout zichtbaar; de app valt **niet stilzwijgend** terug op geografische viewport-approximaties. Dit voorkomt schijnvolledigheid en maakt de volgorde van uitrollen duidelijk: **eerst PR #124 mergen en NAS API deployen, dan PR #123 naar Android release**.
 
 Risico/acceptatie: correcte statuscounts en historische tijdreeksen, prijzen in volledige sheet, automatische refresh bij tab openen, max twintig per request, cache na terugkeer binnen twee minuten en de verversknop; voor het eerste Android-testmoment moet de nieuwe batch-API op de test-NAS beschikbaar zijn.
+
+
+## Definitieve cacheaanpak — 5 november (na productie-gzip PR #125)
+
+**Deze sectie vervangt bovenstaande oudere aanname dat Favorieten bij iedere batch ook de volledige statistieken ophalen.** API PR #125 met gzip is gemerged en volgens de NAS-eigenaar gedeployed; de publieke gzip-respons moet nog via een HTTPS-check worden bevestigd.
+
+- De Android-app creëert precies één `LocationDetailsCache` voor de actieve app-sessie en geeft die door aan zowel `MapScreen` als de favorietendetail-sheet. Er is geen persistente cache op disk; bij herstart wordt verse data opgehaald.
+- `loadDetails(ids)` gebruikt de al gedeployde batch-API met **`includeStatistics=false`**, voor compacte kaart-sheets, favorietenlijst en de detailvelden in uitgebreide sheets. De per-ID-TTL is **2 minuten**. Handmatig verversen omzeilt deze TTL. Batches worden begrensd op 20 ID's; oudere installaties met meer favorieten blijven ondersteund.
+- `loadHistory(id)` vraagt de bestaande **afzonderlijke GET-statistics** alleen op zodra de uitgebreide sheet statistieken nodig heeft; het resultaat heeft een **eigen TTL van 15 minuten** en blijft beschikbaar voor andere sheet-openingen. Een geldige lege historie wordt eveneens gecachet. Een fout wordt niet als geldige historie gecachet.
+- Locatie-/tariefdetails blijven bruikbaar wanneer statistieken falen. Gegevens van ontbrekende locaties worden maximaal twee minuten als niet-gevonden onthouden, niet permanent.
+- De caches hebben een bovengrens (120 detail-ID's en 60 historie-ID's), om langdurig kaartgebruik niet onbeperkt geheugen te laten gebruiken.
+- Gzip/OkHttp verlaagt de hoeveelheid verzonden JSON-bytes, maar verandert het verversbeleid niet. Geen app-side decompressiewijzigingen nodig; bestaande OkHttp-client doet dit transparant.
+- De widgetprovider is bewust **buiten PR #123** gehouden. Na een Samsung-build blijft een afzonderlijke PR nodig voor het verdwenen widgetgedrag en aansluiting op de gedeelde, geschikte widget-datalaag.
+
+**Acceptatie vóór merge:** Android CI, tests voor batch-statistics-opt-in en gedeelde cache inclusief geldigheid, Samsung-check: compacte kaart, uitklappen met historie, terug openen zonder extra historische GET, favorietenverversing en wisselen tussen kaart/favorieten, handmatige refresh, onbekende ID en foutafhandeling. PR #123 blijft draft totdat dat gebeurd is.
