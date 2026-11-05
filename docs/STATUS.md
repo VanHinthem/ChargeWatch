@@ -1,3 +1,9 @@
+## PR #112 Android-widgets hervat op actuele main (5 november 2026)
+
+Na succesvolle merge en Samsung-acceptatie van Android-cache PR [#123](https://github.com/VanHinthem/ChargeWatch/pull/123) en NAS-acceptatie van API gzip PR [#125](https://github.com/VanHinthem/ChargeWatch/pull/125), wordt het **bestaande draft PR #112** bijgewerkt, niet vervangen. Ontwerp en resizable Glance-widgetvormen blijven behouden. De widget haalt geselecteerde favorieten via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false`; de kaart en widget delen binnen een app-proces de 2-minuten-`LocationDetailsCache`. Widgetstatus en plaats-/adresmetadata worden atomair in de persistente `WidgetStore` bewaard, inclusief laatst-bekende betrouwbare EVSE-ratio bij fouten/offline. Geen oude viewport-/NDW-fallback of losse metadata-GET; een tik opent de uitgebreide sheet via de gedeelde cache. Nieuwe CI en Samsung-smoketest nog nodig; geen merge of release zonder expliciete goedkeuring. Zie [widgetontwerp](ANDROID_WIDGET_IMPLEMENTATION_PLAN.md).
+
+---
+
 ## Android gedeelde locatiecache — PR #123 (5 november 2026)
 
 Na het akkoord op de NAS-benchmark is PR #123 uitgebreid met één gedeelde `LocationDetailsCache` voor kaart- en favorietensheets. Details, EVSEs en tarieven worden maximaal één keer per ID per **2 minuten** via `POST /api/v1/locations/by-ndw-id/batch` met `includeStatistics=false` opgehaald. Historische statistieken zijn **on-demand** bij uitklappen en hebben een eigen cache van **15 minuten**; een fout haalt de compacte details niet onderuit. Batchomvang blijft maximaal twintig, met ondersteuning voor bestaande favorieten boven de limiet. Nieuw Android-build/smoketest en CI-acceptatie zijn nodig voordat deze PR gemerged mag worden. De verdwenen widgets blijven voor een aparte PR. Zie [Android sheet/cache ontwerp](SHEET_STATISTICS_ON_DEMAND_ANDROID.md).
