@@ -1,3 +1,9 @@
+## Favorieten/widget — max. 20 volledige details per batch (5 november 2026)
+
+Nieuwe onafhankelijke API-branch `feat/api-location-batch-20`: `POST /api/v1/locations/by-ndw-id/batch` met 1–20 unieke ID's en volledige `LocationDetail`-modellen, optionele `LocationStatistics`, orderbehoud en expliciete `FOUND/NOT_FOUND`-status. Read-only set-based SQL, zonder migratie of aanpassing van bestaande API-routes. [API-contract en gefaseerde uitrol](LOCATION_DETAILS_BATCH_API.md). Android-aansluiting volgt op de bestaande draft PR #123, zonder NAS-/mergeacties zonder apart akkoord.
+
+---
+
 ## #113 — Favorietster op clusters (4 november 2026)
 
 De Samsung-acceptatie na PR #121 liet zien dat de clusterpresentatie nu consistent is, maar dat de gele favorietster op clusters ontbreekt. Fix op `fix/map-cluster-favorite-badge-113`: lokale groepen krijgen de ster via exacte `featureId`-membership, landelijke groepen via opgeslagen lokale coördinaten en canonieke celmembership (zonder actieve filters), met één identieke sterbadge en correct cachegedrag. Bij gefilterde serveraggregaten wordt geen onbewezen ster getoond. [Ontwerp, privacygrens en testmatrix](MAP_CLUSTER_FAVORITES_113.md). Geen API/NAS-wijziging; PR blijft eerst draft, geen merge/deploy zonder akkoord.
