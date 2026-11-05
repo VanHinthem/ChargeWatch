@@ -214,9 +214,10 @@ private fun WidgetContent(context: Context, widgetId: Int, rows: List<WidgetRow>
 }
 
 /**
- * 2x2 layout on Samsung One UI. A full 'ChargeWatch' title and full street
- * cannot coexist with two legible ratios at this width; prefer city and availability.
- * This layout is deliberately separate from the larger, unchanged 4x2 widget.
+ * Dedicated 2x2 layout: the favorite's name gets the full available width.
+ * The availability badge sits on its own line; no street/city subtitle takes
+ * room away from the name. If more favorites were selected, show +N meer.
+ * Keep the freshness state even when a last-known result is shown.
  */
 @Composable
 private fun SmallSquareWidgetContent(
@@ -230,10 +231,10 @@ private fun SmallSquareWidgetContent(
     val foreground = ColorProvider(if (dark) Color(0xFFF3F7F8) else Color(0xFF26313A))
     val secondary = ColorProvider(if (dark) Color(0xFFC0CDD4) else Color(0xFF66757F))
     val surface = if (dark) Color(0xFF26313A) else Color(0xFFF5F7F8)
-    val visible = rows.take(2)
+    val primary = rows.firstOrNull()
     Column(
         modifier = GlanceModifier.fillMaxSize().background(surface).cornerRadius(18.dp)
-            .padding(horizontal = 7.dp, vertical = 7.dp)
+            .padding(horizontal = 8.dp, vertical = 7.dp)
     ) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("⚡", modifier = GlanceModifier.defaultWeight()
@@ -243,54 +244,44 @@ private fun SmallSquareWidgetContent(
                 .clickable(actionRunCallback<WidgetRefreshAction>()),
                 style = TextStyle(color = foreground, fontSize = 19.sp))
         }
-        if (visible.isEmpty()) {
-            Text(
-                if (hasFavorites) "Widget instellen" else "Geen favorieten",
-                maxLines = 2, style = TextStyle(color = secondary, fontSize = 12.sp)
-            )
+        Spacer(GlanceModifier.height(5.dp))
+        if (primary == null) {
+            Text(if (hasFavorites) "Widget instellen" else "Geen favorieten",
+                maxLines = 2, style = TextStyle(color = secondary, fontSize = 12.sp))
         } else {
-            visible.forEach { row ->
-                val badge = when (row.status) {
-                    AvailabilityStatus.Available -> if (dark) Color(0xFF214F39) else Color(0xFFD8F1E3)
-                    AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFF572A30) else Color(0xFFFCE1E1)
-                    AvailabilityStatus.Unknown -> if (dark) Color(0xFF414B52) else Color(0xFFE4E9ED)
-                }
-                val badgeText = when (row.status) {
-                    AvailabilityStatus.Available -> if (dark) Color(0xFF74D7A1) else Color(0xFF168653)
-                    AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
-                    AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
-                }
-                Row(GlanceModifier.fillMaxWidth().height(43.dp)
-                    .clickable(actionStartActivity(widgetFavoriteIntent(context, widgetId, row.featureId))),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(GlanceModifier.defaultWeight(),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(row.name, maxLines = 1,
-                            style = TextStyle(color = foreground, fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium))
-                        compactWidgetSubtitle(row)?.let { city ->
-                            Text(city, maxLines = 1,
-                                style = TextStyle(color = secondary, fontSize = 11.sp))
-                        }
-                    }
-                    Spacer(GlanceModifier.width(3.dp))
-                    Text(row.label, maxLines = 1,
-                        modifier = GlanceModifier.background(badge).cornerRadius(7.dp)
-                            .padding(horizontal = 5.dp, vertical = 4.dp),
-                        style = TextStyle(color = ColorProvider(badgeText),
-                            fontSize = 16.sp, fontWeight = FontWeight.Bold))
-                }
+            val badge = when (primary.status) {
+                AvailabilityStatus.Available -> if (dark) Color(0xFF214F39) else Color(0xFFD8F1E3)
+                AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFF572A30) else Color(0xFFFCE1E1)
+                AvailabilityStatus.Unknown -> if (dark) Color(0xFF414B52) else Color(0xFFE4E9ED)
+            }
+            val badgeText = when (primary.status) {
+                AvailabilityStatus.Available -> if (dark) Color(0xFF74D7A1) else Color(0xFF168653)
+                AvailabilityStatus.NoneAvailable -> if (dark) Color(0xFFFF8585) else Color(0xFFD43B3B)
+                AvailabilityStatus.Unknown -> if (dark) Color(0xFFD6DEE2) else Color(0xFF64727D)
+            }
+            Column(GlanceModifier.fillMaxWidth()
+                .clickable(actionStartActivity(widgetFavoriteIntent(context, widgetId, primary.featureId)))) {
+                Text(primary.name, maxLines = 2,
+                    style = TextStyle(color = foreground, fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium))
+                Spacer(GlanceModifier.height(6.dp))
+                Text(primary.label, maxLines = 1,
+                    modifier = GlanceModifier.background(badge).cornerRadius(7.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = TextStyle(color = ColorProvider(badgeText),
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold))
             }
         }
         Spacer(GlanceModifier.defaultWeight())
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (refreshing) "Verversen…" else if (visible.isEmpty()) "ChargeWatch" else compactSquareFooter(visible),
+                if (refreshing) "Verversen…" else if (primary == null) "ChargeWatch"
+                else compactWidgetFreshness(primary),
                 modifier = GlanceModifier.defaultWeight(),
                 maxLines = 1, style = TextStyle(color = secondary, fontSize = 10.sp)
             )
-            if (rows.size > visible.size) {
-                Text("+" + (rows.size - visible.size) + " meer", maxLines = 1,
+            if (rows.size > 1) {
+                Text("+${rows.size - 1} meer", maxLines = 1,
                     style = TextStyle(color = secondary, fontSize = 9.sp))
             }
         }
