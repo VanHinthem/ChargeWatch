@@ -29,7 +29,7 @@ class LocationDetailsCache(
     private val missing = ConcurrentHashMap.newKeySet<String>()
     private val history = ConcurrentHashMap<String, CachedHistory>()
 
-    private data class CachedHistory(val slots: List<HourlyAvailability>, val checkedAt: Instant)
+    private data class CachedHistory(val slots: HistoricalStatistics, val checkedAt: Instant)
 
     fun needingDetails(ids: List<String>, force: Boolean = false): List<String> =
         favoriteIdsNeedingBatchFetch(ids, checkedAt.toMap(), now(), force)
@@ -37,7 +37,7 @@ class LocationDetailsCache(
     fun peekDetails(id: String): FavoriteBatchLocation? =
         if (isFresh(checkedAt[id], DETAIL_TTL)) detail[id] else null
 
-    fun peekHistory(id: String): List<HourlyAvailability>? =
+    fun peekHistory(id: String): HistoricalStatistics? =
         history[id]?.takeIf { isFresh(it.checkedAt, HISTORY_TTL) }?.slots
 
     suspend fun loadDetails(ids: List<String>, force: Boolean = false): FavoriteBatchResult =
@@ -69,7 +69,7 @@ class LocationDetailsCache(
             )
         }
 
-    suspend fun loadHistory(id: String): List<HourlyAvailability>? =
+    suspend fun loadHistory(id: String): HistoricalStatistics? =
         historyMutex.withLock {
             peekHistory(id)?.let { return@withLock it }
             val fetched = enrichmentClient.loadStatistics(id) ?: return@withLock null

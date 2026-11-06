@@ -5,10 +5,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.longOrNull
 import nl.vanhinthem.chargewatch.BuildConfig
-import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
+import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 import nl.vanhinthem.chargewatch.data.enrichment.LocationEnrichment
 import nl.vanhinthem.chargewatch.data.enrichment.parseEnrichment
-import nl.vanhinthem.chargewatch.data.enrichment.parseHourlyAvailability
+import nl.vanhinthem.chargewatch.data.enrichment.parseHistoricalStatistics
 import nl.vanhinthem.chargewatch.data.enrichment.parseMapLocationDetail
 import nl.vanhinthem.chargewatch.data.ndw.AvailabilitySummary
 import nl.vanhinthem.chargewatch.data.ndw.CountReliability
@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 data class FavoriteBatchLocation(
     val mapLocation: MapLocation,
     val enrichment: LocationEnrichment,
-    val statistics: List<HourlyAvailability>?,
+    val statistics: HistoricalStatistics?,
     val city: String? = null
 )
 
@@ -129,10 +129,10 @@ internal fun parseFavoriteBatchResponse(
                 )
                 val detailJson=detail.toString()
                 val projected=parseMapLocationDetail(detailJson,seed)
-                val hourly=stats?.let { parseHourlyAvailability(it.toString()) }
+                val hourly=stats?.let { parseHistoricalStatistics(it.toString()) }
                 val enrichment=parseEnrichment(detailJson).let { detail ->
                     if (hourly == null) detail else detail.copy(
-                        statisticsAvailable=hourly.isNotEmpty(),hourlyAvailability=hourly)
+                        statisticsAvailable=hourly.isNotEmpty(),hourlyAvailability=hourly.slots)
                 }
                 val city=detail["city"]?.jsonPrimitive?.contentOrNull?.trim()
                     ?.takeIf { it.isNotEmpty() && it.length <= 100 }

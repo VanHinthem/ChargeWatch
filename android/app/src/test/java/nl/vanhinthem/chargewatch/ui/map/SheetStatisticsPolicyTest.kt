@@ -1,11 +1,12 @@
 package nl.vanhinthem.chargewatch.ui.map
 
 import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
+import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 import org.junit.Assert.*
 import org.junit.Test
 
 class SheetStatisticsPolicyTest {
-    private val slots = listOf(HourlyAvailability(1,10,0.5,12))
+    private val slots = HistoricalStatistics(listOf(HourlyAvailability(1,10,0.5,12)),null,emptyList())
 
     @Test fun compactMapSheetNeverRequestsHistory() {
         assertFalse(shouldFetchSheetStatistics("NL-AAA-1",false,null,false))
@@ -24,7 +25,7 @@ class SheetStatisticsPolicyTest {
     }
 
     @Test fun emptySuccessfulHistoryAlsoPreventsRepeatFetch() {
-        assertFalse(shouldFetchSheetStatistics("NL-AAA-1",true,emptyList(),false))
+        assertFalse(shouldFetchSheetStatistics("NL-AAA-1",true,HistoricalStatistics(emptyList(),null,emptyList()),false))
     }
 
     @Test fun failedHistoryDoesNotRefetchOnEveryRecompose() {

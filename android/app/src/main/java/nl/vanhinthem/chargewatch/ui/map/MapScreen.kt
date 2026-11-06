@@ -130,7 +130,7 @@ import kotlin.math.sin
 import nl.vanhinthem.chargewatch.data.enrichment.EnrichmentResult
 import nl.vanhinthem.chargewatch.data.enrichment.LocationDetailsCache
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchResult
-import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
+import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteLocation
 import nl.vanhinthem.chargewatch.data.favorites.FavoriteBatchLocation
 import nl.vanhinthem.chargewatch.data.filters.ChargingFilters
@@ -1620,7 +1620,7 @@ fun LocationSelectionSheet(
     // Both sheets reuse the same cache. No history request for compact map
     // taps; expanded sheets reuse fresh history across subsequent openings.
     var history by remember(selectedId,preloaded) {
-        mutableStateOf<List<HourlyAvailability>?>(
+        mutableStateOf<HistoricalStatistics?>(
             preloaded?.statistics ?: selectedId?.let(locationDetailsCache::peekHistory))
     }
     var historyUnavailable by remember(selectedId) { mutableStateOf(false) }
@@ -2102,94 +2102,13 @@ fun LocationSelectionSheet(
                         }
                     }
                     HorizontalDivider()
-                    Text("Historisch minstens één laadpunt vrij",
-                        style = MaterialTheme.typography.titleMedium)
-                    if (historyLoading) {
-                        Text("Historische statistieken ophalen…",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else if (historyUnavailable) {
-                        Text("Historische statistieken zijn tijdelijk niet beschikbaar.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    val weekdays = listOf("Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo")
-                    var chosenWeekday by remember(selectedId) {
-                        mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
-                    }
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        weekdays.forEachIndexed { index, label ->
-                            val weekday = index + 1
-                            val selected = chosenWeekday == weekday
-                            Surface(
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                    .clickable { chosenWeekday = weekday },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(label, style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold
-                                            else androidx.compose.ui.text.font.FontWeight.Normal)
-                                }
-                            }
-                        }
-                    }
-                    val historical = history.orEmpty().filter { it.isoWeekday == chosenWeekday }
-                    var selectedHour by remember(selectedId, chosenWeekday) { mutableStateOf<Int?>(null) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Column(Modifier.height(88.dp), verticalArrangement = Arrangement.SpaceBetween,
-                            horizontalAlignment = Alignment.End) {
-                            Text("100%", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("50%", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("0%", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Row(Modifier.fillMaxWidth().height(88.dp),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                verticalAlignment = Alignment.Bottom) {
-                                (0..23).forEach { hour ->
-                                    val slot = historical.firstOrNull { it.hour == hour }
-                                    Box(Modifier.weight(1f).fillMaxSize()
-                                        .clickable { selectedHour = hour },
-                                        contentAlignment = Alignment.BottomCenter) {
-                                        if (slot == null) {
-                                            Box(Modifier.fillMaxWidth().height(88.dp)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant,
-                                                    RoundedCornerShape(2.dp)))
-                                        } else {
-                                            Box(Modifier.fillMaxWidth()
-                                                .height((slot.share * 88).coerceAtLeast(2.0).dp)
-                                                .background(MaterialTheme.colorScheme.primary,
-                                                    RoundedCornerShape(2.dp)))
-                                        }
-                                    }
-                                }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                listOf("00", "06", "12", "18", "24").forEach { label ->
-                                    Text(label, style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                    selectedHour?.let { hour ->
-                        val slot = historical.firstOrNull { it.hour == hour }
-                        val hourLabel = "%02d:00–%02d:00".format(Locale.forLanguageTag("nl-NL"), hour, hour + 1)
-                        Text(if (slot == null) "$hourLabel · Geen gegevens"
-                             else "$hourLabel · ${(slot.share * 100).toInt()}% historische beschikbaarheidsindicatie",
-                             style = MaterialTheme.typography.bodySmall)
-                    }
+                    HistoricalStatisticsPanel(
+                        history = history,
+                        loading = historyLoading,
+                        unavailable = historyUnavailable,
+                        evseLabels = (enrichment as? EnrichmentResult.Found)?.value?.evseLabels.orEmpty(),
+                        selectedId = selectedId
+                    )
                     val updated = remember(location.lastUpdated) {
                         location.lastUpdated?.let { raw ->
                             runCatching { DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("nl-NL"))

@@ -51,7 +51,7 @@ class LocationEnrichmentLazyStatisticsTest {
         assertNotNull(history)
         assertEquals(1,history!!.size)
         assertEquals(listOf(detailPath,statsPath),requests)
-        assertEquals(0.65,history.single().share,0.0001)
+        assertEquals(0.65,history.single().share!!,0.0001)
     }
 
     @Test fun historyFailureNeverInvalidatesSuccessfullyLoadedDetail() = runBlocking {
