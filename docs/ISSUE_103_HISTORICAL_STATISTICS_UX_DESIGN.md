@@ -41,10 +41,27 @@ De actuele `LocationStatistics.Slots` bevatten al `averageAvailableEvses`, `aver
 - Derde controle op dezelfde 500 locaties: 84.000 slots, 20 zonder samples; mediaan 24, p95 24, maximaal 36 samples; 100% van samples geclassificeerd als changed feed.
 - Deze metingen zijn **geen aselecte landelijke representativiteitsmeting** en bewijzen geen onafhankelijke kalenderweekdekking. Ze rechtvaardigen niet zelfstandig een hard nieuw betrouwbaarheidscijfer.
 
-## Nog te ontwerpen — apart onderdeel binnen #103
+## Vastgesteld UX-ontwerp: historische storing en betrouwbaarheid (6 november 2026)
 
-**Historische storing/betrouwbaarheid**: bepaal eerst de betekenis en presentatie van EVSE-categorieën (`INOPERATIVE`, `OUTOFORDER` versus `CHARGING`, `BLOCKED`, `RESERVED`, `UNKNOWN`, `PLANNED`, `REMOVED`). De bestaande profieltabellen bewaren negen EVSE-categorieën en vijf locatiecategorieën als EWMA; een percentage feitelijke uptime over de afgelopen 90 kalenderdagen volgt hier **niet rechtstreeks** uit. Leg voor een betrouwbaarheidsindicatie eerst noemer, onbekende status, dekking en UI-label vast.
+**Gekozen productrichting: optie A — betrouwbaarheid van de afzonderlijke EVSE's**, niet slechts de vraag of een locatie minimaal één operationele EVSE heeft. De sectie volgt onder de gecombineerde beschikbaarheidsgrafiek en blijft standaard compact.
+
+1. **Locatiesamenvatting:** toon een compacte historische indicatie voor `Operationeel` versus `Storing`, bij voorkeur met groen/rode horizontale verhouding. Geen tweede grote tijdgrafiek.
+2. **Uitklapbaar paneel:** één regel `Betrouwbaarheid per EVSE (N)`, standaard ingeklapt. Uitklappen toont de EVSE's met een herkenbaar label (zoals connectorsoort/vermogen waar de catalogus die betrouwbaar levert), een operationele indicatie en een compacte horizontale statusbalk.
+3. **Detail per EVSE:** individuele EVSE kan verder worden uitgeklapt voor de delen `Operationeel`, `Storing` en `Onbekend`. Bij ontbrekende gegevens staat `Geen gegevens` in plaats van een fictieve 0%.
+4. **Betekenis van statussen:** `AVAILABLE`, `CHARGING`, `RESERVED` en `BLOCKED` zijn operationeel; `INOPERATIVE` en `OUTOFORDER` zijn storing; `UNKNOWN` blijft afzonderlijk onzeker; `PLANNED` en `REMOVED` vallen buiten de actuele actieve capaciteit. Bezet is niet defect.
+5. **Aggregatie zonder schijnprecisie:** locatiecijfer is *niet* een simpel gemiddelde van EVSE-percentages. De definitieve berekening moet dekking en juiste waarnemingsgewichten volgen. De som van percentages mag niet kunstmatig 100% suggereren zolang `UNKNOWN` in de berekeningsbasis voorkomt. Dit zijn expliciet nog te valideren rekenregels, geen toestemming voor nieuwe migraties.
+6. **Historische indicatie, geen bewezen uptime:** statuscategorieën zijn al als compacte EVSE-EWMA per weekdag/uur opgeslagen. Hieruit volgt nog **geen exacte uptime van de afgelopen 90 kalenderdagen**. De UI mag de bestaande indicatie niet onder het label `90-daagse uptime` publiceren.
+7. **Geen waarschuwing over onvoldoende 90-daagse historie:** toon aanwezige valide historische gegevens zonder automatisch een melding over de lengte van de historie te plaatsen. Onbekende of ongeldige cijfers blijven expliciet leeg.
+
+### Nog te valideren vóór implementatie
+
+- Hoe de bestaande EVSE-categorie-EWMA's met geldige categorieën, onzekerheid en uitgesloten lifecycle-staten worden omgezet in een operationeel-/storingsaandeel; vooral de **noemer**, weging van EVSE's, historische weekdagen/uren en minimumgeldigheid.
+- Of het locatieoverzicht de historische indicatie moet samenvatten over alle 168 uurvakken of bewust een geselecteerde periode (bijvoorbeeld het uur in de gecombineerde grafiek) volgt. Voorkom onbedoeld mengen van tijdvakken met afwijkende dekking.
+- Correcte koppeling van bestaande EVSE-ID's aan herkenbare connectorlabels, inclusief meerdere connectoren en onbekende vermogens.
+- API-/Android-afhandeling voor nul samples, ongeldige EWMA, UNKNOWN, nieuwe EVSE, verwijderde EVSE, per-EVSE-fouten en incompleet locatiedeel.
+
+**Niet besloten:** een extra 90-daagse rollende uptime-pipeline, nieuwe databasekolommen, een minimumaantal onafhankelijke weken of een gegarandeerd betrouwbaarheidspercentage.
 
 ## Review- en implementatiegrens
 
-Dit document legt uitsluitend het gekozen functionele grafiekontwerp vast. Er is **nog geen code, migratie, API-wijziging, APK, Samsung-test of merge**. Implementatie van de gecombineerde grafiek en van betrouwbaarheid/storing volgen pas nadat ook dat tweede ontwerp is besproken en de scope is bevestigd. Geen merge of NAS-deployment zonder expliciet akkoord.
+Dit document legt de gekozen functionele ontwerpen voor de gecombineerde grafiek en de uitklapbare EVSE-betrouwbaarheid vast. Er is **nog geen code, migratie, API-wijziging, APK, Samsung-test of merge**. Implementatie van de gecombineerde grafiek en van betrouwbaarheid/storing volgen pas nadat ook dat tweede ontwerp is besproken en de scope is bevestigd. Geen merge of NAS-deployment zonder expliciet akkoord.
