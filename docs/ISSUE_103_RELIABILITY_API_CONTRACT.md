@@ -1,7 +1,9 @@
 # Issue #103 — historische betrouwbaarheid in de read-only API
 
 **Scope:** API-contract en berekening uit **bestaande** EVSE-snapshotprofielen. Geen migratie, importerwijziging, NAS-deployment of Android-UI.  
-**Functionele UX-afspraken:** [historisch statistiekontwerp in PR #129](https://github.com/VanHinthem/ChargeWatch/pull/129).
+**Functionele UX-afspraken:** [geaccepteerd ontwerp](ISSUE_103_HISTORICAL_STATISTICS_UX_DESIGN.md), geïmplementeerd in [Android-PR #131](https://github.com/VanHinthem/ChargeWatch/pull/131); API-PR #130 is gemerged en op NAS geverifieerd.
+
+**V1-besluit optie A (6 november 2026):** historische weekdag-/uur-EWMA en betrouwbaarheid worden als *experimentele indicaties* getoond, zonder claim van gekalibreerde beschikbaarheidskans of daadwerkelijk gemeten 90-daagse uptime. #103 is hiermee als v1-onderdeel afgerond. Warm-up-bias, publicatiecriteria en eventueel exacte rolling-90-day-uptime staan apart in [issue #132](https://github.com/VanHinthem/ChargeWatch/issues/132), niet blokkerend voor v1.
 
 ## Contract (additief)
 
