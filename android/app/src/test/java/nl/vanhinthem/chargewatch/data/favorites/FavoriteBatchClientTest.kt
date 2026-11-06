@@ -49,7 +49,7 @@ class FavoriteBatchClientTest {
         assertEquals(false,location.mapLocation.feedIsStale)
         assertEquals(1,location.mapLocation.connectorCategories.size)
         assertEquals(1,location.statistics!!.size)
-        assertEquals(0.8,location.statistics.single().share,0.0001)
+        assertEquals(0.8,location.statistics.single().share!!,0.0001)
         assertTrue(location.enrichment.statisticsAvailable)
     }
 
