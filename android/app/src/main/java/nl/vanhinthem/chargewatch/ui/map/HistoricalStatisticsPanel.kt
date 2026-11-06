@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,13 +39,15 @@ import nl.vanhinthem.chargewatch.data.enrichment.EvseReliability
 import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 import nl.vanhinthem.chargewatch.data.enrichment.ReliabilityStats
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 private val availabilityGreen = Color(0xFF209668)
-private val averageFreeOrange = Color(0xFFF29C38)
+private val averageFreeOrangeDark = Color(0xFFF29C38)
+private val averageFreeOrangeLight = Color(0xFFAA5300)
 private val faultRed = Color(0xFFD45A50)
 
 private fun number(value: Double): String = String.format(Locale.forLanguageTag("nl-NL"), "%.1f", value)
@@ -68,8 +71,11 @@ internal fun HistoricalStatisticsPanel(
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     val weekdays = listOf("Ma","Di","Wo","Do","Vr","Za","Zo")
+    val amsterdamNow = remember(selectedId) { LocalDateTime.now(ZoneId.of("Europe/Amsterdam")) }
+    val lineOrange = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f)
+        averageFreeOrangeLight else averageFreeOrangeDark
     var chosenWeekday by remember(selectedId) {
-        mutableStateOf(LocalDate.now(ZoneId.of("Europe/Amsterdam")).dayOfWeek.value)
+        mutableStateOf(amsterdamNow.dayOfWeek.value)
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         weekdays.forEachIndexed { index, label ->
@@ -95,7 +101,9 @@ internal fun HistoricalStatisticsPanel(
     val activeMax = slots.mapNotNull { it.averageActive }.maxOrNull() ?: 0.0
     val freeMax = slots.mapNotNull { it.averageFree }.maxOrNull() ?: 0.0
     val rightMax = ceil(maxOf(1.0, activeMax, freeMax)).toInt()
-    var selectedHour by remember(selectedId,chosenWeekday) { mutableStateOf<Int?>(null) }
+    // Keep the chosen hour when switching weekdays; start at the current Dutch hour.
+    var selectedHour by remember(selectedId) { mutableStateOf(amsterdamNow.hour) }
+    val selectionColor = MaterialTheme.colorScheme.primary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -110,6 +118,9 @@ internal fun HistoricalStatisticsPanel(
             Box(Modifier.fillMaxWidth().height(112.dp)) {
                 Canvas(Modifier.fillMaxSize()) {
                     val cellWidth = size.width / 24f
+                    drawRect(selectionColor.copy(alpha = 0.10f),
+                        topLeft=Offset(selectedHour*cellWidth,0f),
+                        size=androidx.compose.ui.geometry.Size(cellWidth,size.height))
                     for (fraction in listOf(0f,0.5f,1f)) {
                         val y = size.height * fraction
                         drawLine(gridColor,Offset(0f,y),Offset(size.width,y),1.dp.toPx())
@@ -120,8 +131,8 @@ internal fun HistoricalStatisticsPanel(
                                 val barHeight = (size.height * share).toFloat()
                                 drawRect(
                                     color = availabilityGreen,
-                                    topLeft = Offset(hour*cellWidth+cellWidth*0.14f,size.height-barHeight),
-                                    size = androidx.compose.ui.geometry.Size(cellWidth*0.72f,barHeight)
+                                    topLeft = Offset(hour*cellWidth+cellWidth*0.20f,size.height-barHeight),
+                                    size = androidx.compose.ui.geometry.Size(cellWidth*0.60f,barHeight)
                                 )
                             }
                         }
@@ -137,13 +148,18 @@ internal fun HistoricalStatisticsPanel(
                                 size.height * (1f-(free/rightMax).toFloat().coerceIn(0f,1f))
                             )
                             previous?.let { start ->
-                                drawLine(averageFreeOrange,start,current,2.5.dp.toPx(),
+                                drawLine(lineOrange,start,current,2.8.dp.toPx(),
                                     cap=StrokeCap.Round)
                             }
-                            drawCircle(averageFreeOrange,2.dp.toPx(),current)
+                            drawCircle(lineOrange,2.2.dp.toPx(),current)
                             previous = current
                         }
                     }
+                    // Keep the selected hour recognizable even after touch feedback fades.
+                    val x0 = selectedHour*cellWidth
+                    val x1 = (selectedHour+1)*cellWidth
+                    drawLine(selectionColor,Offset(x0,0f),Offset(x0,size.height),1.5.dp.toPx())
+                    drawLine(selectionColor,Offset(x1,0f),Offset(x1,size.height),1.5.dp.toPx())
                 }
                 Row(Modifier.fillMaxSize()) {
                     (0..23).forEach { hour ->
@@ -160,7 +176,8 @@ internal fun HistoricalStatisticsPanel(
         }
         Column(Modifier.height(112.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Text("$rightMax", style = MaterialTheme.typography.labelSmall)
-            Text("${number(rightMax/2.0)}", style = MaterialTheme.typography.labelSmall)
+            Text(if (rightMax % 2 == 0) "${rightMax/2}" else number(rightMax/2.0),
+                style = MaterialTheme.typography.labelSmall)
             Text("0", style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -168,19 +185,26 @@ internal fun HistoricalStatisticsPanel(
         Text("■ Minstens één vrij (%)", style = MaterialTheme.typography.labelSmall,
             color = availabilityGreen)
         Text("● Gemiddeld vrij (EVSE)", style = MaterialTheme.typography.labelSmall,
-            color = averageFreeOrange)
+            color = lineOrange)
     }
-    selectedHour?.let { hour ->
+    run {
+        val hour = selectedHour
         val slot = byHour[hour]
         val hourLabel = "%02d:00–%02d:00".format(Locale.forLanguageTag("nl-NL"),hour,hour+1)
-        Text("$hourLabel · Beschikbaarheid: ${slot?.share?.let { "${(it*100).roundToInt()}%" } ?: "Geen gegevens"}",
-            style = MaterialTheme.typography.bodySmall)
-        Text("Gemiddeld vrij: ${slot?.averageFree?.let(::number) ?: "Geen gegevens"} EVSE" +
-            (slot?.averageActive?.let { " · gemiddeld actief: ${number(it)}" } ?: ""),
-            style = MaterialTheme.typography.bodySmall)
+        Text("${weekdays[chosenWeekday-1]} · $hourLabel",
+            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Minstens één vrij: ${slot?.share?.let { "${(it*100).roundToInt()}%" } ?: "Geen gegevens"}",
+                style = MaterialTheme.typography.bodySmall)
+            Text("Gemiddeld vrij: ${slot?.averageFree?.let(::number) ?: "Geen gegevens"} EVSE",
+                style = MaterialTheme.typography.bodySmall)
+        }
     }
     HorizontalDivider()
     Text("Historische betrouwbaarheid",style = MaterialTheme.typography.titleMedium)
+    Text("Gebaseerd op historische laadpuntstatussen.",
+        style=MaterialTheme.typography.bodySmall,
+        color=MaterialTheme.colorScheme.onSurfaceVariant)
     ReliabilitySummaryPanel(history?.reliability)
     var expanded by remember(selectedId) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().heightIn(min=48.dp).clickable { expanded=!expanded },
@@ -239,7 +263,7 @@ private fun ReliabilitySummaryPanel(data: ReliabilityStats?) {
         }
     }
     ReliabilityBar(data)
-    Text("Onbekend ${percent(data.unknownPercent)} · dekking ${data.coveredSlots}/${data.totalSlots} uurvakken",
+    Text("Onbekend ${percent(data.unknownPercent)}",
         style=MaterialTheme.typography.labelSmall,
         color=MaterialTheme.colorScheme.onSurfaceVariant)
 }
@@ -248,8 +272,8 @@ private fun ReliabilitySummaryPanel(data: ReliabilityStats?) {
 private fun EvseReliabilityPanel(evse: EvseReliability,label:String,selectedId:String?) {
     var expanded by remember(selectedId,evse.evseId) { mutableStateOf(false) }
     Column(verticalArrangement=Arrangement.spacedBy(4.dp),
-        modifier=Modifier.fillMaxWidth().padding(vertical=4.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable { expanded=!expanded },
+        modifier=Modifier.fillMaxWidth().padding(vertical=2.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min=42.dp).clickable { expanded=!expanded },
             horizontalArrangement=Arrangement.SpaceBetween,
             verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -273,9 +297,6 @@ private fun EvseReliabilityPanel(evse: EvseReliability,label:String,selectedId:S
                     "Storing: ${percent(data.faultPercent)} · " +
                     "Onbekend: ${percent(data.unknownPercent)}",
                     style=MaterialTheme.typography.bodySmall)
-                Text("Dekking: ${data.coveredSlots}/${data.totalSlots} uurvakken",
-                    style=MaterialTheme.typography.labelSmall,
-                    color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         HorizontalDivider()
