@@ -1,6 +1,6 @@
 # ChargeWatch — actuele roadmap
 
-**Bijgewerkt:** 6 november 2026, na merge van [PR #131](https://github.com/VanHinthem/ChargeWatch/pull/131) en v1-besluit optie A voor #103.  
+**Bijgewerkt:** 6 november 2026, inclusief v1-besluit optie A voor #103 en vastgestelde P4-werkblokken #134–#136 onder #104.  
 **Actuele implementatiestatus:** [STATUS.md](STATUS.md).  
 **Oorspronkelijke fasen, metingen, checklists en ontwerpbesluiten:** [historische roadmap](archive/ROADMAP_THROUGH_2026-11-05.md) en [historisch statuslog](archive/STATUS_THROUGH_2026-11-05.md). De oude checklists van fases 0–2 zijn geen nieuwe werkvoorraad.
 
@@ -20,9 +20,9 @@ Een Android-first laadpaalassistent met landelijke laadlocaties, betrouwbare act
 
 | Spoor | Volgende concrete stap | Done wanneer |
 |---|---|---|
-| **[#104 — Android P4: v1 releasekwaliteit](https://github.com/VanHinthem/ChargeWatch/issues/104)** | Integraal testen (schermen, widget, offline, donker/licht, toegankelijkheid, performance, energie, signing, privacy/attributie en API-beveiliging) | Releasechecklist compleet en expliciet distributie-/releaseakkoord |
+| **[#104 — Android P4: v1 releasekwaliteit](https://github.com/VanHinthem/ChargeWatch/issues/104)** | Drie werkblokken: [#134 technische audit](https://github.com/VanHinthem/ChargeWatch/issues/134) → [#135 compacte Samsung-kwaliteitsronde](https://github.com/VanHinthem/ChargeWatch/issues/135) → [#136 releasecandidate/go-no-go](https://github.com/VanHinthem/ChargeWatch/issues/136) | Alleen daadwerkelijke releaseblokkades verholpen, validatie afgetekend en expliciet afzonderlijk distributie-/releasebesluit |
 
-**Functionele prioriteit:** #104 is de resterende v1-kwaliteits-/releasegate. #103 is conform expliciet optie A-besluit afgerond: EWMA-indicaties blijven experimenteel, geen 90-daagse uptimeclaims of nieuwe opslag voor v1. Nieuwe NAS-deploy, featureflagwijziging en publieke Android-release alleen met afzonderlijk akkoord.
+**Uitvoeringsprioriteit:** start met #134; daarna #135 en #136. #104 blijft overkoepelend open totdat de drie werkblokken en releasegates zijn beoordeeld. Hergebruik bewezen tests; voeg geen micro-PR's, speculatieve fixes of nieuwe features toe. **Functionele prioriteit:** #104 is de resterende v1-kwaliteits-/releasegate. #103 is conform expliciet optie A-besluit afgerond: EWMA-indicaties blijven experimenteel, geen 90-daagse uptimeclaims of nieuwe opslag voor v1. Nieuwe NAS-deploy, featureflagwijziging en publieke Android-release alleen met afzonderlijk akkoord.
 
 ## Uitgesteld, geen releaseblocker
 

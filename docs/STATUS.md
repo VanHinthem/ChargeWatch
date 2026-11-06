@@ -1,6 +1,6 @@
 # ChargeWatch — actuele projectstatus
 
-**Peildatum:** 6 november 2026, na merge van PR #131 en productbesluit optie A voor #103 (historische EWMA-indicaties in v1; exacte 90-daagse uptime uitgesteld).  
+**Peildatum:** 6 november 2026; v1-optie A voor #103 afgerond; kwaliteitsronde #104 opgesplitst in drie goedgekeurde werkblokken (#134–#136).  
 **Bron van waarheid voor de actuele werkvoorraad:** [GitHub Issues](https://github.com/VanHinthem/ChargeWatch/issues?q=is%3Aissue+is%3Aopen) en [GitHub Pull Requests](https://github.com/VanHinthem/ChargeWatch/pulls?q=is%3Apr+is%3Aopen).  
 **Historische werklogboeken:** [STATUS t/m 5 november](archive/STATUS_THROUGH_2026-11-05.md) en [oude roadmap](archive/ROADMAP_THROUGH_2026-11-05.md). De oude dagmeldingen en tussenstanden zijn **niet** de huidige openstaande taken.
 
@@ -54,7 +54,13 @@ Rekenregels, nuldata/UNKNOWN/PLANNED-gevallen en validatiegrenzen: [ISSUE_103_RE
 
 ## Nog open — uitvoeringswerk
 
-1. **[#104 — Android v1 kwaliteitsronde en releasevoorbereiding](https://github.com/VanHinthem/ChargeWatch/issues/104).** Volledige integrale Samsung-regressie, accessibility, offline/fouten, batterij/netwerk, signing, versiebeleid, privacy/attributie, API-beveiliging en expliciete releasebeslissing. De v1-scope van #103 en #113 is afgerond; toets bij release dat experimentele historische indicaties niet als bewezen uptime of gevalideerde voorspelling worden voorgesteld.
+**[#104 — Android v1 kwaliteitsronde en releasevoorbereiding](https://github.com/VanHinthem/ChargeWatch/issues/104)** is de overkoepelende en enige resterende v1-releasegate. Op 6 november is de uitvoering in drie pragmatische werkblokken vastgesteld, in deze volgorde:
+
+1. **[#134 — P4-A technische release-audit](https://github.com/VanHinthem/ChargeWatch/issues/134)** — controleer release-signing, versiebeleid, privacy/backup, NDW-/OpenFreeMap-attributie en licenties, publieke API-security en distributievoorwaarden. Eerst bestaande bewijzen en configuratie beoordelen; alleen daadwerkelijke blokkades oplossen. **Dit is de eerstvolgende actie.**
+2. **[#135 — P4-B compacte Samsung-regressie](https://github.com/VanHinthem/ChargeWatch/issues/135)** — één gecombineerde functionele/UX-, offline/herstel- en stabiliteitsronde, inclusief widget-achtergrondverkeer en experimentele statistiekclaims. Niet nodeloos herhalen wat bij #113/#101/#103 is geaccepteerd.
+3. **[#136 — P4-C releasecandidate en go/no-go](https://github.com/VanHinthem/ChargeWatch/issues/136)** — reproduceerbaar gesigneerde kandidaat, installatie/upgrade, checklist, vastgelegde beperkingen en expliciet afzonderlijk distributiebesluit.
+
+**Beoordelingsgrens:** nieuwe issues zijn planning en geen bewijs van afgeronde test, opgeloste bug of releasegereedheid. Er zijn tijdens de planningsstap geen code-, API-, DB- of NAS-wijzigingen uitgevoerd. Waar verificatie geen wijzigingen vereist is geen aparte PR nodig; gerelateerde fixes bundelen. Merges, NAS-wijzigingen en publicatie uitsluitend met apart akkoord.
 
 ## Uitgesteld / onderzoek, niet blokkerend voor v1
 
@@ -71,10 +77,10 @@ Rekenregels, nuldata/UNKNOWN/PLANNED-gevallen en validatiegrenzen: [ISSUE_103_RE
 - [PR #54](https://github.com/VanHinthem/ChargeWatch/pull/54): **gesloten zonder merge** op verzoek gebruiker; oude mogelijke NDW-dekkingsnotitie Geffen niet meer nodig.
 - [PR #131](https://github.com/VanHinthem/ChargeWatch/pull/131): **gemerged** (`92efcd12...`), gecombineerde historie en EVSE-betrouwbaarheid door gebruiker geaccepteerd. [PR #129](https://github.com/VanHinthem/ChargeWatch/pull/129) zonder merge gesloten; het ontwerp staat in `main` via #131.
 - [Issue #103](https://github.com/VanHinthem/ChargeWatch/issues/103): v1-scope **afgerond op optie A**; niet-gerealiseerde echte 90-daagse uptime en kalibratieonderzoek naar [#132](https://github.com/VanHinthem/ChargeWatch/issues/132) verplaatst.
-- Openstaande v1-uitvoering: **#104**. Uitgestelde/onderzoeksissues: **#132, #110 en #79**.
+- Openstaande v1-uitvoering: **#104 met werkblokken #134, #135 en #136**. Uitgestelde/onderzoeksissues: **#132, #110 en #79**.
 
 ## Werkwijze
 
 Houd technische wijzigingen in kleine, reviewbare PR's met CI. NAS-updates, productiefeatureflags, Android-release en merges worden afzonderlijk geautoriseerd. Bewaar oude ontwerpbesluiten en benchmarkgegevens als historie, maar gebruik dit actuele overzicht in plaats van oude opmerkingen als *draft*, *niet gemerged* of *nog geen implementatie*.
 
-**Volgende actie:** #104 Android-v1 kwaliteitsronde en releasevoorbereiding. #132 is een later onderzoek en geen impliciete v1-gate.
+**Volgende actie:** #134 technische release-audit onder #104; daarna #135 Samsung-kwaliteitsronde en #136 releasecandidate/go-no-go. #132 is uitgesteld en geen v1-gate.
