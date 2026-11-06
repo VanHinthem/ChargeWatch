@@ -2106,7 +2106,7 @@ fun LocationSelectionSheet(
                         history = history,
                         loading = historyLoading,
                         unavailable = historyUnavailable,
-                        evseLabels = result.value.evseLabels,
+                        evseLabels = (enrichment as? EnrichmentResult.Found)?.value?.evseLabels.orEmpty(),
                         selectedId = selectedId
                     )
                     val updated = remember(location.lastUpdated) {
