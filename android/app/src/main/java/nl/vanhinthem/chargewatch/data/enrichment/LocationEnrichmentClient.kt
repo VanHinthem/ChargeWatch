@@ -35,7 +35,10 @@ data class PricePart(
     val vatKnown: Boolean get() = vat != null
 }
 
-data class HourlyAvailability(val isoWeekday: Int, val hour: Int, val share: Double, val samples: Int)
+data class HourlyAvailability(
+    val isoWeekday: Int, val hour: Int, val share: Double?, val samples: Int,
+    val averageFree: Double? = null, val averageActive: Double? = null
+)
 
 data class LocationEnrichment(
     val tariffs: List<PricePart>,
@@ -44,7 +47,8 @@ data class LocationEnrichment(
     val hourlyAvailability: List<HourlyAvailability> = emptyList(),
     val tariffStatuses: Set<String> = emptySet(),
     val tariffLimitations: Set<String> = emptySet(),
-    val sourceTariffTypes: Set<String> = emptySet()
+    val sourceTariffTypes: Set<String> = emptySet(),
+    val evseLabels: Map<Long,String> = emptyMap()
 )
 
 sealed interface EnrichmentResult {
@@ -101,7 +105,7 @@ class LocationEnrichmentClient(
      * Callers own sheet-level caching so collapsing/expanding does not
      * trigger a second HTTP request.
      */
-    suspend fun loadStatistics(featureId: String): List<HourlyAvailability>? =
+    suspend fun loadStatistics(featureId: String): HistoricalStatistics? =
         withContext(Dispatchers.IO) {
             val base = baseUrl.trimEnd('/')
             if (base.isBlank() || !base.startsWith("https://") ||
@@ -114,7 +118,7 @@ class LocationEnrichmentClient(
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@use null
                     val body = response.body?.string() ?: return@use null
-                    runCatching { parseHourlyAvailability(body) }.getOrNull()
+                    runCatching { parseHistoricalStatistics(body) }.getOrNull()
                 }
             } catch (_: IOException) {
                 null
@@ -136,8 +140,23 @@ fun parseEnrichment(raw: String): LocationEnrichment {
     val allLimitations = linkedSetOf<String>()
     val sourceTariffTypes = linkedSetOf<String>()
     var complex = false
+    val evseLabels = linkedMapOf<Long,String>()
 
     for (evse in evses) {
+        val evseObject = evse.jsonObject
+        val evseId = evseObject["id"]?.jsonPrimitive?.longOrNull
+        if (evseId != null) {
+            val connectorLabels = evseObject["connectors"]?.jsonArray.orEmpty().map { entry ->
+                val connector = entry.jsonObject
+                val type = nl.vanhinthem.chargewatch.data.ndw.connectorDisplayName(
+                    connector["standard"]?.jsonPrimitive?.contentOrNull)
+                val power = nl.vanhinthem.chargewatch.data.ndw.formatChargingPower(
+                    connector["maxElectricPower"]?.jsonPrimitive?.doubleOrNull)
+                listOfNotNull(type, power).joinToString(" · ")
+            }.distinct()
+            evseLabels[evseId] = connectorLabels.takeIf { it.isNotEmpty() }?.joinToString(" / ")
+                ?: "EVSE $evseId"
+        }
         for (connector in evse.jsonObject["connectors"]?.jsonArray.orEmpty()) {
             val connectorObject = connector.jsonObject
             val connectorId = connectorObject["sourceId"]?.jsonPrimitive?.contentOrNull.orEmpty()
@@ -204,7 +223,8 @@ fun parseEnrichment(raw: String): LocationEnrichment {
         false,
         tariffStatuses = statuses,
         tariffLimitations = allLimitations,
-        sourceTariffTypes = sourceTariffTypes
+        sourceTariffTypes = sourceTariffTypes,
+        evseLabels = evseLabels
     )
 }
 
@@ -219,10 +239,16 @@ fun parseHourlyAvailability(raw: String): List<HourlyAvailability> {
         val slot = item.jsonObject
         val hour = slot["hour"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
         val isoWeekday = slot["isoWeekday"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-        val share = slot["availableProbability"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
-        val samples = slot["sampleCount"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-        if (isoWeekday !in 1..7 || hour !in 0..23 || !share.isFinite() || share !in 0.0..1.0 || samples <= 0)
-            return@mapNotNull null
-        HourlyAvailability(isoWeekday, hour, share, samples)
+        if (isoWeekday !in 1..7 || hour !in 0..23) return@mapNotNull null
+        val samples = slot["sampleCount"]?.jsonPrimitive?.intOrNull ?: 0
+        val share = slot["availableProbability"]?.jsonPrimitive?.doubleOrNull
+            ?.takeIf { samples > 0 && it.isFinite() && it in 0.0..1.0 }
+        val countSamples = slot["availableEvseSampleCount"]?.jsonPrimitive?.intOrNull ?: 0
+        val free = slot["averageAvailableEvses"]?.jsonPrimitive?.doubleOrNull
+            ?.takeIf { countSamples > 0 && it.isFinite() && it >= 0.0 }
+        val active = slot["averageActiveEvses"]?.jsonPrimitive?.doubleOrNull
+            ?.takeIf { countSamples > 0 && it.isFinite() && it >= 0.0 }
+        if (share == null && free == null && active == null) return@mapNotNull null
+        HourlyAvailability(isoWeekday, hour, share, samples, free, active)
     }.sortedWith(compareBy(HourlyAvailability::isoWeekday, HourlyAvailability::hour))
 }
