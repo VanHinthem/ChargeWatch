@@ -93,8 +93,8 @@ class LocationEnrichmentTest {
         assertEquals(1, hourly[0].isoWeekday)
         assertEquals(6, hourly[1].isoWeekday)
         assertEquals(8, hourly[0].hour)
-        assertEquals(0.25, hourly[0].share, 0.0001)
-        assertEquals(0.75, hourly[1].share, 0.0001)
+        assertEquals(0.25, hourly[0].share!!, 0.0001)
+        assertEquals(0.75, hourly[1].share!!, 0.0001)
     }
 
     @Test fun nonExperimentalDataIsNotRendered() {
