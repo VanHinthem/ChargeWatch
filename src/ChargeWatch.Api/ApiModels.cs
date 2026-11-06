@@ -219,12 +219,23 @@ internal sealed record AvailabilitySlot(
     int? AvailableEvseSampleCount = null,
     int? ExcludedEvseSampleCount = null);
 
-internal sealed record EvseStatistics(long EvseId, IReadOnlyList<AvailabilitySlot> Slots);
+internal sealed record ReliabilitySummary(
+    double? OperationalPercent,
+    double? FaultPercent,
+    double? UnknownPercent,
+    int CoveredSlots,
+    int TotalSlots);
+
+internal sealed record EvseStatistics(
+    long EvseId,
+    IReadOnlyList<AvailabilitySlot> Slots,
+    ReliabilitySummary Reliability);
 
 internal sealed record LocationStatistics(
     long LocationId,
     IReadOnlyList<AvailabilitySlot> Slots,
-    IReadOnlyList<EvseStatistics> Evses)
+    IReadOnlyList<EvseStatistics> Evses,
+    ReliabilitySummary Reliability)
 {
     public bool IsExperimental => true;
     public string ProbabilityInterpretation => "UNVALIDATED_SNAPSHOT_EWMA";
