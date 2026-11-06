@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import nl.vanhinthem.chargewatch.data.enrichment.EvseReliability
 import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 import nl.vanhinthem.chargewatch.data.enrichment.ReliabilityStats
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Locale
@@ -193,12 +192,9 @@ internal fun HistoricalStatisticsPanel(
         val hourLabel = "%02d:00–%02d:00".format(Locale.forLanguageTag("nl-NL"),hour,hour+1)
         Text("${weekdays[chosenWeekday-1]} · $hourLabel",
             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Minstens één vrij: ${slot?.share?.let { "${(it*100).roundToInt()}%" } ?: "Geen gegevens"}",
-                style = MaterialTheme.typography.bodySmall)
-            Text("Gemiddeld vrij: ${slot?.averageFree?.let(::number) ?: "Geen gegevens"} EVSE",
-                style = MaterialTheme.typography.bodySmall)
-        }
+        Text("Minstens één vrij: ${slot?.share?.let { "${(it*100).roundToInt()}%" } ?: "Geen gegevens"}" +
+            " · gemiddeld vrij: ${slot?.averageFree?.let(::number) ?: "Geen gegevens"} EVSE",
+            style = MaterialTheme.typography.bodySmall)
     }
     HorizontalDivider()
     Text("Historische betrouwbaarheid",style = MaterialTheme.typography.titleMedium)
