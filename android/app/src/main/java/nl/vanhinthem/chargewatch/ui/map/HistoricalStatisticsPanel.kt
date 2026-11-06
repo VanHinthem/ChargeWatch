@@ -202,6 +202,25 @@ internal fun HistoricalStatisticsPanel(
 }
 
 @Composable
+private fun ReliabilityBar(data: ReliabilityStats?) {
+    if (data == null || data.operationalPercent == null ||
+        data.faultPercent == null || data.unknownPercent == null)
+        return
+    Row(Modifier.fillMaxWidth().height(8.dp).background(
+        MaterialTheme.colorScheme.surfaceVariant,RoundedCornerShape(4.dp))) {
+        if (data.operationalPercent > 0)
+            Box(Modifier.weight(data.operationalPercent.toFloat()).fillMaxSize()
+                .background(availabilityGreen))
+        if (data.faultPercent > 0)
+            Box(Modifier.weight(data.faultPercent.toFloat()).fillMaxSize()
+                .background(faultRed))
+        if (data.unknownPercent > 0)
+            Box(Modifier.weight(data.unknownPercent.toFloat()).fillMaxSize()
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f)))
+    }
+}
+
+@Composable
 private fun ReliabilitySummaryPanel(data: ReliabilityStats?) {
     if (data == null || data.operationalPercent == null ||
         data.faultPercent == null || data.unknownPercent == null) {
@@ -220,18 +239,7 @@ private fun ReliabilitySummaryPanel(data: ReliabilityStats?) {
                 style=MaterialTheme.typography.bodyMedium)
         }
     }
-    Row(Modifier.fillMaxWidth().height(9.dp).background(
-        MaterialTheme.colorScheme.surfaceVariant,RoundedCornerShape(5.dp))) {
-        if (data.operationalPercent > 0)
-            Box(Modifier.weight(data.operationalPercent.toFloat()).fillMaxSize()
-                .background(availabilityGreen))
-        if (data.faultPercent > 0)
-            Box(Modifier.weight(data.faultPercent.toFloat()).fillMaxSize()
-                .background(faultRed))
-        if (data.unknownPercent > 0)
-            Box(Modifier.weight(data.unknownPercent.toFloat()).fillMaxSize()
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f)))
-    }
+    ReliabilityBar(data)
     Text("Onbekend ${percent(data.unknownPercent)} · dekking ${data.coveredSlots}/${data.totalSlots} uurvakken",
         style=MaterialTheme.typography.labelSmall,
         color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -256,12 +264,20 @@ private fun EvseReliabilityPanel(evse: EvseReliability,label:String,selectedId:S
             Icon(if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                 contentDescription=if (expanded) "Inklappen" else "Uitklappen")
         }
-        ReliabilitySummaryPanel(if (expanded) evse.reliability else evse.reliability)
-        if (expanded && evse.reliability != null) {
-            Text("Operationeel: ${percent(evse.reliability.operationalPercent)} · " +
-                "Storing: ${percent(evse.reliability.faultPercent)} · " +
-                "Onbekend: ${percent(evse.reliability.unknownPercent)}",
-                style=MaterialTheme.typography.bodySmall)
+        ReliabilityBar(evse.reliability)
+        if (expanded) {
+            val data = evse.reliability
+            if (data?.operationalPercent == null) {
+                Text("Geen gegevens",style=MaterialTheme.typography.bodySmall)
+            } else {
+                Text("Operationeel: ${percent(data.operationalPercent)} · " +
+                    "Storing: ${percent(data.faultPercent)} · " +
+                    "Onbekend: ${percent(data.unknownPercent)}",
+                    style=MaterialTheme.typography.bodySmall)
+                Text("Dekking: ${data.coveredSlots}/${data.totalSlots} uurvakken",
+                    style=MaterialTheme.typography.labelSmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         HorizontalDivider()
     }
