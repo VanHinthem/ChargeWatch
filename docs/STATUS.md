@@ -6,10 +6,10 @@
 
 ## Huidige release- en deploymentgrens
 
-- **Laatste functionele merge:** [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112), squash commit `92d7e441e70a86e11bb5b99094e325c3b009f7e6`. De widget is in dezelfde Android-app opgenomen, met geslaagde Android-/API-CI en fysieke Samsung-acceptatie.
+- **Laatste functionele merge:** [PR #127](https://github.com/VanHinthem/ChargeWatch/pull/127), squash commit `c7d7597540ac50c23f8749aaf16cd5b728e203b1`. Landelijke kaart is standaard; de tijdelijke kaartmoduskeuze is verwijderd. Android-/API-CI groen en de gewijzigde APK is door de gebruiker fysiek op Samsung getest.
 - **NAS/API:** gebruiker bevestigde op 5 november een deployment met de nieuwe batch- en gzip-functionaliteit. De publieke HTTPS-route retourneerde daadwerkelijk `HTTP/2 200`, `Content-Encoding: gzip` en `Vary: Accept-Encoding`. Dit bewijst de publieke gzip-response, niet automatisch dat de landelijke overview-featureflag aanstaat of dat de NAS elke latere `main`-commit draait.
 - **Android:** GPS, PDOK-zoeken, kaartfilters, locatiesheets, favorieten en de widgets zijn geïmplementeerd en praktisch getest op Samsung. De meest recente APK-tests zijn **geen** formele v1-release-/Play Store-goedkeuring.
-- **Landelijke kaart:** `GET /api/v1/map/overview` en `/api/v1/map/overview/cell` draaien op de actuele NAS-release met `CW_ENABLE_MAP_OVERVIEW=true` (door beheerder bevestigd, 6 november). Praktijk-HTTP-metingen en Samsung-acceptatie zijn geslaagd. De landkaart wordt de standaardmodus; de tijdelijke kaartmodusschakelaar vervalt. De oude individuele viewport-/MapLibre-renderroute blijft in gebruik op straatniveau, met complete overview als fallback bij HTTP 413; er is geen onvolledige nationale NDW-fallback.
+- **Landelijke kaart:** `GET /api/v1/map/overview` en `/api/v1/map/overview/cell` draaien op de actuele NAS-release met `CW_ENABLE_MAP_OVERVIEW=true` (door beheerder bevestigd, 6 november). Praktijk-HTTP-metingen en Samsung-acceptatie zijn geslaagd. De landelijke kaart is de standaardmodus; de tijdelijke kaartmodusschakelaar is verwijderd. De oude individuele viewport-/MapLibre-renderroute blijft in gebruik op straatniveau, met complete overview als fallback bij HTTP 413; er is geen onvolledige nationale NDW-fallback.
 
 ### #113 — NAS-validatie 6 november 2026
 
@@ -22,7 +22,7 @@ Read-only meting op de werkelijke NAS API, zonder nieuwe deployment of configura
 - Alle genoemde overzichtsrequests: HTTP 200, `coverage.complete=true`, markerbudget ≤500.
 - **Meetgrens:** vijf requests per scenario; de hoogste waarde is **geen statistisch betrouwbare p95**. Er is één cellpage geverifieerd, geen volledige multipage-uitputting.
 - Fysieke Samsung-acceptatie van landelijke kaart, clustering, markers, filters, details, GPS/PDOK en offline/herstel door gebruiker bevestigd: werkt naar wens.
-- Productbesluit: landelijke kaart voortaan standaard; tijdelijke keuze verwijderen. De codewijziging is onderdeel van de gerichte #113-afrondings-PR, geen nieuwe NAS-deploy noodzakelijk. Issue blijft open tot review, CI, merge en afsluitakkoord.
+- Productbesluit geïmplementeerd in [PR #127](https://github.com/VanHinthem/ChargeWatch/pull/127): landelijke kaart standaard, tijdelijke instelling verwijderd; Android-/API-CI groen, bijgewerkte APK afzonderlijk fysiek op Samsung getest (door gebruiker bevestigd). Geen nieuwe NAS-deploy nodig. #113 afgesloten op expliciet gebruikersakkoord.
 
 ## Afgerond en gemerged
 
@@ -30,7 +30,7 @@ Read-only meting op de werkelijke NAS API, zonder nieuwe deployment of configura
 |---|---|---|
 | Bestemming zoeken + filters | Android zoeken, PDOK en directe filtertoepassing | [Issue #95](https://github.com/VanHinthem/ChargeWatch/issues/95) gesloten |
 | GPS + vijf nabije laadlocaties en alternatieven | Uitgevoerd, settings/permissies en Samsung-acceptatie | [Issue #99](https://github.com/VanHinthem/ChargeWatch/issues/99) gesloten, [PR #109](https://github.com/VanHinthem/ChargeWatch/pull/109) gemerged |
-| Landelijke overviewcontracten en natuurlijke/consistente clustering | Fase C + D, locale/regionale clustering en favorietsterren geïntegreerd | [PR #117–#122](https://github.com/VanHinthem/ChargeWatch/pulls?q=is%3Apr+is%3Amerged+113) gemerged; #113 blijft open voor rollout |
+| Landelijke overviewcontracten en natuurlijke/consistente clustering | Fase C + D, locale/regionale clustering en favorietsterren geïntegreerd | [PR #117–#122](https://github.com/VanHinthem/ChargeWatch/pulls?q=is%3Apr+is%3Amerged+113) en [#127](https://github.com/VanHinthem/ChargeWatch/pull/127) gemerged; #113 afgerond |
 | Gerichte batched details | `POST /api/v1/locations/by-ndw-id/batch`, 1–20 ID's, optionele historie | [PR #124](https://github.com/VanHinthem/ChargeWatch/pull/124) gemerged |
 | Gzip over JSON | `CompressionLevel.Fastest` met negotiated `Accept-Encoding: gzip`, ook voor kaarten en clusters | [PR #125](https://github.com/VanHinthem/ChargeWatch/pull/125) gemerged, publieke HTTPS-headercheck geslaagd |
 | Android-cache en lazy statistieken | Details/tarieven gedeeld (2-minuten-TTL), historische statistieken op aanvraag (15-minuten-TTL) | [PR #123](https://github.com/VanHinthem/ChargeWatch/pull/123) gemerged en op Samsung geaccepteerd |
@@ -38,9 +38,8 @@ Read-only meting op de werkelijke NAS API, zonder nieuwe deployment of configura
 
 ## Nog open — uitvoeringswerk
 
-1. **[#113 — landelijke kaart standaard en administratieve afronding](https://github.com/VanHinthem/ChargeWatch/issues/113).** NAS HTTP-probes en Samsung-acceptatie geslaagd. Productbesluit: landelijke overview als standaard, tijdelijke kaartmoduskeuze weg. Gerichte Android-wijziging, CI/review en expliciet merge-/issue-afsluitakkoord resteren; geen herhaling van bestaande SQL-pariteitsprobes.
-2. **[#103 — historische statistieken en 90-daagse uptime](https://github.com/VanHinthem/ChargeWatch/issues/103).** Publicatiegrenzen onderbouwen voor echte observatiedekking, null/experimentele data, betrouwbaarheid en bronversheid; vervolgens EVSE-uptime/locatiehistoriek correct in de app presenteren. Geen voorspelling of betrouwbaar percentage zonder bewijs.
-3. **[#104 — Android v1 kwaliteitsronde en releasevoorbereiding](https://github.com/VanHinthem/ChargeWatch/issues/104).** Volledige integrale Samsung-regressie, accessibility, offline/fouten, batterij/netwerk, signing, versiebeleid, privacy/attributie, API-beveiliging en expliciete releasebeslissing. Eerst relevante kwaliteitspunten uit #103 en #113 afronden of expliciet uitstellen.
+1. **[#103 — historische statistieken en 90-daagse uptime](https://github.com/VanHinthem/ChargeWatch/issues/103).** Publicatiegrenzen onderbouwen voor echte observatiedekking, null/experimentele data, betrouwbaarheid en bronversheid; vervolgens EVSE-uptime/locatiehistoriek correct in de app presenteren. Geen voorspelling of betrouwbaar percentage zonder bewijs.
+2. **[#104 — Android v1 kwaliteitsronde en releasevoorbereiding](https://github.com/VanHinthem/ChargeWatch/issues/104).** Volledige integrale Samsung-regressie, accessibility, offline/fouten, batterij/netwerk, signing, versiebeleid, privacy/attributie, API-beveiliging en expliciete releasebeslissing. Eerst relevante kwaliteitspunten uit #103 en #113 afronden of expliciet uitstellen.
 
 ## Uitgesteld / onderzoek, niet blokkerend voor v1
 
@@ -51,12 +50,13 @@ Read-only meting op de werkelijke NAS API, zonder nieuwe deployment of configura
 ## PR-/issueadministratie
 
 - [Issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101): **completed** na merge PR #112 en Samsung-acceptatie.
+- [Issue #113](https://github.com/VanHinthem/ChargeWatch/issues/113): **completed** na NAS-HTTP-validatie, Samsung-acceptatie, merge PR #127 en test van de bijgewerkte APK.
 - [PR #54](https://github.com/VanHinthem/ChargeWatch/pull/54): **gesloten zonder merge** op verzoek gebruiker; oude mogelijke NDW-dekkingsnotitie Geffen niet meer nodig.
 - Overige open code-PR's op peildatum: **geen**. Documentatie-opschoning gebeurt via een afzonderlijke PR.
-- Actieve open issues na afsluiten #101: **#113, #103, #104, #110, #79**. De twee laatste zijn uitgesteld; alleen #113/#103/#104 vragen nog v1-gerelateerd werk.
+- Actieve open issues na afsluiten #113: **#103, #104, #110, #79**. De twee laatste zijn uitgesteld; alleen #103 en #104 vragen nog v1-gerelateerd werk.
 
 ## Werkwijze
 
 Houd technische wijzigingen in kleine, reviewbare PR's met CI. NAS-updates, productiefeatureflags, Android-release en merges worden afzonderlijk geautoriseerd. Bewaar oude ontwerpbesluiten en benchmarkgegevens als historie, maar gebruik dit actuele overzicht in plaats van oude opmerkingen als *draft*, *niet gemerged* of *nog geen implementatie*.
 
-**Volgende actie:** de gerichte #113-Android-defaultwijziging reviewen en valideren; na afzonderlijk merge-/afsluitakkoord verder met #103 statistiekbetrouwbaarheid en daarna #104 releasekwaliteit.
+**Volgende actie:** #103 statistiekbetrouwbaarheid afronden; daarna #104 Android-v1 releasekwaliteit.
