@@ -1,6 +1,6 @@
 package nl.vanhinthem.chargewatch.ui.map
 
-import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
+import nl.vanhinthem.chargewatch.data.enrichment.HistoricalStatistics
 
 /**
  * Statistics are optional history, not a prerequisite for the compact sheet.
@@ -10,6 +10,6 @@ import nl.vanhinthem.chargewatch.data.enrichment.HourlyAvailability
 internal fun shouldFetchSheetStatistics(
     selectedId: String?,
     expanded: Boolean,
-    loaded: List<HourlyAvailability>?,
+    loaded: HistoricalStatistics?,
     unavailable: Boolean
 ): Boolean = selectedId != null && expanded && loaded == null && !unavailable
