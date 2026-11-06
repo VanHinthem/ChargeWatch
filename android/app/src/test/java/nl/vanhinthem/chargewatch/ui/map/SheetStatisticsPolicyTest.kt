@@ -25,7 +25,7 @@ class SheetStatisticsPolicyTest {
     }
 
     @Test fun emptySuccessfulHistoryAlsoPreventsRepeatFetch() {
-        assertFalse(shouldFetchSheetStatistics("NL-AAA-1",true,emptyList(),false))
+        assertFalse(shouldFetchSheetStatistics("NL-AAA-1",true,HistoricalStatistics(emptyList(),null,emptyList()),false))
     }
 
     @Test fun failedHistoryDoesNotRefetchOnEveryRecompose() {
