@@ -82,6 +82,26 @@ Zo blijft UNKNOWN zichtbaar in de totale 100%; een operationeel percentage kan n
 
 **Risicogerichte acceptatie:** bekende statusmix, bezet-maar-operationeel, defect-only, UNKNOWN-only, PLANNED/REMOVED-only, nieuwe EVSE met gedeeltelijke dekking, EVSE met weinig data, lege/onvolledige categoriearray, onverwachte bronwaarde, lokale DST-uurvakken, uiteenlopende EVSE-dekking en ontbreken van labels. Controleer daarna concrete NAS-voorbeelden read-only; geen mutatie of migratie. Dit zijn ontwerpregels; **geen geclaimde testresultaten**.
 
+### NAS-validatie van storings- en onbekendpercentages (6 november 2026)
+
+Read-only inspectie op de productie-NAS; alle getoonde EVSE's hadden 168 gevulde weekdag-/uurvakken. Dit zijn **EWMA-profielaandelen**, geen bewezen werkelijke uptime over 90 dagen.
+
+| Situatie | EVSE | Locatie | Operationeel | Storing | Onbekend |
+|---|---:|---:|---:|---:|---:|
+| Alleen operationele status | 1–8 | 67363 | 100,0% | 0,0% | 0,0% |
+| Gedeeltelijke storing | 3735 | 68839 | 0,1% | 96,4% | 3,5% |
+| Gedeeltelijke storing | 3083 | 68612 | 0,0% | 95,1% | 4,9% |
+| Gedeeltelijke storing | 3360 | 68674 | 0,0% | 92,6% | 7,4% |
+| Alleen onbekend | 445, 446 | 67531 | 0,0% | 0,0% | 100,0% |
+| Alleen onbekend | 546 | 67568 | 0,0% | 0,0% | 100,0% |
+| Alleen defect | 348, 349 | 67495 | 0,0% | 100,0% | 0,0% |
+
+De 100%-unknown voorbeelden tonen expliciet waarom `UNKNOWN` niet mag worden gelijkgesteld aan storing en waarom een bekend-toestandpercentage zonder kwaliteitscontext misleidend kan worden. Een 168/168 gevuld profiel bewijst op zichzelf niet dat statusinformatie ook betekenisvol bekend is.
+
+**Validatiegrens:** geselecteerde voorbeelden uit maximaal de eerste 10.000 actieve EVSE's, geen landelijke statistische verificatie. De SQL gebruikt op EVSE-niveau gelijke weging per geldig weekdag-/uurvak en `operational + fault + unknown` als noemer. De voorbeelden ondersteunen het onderscheid van de categorieën; ze bewijzen nog **niet** de nauwkeurigheid van een samengevoegd locatiecijfer, de juiste noemer bij `PLANNED/REMOVED` of representatieve data over meerdere weken. Voor de API-implementatie zijn gerichte tests daarvoor nodig.
+
+**UX-besluit voor 100% UNKNOWN:** toon `Onbekend` / `Geen betrouwbare statusinformatie` en niet een opvallende 0%-betrouwbaarheid of 100%-storingsclaim. De volledige statusverdeling kan worden getoond na uitklappen, met 100% onbekend.
+
 ### Nog te valideren vóór implementatie
 
 - Hoe de bestaande EVSE-categorie-EWMA's met geldige categorieën, onzekerheid en uitgesloten lifecycle-staten worden omgezet in een operationeel-/storingsaandeel; vooral de **noemer**, weging van EVSE's, historische weekdagen/uren en minimumgeldigheid.
