@@ -44,6 +44,13 @@ Rekenregels, nuldata/UNKNOWN/PLANNED-gevallen en validatiegrenzen: [ISSUE_103_RE
 
 **Volgende prioriteit:** acceptatie van het API-contract en vervolgens afzonderlijke Android-implementatie van de gecombineerde grafiek en het EVSE-betrouwbaarheidspaneel. Het statistiekwerk #103 is daarmee nog niet volledig afgerond; #104 releasekwaliteit blijft daarna open. Een publieke API-uitrol en Samsung-acceptatie vereisen afzonderlijk akkoord.
 
+## #103 — historische statistieken op Android
+
+- **API:** [PR #130](https://github.com/VanHinthem/ChargeWatch/pull/130) is op 6 november 2026 gesquasht naar `main` (`b6f2fef3395d7976b08de404480e63dbdb0e22b5`). De gebruiker bevestigde de nieuwe NAS/API-deployment en een publieke request naar locatie 67531 retourneerde de nieuwe `reliability`-objecten met 168/168 gedekte uurvakken voor EVSE 442–444.
+- **Android-werkblok:** De bestaande read-only statistiekcall en de geschiedenis-cache (15 minuten) dragen één compleet `HistoricalStatistics`-object met uurkansen, historische vrije aantallen en locatie-/EVSE-betrouwbaarheid. De uitgeklapte sheet bevat een gecombineerde grafiek (groene historische kansbalken + oranje gemiddelde vrije-EVSE-lijn) en een standaard ingeklapt betrouwbaarheidsoverzicht per EVSE. Status UNKNOWN blijft apart, en ontbrekende cijfers worden niet vervangen door nul.
+- **Functioneel ontwerp:** [draft-PR #129](https://github.com/VanHinthem/ChargeWatch/pull/129) is nog een losse docs-PR, niet automatisch gemerged. Gebruik de afgesproken UX daar als referentie.
+- **Volgende stappen:** gerichte Android-CI/testresultaten controleren; APK door gebruiker op Samsung laten beoordelen (o.a. 67531 UNKNOWN EVSE's en een locatie met defecte EVSE's). Daarna pas expliciet Android-mergeakkoord. Geen nieuwe NAS-deployment of DB-migratie in dit Android-blok. #103 blijft open tot acceptatie; #104 releasekwaliteit daarna.
+
 ## Nog open — uitvoeringswerk
 
 1. **[#103 — historische statistieken en 90-daagse uptime](https://github.com/VanHinthem/ChargeWatch/issues/103).** Publicatiegrenzen onderbouwen voor echte observatiedekking, null/experimentele data, betrouwbaarheid en bronversheid; vervolgens EVSE-uptime/locatiehistoriek correct in de app presenteren. Geen voorspelling of betrouwbaar percentage zonder bewijs.
