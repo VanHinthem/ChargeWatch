@@ -53,6 +53,35 @@ De actuele `LocationStatistics.Slots` bevatten al `averageAvailableEvses`, `aver
 6. **Historische indicatie, geen bewezen uptime:** statuscategorieën zijn al als compacte EVSE-EWMA per weekdag/uur opgeslagen. Hieruit volgt nog **geen exacte uptime van de afgelopen 90 kalenderdagen**. De UI mag de bestaande indicatie niet onder het label `90-daagse uptime` publiceren.
 7. **Geen waarschuwing over onvoldoende 90-daagse historie:** toon aanwezige valide historische gegevens zonder automatisch een melding over de lengte van de historie te plaatsen. Onbekende of ongeldige cijfers blijven expliciet leeg.
 
+### Technisch rekenvoorstel — historische betrouwbaarheid (6 november 2026)
+
+De berekening gebruikt de **bestaande negen afzonderlijke EWMA-statuscategorieën per EVSE, weekdag en lokaal uur** uit `evse_snapshot_weekday_profile.category_ewma`. De huidige API `EvseStatistics.Slots` publiceert alleen `availableProbability` (de eerste categorie); voor een storingsweergave moet de API deze overige categorieën eerst expliciet aanbieden of een gecontroleerde, afgeleide betrouwbaarheidsrepresentatie retourneren. De huidige Android-client ontvangt ze nog niet.
+
+**Categorieën per uurvak:**
+
+- `operational` = AVAILABLE + CHARGING + RESERVED + BLOCKED (categorie-indexen 1–4).
+- `fault` = INOPERATIVE + OUTOFORDER (indexen 5–6).
+- `unknown` = UNKNOWN (index 7).
+- PLANNED en REMOVED (indexen 8–9) worden buiten de actieve observatiebasis gehouden.
+- Alleen uurvakken met `sample_count > 0`, eindige categorieën binnen [0,1] en een consistente EWMA-statusverdeling zijn geldig. Controleer afrondingsfouten met kleine numerieke tolerantie; stel bij onverklaarbare inconsistentie het volledige uurvak op ontbrekend, niet op nul.
+
+**Per EVSE:** combineer over de aanwezige weekdag-/uurvakken de geldige categorie-aandelen. Geef ieder daadwerkelijk gedekt uurvak hetzelfde gewicht bij een beschrijving van een *gemiddelde historische week*, in plaats van een hoger gewicht aan uren met meer afzonderlijke vijfminutenpolls. Sla ongedekte uurvakken over en rapporteer dekking afzonderlijk. Dit is een historische EWMA-indicatie, niet een exacte som van beschikbaarheidsduur.
+
+**Voor de locatie:** pool de bijdragen van alle **actieve EVSE's** en alle geldige EVSE-uurvakken; niet het ongewogen gemiddelde van afgeronde individuele percentages of een vermenigvuldiging van EVSE-kansen. Iedere geldige EVSE-uurvak-combinatie draagt één gewicht bij. Laat EVSE's zonder bruikbare waarnemingen apart zichtbaar met `Geen gegevens`, en maak de noemer/dekking expliciet. De juiste behandeling van variabele capaciteit door de tijd is een testpunt; historische verwijderde EVSE's mogen niet ongemerkt als actuele capaciteit verschijnen.
+
+**Percentagepresentatie (voorstel):** gebruik voor de compacte 3-delige statusverdeling `D = operational + fault + unknown` (de drie geaggregeerde aandelen over geldige EVSE-uurvakken):
+- `operationeel % = 100 × operational / D`
+- `storing % = 100 × fault / D`
+- `onbekend % = 100 × unknown / D`
+
+Zo blijft UNKNOWN zichtbaar in de totale 100%; een operationeel percentage kan niet kunstmatig stijgen doordat onbekende waarnemingen buiten de noemer verdwijnen. Verwar dit **niet** met `operationeel / (operationeel + storing)` onder uitsluitend bekende toestanden; toon dat laatste eventueel later onder een ander expliciet label. Rond in de UI af zonder een ontbrekende categorie te verzinnen. Bij `D = 0`, ontbrekende data of ongeldige waarden: geen percentage. De sectie toont eventueel een groen/rood/grijs balkje; het actuele vrij/totaal-kleurbeleid van de kaart is een **ander** concept en blijft ongewijzigd.
+
+**Tijdscope en versheid:** deze samenvatting is het historische *weekprofiel over de tot dusver verzamelde meetperiode*; niet alleen het gekozen uur in de beschikbaarheidsgrafiek en **geen exacte rollende 90-daagse uptime**. De momentane NDW-status blijft elders in de sheet actueel. Geen waarschuwing over het ontbreken van 90 dagen meetgegevens.
+
+**API-contract:** behoud bestaande `LocationStatistics`-velden en compatibiliteit; voeg afgeleide velden of een apart betrouwbaarheidssubobject voor de locatie en afzonderlijke EVSE's toe. Laat daarin operationeel/storing/onbekend, ontbrekendheid en gedekte uurvakken door de server berekenen, zodat Android geen uiteenlopende interpretaties ontwikkelt. De precieze JSON-vorm is nog implementatieontwerp en vraagt contracttests.
+
+**Risicogerichte acceptatie:** bekende statusmix, bezet-maar-operationeel, defect-only, UNKNOWN-only, PLANNED/REMOVED-only, nieuwe EVSE met gedeeltelijke dekking, EVSE met weinig data, lege/onvolledige categoriearray, onverwachte bronwaarde, lokale DST-uurvakken, uiteenlopende EVSE-dekking en ontbreken van labels. Controleer daarna concrete NAS-voorbeelden read-only; geen mutatie of migratie. Dit zijn ontwerpregels; **geen geclaimde testresultaten**.
+
 ### Nog te valideren vóór implementatie
 
 - Hoe de bestaande EVSE-categorie-EWMA's met geldige categorieën, onzekerheid en uitgesloten lifecycle-staten worden omgezet in een operationeel-/storingsaandeel; vooral de **noemer**, weging van EVSE's, historische weekdagen/uren en minimumgeldigheid.
@@ -60,7 +89,7 @@ De actuele `LocationStatistics.Slots` bevatten al `averageAvailableEvses`, `aver
 - Correcte koppeling van bestaande EVSE-ID's aan herkenbare connectorlabels, inclusief meerdere connectoren en onbekende vermogens.
 - API-/Android-afhandeling voor nul samples, ongeldige EWMA, UNKNOWN, nieuwe EVSE, verwijderde EVSE, per-EVSE-fouten en incompleet locatiedeel.
 
-**Niet besloten:** een extra 90-daagse rollende uptime-pipeline, nieuwe databasekolommen, een minimumaantal onafhankelijke weken of een gegarandeerd betrouwbaarheidspercentage.
+**Niet besloten:** een extra 90-daagse rollende uptime-pipeline, nieuwe databasekolommen, een minimumaantal onafhankelijke weken of een gegarandeerd betrouwbaarheidspercentage. Het hierboven beschreven drie-categorieënmodel is een technisch voorstel voor de gekozen UX en moet vóór implementatie met echte EVSE-profielen worden gevalideerd.
 
 ## Review- en implementatiegrens
 
