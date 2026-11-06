@@ -34,7 +34,6 @@ import nl.vanhinthem.chargewatch.ui.map.NearbyOrigin
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.vanhinthem.chargewatch.ui.map.MapViewModel
-import nl.vanhinthem.chargewatch.ui.map.MapMode
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -81,16 +80,7 @@ fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> U
     val repository = remember(context) { FavoritesRepository(context) }
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-    val modePrefs = remember(context) {
-        context.getSharedPreferences("map_mode",android.content.Context.MODE_PRIVATE)
-    }
-    var mapOverviewEnabled by remember {
-        mutableStateOf(modePrefs.getBoolean("overview_enabled",false))
-    }
     val mapViewModel: MapViewModel = viewModel()
-    LaunchedEffect(mapOverviewEnabled) {
-        mapViewModel.setMapMode(if (mapOverviewEnabled) MapMode.Overview else MapMode.Legacy)
-    }
     val mapState by mapViewModel.uiState.collectAsState()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         val status = locationPermissionStatus(context)
@@ -291,11 +281,6 @@ fun ChargeWatchApp(widgetTarget: String? = null, onWidgetTargetConsumed: () -> U
                 SettingsScreen(
                     themeChoice = themeChoice,
                     onThemeChoice = selectTheme,
-                    mapOverviewEnabled = mapOverviewEnabled,
-                    onMapOverviewEnabled = { enabled ->
-                        mapOverviewEnabled=enabled
-                        modePrefs.edit().putBoolean("overview_enabled",enabled).apply()
-                    },
                     dataStatus = settingsData,
                     loading = settingsLoading,
                     error = settingsError,

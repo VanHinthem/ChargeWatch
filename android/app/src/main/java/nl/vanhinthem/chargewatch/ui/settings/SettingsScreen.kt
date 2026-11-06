@@ -46,8 +46,6 @@ import java.util.Locale
 fun SettingsScreen(
     themeChoice: String,
     onThemeChoice: (String) -> Unit,
-    mapOverviewEnabled: Boolean,
-    onMapOverviewEnabled: (Boolean) -> Unit,
     dataStatus: ChargeWatchDataStatus?,
     loading: Boolean,
     error: String?,
@@ -104,31 +102,6 @@ fun SettingsScreen(
                     )
                 }
             }
-        }
-
-        SettingsCard(title = "Kaartmodus (tijdelijke testinstelling)") {
-            Text("Kies welke kaartgegevensbron de kaart gebruikt.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected=!mapOverviewEnabled,
-                    onClick={onMapOverviewEnabled(false)},
-                    label={Text("Bestaande kaart")}
-                )
-                FilterChip(
-                    selected=mapOverviewEnabled,
-                    onClick={onMapOverviewEnabled(true)},
-                    label={Text("Landelijk overzicht")}
-                )
-            }
-            Text(
-                if (mapOverviewEnabled)
-                    "Testmodus: vereist een afzonderlijk geactiveerde overview-API. Bij uitval blijft de vorige kaartdata zichtbaar; er wordt geen onvolledige landelijke kaart getoond."
-                else "Beperkte kaartmodus: bij grote gebieden moet je inzoomen.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
 
         SettingsCard(title = "Locatie") {

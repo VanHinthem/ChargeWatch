@@ -77,7 +77,7 @@ class MapViewModel(
         nearCache.keys.removeAll { (origin, _) -> origin is NearbyContext.Gps }
     }
 
-    val mapMode = mutableStateOf(MapMode.Legacy)
+    val mapMode = mutableStateOf(MapMode.Overview)
     private data class MapCameraRequest(val viewport: NdwViewport, val zoom: Double)
     private var lastRequest: MapCameraRequest? = null
     private var requestSequence = 0L
