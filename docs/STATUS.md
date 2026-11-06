@@ -1,12 +1,12 @@
 # ChargeWatch — actuele projectstatus
 
-**Peildatum:** 6 november 2026, na de #113 NAS-HTTP- en Samsung-acceptatie.  
+**Peildatum:** 6 november 2026, na merge en NAS-uitrol van de betrouwbaarheids-API in PR #130 en de Android-implementatie voor #103.  
 **Bron van waarheid voor de actuele werkvoorraad:** [GitHub Issues](https://github.com/VanHinthem/ChargeWatch/issues?q=is%3Aissue+is%3Aopen) en [GitHub Pull Requests](https://github.com/VanHinthem/ChargeWatch/pulls?q=is%3Apr+is%3Aopen).  
 **Historische werklogboeken:** [STATUS t/m 5 november](archive/STATUS_THROUGH_2026-11-05.md) en [oude roadmap](archive/ROADMAP_THROUGH_2026-11-05.md). De oude dagmeldingen en tussenstanden zijn **niet** de huidige openstaande taken.
 
 ## Huidige release- en deploymentgrens
 
-- **Laatste functionele merge:** [PR #127](https://github.com/VanHinthem/ChargeWatch/pull/127), squash commit `c7d7597540ac50c23f8749aaf16cd5b728e203b1`. Landelijke kaart is standaard; de tijdelijke kaartmoduskeuze is verwijderd. Android-/API-CI groen en de gewijzigde APK is door de gebruiker fysiek op Samsung getest.
+- **Laatste gemergde API-functionaliteit:** [PR #130](https://github.com/VanHinthem/ChargeWatch/pull/130), squash commit `b6f2fef3395d7976b08de404480e63dbdb0e22b5`: historische betrouwbaarheidsverdelingen per EVSE/locatie via bestaande statistiekcall. Gebruiker bevestigde NAS-uitrol en een succesvolle publieke test. De laatste Samsung-geaccepteerde landelijke kaartwijziging is [PR #127](https://github.com/VanHinthem/ChargeWatch/pull/127) (`c7d7597540ac50c23f8749aaf16cd5b728e203b1`).
 - **NAS/API:** gebruiker bevestigde op 5 november een deployment met de nieuwe batch- en gzip-functionaliteit. De publieke HTTPS-route retourneerde daadwerkelijk `HTTP/2 200`, `Content-Encoding: gzip` en `Vary: Accept-Encoding`. Dit bewijst de publieke gzip-response, niet automatisch dat de landelijke overview-featureflag aanstaat of dat de NAS elke latere `main`-commit draait.
 - **Android:** GPS, PDOK-zoeken, kaartfilters, locatiesheets, favorieten en de widgets zijn geïmplementeerd en praktisch getest op Samsung. De meest recente APK-tests zijn **geen** formele v1-release-/Play Store-goedkeuring.
 - **Landelijke kaart:** `GET /api/v1/map/overview` en `/api/v1/map/overview/cell` draaien op de actuele NAS-release met `CW_ENABLE_MAP_OVERVIEW=true` (door beheerder bevestigd, 6 november). Praktijk-HTTP-metingen en Samsung-acceptatie zijn geslaagd. De landelijke kaart is de standaardmodus; de tijdelijke kaartmodusschakelaar is verwijderd. De oude individuele viewport-/MapLibre-renderroute blijft in gebruik op straatniveau, met complete overview als fallback bij HTTP 413; er is geen onvolledige nationale NDW-fallback.
@@ -49,7 +49,7 @@ Rekenregels, nuldata/UNKNOWN/PLANNED-gevallen en validatiegrenzen: [ISSUE_103_RE
 - **API:** [PR #130](https://github.com/VanHinthem/ChargeWatch/pull/130) is op 6 november 2026 gesquasht naar `main` (`b6f2fef3395d7976b08de404480e63dbdb0e22b5`). De gebruiker bevestigde de nieuwe NAS/API-deployment en een publieke request naar locatie 67531 retourneerde de nieuwe `reliability`-objecten met 168/168 gedekte uurvakken voor EVSE 442–444.
 - **Android-werkblok:** De bestaande read-only statistiekcall en de geschiedenis-cache (15 minuten) dragen één compleet `HistoricalStatistics`-object met uurkansen, historische vrije aantallen en locatie-/EVSE-betrouwbaarheid. De uitgeklapte sheet bevat een gecombineerde grafiek (groene historische kansbalken + oranje gemiddelde vrije-EVSE-lijn) en een standaard ingeklapt betrouwbaarheidsoverzicht per EVSE. Status UNKNOWN blijft apart, en ontbrekende cijfers worden niet vervangen door nul.
 - **Functioneel ontwerp:** [draft-PR #129](https://github.com/VanHinthem/ChargeWatch/pull/129) is nog een losse docs-PR, niet automatisch gemerged. Gebruik de afgesproken UX daar als referentie.
-- **Volgende stappen:** gerichte Android-CI/testresultaten controleren; APK door gebruiker op Samsung laten beoordelen (o.a. 67531 UNKNOWN EVSE's en een locatie met defecte EVSE's). Daarna pas expliciet Android-mergeakkoord. Geen nieuwe NAS-deployment of DB-migratie in dit Android-blok. #103 blijft open tot acceptatie; #104 releasekwaliteit daarna.
+- **Verificatie:** Android-unit-tests en debug-APK-build geslaagd in GitHub Actions, evenals API-build, read-only databasecontract en map-overview HTTP-integratie (PR #131). **Volgende stap:** APK door gebruiker op Samsung laten beoordelen (o.a. 67531 UNKNOWN EVSE's en een locatie met defecte EVSE's). Daarna pas expliciet Android-mergeakkoord. Geen nieuwe NAS-deployment of DB-migratie in dit Android-blok. #103 blijft open tot acceptatie; #104 releasekwaliteit daarna.
 
 ## Nog open — uitvoeringswerk
 
