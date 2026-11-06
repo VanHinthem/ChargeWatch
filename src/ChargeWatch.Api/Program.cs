@@ -13,6 +13,7 @@ if (args.Length == 1 && args[0] == "--self-test")
     MapOverviewPhaseBCompatibilitySelfTest.Run();
     MapOverviewPhaseCSelfTest.Run();
     LocationBatchContracts.SelfTest();
+    ReliabilityAccumulator.SelfTest();
     return;
 }
 

@@ -374,12 +374,14 @@ internal sealed partial class ApiDatabase(ApiOptions options)
         }
 
         var byEvse = new Dictionary<long,List<AvailabilitySlot>>();
+        var evseReliability = new Dictionary<long,ReliabilityAccumulator>();
+        var locationReliability = new ReliabilityAccumulator();
         await using (var command = new NpgsqlCommand("""
-            SELECT p.evse_id,p.iso_weekday,p.category_ewma,p.sample_count,p.changed_feed_count,
+            SELECT e.id,p.iso_weekday,p.category_ewma,p.sample_count,p.changed_feed_count,
                    p.unchanged_feed_count,p.last_sample_at
-            FROM evse_snapshot_weekday_profile p
-            JOIN evse e ON e.id=p.evse_id AND e.is_active
-            WHERE e.location_id=$1 ORDER BY p.evse_id,p.iso_weekday
+            FROM evse e
+            LEFT JOIN evse_snapshot_weekday_profile p ON p.evse_id=e.id
+            WHERE e.location_id=$1 AND e.is_active ORDER BY e.id,p.iso_weekday
             """, connection))
         {
             command.Parameters.AddWithValue(locationId);
@@ -387,13 +389,26 @@ internal sealed partial class ApiDatabase(ApiOptions options)
             while (await reader.ReadAsync())
             {
                 var id=reader.GetInt64(0);
-                if (!byEvse.TryGetValue(id,out var slots)) byEvse[id]=slots=[];
-                AppendSlots(slots, reader, categoryCount:9, offset:1);
+                if (!byEvse.TryGetValue(id,out var slots))
+                {
+                    slots=[];
+                    byEvse[id]=slots;
+                    evseReliability[id]=new ReliabilityAccumulator();
+                }
+                // An active EVSE can legitimately have no finalized profile yet.
+                if (reader.IsDBNull(1)) continue;
+                var categories=reader.GetFieldValue<float?[]>(2);
+                var samples=reader.GetFieldValue<int[]>(3);
+                evseReliability[id].AddWeekday(categories,samples);
+                locationReliability.AddWeekday(categories,samples);
+                AppendSlots(slots,reader,categoryCount:9,offset:1);
             }
         }
 
         return new LocationStatistics(locationId, locationSlots,
-            byEvse.Select(x => new EvseStatistics(x.Key,x.Value)).ToArray());
+            byEvse.Select(x => new EvseStatistics(x.Key,x.Value,
+                evseReliability[x.Key].Summary(168))).ToArray(),
+            locationReliability.Summary(byEvse.Count*168));
     }
 
     public async Task<DataStatus> GetDataStatus()

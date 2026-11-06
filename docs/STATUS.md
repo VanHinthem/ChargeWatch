@@ -36,6 +36,14 @@ Read-only meting op de werkelijke NAS API, zonder nieuwe deployment of configura
 | Android-cache en lazy statistieken | Details/tarieven gedeeld (2-minuten-TTL), historische statistieken op aanvraag (15-minuten-TTL) | [PR #123](https://github.com/VanHinthem/ChargeWatch/pull/123) gemerged en op Samsung geaccepteerd |
 | Native Android-widgets | Responsive layouts (kleine tegel, tussenmaat, 4×1 en grotere formaten), directe favoriet, batch/cache, offline laatst-bekend | [PR #112](https://github.com/VanHinthem/ChargeWatch/pull/112) gemerged, [issue #101](https://github.com/VanHinthem/ChargeWatch/issues/101) gesloten |
 
+## #103 — betrouwbaarheids-API (afgebakend implementatieblok)
+
+Historische EVSE-betrouwbaarheid wordt afgeleid uit bestaande negen-categorie-EWMA per Nederlands weekdag-/uurvak. De read-only statistiekrespons bevat per actieve EVSE en op locatieniveau een additieve `reliability`-samenvatting (operationeel, storing, onbekend, gedekte/mogelijke uurvakken). Bestaande `slots`-velden en experimentele betekenis blijven ongewijzigd. Geen DB-migratie, importerwijziging, NAS-deploy of Android-schermwijziging voor dit blok.
+
+Rekenregels, nuldata/UNKNOWN/PLANNED-gevallen en validatiegrenzen: [ISSUE_103_RELIABILITY_API_CONTRACT.md](ISSUE_103_RELIABILITY_API_CONTRACT.md). Het gecombineerde beschikbaarheidsgrafiek- en uitklapbare EVSE-ontwerp staat afzonderlijk in [ontwerp-PR #129](https://github.com/VanHinthem/ChargeWatch/pull/129), nog niet in deze API-wijziging.
+
+**Volgende prioriteit:** acceptatie van het API-contract en vervolgens afzonderlijke Android-implementatie van de gecombineerde grafiek en het EVSE-betrouwbaarheidspaneel. Het statistiekwerk #103 is daarmee nog niet volledig afgerond; #104 releasekwaliteit blijft daarna open. Een publieke API-uitrol en Samsung-acceptatie vereisen afzonderlijk akkoord.
+
 ## Nog open — uitvoeringswerk
 
 1. **[#103 — historische statistieken en 90-daagse uptime](https://github.com/VanHinthem/ChargeWatch/issues/103).** Publicatiegrenzen onderbouwen voor echte observatiedekking, null/experimentele data, betrouwbaarheid en bronversheid; vervolgens EVSE-uptime/locatiehistoriek correct in de app presenteren. Geen voorspelling of betrouwbaar percentage zonder bewijs.

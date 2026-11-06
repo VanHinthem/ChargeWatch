@@ -205,13 +205,15 @@ internal sealed partial class ApiDatabase
         }
 
         var byEvse = ids.ToDictionary(id=>id,_=>new Dictionary<long,List<AvailabilitySlot>>());
+        var evseReliability = ids.ToDictionary(id=>id,_=>new Dictionary<long,ReliabilityAccumulator>());
+        var locationReliability = ids.ToDictionary(id=>id,_=>new ReliabilityAccumulator());
         await using (var command = new NpgsqlCommand("""
-            SELECT e.location_id,p.evse_id,p.iso_weekday,p.category_ewma,p.sample_count,
+            SELECT e.location_id,e.id,p.iso_weekday,p.category_ewma,p.sample_count,
                    p.changed_feed_count,p.unchanged_feed_count,p.last_sample_at
-            FROM evse_snapshot_weekday_profile p
-            JOIN evse e ON e.id=p.evse_id AND e.is_active
-            WHERE e.location_id = ANY($1::bigint[])
-            ORDER BY e.location_id,p.evse_id,p.iso_weekday
+            FROM evse e
+            LEFT JOIN evse_snapshot_weekday_profile p ON p.evse_id=e.id
+            WHERE e.location_id = ANY($1::bigint[]) AND e.is_active
+            ORDER BY e.location_id,e.id,p.iso_weekday
             """, connection))
         {
             AddIds(command, ids);
@@ -221,12 +223,24 @@ internal sealed partial class ApiDatabase
                 var locationId = reader.GetInt64(0);
                 var evseId = reader.GetInt64(1);
                 var dict = byEvse[locationId];
-                if (!dict.TryGetValue(evseId,out var slots)) dict[evseId]=slots=[];
+                if (!dict.TryGetValue(evseId,out var slots))
+                {
+                    slots=[];
+                    dict[evseId]=slots;
+                    evseReliability[locationId][evseId]=new ReliabilityAccumulator();
+                }
+                if (reader.IsDBNull(2)) continue;
+                var categories=reader.GetFieldValue<float?[]>(3);
+                var samples=reader.GetFieldValue<int[]>(4);
+                evseReliability[locationId][evseId].AddWeekday(categories,samples);
+                locationReliability[locationId].AddWeekday(categories,samples);
                 AppendSlots(slots,reader,categoryCount:9,offset:2);
             }
         }
         return ids.ToDictionary(id=>id,id=>new LocationStatistics(
             id,locationSlots[id],
-            byEvse[id].Select(pair=>new EvseStatistics(pair.Key,pair.Value)).ToArray()));
+            byEvse[id].Select(pair=>new EvseStatistics(pair.Key,pair.Value,
+                evseReliability[id][pair.Key].Summary(168))).ToArray(),
+            locationReliability[id].Summary(byEvse[id].Count*168)));
     }
 }
