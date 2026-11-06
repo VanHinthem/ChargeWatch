@@ -45,6 +45,7 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 private val availabilityGreen = Color(0xFF209668)
+private val selectedGreen = Color(0xFF0F6649)
 private val averageFreeOrangeDark = Color(0xFFF29C38)
 private val averageFreeOrangeLight = Color(0xFFAA5300)
 private val faultRed = Color(0xFFD45A50)
@@ -102,7 +103,8 @@ internal fun HistoricalStatisticsPanel(
     val rightMax = ceil(maxOf(1.0, activeMax, freeMax)).toInt()
     // Keep the chosen hour when switching weekdays; start at the current Dutch hour.
     var selectedHour by remember(selectedId) { mutableStateOf(amsterdamNow.hour) }
-    val selectionColor = MaterialTheme.colorScheme.primary
+    val selectedHourBackground = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f)
+        Color(0xFFD9EAE1) else Color(0xFF294238)
     val gridColor = MaterialTheme.colorScheme.outlineVariant
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -117,7 +119,8 @@ internal fun HistoricalStatisticsPanel(
             Box(Modifier.fillMaxWidth().height(112.dp)) {
                 Canvas(Modifier.fillMaxSize()) {
                     val cellWidth = size.width / 24f
-                    drawRect(selectionColor.copy(alpha = 0.10f),
+                    // A soft cell background remains visible even when the hour has no bar.
+                    drawRect(selectedHourBackground,
                         topLeft=Offset(selectedHour*cellWidth,0f),
                         size=androidx.compose.ui.geometry.Size(cellWidth,size.height))
                     for (fraction in listOf(0f,0.5f,1f)) {
@@ -129,7 +132,7 @@ internal fun HistoricalStatisticsPanel(
                             if (share > 0.0) {
                                 val barHeight = (size.height * share).toFloat()
                                 drawRect(
-                                    color = availabilityGreen,
+                                    color = if (hour == selectedHour) selectedGreen else availabilityGreen,
                                     topLeft = Offset(hour*cellWidth+cellWidth*0.20f,size.height-barHeight),
                                     size = androidx.compose.ui.geometry.Size(cellWidth*0.60f,barHeight)
                                 )
@@ -154,11 +157,6 @@ internal fun HistoricalStatisticsPanel(
                             previous = current
                         }
                     }
-                    // Keep the selected hour recognizable even after touch feedback fades.
-                    val x0 = selectedHour*cellWidth
-                    val x1 = (selectedHour+1)*cellWidth
-                    drawLine(selectionColor,Offset(x0,0f),Offset(x0,size.height),1.5.dp.toPx())
-                    drawLine(selectionColor,Offset(x1,0f),Offset(x1,size.height),1.5.dp.toPx())
                 }
                 Row(Modifier.fillMaxSize()) {
                     (0..23).forEach { hour ->
@@ -267,9 +265,9 @@ private fun ReliabilitySummaryPanel(data: ReliabilityStats?) {
 @Composable
 private fun EvseReliabilityPanel(evse: EvseReliability,label:String,selectedId:String?) {
     var expanded by remember(selectedId,evse.evseId) { mutableStateOf(false) }
-    Column(verticalArrangement=Arrangement.spacedBy(4.dp),
-        modifier=Modifier.fillMaxWidth().padding(vertical=2.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min=42.dp).clickable { expanded=!expanded },
+    Column(verticalArrangement=Arrangement.spacedBy(2.dp),
+        modifier=Modifier.fillMaxWidth().padding(bottom=4.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable { expanded=!expanded },
             horizontalArrangement=Arrangement.SpaceBetween,
             verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -295,6 +293,5 @@ private fun EvseReliabilityPanel(evse: EvseReliability,label:String,selectedId:S
                     style=MaterialTheme.typography.bodySmall)
             }
         }
-        HorizontalDivider()
     }
 }
