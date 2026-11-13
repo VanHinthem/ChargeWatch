@@ -6,6 +6,17 @@ using Npgsql;
 
 internal static class BulkImporter
 {
+    // Distinguish a rejected source snapshot from retryable database/import failures.
+    internal const int RejectedSnapshotExitCode = 3;
+
+    internal static bool IsSuspiciousShrinkage(long current, long incoming, long minimum)
+        => current >= minimum && incoming < current * 0.90;
+
+    private sealed class SnapshotShrinkageException : IOException
+    {
+        public SnapshotShrinkageException(string message) : base(message) { }
+    }
+
     private static string Required(JsonElement e, string property)
         => e.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(v.GetString())
             ? v.GetString()! : throw new InvalidDataException($"Missing {property}");
@@ -191,8 +202,8 @@ internal static class BulkImporter
                 await using var countCmd = new NpgsqlCommand(
                     "SELECT count(*) FROM charging_location WHERE is_active", db, tx);
                 var activeBefore = (long)(await countCmd.ExecuteScalarAsync())!;
-                if (activeBefore >= minimum && locCount < activeBefore * 0.90)
-                    throw new InvalidDataException(
+                if (IsSuspiciousShrinkage(activeBefore, locCount, minimum))
+                    throw new SnapshotShrinkageException(
                         $"Suspicious Locations snapshot shrinkage: {locCount} versus {activeBefore} active. Reconciliation refused.");
             }
             // A partial EVSE feed can silently remove capacity even when location count is stable.
@@ -202,8 +213,8 @@ internal static class BulkImporter
                 await using var evseBaseline = new NpgsqlCommand(
                     "SELECT evse_count FROM ndw_snapshot_checkpoint WHERE source_name='ndw-locations'", db, tx);
                 var before = await evseBaseline.ExecuteScalarAsync();
-                if (before is long previousEvses && previousEvses >= 10000 && evseCount < previousEvses * 0.90)
-                    throw new InvalidDataException(
+                if (before is long previousEvses && IsSuspiciousShrinkage(previousEvses, evseCount, 10000))
+                    throw new SnapshotShrinkageException(
                         $"Suspicious EVSE snapshot shrinkage: {evseCount} versus {previousEvses}. Reconciliation refused.");
             }
             if (verifiedTariffsFetchedAtUtc is not null)
@@ -528,6 +539,12 @@ internal static class BulkImporter
             await tx.CommitAsync();
             Console.WriteLine($"Bulk committed: {locCount} locations, {evseCount} EVSEs, {connectorCount} connectors, {seenTariffs.Count} tariffs in {stopwatch.Elapsed}.");
             return 0;
+        }
+        catch (SnapshotShrinkageException e)
+        {
+            await tx.RollbackAsync();
+            Console.Error.WriteLine($"Bulk rollback: {e.Message}");
+            return RejectedSnapshotExitCode;
         }
         catch (Exception e)
         {

@@ -32,6 +32,11 @@ if (args.Length == 1 && args[0] == "--statistics-selftest")
     if (hourResult != 0)
         return hourResult;
     await SnapshotPendingDownloadJournal.SelfTest();
+    if (!BulkImporter.IsSuspiciousShrinkage(82870, 73965, 50000) ||
+        BulkImporter.IsSuspiciousShrinkage(82870, 82870, 50000) ||
+        BulkImporter.IsSuspiciousShrinkage(82870, 74583, 50000) ||
+        BulkImporter.IsSuspiciousShrinkage(82870, 73965, 100000))
+        throw new InvalidOperationException("National Locations shrinkage guard regression.");
     await WatchRunner.SelfTestHttp();
     return CompactSnapshotStatistics.SelfTest();
 }

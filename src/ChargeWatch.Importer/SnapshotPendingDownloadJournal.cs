@@ -88,6 +88,44 @@ internal static class SnapshotPendingDownloadJournal
         return (entry.ETag, entry.LastModified);
     }
 
+    // A logically rejected national snapshot must not permanently block fresh HTTP checks.
+    // Keep only the latest rejected body and its original observation metadata for diagnosis.
+    // Preserve the original pending journal until the bounded diagnostic copy is complete:
+    // crashes/IO failures still replay safely rather than silently dropping an observation.
+    public static async Task Reject(string targetPath)
+    {
+        var pending = await Load(targetPath)
+            ?? throw new InvalidOperationException("No pending Locations response to reject.");
+        var rejectedPath = targetPath + ".rejected-response.gz";
+        var rejectedJournal = targetPath + ".rejected-response.json";
+        var temporaryPath = rejectedPath + ".tmp";
+        var temporaryJournal = rejectedJournal + ".tmp";
+        try
+        {
+            File.Copy(pending.Path, temporaryPath, overwrite: true);
+            await using (var stream = File.OpenRead(temporaryPath))
+            {
+                var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream)).ToLowerInvariant();
+                var entry = JsonSerializer.Deserialize<Entry>(
+                    await File.ReadAllTextAsync(targetPath + ".pending-response.json"))
+                    ?? throw new InvalidDataException("Invalid pending Locations response journal.");
+                if (!hash.Equals(entry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Rejected response diagnostic copy differs from pending snapshot.");
+                await File.WriteAllTextAsync(temporaryJournal, JsonSerializer.Serialize(
+                    entry with { Filename = Path.GetFileName(rejectedPath) }));
+            }
+            File.Move(temporaryPath, rejectedPath, overwrite: true);
+            File.Move(temporaryJournal, rejectedJournal, overwrite: true);
+            Complete(targetPath);
+            File.Delete(pending.Path);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            if (File.Exists(temporaryJournal)) File.Delete(temporaryJournal);
+        }
+    }
+
     public static void Complete(string targetPath)
     {
         File.Delete(targetPath + ".pending-response.json");
@@ -129,6 +167,23 @@ internal static class SnapshotPendingDownloadJournal
             Complete(target);
             if (await Load(target) is not null)
                 throw new Exception("Completed response was replayed.");
+
+            // Rejected but readable snapshot is retained for diagnosis, not replayed.
+            var rejectedPending = target + ".pending-rejected";
+            await File.WriteAllTextAsync(rejectedPending, "shrunk national feed");
+            await Save(target, rejectedPending, when, "\"rejected-etag\"", null);
+            await Reject(target);
+            if (await Load(target) is not null || File.Exists(rejectedPending))
+                throw new Exception("Rejected snapshot blocks future downloads.");
+            if (await File.ReadAllTextAsync(target + ".rejected-response.gz") != "shrunk national feed")
+                throw new Exception("Rejected snapshot diagnostic was not retained.");
+            if (await File.ReadAllTextAsync(target) != "test pending body")
+                throw new Exception("Rejected snapshot replaced the committed cache.");
+            var freshPending = target + ".pending-fresh";
+            await File.WriteAllTextAsync(freshPending, "next valid national feed");
+            await Save(target, freshPending, when.AddMinutes(5), "\"fresh-etag\"", null);
+            if ((await Load(target))?.Path != freshPending)
+                throw new Exception("Next fresh snapshot was not accepted for processing.");
         }
         finally { Directory.Delete(directory, true); }
     }
