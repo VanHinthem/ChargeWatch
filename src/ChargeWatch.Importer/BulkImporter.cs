@@ -12,7 +12,7 @@ internal static class BulkImporter
     internal static bool IsSuspiciousShrinkage(long current, long incoming, long minimum)
         => current >= minimum && incoming < current * 0.90;
 
-    private sealed class SnapshotShrinkageException : InvalidDataException
+    private sealed class SnapshotShrinkageException : IOException
     {
         public SnapshotShrinkageException(string message) : base(message) { }
     }
