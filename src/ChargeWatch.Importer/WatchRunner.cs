@@ -240,6 +240,16 @@ internal static class WatchRunner
                 ],
                 locations?.Changed == true ? locations.FetchedAtUtc : null,
                 tariffs?.Changed == true ? tariffs.FetchedAtUtc : null);
+                if (result == BulkImporter.RejectedSnapshotExitCode && locations?.Changed == true &&
+                    Environment.GetEnvironmentVariable("CW_ENABLE_COMPACT_STATISTICS") == "1")
+                {
+                    // The current response failed the national count guard. Retain a bounded
+                    // diagnostic copy but release the journal, so the next cycle can make a
+                    // fresh conditional HTTP request. Never advance refresh timestamps here.
+                    await SnapshotPendingDownloadJournal.Reject(locationsPath);
+                    throw new InvalidDataException(
+                        "NDW Locations snapshot rejected by national shrinkage guard; preserved for diagnosis. A new fetch will be attempted on the next cycle.");
+                }
                 if (result != 0)
                     throw new InvalidOperationException($"Bulk importer returned exit code {result}.");
 
