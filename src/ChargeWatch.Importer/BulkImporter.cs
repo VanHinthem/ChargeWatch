@@ -12,7 +12,10 @@ internal static class BulkImporter
     internal static bool IsSuspiciousShrinkage(long current, long incoming, long minimum)
         => current >= minimum && incoming < current * 0.90;
 
-    private sealed class SnapshotShrinkageException(string message) : InvalidDataException(message);
+    private sealed class SnapshotShrinkageException : InvalidDataException
+    {
+        public SnapshotShrinkageException(string message) : base(message) { }
+    }
 
     private static string Required(JsonElement e, string property)
         => e.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(v.GetString())
