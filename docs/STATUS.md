@@ -4,6 +4,14 @@
 **Bron van waarheid voor de actuele werkvoorraad:** [GitHub Issues](https://github.com/VanHinthem/ChargeWatch/issues?q=is%3Aissue+is%3Aopen) en [GitHub Pull Requests](https://github.com/VanHinthem/ChargeWatch/pulls?q=is%3Apr+is%3Aopen).  
 **Historische werklogboeken:** [STATUS t/m 5 november](archive/STATUS_THROUGH_2026-11-05.md) en [oude roadmap](archive/ROADMAP_THROUGH_2026-11-05.md). De oude dagmeldingen en tussenstanden zijn **niet** de huidige openstaande taken.
 
+## Incident 13 november 2026 — NDW Locations refresh (fix in review)
+
+De NAS-collectorlog meldt herhaaldelijk een afgewezen Locations-snapshot van **73.965** tegenover **82.870** actieve locaties (−10,7%). De bestaande 10%-krimpguard houdt de catalogus transactioneel intact, maar het duurzame pending-200-journal speelde deze inhoudelijk afgewezen response bij iedere poll opnieuw af; Locations werd daardoor ruim zes dagen stale. De succesvolle Tariffs-import bewijst geen geslaagde Locations-refresh. De precieze oorzaak van de kleinere externe NDW-response is niet vastgesteld.
+
+**Gerichte fixbranch:** `fix/ndw-rejected-snapshot-recovery`. Voor uitsluitend de expliciete nationale Locations-/EVSE-shrinkageafwijzing rapporteert BulkImporter een apart resultaat; WatchRunner bewaart een SHA-gecontroleerde diagnostische kopie (vaste `.rejected-response.gz/.json`), ruimt daarna het pending-journal op en probeert in de volgende poll een nieuwe bronresponse. Gewone DB-/transactie-/netwerkfouten behouden hun journal voor veilige replay. Het bestaande minimum, de 90%-krimpgrens, transactionele rollback en de versheidssemantiek blijven gehandhaafd; bij afwijzing worden geen succesvolle refreshmomenten geregistreerd.
+
+**Controlegrens:** regressieasserties voor de guardgrens en het journalgedrag zijn in de bestaande `--statistics-selftest` toegevoegd, maar in deze omgeving niet uitgevoerd (geen .NET SDK). CI moet build/selftest aantonen. NAS-uitrol en echte verse NDW-response ontbreken; geen claim dat het bronprobleem is opgelost. Deze incidentfix moet vóór de v1-releasegates worden beoordeeld, zonder #134–#136 te sluiten. **Geen merge/deploy zonder afzonderlijk akkoord.**
+
 ## Huidige release- en deploymentgrens
 
 - **Laatste gemergde Android-statistieken:** [PR #131](https://github.com/VanHinthem/ChargeWatch/pull/131), squash commit `92efcd12c322d539f00f8d5faac4548e2fe7ddf1`, fysiek op Samsung geaccepteerd.
